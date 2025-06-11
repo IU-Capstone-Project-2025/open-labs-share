@@ -23,11 +23,14 @@ Open Labs Share is a collaborative learning platform that combines practical lab
 
 ## Getting Started
 
-*[Coming soon]*
+1. Clone our project: `git clone https://github.com/IU-Capstone-Project-2025/open-labs-share.git`
+2. Go into project folder on your system: `cd open-labs-share`
+3. Start our app (*hello-world* for now) using Docker Compose: `docker-compose up --build -d`
+4. After it, you can visit `http://localhost:8080/api/v1/hello`, there will be phrase - "Hello world! This is Capstone =)"
 
 ## Contributing
 
-Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests to us.
+Please read [Contributing Guidelines](CONTRIBUTING.md) for details on our code of conduct and the process for submitting commits and pull requests.
 
 ## License
 
