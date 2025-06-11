@@ -23,6 +23,12 @@ Open Labs Share is a collaborative learning platform that combines practical lab
 
 ## Getting Started
 
+### Prerequisites
+- [git](https://git-scm.com/)
+- [Docker](https://www.docker.com/)
+
+### Installation
+
 1. Clone our project: `git clone https://github.com/IU-Capstone-Project-2025/open-labs-share.git`
 2. Go into project folder on your system: `cd open-labs-share`
 3. Start our app (*hello-world* for now) using Docker Compose: `docker-compose up --build -d`
