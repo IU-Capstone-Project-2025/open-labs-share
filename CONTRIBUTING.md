@@ -8,7 +8,7 @@ This document provides guidelines and instructions for contributing to the proje
    - Style: start with lower case, connect with dashes (example: `kebab-case-example)
    - Main branch: `main`. Do not commit here, only PR's are accepted
    - Development branch: `dev`. Create your branches from here
-   - Feature branches: `(num-of-issue)-(short-description)` (example: `09-fix-allignment`) and must be created from branch `dev`
+   - Feature branches: `(num-of-issue)-(short-description)` (example: `09-fix-allignment`) and must be created from branch `dev` 
 
 2. **Commit Guidelines**
    - Use clear and descriptive commit messages
