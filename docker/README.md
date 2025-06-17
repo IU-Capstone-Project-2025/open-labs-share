@@ -13,8 +13,3 @@ This directory contains Dockerfiles for containerizing different components of t
 - **Base Image**: Java-based (Spring Boot application)
 - **Purpose**: Containerizes the backend hello-world service
 - **Port**: 8080
-
-## Development Notes
-- Frontend Dockerfile includes hot-reload support with `--host 0.0.0.0`
-- Both containers are optimized with multi-stage builds where applicable
-- Alpine-based images are used for smaller footprint
