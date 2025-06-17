@@ -15,8 +15,4 @@ assignees: ''
 
 **AC:**
 
-- [ ] 
-- [ ] 
-- [ ] 
-
-**Use this User Story:** As a ---, I want ---, so that I --- 
+**Use this User Story:** _As a ..., I want ..., so that I ..._
