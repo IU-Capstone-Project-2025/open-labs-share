@@ -24,6 +24,7 @@ Open Labs Share is a collaborative learning platform that combines practical lab
 ## Getting Started
 
 ### Prerequisites
+
 - [git](https://git-scm.com/)
 - [Docker](https://www.docker.com/)
 
@@ -32,7 +33,22 @@ Open Labs Share is a collaborative learning platform that combines practical lab
 1. Clone our project: `git clone https://github.com/IU-Capstone-Project-2025/open-labs-share.git`
 2. Go into project folder on your system: `cd open-labs-share`
 3. Start our app (*hello-world* for now) using Docker Compose: `docker-compose up --build -d`
-4. After it, you can visit `http://localhost:8080/api/v1/hello`, there will be phrase - "Hello world! This is Capstone =)"
+4. Check `http://localhost:5173/`, there will render by the frontend. Please, read [Frontend Docs](frontend/README.md) before.
+5. After it, you can visit `http://localhost:8080/api/v1/hello`, there will be phrase - "Hello world! This is Capstone =)"
+
+## Services Architecture
+
+The platform consists of multiple microservices, each handling specific functionality:
+
+| Service | URL | Description | Documentation |
+|---------|-----|-------------|---------------|
+| **Frontend** | <http://localhost:5173/> | React + Vite frontend application | [Frontend Docs](frontend/README.md) |
+| **API Gateway** | - | Central routing and authentication gateway | [API Gateway Docs](services/api-gateway/README_API_GATEWAY.md) |
+| **Auth Service** | - | User authentication and JWT token management | [Auth Service](services/auth-service/AUTH_README.md) · [API Docs](services/auth-service/AUTH_API_DOCUMENTATION.md) |
+| **Labs Service** | - | Laboratory assignments and submissions management | [Labs Service Docs](services/labs-service/LABS_README.md) |
+| **Articles Service** | - | Scientific articles repository and management | [Articles Service Docs](services/articles-service/ARTICLES_README.md) |
+| **Feedback Service** | - | Lab feedback and comments system | [Feedback Service Docs](services/feedback-service/FEEDBACK_README.md) |
+| **Hello World App** | <http://localhost:8080/api/v1/hello> | Simple demo service for testing | - |
 
 ## Contributing
 
