@@ -4,7 +4,6 @@ build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
-**/bruno/
 
 ### STS ###
 .apt_generated
@@ -19,7 +18,7 @@ bin/
 !**/src/test/**/bin/
 
 ### IntelliJ IDEA ###
-**/.idea/
+.idea
 *.iws
 *.iml
 *.ipr
@@ -36,4 +35,8 @@ out/
 
 ### VS Code ###
 .vscode/
-/.idea/
+
+### Environment Files ###
+.env
+.env.*
+!.env.template
