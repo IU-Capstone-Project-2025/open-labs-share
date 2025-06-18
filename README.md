@@ -41,7 +41,6 @@ Table with all the services after successful Docker run:
 | Frontend | http://localhost:5173/ | Frontend (React + Vite) |
 | Backend API | http://localhost:8080/api/v1/ | Backend (Spring Boot) |
 
-
 ## Contributing
 
 Please read [Contributing Guidelines](CONTRIBUTING.md) for details on our code of conduct and the process for submitting commits and pull requests.
