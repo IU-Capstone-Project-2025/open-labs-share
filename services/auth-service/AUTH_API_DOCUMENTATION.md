@@ -14,6 +14,8 @@
 
 ```json
 {
+  "firstName": "John",
+  "lastName": "Doe",
   "username": "johndoe",
   "email": "johndoe@example.com",
   "password": "securePassword123"
@@ -51,7 +53,7 @@
 
 ```json
 {
-  "username": "johndoe",
+  "usernameOrEmail": "johndoe",
   "password": "securePassword123"
 }
 ```
