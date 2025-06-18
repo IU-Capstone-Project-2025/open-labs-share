@@ -25,6 +25,8 @@ The frontend is part of the Open Labs Share project.
 
 ### Username and password to sign in to the account
 
+Go to `http://localhost:5173/signin` and use data below to access current state of frontend
+
 - Username: user01
 - Password: 12345678
 
