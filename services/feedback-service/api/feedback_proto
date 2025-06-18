@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package feedback;
+
+service FeedbackService {
+  rpc CreateFeedback(CreateFeedbackRequest) returns (FeedbackFile);
+  rpc GetFeedback(GetFeedbackRequest) returns (FeedbackFile);
+  rpc UpdateFeedback(UpdateFeedbackRequest) returns (FeedbackFile);
+  rpc DeleteFeedback(DeleteFeedbackRequest) returns (DeleteFeedbackResponse);
+  rpc ListUserFeedbacks(ListUserFeedbacksRequest) returns (ListUserFeedbacksResponse);
+
+  rpc UploadAsset(stream UploadAssetRequest) returns (UploadAssetResponse);
+  rpc DownloadAsset(DownloadAssetRequest) returns (stream DownloadAssetResponse);
+  rpc ListAssets(ListAssetsRequest) returns (ListAssetsResponse);
+}
+
+message FeedbackFile {
+  string id = 1;
+  int64 user_id = 2;
+  int64 lab_id = 3;
+  string title = 4;
+  string content = 5;
+  int64 created_at = 6;
+  int64 updated_at = 7;
+}
+
+message AssetInfo {
+  string filename = 1;
+  int64 size = 2;
+  string content_type = 3;
+  int64 uploaded_at = 4;
+}
+
+message CreateFeedbackRequest {
+  int64 user_id = 1;
+  int64 lab_id = 2;
+  string title = 3;
+  string content = 4;
+}
+
+message GetFeedbackRequest {
+  string id = 1;
+}
+
+message UpdateFeedbackRequest {
+  string id = 1;
+  string title = 2;
+  string content = 3;
+}
+
+message DeleteFeedbackRequest {
+  string id = 1;
+}
+
+message DeleteFeedbackResponse {
+  bool success = 1;
+}
+
+message ListUserFeedbacksRequest {
+  int64 user_id = 1;
+  int64 lab_id = 2;
+  int32 page = 3;
+  int32 limit = 4;
+}
+
+message ListUserFeedbacksResponse {
+  repeated FeedbackFile feedbacks = 1;
+  int32 total_count = 2;
+}
+
+message UploadAssetRequest {
+  oneof data {
+    AssetMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message AssetMetadata {
+  string feedback_id = 1;
+  string filename = 2;
+  string content_type = 3;
+  int64 total_size = 4;
+}
+
+message UploadAssetResponse {
+  string filename = 1;
+  int64 size = 2;
+  bool success = 3;
+}
+
+message DownloadAssetRequest {
+  string feedback_id = 1;
+  string filename = 2;
+}
+
+message DownloadAssetResponse {
+  oneof data {
+    AssetInfo info = 1;
+    bytes chunk = 2;
+  }
+}
+
+message ListAssetsRequest {
+  string feedback_id = 1;
+}
+
+message ListAssetsResponse {
+  repeated AssetInfo assets = 1;
+}
