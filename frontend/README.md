@@ -23,6 +23,11 @@ The frontend is part of the Open Labs Share project.
 
    The project will be available at `http://localhost:5173`
 
+### Username and password to sign in to the account
+
+- Username: user01
+- Password: 12345678
+
 ## Configuration files
 
 - `vite.config.js` - Vite Importer Settings
