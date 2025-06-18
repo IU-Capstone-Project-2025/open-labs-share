@@ -17,9 +17,13 @@ This document provides guidelines and instructions for contributing to the proje
 
 3. **Pull Request Process**
    - Create PRs against the `dev` branch
+   - PR name is the same as the issue from which working branch was created
+   - PR description is AC from the issue
    - Ensure all tests pass
    - Update documentation as needed
    - Get at least two reviews before merging
+   - Use merge and rebase (preferable) or default merge
+   - If working branch is made from numbered issue, then delete the branch after merging into `dev`
 
 ## Code Style
 
@@ -30,7 +34,7 @@ This document provides guidelines and instructions for contributing to the proje
 
 ## Documentation
 
-- Update README.md in worknig folder (not in the core folder) when adding new features
+- Update README.md in working folder (not in the core folder) when adding new features
 - Keep documentation up to date with code changes
 
 

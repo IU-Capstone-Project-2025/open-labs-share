@@ -32,7 +32,14 @@ Open Labs Share is a collaborative learning platform that combines practical lab
 1. Clone our project: `git clone https://github.com/IU-Capstone-Project-2025/open-labs-share.git`
 2. Go into project folder on your system: `cd open-labs-share`
 3. Start our app (*hello-world* for now) using Docker Compose: `docker-compose up --build -d`
-4. After it, you can visit `http://localhost:8080/api/v1/hello`, there will be phrase - "Hello world! This is Capstone =)"
+4. Check `http://localhost:5173/`, there will be `Hello World` text rendered by the frontend.
+5. After it, you can visit `http://localhost:8080/api/v1/hello`, there will be phrase - "Hello world! This is Capstone =)"
+
+Table with all the services after successful Docker run:
+| Service | URL | Description |
+|---------|-----|-------------|
+| Frontend | http://localhost:5173/ | Frontend (React + Vite) |
+| Backend API | http://localhost:8080/api/v1/ | Backend (Spring Boot) |
 
 ## Contributing
 
