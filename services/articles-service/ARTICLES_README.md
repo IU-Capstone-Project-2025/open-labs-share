@@ -161,7 +161,7 @@ pdf_file: file (required) - PDF document file
 2. **API Gateway:**
 - A single entry point for all requests
 
-3. **S3 Storage:**
+3. **MinIO Storage:**
 - Storing PDF and other article files
 # User Stories
 
@@ -181,7 +181,7 @@ pdf_file: file (required) - PDF document file
 	- **Internal Communications:** gRPC
 - **Database:** PostgreSQL
 - **Deployment:** Docker
-- **File Storage:** S3
+- **File Storage:** MinIO
 ```
 Bucket:
 articles
