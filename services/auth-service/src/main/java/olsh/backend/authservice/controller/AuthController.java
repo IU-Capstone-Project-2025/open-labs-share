@@ -22,7 +22,7 @@ import olsh.backend.authservice.dto.RefreshTokenRequest;
 import olsh.backend.authservice.dto.SignInRequest;
 import olsh.backend.authservice.dto.SignUpRequest;
 import olsh.backend.authservice.dto.TokenValidationResponse;
-import olsh.backend.authservice.dto.UserProfileResponse;
+import olsh.backend.authservice.dto.UserProfileResponseWithUserInfo;
 import olsh.backend.authservice.dto.ValidateTokenRequest;
 import olsh.backend.authservice.service.AuthenticationService;
 import org.springframework.http.HttpStatus;
@@ -215,14 +215,15 @@ public class AuthController {
     )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Profile retrieved successfully",
-            content = @Content(schema = @Schema(implementation = UserProfileResponse.class))),
+            content = @Content(schema = @Schema(implementation = UserProfileResponseWithUserInfo.class))),
         @ApiResponse(responseCode = "401", description = "Unauthorized")
     })
     @GetMapping("/profile")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<UserProfileResponse> getProfile(Principal principal) {
+    public ResponseEntity<UserProfileResponseWithUserInfo> getProfile(Principal principal) {
         log.debug("Profile request for user: {}", principal.getName());
-        UserProfileResponse profile = authenticationService.getUserProfile(principal.getName());
+        UserProfileResponseWithUserInfo profile =
+            authenticationService.getUserProfileWithUserInfo(principal.getName());
         return ResponseEntity.ok(profile);
     }
 

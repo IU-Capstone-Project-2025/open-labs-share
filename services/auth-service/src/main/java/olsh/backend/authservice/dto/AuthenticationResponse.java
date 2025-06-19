@@ -18,25 +18,15 @@ public class AuthenticationResponse {
     private String accessToken;
 
     @Schema(description = "Refresh token", example = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTYyMjUwNj...")
-    private String refreshToken;    @Schema(description = "Token type", example = "Bearer")
+    private String refreshToken;
+
     @Builder.Default
+    @Schema(description = "Token type", example = "Bearer")
     private String tokenType = "Bearer";
 
     @Schema(description = "Access token expiration time")
     private LocalDateTime expiresAt;
 
-    @Schema(description = "User ID", example = "123")
-    private Long userId;
-
-    @Schema(description = "Username", example = "johndoe")
-    private String username;
-
-    @Schema(description = "First name", example = "John")
-    private String firstName;
-
-    @Schema(description = "Last name", example = "Doe")
-    private String lastName;
-
-    @Schema(description = "User role", example = "USER")
-    private String role;
+    @Schema(description = "User information")
+    private UserInfo userInfo;
 }
