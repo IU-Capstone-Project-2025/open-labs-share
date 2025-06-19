@@ -14,6 +14,16 @@ public class SignUpRequest {
     @NotBlank(message = "Username must not be blank")
     private String username;
 
+    @Schema(description = "First name", example = "John")
+    @Size(min = 2, max = 50, message = "First name must contain from 2 to 50 characters")
+    @NotBlank(message = "First name must not be blank")
+    private String firstName;
+
+    @Schema(description = "Last name", example = "Doe")
+    @Size(min = 2, max = 50, message = "Last name must contain from 2 to 50 characters")
+    @NotBlank(message = "Last name must not be blank")
+    private String lastName;
+
     @Schema(description = "Email address", example = "johndoe@mail.com")
     @Size(min = 5, max = 255, message = "Email must contain from 5 to 255 characters")
     @NotBlank(message = "Email must not be blank")

@@ -18,6 +18,12 @@ public class UserProfileResponse {
     @Schema(description = "Username", example = "johndoe")
     private String username;
 
+    @Schema(description = "First name", example = "John")
+    private String firstName;
+
+    @Schema(description = "Last name", example = "Doe")
+    private String lastName;
+
     @Schema(description = "Email address", example = "johndoe@mail.com")
     private String email;
 

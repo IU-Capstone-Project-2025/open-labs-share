@@ -76,7 +76,7 @@ public class AuthController {
     public ResponseEntity<AuthenticationResponse> login(
         @RequestBody @Valid SignInRequest request,
         HttpServletRequest httpRequest) {
-        log.info("Login attempt for username: {}", request.getUsername());
+        log.info("Login attempt for username/email: {}", request.getUsernameOrEmail());
         AuthenticationResponse response = authenticationService.signIn(request);
         return ResponseEntity.ok(response);
     }
@@ -137,7 +137,9 @@ public class AuthController {
                 .message("Successfully logged out")
                 .build()
         );
-    }    @Operation(
+    }
+
+    @Operation(
         summary = "Request password reset ⚠️ NOT YET IMPLEMENTED",
         description = "Sends password reset instructions to user's email (functionality not yet implemented)"
     )
@@ -157,7 +159,9 @@ public class AuthController {
                 .message("Password reset instructions sent to your email")
                 .build()
         );
-    }    @Operation(
+    }
+
+    @Operation(
         summary = "Reset password ⚠️ NOT YET IMPLEMENTED",
         description = "Resets user password using reset token (functionality not yet implemented)"
     )
@@ -243,7 +247,9 @@ public class AuthController {
                 ))
                 .build()
         );
-    }    @Operation(
+    }
+
+    @Operation(
         summary = "Verify email address ⚠️ NOT YET IMPLEMENTED",
         description = "Verifies user's email address using verification token (functionality not yet implemented)"
     )

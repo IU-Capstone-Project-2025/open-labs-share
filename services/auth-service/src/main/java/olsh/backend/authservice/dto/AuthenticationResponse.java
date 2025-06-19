@@ -1,12 +1,12 @@
 package olsh.backend.authservice.dto;
 
+import java.time.LocalDateTime;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -30,6 +30,12 @@ public class AuthenticationResponse {
 
     @Schema(description = "Username", example = "johndoe")
     private String username;
+
+    @Schema(description = "First name", example = "John")
+    private String firstName;
+
+    @Schema(description = "Last name", example = "Doe")
+    private String lastName;
 
     @Schema(description = "User role", example = "USER")
     private String role;

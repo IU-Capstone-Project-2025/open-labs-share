@@ -52,6 +52,8 @@ public class AuthenticationService {
         User user = User.builder()
             .username(request.getUsername())
             .email(request.getEmail())
+            .firstName(request.getFirstName())
+            .lastName(request.getLastName())
             .password(passwordEncoder.encode(request.getPassword()))
             .role(Role.ROLE_USER)
             .build();
@@ -66,16 +68,22 @@ public class AuthenticationService {
     }
 
     public AuthenticationResponse signIn(SignInRequest request) {
-        User user = userRepository.findByUsername(request.getUsername())
-            .orElseThrow(() -> new UsernameNotFoundException("Invalid credentials"));
+        final User user;
+        if (request.getUsernameOrEmail().contains("@")) {
+            user = userRepository.findByEmail(request.getUsernameOrEmail())
+                .orElseThrow(() -> new UsernameNotFoundException("Invalid credentials"));
+        } else {
+            user = userRepository.findByUsername(request.getUsernameOrEmail())
+                .orElseThrow(() -> new UsernameNotFoundException("Invalid credentials"));
+        }
 
         try {
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
-                request.getUsername(),
+                user.getUsername(),
                 request.getPassword()
             ));
         } catch (BadCredentialsException e) {
-            log.warn("Failed login attempt for user: {}", request.getUsername());
+            log.warn("Failed login attempt for user: {}", request.getUsernameOrEmail());
             throw new AuthenticationException("Invalid credentials");
         }
 
@@ -129,6 +137,8 @@ public class AuthenticationService {
                     .valid(true)
                     .userId(user.getId())
                     .username(user.getUsername())
+                    .firstName(user.getFirstName())
+                    .lastName(user.getLastName())
                     .role(user.getRole().name())
                     .expirationTime(expiration.getTime())
                     .build();
@@ -172,7 +182,7 @@ public class AuthenticationService {
     public void confirmPasswordReset(PasswordResetConfirmRequest request) {
         log.info("Password reset confirmed with token: {}", request.getToken());
         // TODO: Implement in future.
-        log.warn("Password reset functionality not yet implemented!");
+        log.warn("Confirm password reset functionality not yet implemented!");
     }
 
     public void changePassword(ChangePasswordRequest request, String username) {
@@ -196,6 +206,8 @@ public class AuthenticationService {
         return UserProfileResponse.builder()
             .id(user.getId())
             .username(user.getUsername())
+            .firstName(user.getFirstName())
+            .lastName(user.getLastName())
             .email(user.getEmail())
             .role(user.getRole().name())
             .createdAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : null)
@@ -209,7 +221,7 @@ public class AuthenticationService {
         // TODO: Implement email verification logic.
         log.warn("Email verification functionality not yet implemented");
     }
-    
+
     private AuthenticationResponse buildAuthenticationResponse(User user,
                                                                String accessToken,
                                                                String refreshToken) {
@@ -220,6 +232,8 @@ public class AuthenticationService {
             .expiresAt(LocalDateTime.now().plusHours(24)) // 24-hour expiration
             .userId(user.getId())
             .username(user.getUsername())
+            .firstName(user.getFirstName())
+            .lastName(user.getLastName())
             .role(user.getRole().name())
             .build();
     }
