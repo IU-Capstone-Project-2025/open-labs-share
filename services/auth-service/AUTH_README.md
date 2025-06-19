@@ -69,8 +69,8 @@ PostgreSQL database (`auth_service`) is used to store user information and authe
 ## 5. Data Required from Other Services (see AUTH_API_DOCUMENTATION.md for detailed description of endpoints):
 
 - Frontend:
-    - User credentials (username, password) for login (`/login`)
-    - User profile data (username, email, password) for registration (`/register`)
+    - User credentials (`usernameOrEmail`, `password`) for login (`/login`)
+    - User profile data (`firstName`, `lastName`, `username`, `email`, `password`) for registration (`/register`)
 
 ## 6. Environment Configuration
 

@@ -20,6 +20,12 @@ public class TokenValidationResponse {
 
     @Schema(description = "Username extracted from token", example = "johndoe")
     private String username;
+    
+    @Schema(description = "First name extracted from token", example = "John")
+    private String firstName;
+    
+    @Schema(description = "Last name extracted from token", example = "Doe")
+    private String lastName;
 
     @Schema(description = "User role extracted from token", example = "USER")
     private String role;
