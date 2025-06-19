@@ -30,11 +30,13 @@
   "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "tokenType": "Bearer",
   "expiresAt": "2025-06-17T10:30:00",
-  "userId": 123,
-  "username": "johndoe",
-  "firstName": "John",
-  "lastName": "Doe",
-  "role": "ROLE_USER"
+  "userInfo": {
+    "userId": 123,
+    "username": "johndoe",
+    "firstName": "John",
+    "lastName": "Doe",
+    "role": "ROLE_USER"
+  }
 }
 ```
 
@@ -138,11 +140,13 @@
 ```json
 {
   "valid": true,
-  "userId": 123,
-  "username": "johndoe",
-  "firstName": "John",
-  "lastName": "Doe",
-  "role": "ROLE_USER",
+  "userInfo": {
+    "userId": 123,
+    "username": "johndoe",
+    "firstName": "John",
+    "lastName": "Doe",
+    "role": "ROLE_USER"
+  },
   "expirationTime": 1622506800,
   "errorMessage": null
 }
@@ -153,11 +157,7 @@
 ```json
 {
   "valid": false,
-  "userId": null,
-  "username": null,
-  "firstName": null,
-  "lastName": null,
-  "role": null,
+  "userInfo": null,
   "expirationTime": null,
   "errorMessage": "Token has expired"
 }
@@ -308,12 +308,14 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ```json
 {
-  "id": 123,
-  "username": "johndoe",
-  "firstName": "John",
-  "lastName": "Doe",
+  "userInfo": {
+    "userId": 123,
+    "username": "johndoe",
+    "firstName": "John",
+    "lastName": "Doe",
+    "role": "USER"
+  },
   "email": "johndoe@example.com",
-  "role": "USER",
   "createdAt": "2023-01-15T10:30:00",
   "lastLoginAt": "2023-01-20T14:45:00",
   "status": "ACTIVE"

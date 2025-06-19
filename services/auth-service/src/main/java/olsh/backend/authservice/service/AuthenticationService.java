@@ -14,7 +14,8 @@ import olsh.backend.authservice.dto.RefreshTokenRequest;
 import olsh.backend.authservice.dto.SignInRequest;
 import olsh.backend.authservice.dto.SignUpRequest;
 import olsh.backend.authservice.dto.TokenValidationResponse;
-import olsh.backend.authservice.dto.UserProfileResponse;
+import olsh.backend.authservice.dto.UserInfo;
+import olsh.backend.authservice.dto.UserProfileResponseWithUserInfo;
 import olsh.backend.authservice.dto.ValidateTokenRequest;
 import olsh.backend.authservice.entity.Role;
 import olsh.backend.authservice.entity.User;
@@ -132,14 +133,17 @@ public class AuthenticationService {
             if (jwtService.isTokenValidAndNotBlacklisted(request.getToken(), userDetails)) {
                 User user = (User) userDetails;
                 Date expiration = jwtService.extractExpiration(request.getToken());
-
-                return TokenValidationResponse.builder()
-                    .valid(true)
+                UserInfo userInfo = UserInfo.builder()
                     .userId(user.getId())
                     .username(user.getUsername())
                     .firstName(user.getFirstName())
                     .lastName(user.getLastName())
                     .role(user.getRole().name())
+                    .build();
+
+                return TokenValidationResponse.builder()
+                    .valid(true)
+                    .userInfo(userInfo)
                     .expirationTime(expiration.getTime())
                     .build();
             } else {
@@ -199,17 +203,21 @@ public class AuthenticationService {
         log.info("Password changed successfully for user: {}", username);
     }
 
-    public UserProfileResponse getUserProfile(String username) {
+    public UserProfileResponseWithUserInfo getUserProfileWithUserInfo(String username) {
         User user = userRepository.findByUsername(username)
             .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        return UserProfileResponse.builder()
-            .id(user.getId())
+        UserInfo userInfo = UserInfo.builder()
+            .userId(user.getId())
             .username(user.getUsername())
             .firstName(user.getFirstName())
             .lastName(user.getLastName())
-            .email(user.getEmail())
             .role(user.getRole().name())
+            .build();
+
+        return UserProfileResponseWithUserInfo.builder()
+            .userInfo(userInfo)
+            .email(user.getEmail())
             .createdAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : null)
             .lastLoginAt(user.getLastLoginAt() != null ? user.getLastLoginAt().toString() : null)
             .status("ACTIVE")
@@ -225,16 +233,20 @@ public class AuthenticationService {
     private AuthenticationResponse buildAuthenticationResponse(User user,
                                                                String accessToken,
                                                                String refreshToken) {
-        return AuthenticationResponse.builder()
-            .accessToken(accessToken)
-            .refreshToken(refreshToken)
-            .tokenType("Bearer")
-            .expiresAt(LocalDateTime.now().plusHours(24)) // 24-hour expiration
+        UserInfo userInfo = UserInfo.builder()
             .userId(user.getId())
             .username(user.getUsername())
             .firstName(user.getFirstName())
             .lastName(user.getLastName())
             .role(user.getRole().name())
+            .build();
+
+        return AuthenticationResponse.builder()
+            .accessToken(accessToken)
+            .refreshToken(refreshToken)
+            .tokenType("Bearer")
+            .expiresAt(LocalDateTime.now().plusHours(24)) // 24-hour expiration
+            .userInfo(userInfo)
             .build();
     }
 }
