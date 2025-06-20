@@ -1,12 +1,12 @@
 # Agenda
 
-- [Purpose](#Purpose)
-- [Functionality](#Functionality)
-- [Entities](#Entities)
-- [Business Logic](#Business%20Logic)
-- [Integrations](#Integrations)
-- [User Stories](#User%20Stories)
-- [Technical Details](#Technical%20Details)
+- [Purpose](#purpose)
+- [Functionality](#functionality)
+- [Entities](#entities)
+- [Business Logic](#business-logic)
+- [Integrations](#integrations)
+- [User Stories](#user-stories)
+- [Technical Details](#technical-details)
 
 # Purpose  
 
@@ -72,6 +72,7 @@ The service works with the following entities:
 | --------------- | ----------- |
 | lab_id (PK)     | UUID / long |
 | article_id (PK) | UUID / long |
+
 4. Lab Tags:
 
 | Field       | Type        |
