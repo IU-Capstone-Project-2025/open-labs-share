@@ -35,7 +35,7 @@ logging:
     olsh.backend: ${LOG_LEVEL_APP:DEBUG}
     org.springframework.grpc: ${LOG_LEVEL_GRPC:INFO}
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%-5level] %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
 management:
