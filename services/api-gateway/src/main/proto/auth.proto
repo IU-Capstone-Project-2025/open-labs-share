@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package auth;
+
+option java_multiple_files = true;
+option java_package = "olsh.backend.api_gateway.grpc.proto";
+option java_outer_classname = "AuthProto";
+
+service AuthService {
+    rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+}
+
+message ValidateTokenRequest {
+    string token = 1;
+}
+
+message ValidateTokenResponse {
+    bool valid = 1;
+    UserInfo userInfo = 2;
+    int64 expirationTime = 3;
+    string errorMessage = 4;
+}
+
+message UserInfo {
+    int64 userId = 1;
+    string username = 2;
+    string firstName = 3;
+    string lastName = 4;
+    string role = 5;
+}

@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # Your API Gateway Service
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${CONTAINER_NAME:-api-gateway}
+    environment:
+      SPRING_APP_NAME: ${SPRING_APP_NAME}
+      SPRING_APP_PORT: ${SPRING_APP_PORT}
+      AUTH_SERVICE_HOST: ${AUTH_SERVICE_HOST}
+      AUTH_SERVICE_PORT: ${AUTH_SERVICE_PORT}
+      USER_SERVICE_HOST: ${USER_SERVICE_HOST}
+      USER_SERVICE_PORT: ${USER_SERVICE_PORT}
+      GRPC_KEEP_ALIVE_TIME: ${GRPC_KEEP_ALIVE_TIME}
+      GRPC_KEEP_ALIVE_TIMEOUT: ${GRPC_KEEP_ALIVE_TIMEOUT}
+      GRPC_MAX_MESSAGE_SIZE: ${GRPC_MAX_MESSAGE_SIZE}
+      GRPC_NEGOTIATION_TYPE: ${GRPC_NEGOTIATION_TYPE}
+      LOG_LEVEL_ROOT: ${LOG_LEVEL_ROOT}
+      LOG_LEVEL_APP: ${LOG_LEVEL_APP}
+      LOG_LEVEL_GRPC: ${LOG_LEVEL_GRPC}
+      PROFILE: ${PROFILE}
+    ports:
+      - "${SPRING_APP_PORT:-8080}:8080"
+    networks:
+      - grpc-network
+#    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  grpc-network:
+    external: true
