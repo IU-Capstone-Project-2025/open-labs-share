@@ -1,12 +1,12 @@
 # Agenda
 
-- [Purpose](#Purpose)
-- [Functionality](#Functionality)
-- [Entities](#Entities)
-- [API](#API)
-- [Integrations](#Integrations)
-- [User Stories](#User%20Stories)
-- [Technical Details](#Technical%20Details)
+- [Purpose](#purpose)
+- [Functionality](#functionality)
+- [Entities](#entities)
+- [gRPC Contract](#grpc-contract)
+- [Integrations](#integrations)
+- [User Stories](#user-stories)
+- [Technical Details](#technical-details)
 
 # Purpose
 
@@ -45,6 +45,7 @@ Article Service is the central repository of all scientific articles on the Open
 | status (draft/published/archived) | string         |
 | stars                             | integer / long |
 | people_rated                      | integer / long |
+
 2. Article tags:
 
 | Field           | Type        |
@@ -53,104 +54,21 @@ Article Service is the central repository of all scientific articles on the Open
 | tag (PK)        | string      |
 
 
-# API
+# gRPC Contract
 
-Done, according with [Articles Service API Docs](https://github.com/LuminiteTime/Open-Labs-Share-Docs/blob/main/Backend/API%20Endpoints.md#articles-service)
+## Articles Management
 
-| Endpoint                                               | Type | Description                           |
-| ------------------------------------------------------ | ---- | ------------------------------------- |
-| [`POST /articles`](#create-article)                    | POST | Creation of new article in PDF format |
-| [`GET /articles/get`](#get-articles-list)              | GET  | Get list of articles                  |
-| [`GET /articles/get/{article_id}`](#get-article-by-id) | GET  | Get specified article by ID           |
+- `CreateArticle`: Creates a new article entry
+- `GetArticle`: Retrieves complete article information by UUID
+- `UpdateArticle`: Modifies existing article properties and content
+- `DeleteArticle`: Permanently removes an article and its assets from the system
 
-### Create-Article
+## Assets Management
 
-**Create new article**
-- **Endpoint:** `POST /articles/new`
-- **Authentication:** Required
-- **Content-Type:** `multipart/form-data`
-- **Description:** Creation of new article in PDF format
-
-**Request Body (From Data):**
-```json
-title: string (required) - Article title
-short_desc: string (required) - Article description
-pdf_file: file (required) - PDF document file
-```
-
-**Response:**
-- **Status:** `201 Created`
-- **Body:**
-```json
-{
-	"id": number,
-	"message": "Article created successfully"
-}
-```
-
-
-### Get-Articles-List
-
-**Retrieve articles**
-- **Endpoint:** `GET /articles/get`
-- **Authentication:** Required
-- **Description:** Get list of articles
-
-**Query Parameters:**
-- `page` (integer, optional) - Page number (default: 1)
-- `limit` (integer, optional) - Items per page (default: 20, max: 100)
-
-**Response:**
-- **Status:** `200 OK`
-- **Body:**
-```json
-{
-  "articles": [
-    {
-      "id": number,
-      "title": "string",
-      "short_desc": "string",
-      "created_at": "string (ISO 8601)",
-      "views": number,
-      "author_id": number,
-      "author_name": "string",
-      "author_surname": "string"
-    }
-  ],
-  "pagination": {
-    "current_page": "integer",
-    "total_pages": "integer",
-    "total_items": "integer"
-  }
-}
-```
-
-
-### Get-Article-by-ID
-
-**Retrieve articles**
-- **Endpoint:** `GET /articles/get/{article_id}`
-- **Authentication:** Required
-- **Description:** Get specified article by ID
-
-**Response:**
-- **Status:** `200 OK`
-- **Body:**
-```json
-{
-	"id": number,
-	"title": "string",
-	"short_desc": "string",
-	"created_at": "string (ISO 8601)",
-	"views": number,
-	"author_id": number,
-	"author_name": "string",
-	"author_surname": "string"
-}
-```
-
-**Error Responses:**
-- `404 Not Found` - Article not found
+- `UploadAsset` **(Streaming)**: Uploads article attachments via chunked streaming
+- `DownloadAsset` **(Streaming)**: Downloads stored article files in streaming chunks
+- `DeleteAsset`: Removes a specific file attachment from storage
+- `ListAssets`: Returns all files associated with a particular article
 
 # Integrations
 
