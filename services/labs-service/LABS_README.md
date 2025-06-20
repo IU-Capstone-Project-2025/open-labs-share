@@ -3,7 +3,7 @@
 - [Purpose](#purpose)
 - [Functionality](#functionality)
 - [Entities](#entities)
-- [Business Logic](#business-logic)
+- [gRPC Contract](#grpc-contract)
 - [Integrations](#integrations)
 - [User Stories](#user-stories)
 - [Technical Details](#technical-details)
@@ -81,28 +81,28 @@ The service works with the following entities:
 | tag (PK)    | string      |
 
 
-# Business Logic
+# gRPC Contract
 
 ## Labs Management
 
-- CreateLab: Creates a new lab entry
-- GetLab: Retrieves complete lab information by UUID
-- UpdateLab: Modifies existing lab properties and content
-- DeleteLab: Permanently removes a lab and its assets from the system
+- `CreateLab`: Creates a new lab entry
+- `GetLab`: Retrieves complete lab information by UUID
+- `UpdateLab`: Modifies existing lab properties and content
+- `DeleteLab`: Permanently removes a lab and its assets from the system
 
 ## Solutions Management
 
-- CreateSolution: Creates a new solution submission for a lab
-- GetSolution: Retrieves solution details and metadata
-- UpdateSolution: Modifies existing solution properties
-- DeleteSolution: Permanently removes a solution submission
+- `CreateSolution`: Creates a new solution submission for a lab
+- `GetSolution`: Retrieves solution details and metadata
+- `UpdateSolution`: Modifies existing solution properties
+- `DeleteSolution`: Permanently removes a solution submission
 
 ## Asset Management
 
-- UploadAsset (Streaming): Uploads files to the lab in chunks via stream
-- DownloadAsset (Streaming): Downloads stored files in streaming chunks
-- DeleteAsset: Removes a specific file attachment from storage
-- ListAssets: Returns all files associated with a particular lab
+- `UploadAsset` **(Streaming)**: Uploads files to the lab in chunks via stream
+- `DownloadAsset` **(Streaming)**: Downloads stored files in streaming chunks
+- `DeleteAsset`: Removes a specific file attachment from storage
+- `ListAssets`: Returns all files associated with a particular lab
 
 # Integrations
 
