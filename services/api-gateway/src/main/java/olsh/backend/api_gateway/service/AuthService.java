@@ -19,7 +19,6 @@ public class AuthService {
             throw new AuthenticationException("Token is required");
         }
 
-        log.debug("Validating token");
         AuthValidationResponse response = authServiceClient.validateToken(token);
 
         return response;

@@ -3,7 +3,6 @@ package olsh.backend.api_gateway.grpc.client;
 import io.grpc.Channel;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.grpc.model.AuthValidationResponse;
-import olsh.backend.api_gateway.grpc.model.UserData;
 import olsh.backend.api_gateway.grpc.proto.AuthServiceGrpc;
 import olsh.backend.api_gateway.grpc.model.UserInfo;
 import olsh.backend.api_gateway.grpc.proto.ValidateTokenRequest;
@@ -34,7 +33,7 @@ public class AuthServiceClient {
         ValidateTokenResponse response = authServiceStub.validateToken(request);
 
         log.debug("Token validation response received for user {} with result {}",
-                response.getUserInfo() == null ? null : response.getUserInfo().getUsername(), response.getValid());
+                response.getUserInfo().getUsername(), response.getValid());
 
         // Convert gRPC response to our model
         UserInfo userInfo = null;
