@@ -3,7 +3,7 @@
 - [Purpose](#Purpose)
 - [Functionality](#Functionality)
 - [Entities](#Entities)
-- [API](#API)
+- [Business Logic](#Business%20Logic)
 - [Integrations](#Integrations)
 - [User Stories](#User%20Stories)
 - [Technical Details](#Technical%20Details)
@@ -40,6 +40,7 @@ The **Labs** service on the **Open Labs Share** platform is the central reposito
 # Entities
 
 The service works with the following entities:  
+
 1. **Lab (Laboratory work):**
 
 | Field            | Type          |
@@ -53,7 +54,6 @@ The service works with the following entities:
 | view             | integer       |
 | submissions      | integer       |
 
-
 2. **Solution (Student's solution):**
 
 | Field           | Type          |
@@ -65,6 +65,7 @@ The service works with the following entities:
 | submission_date | datestamp     |
 | status          | string        |
 | points          | integer       |
+
 3. Article relations
 
 | Field           | Type        |
@@ -78,166 +79,29 @@ The service works with the following entities:
 | lab_id (PK) | UUID / long |
 | tag (PK)    | string      |
 
-Note that reviews will be provided by **Feedback Service**
 
-# API
+# Business Logic
 
-Done, according with [Labs Service API Docs](https://github.com/LuminiteTime/Open-Labs-Share-Docs/blob/main/Backend/API%20Endpoints.md#labs-service)
+## Labs Management
 
-| Endpoint                                                  | Request Type | Description                                               |
-| --------------------------------------------------------- | ------------ | --------------------------------------------------------- |
-| [`/labs`](#get-labs-list)                                 | `GET`        | Get list of labs with pagination                          |
-| [`/labs`](#create-lab)                                    | `POST`       | Create new lab with markdown and supporting files         |
-| [`/labs/{lab_id}`](#get-lab-by-id)                        | `GET`        | Get lab by ID                                             |
-| [`/labs/{lab_id}/sumbit`](#submit-lab-solution)           | `POST`       | Submit a solution of the lab as PDF file                  |
-| [`/labs/{lab_id}/sumbissions`](#get-lab-sumbissions-list) | GET          | Get list of submissions for specified lab with pagination |
+- CreateLab: Creates a new lab entry
+- GetLab: Retrieves complete lab information by UUID
+- UpdateLab: Modifies existing lab properties and content
+- DeleteLab: Permanently removes a lab and its assets from the system
 
-### Get-Labs-List
+## Solutions Management
 
-**Retrieve available labs**
-- **Endpoint:** `GET /labs/get`
-- **Authentication:** Required
-- **Description:** Get list of labs with pagination
+- CreateSolution: Creates a new solution submission for a lab
+- GetSolution: Retrieves solution details and metadata
+- UpdateSolution: Modifies existing solution properties
+- DeleteSolution: Permanently removes a solution submission
 
-**Query Parameters:**
-- `page` (integer, optional) - Page number (default: 1)
-- `limit` (integer, optional) - Items per page (default: 20, max: 100)
+## Asset Management
 
-**Response:**
-- **Status:** `200 OK`
-- **Body:**
-```json
-{
-	"id": number,
-	"title": "string",
-	"short_desc": "string",
-	"created_at": "string (ISO 8601)",
-	"views": number,
-	"submissions": number,
-	"author_id": number,
-	"author_name": "string",
-	"author_surname": "string"
-}
-```
-
-### Create-Lab
-
-**Create new lab with markdown and supporting files**
-- **Endpoint:** `POST /labs`
-- **Authentication:** Required
-- **Content-Type:** `multipart/form-data`
-- **Description:** Create new lab with main md file and supporting assets
-
-**Request Body (From Data):**
-```json
-title: string (required) - Lab title
-short_desc: string (required) - Short description of the lab
-md_file: file (required) - Markdown file with lab instructions
-assets[]: file[] (optional) - Supporting files (images, code, etc.)
-```
-
-**Response:**
-- **Status:** `201 Created`
-- **Body:**
-```json
-{
-	"id": number,
-	"message": "Article created successfully"
-}
-```
-
-### Get-Lab-by-ID
-
-**Get specified lab:**
-- **Endpoint:** `GET /labs/get/{lab_id}`
-- **Authentication:** Required
-- **Description:** Get lab by ID
-
-
-**Response:**
-- **Status:** `200 OK`
-- **Body:**
-```json
-{
-  "labs": [
-    {
-      "id": number,
-      "title": "string",
-      "short_desc": "string",
-      "created_at": "string (ISO 8601)",
-      "views": number,
-      "submissions": number,
-      "author_id": number,
-      "author_name": "string",
-      "author_surname": "string"
-    }
-  ],
-  "pagination": {
-    "current_page": "integer",
-    "total_pages": "integer",
-    "total_items": "integer"
-  }
-}
-```
-
-**Error Responses:**
-- `404 Not Found` - Lab not found
-
-
-### Submit-Lab-Solution
-
-**Submit Lab Solution as PDF file**
-- **Endpoint:** `POST /labs/{lab_id}/sumbit`
-- **Authentication:** Required
-- **Content-Type:** `multipart/form-data`
-- **Description:** Sumbit a solution of the lab as PDF file
-
-**Request Body (From Data):**
-```json
-pdf_file: file (required) - PDF document file
-```
-
-**Response:**
-- **Status:** `201 Created`
-- **Body:**
-```json
-{
-	"submission_id": number,
-	"message": "Article created successfully"
-}
-```
-
-**Error Responses:**
-- `404 Not Found` - Lab not found
-
-### Get-Lab-Sumbissions-List
-
-**Retrieve available lab submissions**
-- **Endpoint:** `GET /labs/{lab_id}/sumbissions`
-- **Authentication:** Required
-- **Description:** Get list of sumbissions for specified lab with pagination
-
-**Query Parameters:**
-- `page` (integer, optional) - Page number (default: 1)
-- `limit` (integer, optional) - Items per page (default: 20, max: 100)
-
-**Response:**
-- **Status:** `200 OK`
-- **Body:**
-```json
-{
-	"lab_id": number,
-	"lab_title": "string",
-	"submission_id": number,
-	"submitted_at": "string (ISO 8601)",
-	"author_id": number,
-	"author_name": "string",
-	"author_surname": "string"
-}
-```
-
-**Error Responses:**
-- `404 Not Found` - Lab not found
+- UploadAsset (Streaming): Uploads files to the lab in chunks via stream
+- DownloadAsset (Streaming): Downloads stored files in streaming chunks
+- DeleteAsset: Removes a specific file attachment from storage
+- ListAssets: Returns all files associated with a particular lab
 
 # Integrations
 
