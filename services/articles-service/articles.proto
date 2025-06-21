@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package article;
 
+import "google/protobuf/timestamp.proto";
+
 service ArticleService {
   // Articles Management
   rpc CreateArticle (CreateArticleRequest) returns (Article);
@@ -23,8 +25,8 @@ message Article {
   int64 article_id = 1;
   int64 owner_id = 2;
   string title = 3;
-  string created_at = 4;
-  string updated_at = 5;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
   string abstract = 6;
   int64 views = 7;
   Status status = 8;
@@ -80,7 +82,7 @@ message Asset {
   int64 article_id = 2;
   string filename = 3;
   int64 total_size = 4;
-  string uploaded_at = 5;
+  google.protobuf.Timestamp uploaded_at = 5;
 }
 
 message UploadAssetRequest {
