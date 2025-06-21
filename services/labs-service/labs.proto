@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package labs;
 
+import "google/protobuf/timestamp.proto"
+
 service LabService {
   // Labs Management
   rpc CreateLab (CreateLabRequest) returns (Lab);
@@ -23,8 +25,8 @@ message Lab {
   int64 lab_id = 1;
   int64 owner_id = 2;
   string title = 3;
-  string created_at = 4;
-  string updated_at = 5;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
   string abstract = 6;
   int64 views = 7;
   int64 submissions = 8;
@@ -81,7 +83,7 @@ message Asset {
   string filename = 3;
   int64 total_size = 4;
   bool is_lab = 5;
-  string upload_date = 6;
+  google.protobuf.Timestamp upload_date = 6;
 }
 
 message UploadAssetRequest {
