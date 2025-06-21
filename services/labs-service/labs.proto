@@ -10,11 +10,12 @@ service LabService {
   rpc UpdateLab (UpdateLabRequest) returns (Lab);
   rpc DeleteLab (DeleteLabRequest) returns (DeleteLabResponse);
 
-  // Asset Management
+  // Assets Management
   rpc UploadAsset (stream UploadAssetRequest) returns (Asset);
+  rpc UpdateAsset (stream UpdateAssetRequest) returns (Asset);
   rpc DownloadAsset (DownloadAssetRequest) returns (stream DownloadAssetResponse);
   rpc DeleteAsset (DeleteAssetRequest) returns (DeleteAssetResponse);
-  rpc ListAssets (ListAssetsRequest) returns (ListAssetsResponse);
+  rpc ListAssets (ListAssetsRequest) returns (AssetList);
 }
 
 // Lab management
@@ -41,6 +42,7 @@ message CreateLabRequest {
   int64 owner_id = 1;
   string title = 2;
   string abstract = 3;
+  optional ArticleList related_articles = 4;
 }
 
 message GetLabRequest {
@@ -61,6 +63,7 @@ message UpdateLabRequest {
   int64 lab_id = 1;
   optional string title = 2;
   optional string abstract = 3;
+  optional ArticleList related_articles = 4;
 }
 
 message DeleteLabRequest {
@@ -71,16 +74,29 @@ message DeleteLabResponse {
   bool success = 1;
 }
 
+// Assets Management
 message Asset {
   int64 asset_id = 1;
   int64 lab_id = 2;
   string filename = 3;
   int64 total_size = 4;
+  bool is_lab = 5;
+  string upload_date = 6;
 }
 
 message UploadAssetRequest {
   oneof data {
     int64 lab_id = 1;
+    string filename = 2;
+    int64 total_size = 3;
+    bool is_lab = 4;
+    bytes chunk = 5;
+  }
+}
+
+message UpdateAssetRequest {
+  oneof data {
+    int64 asset_id = 1;
     string filename = 2;
     int64 total_size = 3;
     bytes chunk = 4;
@@ -110,7 +126,7 @@ message ListAssetsRequest {
   int64 lab_id = 1;
 }
 
-message ListAssetsResponse {
+message AssetList {
   int64 total_count = 1;
   repeated Asset assets = 2;
 }

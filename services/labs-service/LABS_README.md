@@ -57,14 +57,15 @@ The service works with the following entities:
 
 2. **Submission (Student's submission):**
 
-| Field           | Type          |
-|-----------------|---------------|
-| id (PK)         | UUID / long   |
-| lab_id          | UUID / long   |
-| user_id         | UUID / long   |
-| submission_date | datestamp     |
-| status          | string        |
-| points          | integer       |
+| Field      | Type        |
+|------------|-------------|
+| id (PK)    | UUID / long |
+| lab_id     | UUID / long |
+| owner_id   | UUID / long |
+| created_at | datestamp   |
+| updated_at | datestamp   |
+| status     | string      |
+| points     | integer     |
 
 
 3. **Article relations:**
@@ -76,12 +77,14 @@ The service works with the following entities:
 
 4. **Lab Assets:**
 
-| Field      | Type           |
-|------------|----------------|
-| id (PK)    | UUID / long    |
-| lab_id     | UUID / long    |
-| filename   | string         |
-| total_size | integer / long |
+| Field       | Type           |
+|-------------|----------------|
+| id (PK)     | UUID / long    |
+| lab_id      | UUID / long    |
+| filename    | string         |
+| total_size  | integer / long |
+| is_lab      | boolean        |
+| upload_date | datestamp      |
 
 5. **Submission Assets:**
 
@@ -91,6 +94,7 @@ The service works with the following entities:
 | solution_id | UUID / long    |
 | filename    | string         |
 | total_size  | integer / long |
+| upload_date | datestamp      |
 
 # gRPC Contract
 
@@ -157,9 +161,10 @@ More gRPC details you can find in `labs.proto` and `submissions.proto` files
 Bucket:
 labs
 └── lab_id
-	├── task.md
-	├── example.png
-    └── cute_cat.png
+	├── lab.md
+	└── assets
+        ├── example.png
+        └── cute_cat.png
 
 submissions
 └── submission_id
