@@ -34,33 +34,29 @@ Article Service is the central repository of all scientific articles on the Open
 
 1. **Article:**
 
-| Field                             | Type           |
-|-----------------------------------|----------------|
-| id (PK)                           | UUID / long    |
-| owner_id                          | UUID / long    |
-| title                             | string         |
-| publication_date                  | datestamp      |
-| abstract                          | string         |
-| views                             | integer        |
-| status (draft/published/archived) | string         |
-| stars                             | integer / long |
-| people_rated                      | integer / long |
+| Field        | Type           |
+|--------------|----------------|
+| id (PK)      | UUID / long    |
+| owner_id     | UUID / long    |
+| title        | string         |
+| created_at   | datestamp      |
+| updated_at   | datestamp      |
+| abstract     | string         |
+| views        | integer        |
+| status       | integer        |
+| stars        | integer / long |
+| people_rated | integer / long |
 
-2. **Article tags:**
 
-| Field           | Type        |
-|-----------------|-------------|
-| article_id (PK) | UUID / long |
-| tag (PK)        | string      |
+2. **Article assets:**
 
-3. **Article assets:**
-
-| Field      | Type           |
-|------------|----------------|
-| id (PK)    | UUID / long    |
-| article_id | UUID / long    |
-| filename   | string         |
-| total_size | integer / long |
+| Field       | Type           |
+|-------------|----------------|
+| id (PK)     | UUID / long    |
+| article_id  | UUID / long    |
+| filename    | string         |
+| total_size  | integer / long |
+| uploaded_at | datestamp      |
 
 
 # gRPC Contract
@@ -116,5 +112,8 @@ More gRPC details you can find in `articles.proto` file
 Bucket:
 articles
 └── article_id
-    └── article.pdf
+    ├── article.pdf
+    └── assets
+    	├── dataset.zip
+    	└── cute_cat.png
 ```
