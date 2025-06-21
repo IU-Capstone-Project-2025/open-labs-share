@@ -6,7 +6,7 @@ service ArticleService {
   // Articles Management
   rpc CreateArticle (CreateArticleRequest) returns (Article);
   rpc GetArticle (GetArticleRequest) returns (Article);
-  rpc GetArticles (GetArticlesRequest) returns (ArticleList);
+  rpc GetArticles (GetArticlesRequest) returns (ArticlePages);
   rpc UpdateArticle (UpdateArticleRequest) returns (Article);
   rpc DeleteArticle (DeleteArticleRequest) returns (DeleteArticleResponse);
 
@@ -42,6 +42,11 @@ message CreateArticleRequest {
   string abstract = 3;
   string status = 4;
   TagList tags = 5;
+}
+
+message ArticlePages {
+  int32 total_count = 1;
+  repeated ArticleList page = 2;
 }
 
 message ArticleList {
