@@ -12,7 +12,7 @@
 
 The **Labs** service on the **Open Labs Share** platform is the central repository of all laboratory work in the system. It provides a single point of management for educational content and access to file resources. It allows:  
 - **Teachers** to create, publish, and review lab assignments
-- **Students** to upload solutions, receive grades and feedback
+- **Students** to upload their solutions (submissions), receive grades and feedback
 - **Administrators** to control the quality of the content and the verification process
 
 # Functionality 
@@ -20,7 +20,6 @@ The **Labs** service on the **Open Labs Share** platform is the central reposito
 1. **General**
 - CRUD for labs
 - Data storage
-- Categorization and tagging of labs
 - Control of access to labs
 
 2. **For teachers:**
@@ -30,9 +29,9 @@ The **Labs** service on the **Open Labs Share** platform is the central reposito
 
 3. **For students:**
 - View available lab work
-   - Downloading lab solutions
+   - Downloading lab submissions
    - Getting ratings and detailed feedback
-   - The ability to refine the solution after verification
+   - The ability to refine the submission after verification
 
 4. **Additional functions:**
 - Connection with theoretical materials (articles, lectures)
@@ -43,66 +42,85 @@ The service works with the following entities:
 
 1. **Lab (Laboratory work):**
 
-| Field            | Type          |
-| ---------------- | ------------- |
-| id (PK)          | UUID / long   |
-| title            | string        |
-| owner_id         | UUID / long   |
-| publication_date | datestamp     |
-| files            | list\<string> |
-| short_desc       | string        |
-| view             | integer       |
-| submissions      | integer       |
+| Field        | Type           |
+|--------------|----------------|
+| id (PK)      | UUID / long    |
+| owner_id     | UUID / long    |
+| title        | string         |
+| created_at   | datestamp      |
+| updated_at   | datestamp      |
+| abstract     | string         |
+| views        | integer / long |
+| submissions  | integer / long |
+| stars        | integer / long |
+| people_rated | integer / long |
 
-2. **Solution (Student's solution):**
+2. **Submission (Student's submission):**
 
 | Field           | Type          |
-| --------------- | ------------- |
+|-----------------|---------------|
 | id (PK)         | UUID / long   |
 | lab_id          | UUID / long   |
 | user_id         | UUID / long   |
-| files           | list\<string> |
 | submission_date | datestamp     |
 | status          | string        |
 | points          | integer       |
 
-3. Article relations
+
+3. **Article relations:**
 
 | Field           | Type        |
-| --------------- | ----------- |
+|-----------------|-------------|
 | lab_id (PK)     | UUID / long |
 | article_id (PK) | UUID / long |
 
-4. Lab Tags:
+4. **Lab Assets:**
 
-| Field       | Type        |
-| ----------- | ----------- |
-| lab_id (PK) | UUID / long |
-| tag (PK)    | string      |
+| Field      | Type           |
+|------------|----------------|
+| id (PK)    | UUID / long    |
+| lab_id     | UUID / long    |
+| filename   | string         |
+| total_size | integer / long |
 
+5. **Submission Assets:**
+
+| Field       | Type           |
+|-------------|----------------|
+| id (PK)     | UUID / long    |
+| solution_id | UUID / long    |
+| filename    | string         |
+| total_size  | integer / long |
 
 # gRPC Contract
+
+More gRPC details you can find in `labs.proto` and `submissions.proto` files
 
 ## Labs Management
 
 - `CreateLab`: Creates a new lab entry
 - `GetLab`: Retrieves complete lab information by UUID
+- `GetLabs`: Retrieves a list of labs with pagination
 - `UpdateLab`: Modifies existing lab properties and content
 - `DeleteLab`: Permanently removes a lab and its assets from the system
 
-## Solutions Management
-
-- `CreateSolution`: Creates a new solution submission for a lab
-- `GetSolution`: Retrieves solution details and metadata
-- `UpdateSolution`: Modifies existing solution properties
-- `DeleteSolution`: Permanently removes a solution submission
-
-## Asset Management
-
 - `UploadAsset` **(Streaming)**: Uploads files to the lab in chunks via stream
 - `DownloadAsset` **(Streaming)**: Downloads stored files in streaming chunks
-- `DeleteAsset`: Removes a specific file attachment from storage
+- `DeleteAsset`: Removes a specific file asset from storage
 - `ListAssets`: Returns all files associated with a particular lab
+
+## Submissions Management
+
+- `CreateSubmission`: Creates a new submission for a lab
+- `GetSubmission`: Retrieves submission details and metadata
+- `GetSubmission`: Retrieves a list of submissions for specific lab
+- `UpdateSubmission`: Modifies existing submission properties
+- `DeleteSubmission`: Permanently removes a submission
+
+- `UploadAsset` **(Streaming)**: Uploads files to the submission in chunks via stream
+- `DownloadAsset` **(Streaming)**: Downloads stored files in streaming chunks
+- `DeleteAsset`: Removes a specific file asset from storage
+- `ListAssets`: Returns all files associated with a particular submission
 
 # Integrations
 
@@ -113,7 +131,7 @@ The service works with the following entities:
 - A single entry point for all requests
 
 3. **MinIO:**
-- Storing task and solution files
+- Storing labs and submissions files
 
 # User Stories
 
