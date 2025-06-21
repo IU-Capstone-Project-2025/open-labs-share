@@ -1,3 +1,8 @@
+### Python ###
+.env
+__pycache__
+
+
 HELP.md
 .gradle
 build/
