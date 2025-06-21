@@ -112,8 +112,5 @@ More gRPC details you can find in `articles.proto` file
 Bucket:
 articles
 └── article_id
-    ├── article.pdf
-    └── assets
-    	├── dataset.zip
-    	└── cute_cat.png
+    └── article.pdf
 ```
