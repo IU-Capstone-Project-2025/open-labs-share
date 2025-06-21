@@ -35,33 +35,45 @@ Article Service is the central repository of all scientific articles on the Open
 1. **Article:**
 
 | Field                             | Type           |
-| --------------------------------- | -------------- |
+|-----------------------------------|----------------|
 | id (PK)                           | UUID / long    |
-| title                             | string         |
 | owner_id                          | UUID / long    |
+| title                             | string         |
 | publication_date                  | datestamp      |
-| short_desc                        | string         |
+| abstract                          | string         |
 | views                             | integer        |
 | status (draft/published/archived) | string         |
 | stars                             | integer / long |
 | people_rated                      | integer / long |
 
-2. Article tags:
+2. **Article tags:**
 
 | Field           | Type        |
-| --------------- | ----------- |
+|-----------------|-------------|
 | article_id (PK) | UUID / long |
 | tag (PK)        | string      |
 
+3. **Article assets:**
+
+| Field      | Type           |
+|------------|----------------|
+| id (PK)    | UUID / long    |
+| article_id | UUID / long    |
+| filename   | string         |
+| total_size | integer / long |
+
 
 # gRPC Contract
+
+More gRPC details you can find in `articles.proto` file
 
 ## Articles Management
 
 - `CreateArticle`: Creates a new article entry
 - `GetArticle`: Retrieves complete article information by UUID
-- `UpdateArticle`: Modifies existing article properties and content
-- `DeleteArticle`: Permanently removes an article and its assets from the system
+- `GetArticles`: Retrieves a list of articles with pagination 
+- `UpdateArticle`: Modifies existing article properties and content by its UUID
+- `DeleteArticle`: Permanently removes an article and its assets from the system by its UUID 
 
 ## Assets Management
 
