@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { MoonIcon, SunIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { MoonIcon, SunIcon } from "@heroicons/react/24/outline";
 
 export default function Sidebar({
   isOpen,
@@ -26,11 +26,11 @@ export default function Sidebar({
       className={`fixed inset-y-0 left-0 transform ${
         isOpen ? "translate-x-0" : "-translate-x-full"
       } 
-      w-64 bg-white dark:bg-gray-800 shadow-lg rounded-r-xl transition-transform duration-300 ease-in-out z-50`}
+      w-64 bg-msc shadow-lg rounded-r-md transition-transform duration-300 ease-in-out z-50`}
     >
       <div className="flex flex-col h-full p-4">
         <div className="flex justify-between items-center mb-8 p-4">
-          <h1 className="text-xl font-bold text-gray-800 dark:text-white">
+          <h1 className="text-2xl font-semibold text-white text-center font-inter font-light">
             Open Labs Share
           </h1>
         </div>
@@ -41,10 +41,10 @@ export default function Sidebar({
               <li key={item.path}>
                 <NavLink
                   to={item.path}
-                  className={`block px-4 py-3 rounded-lg transition-colors ${
+                  className={`block px-4 py-3 rounded-lg transition-colors font-inter ${
                     activePath === item.path
-                      ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200"
-                      : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                      ? "bg-blue-blue bg-opacity-20 text-white backdrop-blur-lg font-medium"
+                      : "text-white hover:bg-white hover:bg-opacity-10 font-light"
                   }`}
                   onClick={() => {
                     setActivePath(item.path);
@@ -58,18 +58,15 @@ export default function Sidebar({
           </ul>
         </nav>
 
-        <div className="mt-auto p-4">
+        <div className="mt-auto p-4 flex justify-center">
           <button
             onClick={toggleTheme}
-            className="flex items-center justify-between w-full px-4 py-3 rounded-lg bg-gray-100 dark:bg-gray-700"
+            className="p-2 rounded-full bg-white bg-opacity-10 hover:bg-opacity-20 transition-colors"
           >
-            <span className="text-gray-700 dark:text-gray-300">
-              {currentTheme === "dark" ? "Light Theme" : "Dark Theme"}
-            </span>
             {currentTheme === "dark" ? (
-              <SunIcon className="h-5 w-5 text-yellow-400" />
+              <SunIcon className="h-6 w-6 text-white" />
             ) : (
-              <MoonIcon className="h-5 w-5 text-gray-600" />
+              <MoonIcon className="h-6 w-6 text-white" />
             )}
           </button>
         </div>
