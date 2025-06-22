@@ -5,7 +5,15 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        //will add colors
+        msc: "#101e5a",
+        "msc-hover": "#1a2b7a",
+        "blue-blue": "#5D80B6",
+        "blue-hover": "#6d8fc7",
+        "light-blue": "#ACBDD3",
+        "my-white": "##f7f8f9",
+      },
+      fontFamily: {
+        inter: ["Inter", "sans-serif"],
       },
     },
   },

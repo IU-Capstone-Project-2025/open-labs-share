@@ -54,7 +54,7 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-white dark:bg-gray-900">
       {showSidebar && (
         <header className="sticky top-0 z-40 bg-white dark:bg-gray-800 shadow-sm">
           <div className="flex items-center justify-between h-16 px-4">
@@ -65,7 +65,7 @@ function AppContent() {
             >
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="p-1.5 rounded-md text-msc dark:text-gray-300 hover:bg-light-blue hover:bg-opacity-55 dark:hover:bg-gray-700"
                 aria-label="Toggle sidebar"
               >
                 <Bars3Icon className="h-6 w-6" />
@@ -74,7 +74,7 @@ function AppContent() {
               <div className="relative w-64">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <svg
-                    className="w-4 h-4 text-gray-400 dark:text-gray-300"
+                    className="w-4 h-4 text-msc"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -90,14 +90,18 @@ function AppContent() {
                 <input
                   type="text"
                   placeholder="Search..."
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md text-sm 
+                              placeholder:text-light-blue
+                              text-msc
+                              bg-light-blue bg-opacity-55
+                              focus:outline-none focus:ring-1 focus:ring-msc"
                 />
               </div>
             </div>
 
             <div className="flex items-center">
               <Link to="/profile" className="flex items-center">
-                <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white font-medium cursor-pointer hover:bg-indigo-600">
+                <div className="w-10 h-10 rounded-full bg-msc flex items-center justify-center text-white text-lg cursor-pointer hover:bg-msc-hover">
                   <span>R</span>
                 </div>
               </Link>
