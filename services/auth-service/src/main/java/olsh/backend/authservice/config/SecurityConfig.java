@@ -2,6 +2,9 @@ package olsh.backend.authservice.config;
 
 import java.util.List;
 
+import lombok.RequiredArgsConstructor;
+import olsh.backend.authservice.filter.JwtAuthenticationFilter;
+import olsh.backend.authservice.service.UserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -12,16 +15,13 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import static org.springframework.security.config.http.SessionCreationPolicy.STATELESS;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 
-import lombok.RequiredArgsConstructor;
-import olsh.backend.authservice.filter.JwtAuthenticationFilter;
-import olsh.backend.authservice.service.UserService;
+import static org.springframework.security.config.http.SessionCreationPolicy.STATELESS;
 
 @Configuration
 @EnableWebSecurity
@@ -45,7 +45,7 @@ public class SecurityConfig {
                 corsConfiguration.setAllowedHeaders(List.of("*"));
                 corsConfiguration.setAllowCredentials(true);
                 return corsConfiguration;
-            }))            .authorizeHttpRequests(request -> request
+            })).authorizeHttpRequests(request -> request
                 // one star (*) - for one nesting level, two stars (**) for any number of nesting levels.
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 .requestMatchers("/swagger/**",

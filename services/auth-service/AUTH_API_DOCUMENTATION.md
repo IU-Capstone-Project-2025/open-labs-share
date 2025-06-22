@@ -35,6 +35,7 @@
     "username": "johndoe",
     "firstName": "John",
     "lastName": "Doe",
+    "email": "johndoe@example.com",
     "role": "ROLE_USER"
   }
 }
@@ -42,8 +43,8 @@
 
 **Error Responses:**
 
-- `400 Bad Request` - Invalid request data
-- `409 Conflict` - User already exists
+- `400 Bad Request` - Invalid request data or validation errors
+- `409 Conflict` - Username or email already exists (checked via users-service)
 
 ---
 
@@ -51,7 +52,7 @@
 
 **Endpoint:** `POST /login`
 
-**Description:** Authenticates user credentials and returns JWT tokens.
+**Description:** Authenticates user credentials via users-service and returns JWT tokens. No local authentication is performed - all credential validation is delegated to users-service.
 
 **Request Body:**
 
@@ -70,18 +71,21 @@
   "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "tokenType": "Bearer",
   "expiresAt": "2025-06-17T10:30:00",
-  "userId": 123,
-  "username": "johndoe",
-  "firstName": "John",
-  "lastName": "Doe",
-  "role": "ROLE_USER"
+  "userInfo": {
+    "userId": 123,
+    "username": "johndoe",
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "johndoe@example.com",
+    "role": "ROLE_USER"
+  }
 }
 ```
 
 **Error Responses:**
 
-- `401 Unauthorized` - Invalid credentials
-- `423 Locked` - Account locked
+- `401 Unauthorized` - Invalid credentials (authentication failed in users-service)
+- `404 Not Found` - User not found in users-service
 
 ---
 
@@ -107,17 +111,21 @@
   "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "tokenType": "Bearer",
   "expiresAt": "2025-06-17T10:30:00",
-  "userId": 123,
-  "username": "johndoe",
-  "firstName": "John",
-  "lastName": "Doe",
-  "role": "ROLE_USER"
+  "userInfo": {
+    "userId": 123,
+    "username": "johndoe",
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "johndoe@example.com",
+    "role": "ROLE_USER"
+  }
 }
 ```
 
 **Error Responses:**
 
-- `401 Unauthorized` - Invalid or expired refresh token
+- `401 Unauthorized` - Invalid, expired, or blacklisted refresh token
+- `404 Not Found` - User no longer exists in users-service
 
 ---
 
@@ -125,7 +133,7 @@
 
 **Endpoint:** `POST /validate`
 
-**Description:** Validates JWT token and returns user information - primarily used by API Gateway.
+**Description:** Validates JWT token and returns user information. Primarily used by API Gateway for request authorization. Can optionally fetch fresh user data from users-service.
 
 **Request Body:**
 
@@ -145,6 +153,7 @@
     "username": "johndoe",
     "firstName": "John",
     "lastName": "Doe",
+    "email": "johndoe@example.com",
     "role": "ROLE_USER"
   },
   "expirationTime": 1622506800,
@@ -163,13 +172,19 @@
 }
 ```
 
+**Error Messages:**
+- "Token has expired"
+- "Token has been invalidated (user logged out)"
+- "Invalid token signature"
+- "Token validation failed"
+
 ---
 
 ### 5. User Logout
 
 **Endpoint:** `POST /logout`
 
-**Description:** Invalidates the current JWT token and logs out the user.
+**Description:** Invalidates the current JWT token by adding it to an in-memory blacklist. The token remains cryptographically valid but is rejected by the auth-service.
 
 **Headers:**
 
@@ -197,29 +212,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **Endpoint:** `POST /password-reset`
 
-**Description:** Sends password reset instructions to user's email.
-
-**Request Body:**
-
-```json
-{
-  "email": "johndoe@example.com"
-}
-```
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "message": "Password reset instructions sent to your email",
-  "data": null
-}
-```
-
-**Error Responses:**
-
-- `404 Not Found` - User not found
+**Description:** Will delegate password reset functionality to users-service when implemented.
 
 ---
 
@@ -227,30 +220,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **Endpoint:** `POST /password-reset/confirm`
 
-**Description:** Resets user password using reset token.
-
-**Request Body:**
-
-```json
-{
-  "token": "abc123xyz789",
-  "newPassword": "newSecurePassword123"
-}
-```
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "message": "Password reset successfully",
-  "data": null
-}
-```
-
-**Error Responses:**
-
-- `400 Bad Request` - Invalid or expired reset token
+**Description:** Will delegate password reset confirmation to users-service when implemented.
 
 ---
 
@@ -258,7 +228,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **Endpoint:** `PUT /change-password`
 
-**Description:** Changes user's password (requires authentication).
+**Description:** Changes user's password by delegating to users-service. Requires valid authentication token.
 
 **Headers:**
 
@@ -287,8 +257,9 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **Error Responses:**
 
-- `400 Bad Request` - Invalid current password
+- `400 Bad Request` - Invalid current password (validation failed in users-service)
 - `401 Unauthorized` - Invalid or missing token
+- `404 Not Found` - User not found in users-service
 
 ---
 
@@ -296,7 +267,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **Endpoint:** `GET /profile`
 
-**Description:** Retrieves authenticated user's profile information.
+**Description:** Retrieves authenticated user's profile information from users-service via gRPC.
 
 **Headers:**
 
@@ -313,11 +284,9 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
     "username": "johndoe",
     "firstName": "John",
     "lastName": "Doe",
-    "role": "USER"
+    "email": "johndoe@example.com",
+    "role": "ROLE_USER"
   },
-  "email": "johndoe@example.com",
-  "createdAt": "2023-01-15T10:30:00",
-  "lastLoginAt": "2023-01-20T14:45:00",
   "status": "ACTIVE"
 }
 ```
@@ -325,6 +294,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 **Error Responses:**
 
 - `401 Unauthorized` - Invalid or missing token
+- `404 Not Found` - User not found in users-service
 
 ---
 
@@ -332,25 +302,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **Endpoint:** `GET /verify-email/{token}`
 
-**Description:** Verifies user's email address using verification token.
-
-**Path Parameters:**
-
-- `token` (string) - Email verification token
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "message": "Email verified successfully",
-  "data": null
-}
-```
-
-**Error Responses:**
-
-- `400 Bad Request` - Invalid or expired verification token
+**Description:** Will delegate email verification to users-service when implemented.
 
 ---
 
@@ -358,7 +310,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **Endpoint:** `GET /health`
 
-**Description:** Returns the health status of the authentication service.
+**Description:** Returns the health status of the authentication service and its connectivity to users-service.
 
 **Response (200 OK):**
 
@@ -369,7 +321,10 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   "data": {
     "timestamp": "2025-06-17T10:30:00Z",
     "service": "auth-service",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "dependencies": {
+      "users-service": "connected"
+    }
   }
 }
 ```

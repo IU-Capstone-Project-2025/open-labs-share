@@ -26,4 +26,7 @@ public class UserInfo {
 
     @Schema(description = "User role", example = "USER")
     private String role;
+    
+    @Schema(description = "Email address", example = "john.doe@example.com")
+    private String email;
 }

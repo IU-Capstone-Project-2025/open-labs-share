@@ -1,11 +1,14 @@
 package olsh.backend.authservice.service;
 
-import java.time.LocalDateTime;
 import java.util.Date;
-import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import olsh.backend.authservice.client.UsersServiceClient;
 import olsh.backend.authservice.dto.AuthenticationResponse;
 import olsh.backend.authservice.dto.ChangePasswordRequest;
 import olsh.backend.authservice.dto.PasswordResetConfirmRequest;
@@ -21,81 +24,94 @@ import olsh.backend.authservice.entity.Role;
 import olsh.backend.authservice.entity.User;
 import olsh.backend.authservice.exception.AuthenticationException;
 import olsh.backend.authservice.exception.ValidationException;
-import olsh.backend.authservice.repository.UserRepository;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class AuthenticationService {
     private final UserService userService;
     private final JwtService jwtService;
-    private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;
-    private final UserRepository userRepository;
+    private final UserProfileService userProfileService;
+    private final UsersServiceClient usersServiceClient;
+
+    @Value("${token.access.expiration}")
+    private long ACCESS_TOKEN_EXPIRATION_TIME;
 
     public AuthenticationResponse signUp(SignUpRequest request) {
-        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw new ValidationException("Username already exists");
+        try {
+            // Check if username already exists
+            checkUsernameAvailability(request.getUsername());
+
+            // Check if email already exists
+            checkEmailAvailability(request.getEmail());
+
+            // Create user in users-service (this is the single source of truth)
+            var userProfileResponse = usersServiceClient.createUser(
+                request.getUsername(),
+                request.getFirstName(),
+                request.getLastName(),
+                request.getEmail(),
+                Role.ROLE_USER,
+                request.getPassword()
+            );
+            
+            var userInfo = userProfileResponse.getUserInfo();
+            
+            // Create User object for JWT generation (not persisted)
+            User user = User.builder()
+                .userId(userInfo.getUserId())
+                .username(userInfo.getUsername())
+                .email(userInfo.getEmail())
+                .firstName(userInfo.getFirstName())
+                .lastName(userInfo.getLastName())
+                .role(Role.valueOf(userInfo.getRole()))
+                .build();
+
+            String accessToken = jwtService.generateToken(user);
+            String refreshToken = jwtService.generateRefreshToken(user);
+
+            log.info("User {} registered successfully with ID: {}", user.getUsername(), user.getUserId());
+            return buildAuthenticationResponse(user, accessToken, refreshToken);
+            
+        } catch (Exception e) {
+            log.error("Failed to create user: {}", e.getMessage(), e);
+            throw new ValidationException("Failed to create user: " + e.getMessage());
         }
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new ValidationException("Email already exists");
-        }
-
-        User user = User.builder()
-            .username(request.getUsername())
-            .email(request.getEmail())
-            .firstName(request.getFirstName())
-            .lastName(request.getLastName())
-            .password(passwordEncoder.encode(request.getPassword()))
-            .role(Role.ROLE_USER)
-            .build();
-
-        User savedUser = userService.create(user);
-        log.info("User {} created successfully", savedUser.getUsername());
-
-        String accessToken = jwtService.generateToken(savedUser);
-        String refreshToken = jwtService.generateRefreshToken(savedUser);
-
-        return buildAuthenticationResponse(savedUser, accessToken, refreshToken);
     }
 
     public AuthenticationResponse signIn(SignInRequest request) {
-        final User user;
-        if (request.getUsernameOrEmail().contains("@")) {
-            user = userRepository.findByEmail(request.getUsernameOrEmail())
-                .orElseThrow(() -> new UsernameNotFoundException("Invalid credentials"));
-        } else {
-            user = userRepository.findByUsername(request.getUsernameOrEmail())
-                .orElseThrow(() -> new UsernameNotFoundException("Invalid credentials"));
-        }
-
         try {
-            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
-                user.getUsername(),
-                request.getPassword()
-            ));
-        } catch (BadCredentialsException e) {
-            log.warn("Failed login attempt for user: {}", request.getUsernameOrEmail());
+            // Authenticate using users-service via gRPC
+            var userInfoResponse = usersServiceClient.authenticateUser(
+                request.getUsernameOrEmail(),
+                request.getPassword(),
+                request.getUsernameOrEmail().contains("@")
+            );
+            
+            var userInfo = userInfoResponse.getUserInfo();
+            
+            // Create User object for JWT generation (not persisted)
+            User user = User.builder()
+                .userId(userInfo.getUserId())
+                .username(userInfo.getUsername())
+                .email(userInfo.getEmail())
+                .firstName(userInfo.getFirstName())
+                .lastName(userInfo.getLastName())
+                .role(Role.valueOf(userInfo.getRole()))
+                .build();
+
+            // Update last login time in users-service
+            usersServiceClient.updateUserLastLogin(userInfo.getUserId());
+
+            String accessToken = jwtService.generateToken(user);
+            String refreshToken = jwtService.generateRefreshToken(user);
+
+            log.info("User {} logged in successfully", user.getUsername());
+            return buildAuthenticationResponse(user, accessToken, refreshToken);
+        } catch (Exception e) {
+            log.warn("Failed login attempt for user: {}", request.getUsernameOrEmail(), e);
             throw new AuthenticationException("Invalid credentials");
         }
-
-        user.setLastLoginAt(LocalDateTime.now());
-        userRepository.save(user);
-
-        String accessToken = jwtService.generateToken(user);
-        String refreshToken = jwtService.generateRefreshToken(user);
-
-        log.info("User {} logged in successfully", user.getUsername());
-        return buildAuthenticationResponse(user, accessToken, refreshToken);
     }
 
     public AuthenticationResponse refreshToken(RefreshTokenRequest request) {
@@ -129,17 +145,25 @@ public class AuthenticationService {
                     .errorMessage("Token has been invalidated (user logged out)")
                     .build();
             }
-
             if (jwtService.isTokenValidAndNotBlacklisted(request.getToken(), userDetails)) {
                 User user = (User) userDetails;
                 Date expiration = jwtService.extractExpiration(request.getToken());
-                UserInfo userInfo = UserInfo.builder()
-                    .userId(user.getId())
-                    .username(user.getUsername())
-                    .firstName(user.getFirstName())
-                    .lastName(user.getLastName())
-                    .role(user.getRole().name())
-                    .build();
+
+                UserInfo userInfo;
+                try {
+                    userInfo = userProfileService.getUserInfo(user.getUserId());
+                } catch (Exception e) {
+                    log.warn("Failed to get user info from users-service", e);
+
+                    userInfo = UserInfo.builder()
+                        .userId(user.getUserId())
+                        .username(user.getUsername())
+                        .firstName(user.getFirstName())
+                        .lastName(user.getLastName())
+                        .email(user.getEmail())
+                        .role(user.getRole().name())
+                        .build();
+                }
 
                 return TokenValidationResponse.builder()
                     .valid(true)
@@ -149,104 +173,83 @@ public class AuthenticationService {
             } else {
                 return TokenValidationResponse.builder()
                     .valid(false)
-                    .errorMessage("Token is invalid or expired")
+                    .errorMessage("Invalid token")
                     .build();
             }
         } catch (Exception e) {
-            log.debug("Token validation failed: {}", e.getMessage());
+            log.error("Error validating token: {}", e.getMessage());
             return TokenValidationResponse.builder()
                 .valid(false)
-                .errorMessage("Token validation failed: " + e.getMessage())
+                .errorMessage("Token validation failed")
                 .build();
         }
     }
 
     public void logout(String token) {
-        try {
-            String username = jwtService.extractUsername(token);
-            log.info("User {} logged out", username);
-            jwtService.blacklistToken(token);
-        } catch (Exception e) {
-            log.warn("Error during logout: {}", e.getMessage());
-        }
+        jwtService.blacklistToken(token);
+        log.info("User logged out successfully");
     }
 
     public void requestPasswordReset(PasswordResetRequest request) {
-        Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            log.info("Password reset requested for user: {}", user.getUsername());
-            // TODO: Implement in future.
-        } else {
-            log.warn("Password reset requested for non-existent email: {}", request.getEmail());
-        }
-        log.warn("Password reset functionality not yet implemented!");
+        // Implementation would delegate to users-service if needed
+        throw new UnsupportedOperationException("Password reset not implemented yet");
     }
 
     public void confirmPasswordReset(PasswordResetConfirmRequest request) {
-        log.info("Password reset confirmed with token: {}", request.getToken());
-        // TODO: Implement in future.
-        log.warn("Confirm password reset functionality not yet implemented!");
+        // Implementation would delegate to users-service if needed
+        throw new UnsupportedOperationException("Password reset not implemented yet");
     }
 
     public void changePassword(ChangePasswordRequest request, String username) {
-        User user = userRepository.findByUsername(username)
-            .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
-        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-            throw new ValidationException("Current password is incorrect");
+        try {
+            User user = userService.getByUsername(username);
+            usersServiceClient.updatePassword(user.getUserId(), request.getCurrentPassword(), request.getNewPassword());
+            log.info("Password changed successfully for user: {}", username);
+        } catch (Exception e) {
+            log.error("Failed to change password for user: {}", username, e);
+            throw new ValidationException("Failed to change password: " + e.getMessage());
         }
-
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        userRepository.save(user);
-
-        log.info("Password changed successfully for user: {}", username);
     }
 
     public UserProfileResponseWithUserInfo getUserProfileWithUserInfo(String username) {
-        User user = userRepository.findByUsername(username)
-            .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
-        UserInfo userInfo = UserInfo.builder()
-            .userId(user.getId())
-            .username(user.getUsername())
-            .firstName(user.getFirstName())
-            .lastName(user.getLastName())
-            .role(user.getRole().name())
-            .build();
-
-        return UserProfileResponseWithUserInfo.builder()
-            .userInfo(userInfo)
-            .email(user.getEmail())
-            .createdAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : null)
-            .lastLoginAt(user.getLastLoginAt() != null ? user.getLastLoginAt().toString() : null)
-            .status("ACTIVE")
-            .build();
+        return userProfileService.getUserProfileWithUserInfo(username);
     }
 
     public void verifyEmail(String token) {
-        log.info("Email verification attempted with token: {}", token);
-        // TODO: Implement email verification logic.
-        log.warn("Email verification functionality not yet implemented");
+        // Implementation would delegate to users-service if needed
+        throw new UnsupportedOperationException("Email verification not implemented yet");
     }
 
     private AuthenticationResponse buildAuthenticationResponse(User user,
                                                                String accessToken,
                                                                String refreshToken) {
         UserInfo userInfo = UserInfo.builder()
-            .userId(user.getId())
+            .userId(user.getUserId())
             .username(user.getUsername())
             .firstName(user.getFirstName())
             .lastName(user.getLastName())
+            .email(user.getEmail())
             .role(user.getRole().name())
             .build();
 
         return AuthenticationResponse.builder()
             .accessToken(accessToken)
             .refreshToken(refreshToken)
-            .tokenType("Bearer")
-            .expiresAt(LocalDateTime.now().plusHours(24)) // 24-hour expiration
             .userInfo(userInfo)
+            .expiresAt(java.time.LocalDateTime.now().plusSeconds(ACCESS_TOKEN_EXPIRATION_TIME / 1000))
+            .tokenType("Bearer")
             .build();
+    }
+
+    private void checkUsernameAvailability(String username) throws ValidationException {
+        if (usersServiceClient.isUsernameExists(username)) {
+            throw new ValidationException("Username already exists");
+        }
+    }
+
+    private void checkEmailAvailability(String email) throws ValidationException {
+        if (usersServiceClient.isEmailExists(email)) {
+            throw new ValidationException("Email already exists");
+        }
     }
 }
