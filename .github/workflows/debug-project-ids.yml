@@ -1,7 +1,7 @@
 name: Debug Project IDs
 
 on:
-  workflow_dispatch:
+  push:
 
 jobs:
   get-project-ids:
