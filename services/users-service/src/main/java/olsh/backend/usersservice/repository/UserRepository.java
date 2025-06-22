@@ -1,6 +1,5 @@
 package olsh.backend.usersservice.repository;
 
-import java.util.List;
 import java.util.Optional;
 
 import olsh.backend.usersservice.entity.User;

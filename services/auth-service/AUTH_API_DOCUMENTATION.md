@@ -129,58 +129,7 @@
 
 ---
 
-### 4. Token Validation (API Gateway Use)
-
-**Endpoint:** `POST /validate`
-
-**Description:** Validates JWT token and returns user information. Primarily used by API Gateway for request authorization. Can optionally fetch fresh user data from users-service.
-
-**Request Body:**
-
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
-
-**Response (200 OK):**
-
-```json
-{
-  "valid": true,
-  "userInfo": {
-    "userId": 123,
-    "username": "johndoe",
-    "firstName": "John",
-    "lastName": "Doe",
-    "email": "johndoe@example.com",
-    "role": "ROLE_USER"
-  },
-  "expirationTime": 1622506800,
-  "errorMessage": null
-}
-```
-
-**Invalid Token Response:**
-
-```json
-{
-  "valid": false,
-  "userInfo": null,
-  "expirationTime": null,
-  "errorMessage": "Token has expired"
-}
-```
-
-**Error Messages:**
-- "Token has expired"
-- "Token has been invalidated (user logged out)"
-- "Invalid token signature"
-- "Token validation failed"
-
----
-
-### 5. User Logout
+### 4. User Logout
 
 **Endpoint:** `POST /logout`
 
@@ -208,7 +157,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-### 6. Password Reset Request ⚠️ NOT YET IMPLEMENTED
+### 5. Password Reset Request ⚠️ NOT YET IMPLEMENTED
 
 **Endpoint:** `POST /password-reset`
 
@@ -216,7 +165,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-### 7. Password Reset Confirmation ⚠️ NOT YET IMPLEMENTED
+### 6. Password Reset Confirmation ⚠️ NOT YET IMPLEMENTED
 
 **Endpoint:** `POST /password-reset/confirm`
 
@@ -224,7 +173,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-### 8. Change Password
+### 7. Change Password
 
 **Endpoint:** `PUT /change-password`
 
@@ -263,7 +212,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-### 9. Get User Profile
+### 8. Get User Profile
 
 **Endpoint:** `GET /profile`
 
@@ -298,7 +247,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-### 10. Email Verification ⚠️ NOT YET IMPLEMENTED
+### 9. Email Verification ⚠️ NOT YET IMPLEMENTED
 
 **Endpoint:** `GET /verify-email/{token}`
 
@@ -306,28 +255,12 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-### 11. Health Check
+## gRPC methods
 
-**Endpoint:** `GET /health`
+- **Token Validation**: `ValidateToken` gRPC method (used by API Gateway)
+- **Health Check**: `HealthCheck` gRPC method (used for service monitoring)
 
-**Description:** Returns the health status of the authentication service and its connectivity to users-service.
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "message": "Auth service is healthy",
-  "data": {
-    "timestamp": "2025-06-17T10:30:00Z",
-    "service": "auth-service",
-    "version": "1.0.0",
-    "dependencies": {
-      "users-service": "connected"
-    }
-  }
-}
-```
+These gRPC services are documented in the main service documentation and are accessible via gRPC port `9092`.
 
 ---
 
