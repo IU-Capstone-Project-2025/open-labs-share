@@ -13,8 +13,8 @@ We use a GitHub Project Kanban board to track issues and development progress. T
    - Issue automatically appears in **Backlog**
 
 2. **Create a Branch**
-   - Check `Development` tab in thhe issue itself, and click on `Create a branch for this issue or link a pull request`
-   - Branch source must be dev
+   - Check `Development` tab in the issue itself, and click on `Create a branch for this issue or link a pull request`
+   - Branch source must be `dev`
    - Click on `Create branch`
    - Insert suggested commands to the terminal
    - Branch will be created and issue will be moved to **In Progress**
