@@ -1,25 +1,30 @@
 spring:
   application:
     name: auth-service
-
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   jackson:
     default-property-inclusion: non_null
-  datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/auth_service}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
 
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
+server:
+  port: ${PORT:8081}
+
 token:
   signing:
     key: ${JWT_SIGNING_KEY:defaultSigningKey12345678901234567890123412341234123412341234123412341234}
+  access:
+    expiration: ${ACCESS_TOKEN_EXPIRATION:144000000} # 24 hours in milliseconds
+  refresh:
+    expiration: ${REFRESH_TOKEN_EXPIRATION:1008000000} # 7 days in milliseconds
 
+grpc:
+  users-service:
+    host: ${USERS_SERVICE_HOST:localhost}
+    port: ${USERS_SERVICE_PORT:9093}
 
 logging:
   level:
-    olsh.backend.authservice: debug
+    olsh.backend.authservice: ${LOG_LEVEL:INFO}
 
 springdoc:
   default-produces-media-type: application/json
@@ -29,3 +34,23 @@ springdoc:
     disable-swagger-default-url: true
     path: /swagger
     enabled: true
+    operations-sorter: method
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env
+  endpoint:
+    health:
+      show-details: when-authorized
+  info:
+    env:
+      enabled: true
+    java:
+      enabled: true
+    build:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}

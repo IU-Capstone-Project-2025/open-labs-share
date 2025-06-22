@@ -1,15 +1,9 @@
-### Python ###
-.env
-__pycache__
-
-
 HELP.md
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
-**/bruno/
 
 ### STS ###
 .apt_generated
@@ -24,7 +18,7 @@ bin/
 !**/src/test/**/bin/
 
 ### IntelliJ IDEA ###
-**/.idea/
+.idea
 *.iws
 *.iml
 *.ipr
@@ -41,16 +35,3 @@ out/
 
 ### VS Code ###
 .vscode/
-/.idea/
-.cursorrules/
-.cursorrules
-
-### Environment Variables ###
-# Ignore all .env files (containing sensitive data)
-**/.env
-.env
-*/.env
-# But keep .env.example files (safe templates)
-!**/.env.example
-!.env.example
-!*/.env.example

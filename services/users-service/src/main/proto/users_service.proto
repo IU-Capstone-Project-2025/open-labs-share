@@ -1,0 +1,189 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.olsh.users.proto";
+option java_outer_classname = "UsersServiceProto";
+
+package users;
+
+service UsersService {
+  // Get user profile by user ID
+  rpc GetUserProfile (GetUserProfileRequest) returns (UserProfileResponse) {}
+
+  // Update user profile
+  rpc UpdateUserProfile (UpdateUserProfileRequest) returns (UserProfileResponse) {}
+
+  // Search for users by username or name
+  rpc SearchUsers (SearchUsersRequest) returns (SearchUsersResponse) {}
+
+  // Get user info by ID (lightweight version for internal service communication)
+  rpc GetUserInfo (GetUserInfoRequest) returns (UserInfoResponse) {}
+  // Find user by email (for authentication purposes)
+  rpc FindUserByEmail (FindUserByEmailRequest) returns (UserInfoResponse) {}
+  // Find user by username (for authentication purposes)
+  rpc FindUserByUsername (FindUserByUsernameRequest) returns (UserInfoResponse) {}
+  
+  // Check if a username exists (returns true if exists, false if not)
+  rpc CheckUsernameExists (FindUserByUsernameRequest) returns (ExistsResponse) {}
+  
+  // Check if an email exists (returns true if exists, false if not) 
+  rpc CheckEmailExists (FindUserByEmailRequest) returns (ExistsResponse) {}
+
+  // Update user's password
+  rpc UpdatePassword (UpdatePasswordRequest) returns (UpdatePasswordResponse) {}
+
+  // Authenticate user and return user info if successful
+  rpc AuthenticateUser (AuthenticateUserRequest) returns (UserInfoResponse) {}
+
+  // Mark user as logged in by updating last login time
+  rpc UpdateUserLastLogin (UpdateUserLastLoginRequest) returns (UpdateUserLastLoginResponse) {}
+
+  // Create a new user profile (for use during registration)
+  rpc CreateUser (CreateUserRequest) returns (UserProfileResponse) {}
+
+  // Delete a user (for rollback in case of transaction failures)
+  rpc DeleteUser (DeleteUserRequest) returns (DeleteUserResponse) {}
+
+  // Health check endpoint
+  rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse) {}
+}
+
+// Request to get a user's profile
+message GetUserProfileRequest {
+  int64 user_id = 1;
+}
+
+// Response containing a user's profile
+message UserProfileResponse {
+  UserInfo user_info = 1;
+  string status = 2;
+}
+
+// User information model
+message UserInfo {
+  int64 user_id = 1;
+  string username = 2;
+  string first_name = 3;
+  string last_name = 4;
+  string role = 5;
+  string email = 6;
+}
+
+// Request to update a user's profile
+message UpdateUserProfileRequest {
+  int64 user_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string email = 4;
+  string username = 5;
+  string password = 6; // Optional: Only needed when the user wants to change password
+}
+
+// Request to search for users
+message SearchUsersRequest {
+  string query = 1;
+  int32 page = 2;
+  int32 size = 3;
+}
+
+// Response for user search
+message SearchUsersResponse {
+  repeated UserInfo users = 1;
+  int32 total_pages = 2;
+  int64 total_elements = 3;
+}
+
+// Request to get lightweight user info (for service-to-service communication)
+message GetUserInfoRequest {
+  int64 user_id = 1;
+}
+
+// Response containing lightweight user info
+message UserInfoResponse {
+  UserInfo user_info = 1;
+}
+
+// Health check request
+message HealthCheckRequest {
+  // Empty request
+}
+
+// Request to find a user by email
+message FindUserByEmailRequest {
+  string email = 1;
+}
+
+// Request to find a user by username
+message FindUserByUsernameRequest {
+  string username = 1;
+}
+
+// Request to update a user's password
+message UpdatePasswordRequest {
+  int64 user_id = 1;
+  string current_password = 2; // Optional for password reset flows
+  string new_password = 3;
+}
+
+// Response after password update
+message UpdatePasswordResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Request to authenticate a user
+message AuthenticateUserRequest {
+  string username = 1; // Can be username or email
+  string password = 2;
+  bool using_email = 3; // Flag to indicate if username field contains an email
+}
+
+// Request to update user's last login time
+message UpdateUserLastLoginRequest {
+  int64 user_id = 1;
+}
+
+// Response after updating last login time
+message UpdateUserLastLoginResponse {
+  bool success = 1;
+}
+
+// Request to create a new user profile
+message CreateUserRequest {
+  string username = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string email = 4;
+  string role = 5;
+  string password = 6;
+}
+
+// Health check response
+message HealthCheckResponse {
+  bool success = 1;
+  string message = 2;
+  HealthData data = 3;
+
+  message HealthData {
+    string timestamp = 1;
+    string service = 2;
+    string version = 3;
+  }
+}
+
+// Response indicating if a resource exists
+message ExistsResponse {
+  bool exists = 1;
+  string message = 2; // Optional message for additional context
+}
+
+// Request to delete a user (for rollback in transaction failures)
+message DeleteUserRequest {
+  int64 user_id = 1;
+}
+
+// Response after deleting a user
+message DeleteUserResponse {
+  bool success = 1;
+  string message = 2;
+}
