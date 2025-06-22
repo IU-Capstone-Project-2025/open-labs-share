@@ -12,7 +12,7 @@ on:
 
 env:
   PROJECT_URL: "https://github.com/orgs/IU-Capstone-Project-2025/projects/6"
-  STATUS_FIELD_ID: "Status"
+  STATUS_FIELD_ID: "PVTSSF_lADODL8-ic4A7DnKzgvd7RM"
   BACKLOG_OPTION_ID: "f75ad846"
   IN_PROGRESS_OPTION_ID: "47fc9ee4"
   IN_REVIEW_OPTION_ID: "df73e18b"
