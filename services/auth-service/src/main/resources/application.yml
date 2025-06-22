@@ -5,6 +5,11 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   jackson:
     default-property-inclusion: non_null
+  grpc:
+    server:
+      port: ${GRPC_PORT:9092}
+      reflection:
+        enabled: true
 
 server:
   port: ${PORT:8081}

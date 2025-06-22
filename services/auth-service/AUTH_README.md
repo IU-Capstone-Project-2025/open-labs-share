@@ -106,12 +106,41 @@ grpc:
     port: ${USERS_SERVICE_PORT:9093}
 ```
 
-## 5. Connection with Other Services
+## 5. gRPC API
+
+The auth-service provides a gRPC API for API Gateway token validation.
+
+### gRPC Methods
+
+#### ValidateToken
+- **Purpose**: Validates JWT tokens for API Gateway integration
+- **Request**: `ValidateTokenRequest { string token }`
+- **Response**: `ValidateTokenResponse { bool valid, UserInfo user_info, int64 expiration_time, string error_message }`
+- **Usage**: Called by API Gateway to validate incoming requests
+
+#### HealthCheck
+- **Purpose**: Service health monitoring
+- **Request**: `HealthCheckRequest {}` (empty)
+- **Response**: `HealthCheckResponse { bool success, string message, HealthData data }`
+- **Usage**: Monitoring and service discovery
+
+### gRPC Server Configuration
+
+```yaml
+spring:
+  grpc:
+    server:
+      port: ${GRPC_PORT:9092}
+      reflection:
+        enabled: true
+```
+
+## 6. Connection with Other Services
 
 ### Token Validation Flow (API Gateway Integration)
 
 1. Client sends request with JWT token to API Gateway
-2. API Gateway calls auth-service `/validate` endpoint
+2. API Gateway calls auth-service `ValidateToken` gRPC method
 3. Auth service validates token cryptographically
 4. If needed, auth service fetches user data from users-service
 5. API Gateway forwards request to target service with user context
@@ -120,7 +149,7 @@ grpc:
 
 The service provides REST endpoints for frontend applications while maintaining backend integration via gRPC.
 
-## 6. Data Required from Other Services
+## 7. Data Required from Other Services
 
 ### From Users-Service (via gRPC):
 - User authentication credentials
@@ -134,7 +163,7 @@ The service provides REST endpoints for frontend applications while maintaining 
 - Token refresh requests
 - Password change requests
 
-## 7. Environment Configuration
+## 8. Environment Configuration
 
 ### Environment Variables
 
@@ -143,7 +172,8 @@ The service provides REST endpoints for frontend applications while maintaining 
 | JWT_SIGNING_KEY               | Secret key for signing JWT tokens             | E0A2D3B5F2D7845...                            |
 | ACCESS_TOKEN_EXPIRATION       | Expiration time for access tokens in ms       | 144000000 (24 hours)                          |
 | REFRESH_TOKEN_EXPIRATION      | Expiration time for refresh tokens in ms      | 1008000000 (7 days)                           |
-| PORT                          | Server port                                   | 8081                                          |
+| PORT                          | HTTP server port                              | 8081                                          |
+| GRPC_PORT                     | gRPC server port                              | 9092                                          |
 | USERS_SERVICE_HOST            | Hostname of Users Service                     | localhost                                     |
 | USERS_SERVICE_PORT            | Port of Users Service gRPC server             | 9093                                          |
 
@@ -155,6 +185,11 @@ spring:
     name: auth-service
   jackson:
     default-property-inclusion: non_null
+  grpc:
+    server:
+      port: ${GRPC_PORT:9092}
+      reflection:
+        enabled: true
 
 server:
   port: ${PORT:8081}
@@ -172,61 +207,3 @@ grpc:
     host: ${USERS_SERVICE_HOST:localhost}
     port: ${USERS_SERVICE_PORT:9093}
 ```
-
-## 8. Docker Deployment
-
-### Building the Docker Image
-
-```bash
-# From the auth-service directory
-docker build -t auth-service .
-```
-
-### Running with Docker Compose
-
-```bash
-# From the project root
-docker-compose up -d auth-service users-service
-```
-
-### Docker Dependencies
-
-The auth-service requires:
-- **users-service**: Must be running and accessible via gRPC
-- **No database**: Auth-service is database-free
-
-## 9. Monitoring and Health Checks
-
-### Health Check Endpoint
-
-- `GET /api/v1/auth/health`: Returns service health status
-- Includes connectivity status to users-service
-- Available via Spring Boot Actuator endpoints
-
-### Metrics
-
-Available metrics include:
-- JWT token generation/validation rates
-- gRPC call success/failure rates to users-service
-- Authentication success/failure rates
-- Active token count (via blacklist size)
-
-## 10. Security Considerations
-
-### Token Security
-- JWT tokens are signed with a strong secret key
-- Tokens include user ID, role, and other claims
-- Refresh tokens have longer expiration times
-- Blacklisted tokens are stored in memory for logout functionality
-
-### gRPC Security
-- All user data transmission occurs over gRPC between internal services
-- No sensitive data is stored in auth-service
-- Users-service is the single source of truth for all user information
-
-### Production Recommendations
-- Use strong, randomly generated JWT signing keys
-- Configure appropriate token expiration times
-- Monitor gRPC connectivity to users-service
-- Implement proper logging for security events
-- Consider implementing distributed token blacklisting for multi-instance deployments
