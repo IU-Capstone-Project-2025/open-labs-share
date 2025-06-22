@@ -14,6 +14,9 @@ import SignUp from "./pages/SignUp";
 import Profile from "./pages/ProfilePage";
 import MyLabs from "./pages/MyLabsPage";
 import MyArticles from "./pages/MyArticlesPage";
+import LabPage from "./pages/LabPage";
+import ArticlePage from "./pages/ArticlePage";
+import BackgroundCircles from "./components/BackgroundCircles";
 
 function AppContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -28,11 +31,11 @@ function AppContent() {
       if (
         isSidebarOpen &&
         sidebarRef.current &&
-        !sidebarRef.current.contains(event.target)
+        !sidebarRef.current.contains(event.target) &&
+        !event.target.closest('button[aria-label="Toggle sidebar"]') &&
+        !event.target.closest(".sidebar-toggle-button")
       ) {
-        if (!event.target.closest('button[aria-label="Toggle sidebar"]')) {
-          setIsSidebarOpen(false);
-        }
+        setIsSidebarOpen(false);
       }
     };
 
@@ -109,6 +112,9 @@ function AppContent() {
           </div>
         </header>
       )}
+
+      {showSidebar && <BackgroundCircles />}
+
       {showSidebar && (
         <Sidebar
           ref={sidebarRef}
@@ -118,13 +124,19 @@ function AppContent() {
           toggleTheme={toggleTheme}
         />
       )}
-      <main className={showSidebar ? "p-4" : ""}>
+      <main
+        className={`${showSidebar ? "p-4" : ""} transition-all duration-300 ${
+          isSidebarOpen && showSidebar ? "ml-64" : "ml-0"
+        }`}
+      >
         <Routes>
           <Route path="/" element={<SignUp />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/home" element={<Home />} />
           <Route path="/my-labs" element={<MyLabs />} />
+          <Route path="/lab/:id" element={<LabPage />} />
           <Route path="/my-articles" element={<MyArticles />} />
+          <Route path="/article/:id" element={<ArticlePage />} />
           <Route path="/profile" element={<Profile />} />
         </Routes>
       </main>
