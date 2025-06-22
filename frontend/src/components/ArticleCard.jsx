@@ -1,27 +1,27 @@
 import { Link } from "react-router-dom";
 
-export default function LabCard({ lab }) {
+export default function ArticleCard({ article }) {
   return (
     <Link
-      to={`/lab/${lab.id}`}
+      to={`/article/${article.id}`}
       className="block bg-light-blue bg-opacity-50 dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 p-4"
     >
       <div className="space-y-2">
         <h3 className="text-lg font-bold text-msc dark:text-white line-clamp-1">
-          {lab.title}
+          {article.title}
         </h3>
 
         <p className="text-msc dark:text-gray-300 text-sm line-clamp-2">
-          {lab.description}
+          {article.description}
         </p>
 
         <div className="flex items-center pt-2">
           <div className="w-6 h-6 rounded-full bg-msc flex items-center justify-center text-white text-xs font-medium mr-2">
-            {lab.author?.firstName?.[0]}
-            {lab.author?.lastName?.[0]}
+            {article.author?.firstName?.[0]}
+            {article.author?.lastName?.[0]}
           </div>
           <span className="text-base text-msc font-semibold dark:text-gray-300">
-            {lab.author?.firstName} {lab.author?.lastName}
+            {article.author?.firstName} {article.author?.lastName}
           </span>
         </div>
       </div>
