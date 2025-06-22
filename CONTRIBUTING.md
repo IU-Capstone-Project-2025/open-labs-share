@@ -2,6 +2,50 @@
 
 This document provides guidelines and instructions for contributing to the project. Read full version of this document before starting to contribute
 
+## Kanban Board Workflow
+
+We use a GitHub Project Kanban board to track issues and development progress. The board automatically manages issue status based on your development workflow.
+
+### Step-by-Step Workflow
+
+1. **Create or Pick an Issue**
+   - Create a new issue or pick one from the Backlog column
+   - Issue automatically appears in **Backlog**
+
+2. **Create a Branch**
+   - Check `Development` tab in thhe issue itself, and click on `Create a branch for this issue or link a pull request`
+   - Branch source must be dev
+   - Click on `Create branch`
+   - Insert suggested commands to the terminal
+   - Branch will be created and issue will be moved to **In Progress**
+
+3. **Work on Your Changes**
+   - Make your commits following the commit guidelines below
+   - Push changes to your branch
+
+4. **Create Pull Request**
+   - Create PR from your branch to `dev`
+   - Issue automatically moves to **In Review**
+   - Get code reviews as required
+
+5. **Merge Pull Request**
+   - Once approved, merge the PR
+   - Issue automatically moves to **Done** and gets closed
+   - Delete the branch after merging
+
+### How the Kanban Automation Works
+
+**📋 Issue Lifecycle:**
+1. **Create Issue** → Issue automatically moves to **Backlog**
+2. **Create Branch** (with issue number) → Issue automatically moves to **In Progress** 
+3. **Create Pull Request** → Issue automatically moves to **In Review**
+4. **Merge Pull Request** → Issue automatically moves to **Done** and gets closed
+
+
+### Manual Status Updates
+
+If needed, you can manually move issues between columns in the [Project Board](https://github.com/orgs/IU-Capstone-Project-2025/projects/6), but the automation should handle most cases.
+
 ## Development Process
 
 1. **Branch Management**
