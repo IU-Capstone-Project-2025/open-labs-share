@@ -29,22 +29,13 @@ message Article {
   google.protobuf.Timestamp updated_at = 5;
   string abstract = 6;
   int64 views = 7;
-  Status status = 8;
-  int64 stars = 9;
-  int64 people_rated = 10;
+  int64 stars = 8;
+  int64 people_rated = 9;
 }
-
-enum Status {
-  DRAFT = 0;
-  PUBLISHED = 1;
-  ARCHIVED = 2;
-}
-
 message CreateArticleRequest {
   int64 owner_id = 1;
   string title = 2;
   string abstract = 3;
-  Status status = 4;
 }
 
 message GetArticleRequest {
@@ -65,7 +56,6 @@ message UpdateArticleRequest {
   int64 article_id = 1;
   optional string title = 2;
   optional string abstract = 3;
-  optional Status status = 4;
 }
 
 message DeleteArticleRequest {
@@ -85,21 +75,29 @@ message Asset {
   google.protobuf.Timestamp uploaded_at = 5;
 }
 
+message UploadAssetMetadata {
+  int64 article_id = 1;
+  string filename = 2;
+  int64 total_size = 3;
+}
+
 message UploadAssetRequest {
   oneof data {
-    int64 article_id = 1;
-    string filename = 2;
-    int64 total_size = 3;
-    bytes chunk = 4;
+    UploadAssetMetadata metadata = 1;
+    bytes chunk = 2;
   }
+}
+
+message UpdateAssetMetadata {
+  int64 asset_id = 1;
+  string filename = 2;
+  int64 total_size = 3;
 }
 
 message UpdateAssetRequest {
   oneof data {
-    int64 asset_id = 1;
-    string filename = 2;
-    int64 total_size = 3;
-    bytes chunk = 4;
+    UpdateAssetMetadata metadata = 1;
+    bytes chunk = 2;
   }
 }
 

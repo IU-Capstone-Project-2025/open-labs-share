@@ -20,15 +20,11 @@ Article Service is the central repository of all scientific articles on the Open
 1. General
 - CRUD for articles
 - Data Storage
-- Categorization and tagging of articles
 - Control of access to articles
 
 2. For authors:
 - Publication of articles in PDF format
 - Manage your publications (update versions)
-
-3. For users:
-- Search and filter articles by topic, author, and publication date
 
 # Entities
 
@@ -43,7 +39,6 @@ Article Service is the central repository of all scientific articles on the Open
 | updated_at   | datestamp      |
 | abstract     | string         |
 | views        | integer        |
-| status       | integer        |
 | stars        | integer / long |
 | people_rated | integer / long |
 
@@ -89,15 +84,15 @@ More gRPC details you can find in `articles.proto` file
 
 3. **MinIO Storage:**
 - Storing PDF and other article files
+
 # User Stories
 
 1. **The teacher publishes a tutorial:**
 - Uploads a PDF file via POST /articles
-- Specifies the tags "teaching materials", "physics"
 - Students find the material through a search
 
 2. **The researcher is looking for materials:**
-- Uses filters by topic and date
+- Uses searching for filtering articles
 - Finds several relevant articles
 - Saves them to bookmarks for further study
 
