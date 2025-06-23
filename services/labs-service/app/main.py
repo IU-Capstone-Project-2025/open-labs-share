@@ -4,6 +4,7 @@ import grpc
 # Import built-in modules
 
 # Import project files
+from config import Config
 import proto.labs_pb2 as stub # Generated from labs.proto
 import proto.labs_pb2_grpc as service # Generated from labs.proto
 
