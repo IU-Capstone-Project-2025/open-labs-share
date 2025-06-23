@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package labs;
 
-import "google/protobuf/timestamp.proto"
+import "google/protobuf/timestamp.proto";
 
 service LabService {
   // Labs Management
@@ -86,22 +86,30 @@ message Asset {
   google.protobuf.Timestamp upload_date = 6;
 }
 
+message UploadAssetMetadata {
+  int64 lab_id = 1;
+  string filename = 2;
+  int64 total_size = 3;
+  bool is_lab = 4;
+}
+
 message UploadAssetRequest {
   oneof data {
-    int64 lab_id = 1;
-    string filename = 2;
-    int64 total_size = 3;
-    bool is_lab = 4;
-    bytes chunk = 5;
+    UploadAssetMetadata metadata = 1;
+    bytes chunk = 2;
   }
+}
+
+message UpdateAssetMetadata {
+  int64 asset_id = 1;
+  string filename = 2;
+  int64 total_size = 3;
 }
 
 message UpdateAssetRequest {
   oneof data {
-    int64 asset_id = 1;
-    string filename = 2;
-    int64 total_size = 3;
-    bytes chunk = 4;
+    UpdateAssetMetadata metadata = 1;
+    bytes chunk = 2;
   }
 }
 
