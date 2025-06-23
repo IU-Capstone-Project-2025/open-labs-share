@@ -74,21 +74,29 @@ message Asset {
   google.protobuf.Timestamp upload_date = 5;
 }
 
+message UploadAssetMetadata {
+  int64 submission_id = 1;
+  string filename = 2;
+  int64 total_size = 3;
+}
+
 message UploadAssetRequest {
   oneof data {
-    int64 submission_id = 1;
-    string filename = 2;
-    int64 total_size = 3;
-    bytes chunk = 4;
+    UploadAssetMetadata metadata = 1;
+    bytes chunk = 2;
   }
+}
+
+message UpdateAssetMetadata {
+  int64 asset_id = 1;
+  string filename = 2;
+  int64 total_size = 3;
 }
 
 message UpdateAssetRequest {
   oneof data {
-    int64 asset_id = 1;
-    string filename = 2;
-    int64 total_size = 3;
-    bytes chunk = 4;
+    UpdateAssetMetadata metadata = 1;
+    bytes chunk = 2;
   }
 }
 
