@@ -1,24 +1,19 @@
-# Stage 1: Build with eclipse-temurin JDK 17
+
 FROM gradle:8-jdk17 AS build
 WORKDIR /app
 
-# Copy gradle files first for better caching
 COPY services/users-service/gradle/ gradle/
 COPY services/users-service/gradlew services/users-service/build.gradle services/users-service/settings.gradle ./
 
-# Download dependencies (cached layer)
 RUN gradle dependencies --no-daemon || true
 
-# Copy source code
 COPY services/users-service/src/ src/
 
-# Build the application
 RUN gradle clean && \
     gradle generateProto &&  \
     gradle build --no-daemon -x test && \
     gradle bootJar
 
-# Create custom minimal JRE with jlink
 RUN jlink --verbose \
           --module-path $JAVA_HOME/jmods \
           --strip-debug \
@@ -30,45 +25,36 @@ java.management,java.security.jgss,java.instrument,java.sql,\
 jdk.unsupported,java.xml,jdk.crypto.ec,java.net.http,jdk.httpserver \
           --output /custom-jre
 
-# Stage 2: Runtime with eclipse-temurin JRE 17 (Ubuntu-based)
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
-# Install essential dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends wget ca-certificates && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p /opt/app
 
-# Create non-root user for security
 RUN groupadd -r appgroup && \
     useradd -r -g appgroup appuser && \
     chown appuser:appgroup /opt/app
 
-# Copy custom JRE and application jar
 COPY --from=build /custom-jre /opt/jre
 COPY --from=build /app/build/libs/*.jar /opt/app/app.jar
 
-# Set ownership
 RUN chown -R appuser:appgroup /opt/app /opt/jre
 
-# Switch to non-root user
 USER appuser
 
-# Set environment variables optimized for containerized Java applications
 ENV PATH="/opt/jre/bin:${PATH}" \
     JAVA_HOME="/opt/jre" \
     JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom"
-
-# Expose gRPC port
+    
 EXPOSE 9093
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:9093/actuator/health || exit 1
 
-# Set the entry point with optimized JVM flags
+
 ENTRYPOINT ["/opt/jre/bin/java", \
             "-XX:+UseContainerSupport", \
             "-XX:MaxRAMPercentage=75.0", \

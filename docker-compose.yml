@@ -1,5 +1,4 @@
 services:
-  # Frontend Service
   frontend:
     build:
       context: .
@@ -15,7 +14,6 @@ services:
     depends_on:
       - api-gateway
 
-  # API Gateway
   api-gateway:
     build:
       context: .
@@ -45,7 +43,6 @@ services:
     networks:
       - app-network
 
-  # Auth Service
   auth-service:
     build:
       context: .
@@ -68,7 +65,6 @@ services:
     networks:
       - app-network
 
-  # Users Service
   users-service:
     build:
       context: .
@@ -91,7 +87,6 @@ services:
     networks:
       - app-network
 
-  # Articles Service (Python - placeholder implementation)
   articles-service:
     build:
       context: .
@@ -119,7 +114,7 @@ services:
     networks:
       - app-network
 
-  # Labs Service (Python - placeholder implementation)
+
   labs-service:
     build:
       context: .
@@ -147,7 +142,6 @@ services:
     networks:
       - app-network
 
-  # Feedback Service
   feedback-service:
     build:
       context: .
@@ -176,7 +170,6 @@ services:
       - app-network
 
 
-  # Database for Users Service
   postgres-users:
     image: postgres:15-alpine
     environment:
@@ -196,7 +189,6 @@ services:
     networks:
       - app-network
 
-  # Database for Articles Service
   postgres-articles:
     image: postgres:15-alpine
     environment:
@@ -216,7 +208,6 @@ services:
     networks:
       - app-network
 
-  # Database for Labs Service
   postgres-labs:
     image: postgres:15-alpine
     environment:
@@ -236,7 +227,6 @@ services:
     networks:
       - app-network
 
-  # Database for Feedback Service
   postgres-feedback:
     image: postgres:15-alpine
     environment:
@@ -256,7 +246,6 @@ services:
     networks:
       - app-network
 
-  # MinIO Object Storage
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
