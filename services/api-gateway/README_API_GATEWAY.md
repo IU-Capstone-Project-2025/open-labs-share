@@ -80,17 +80,17 @@ All endpoints require JWT authentication unless specified otherwise.
 
 ## Articles Service
 
-| Endpoint                                               | Type | Description                           |     |
-| ------------------------------------------------------ | ---- | ------------------------------------- | --- |
-| [`POST /articles/new`](#create%20article)                | POST | Creation of new article in PDF format |     |
-| [`GET /articles`](#get%20articles%20list)                  | GET  | Get list of articles                  |     |
-| [`GET /articles/{article_id}`](#get%20article%20by%20id)      | GET  | Get specified article by ID           |     |
+| Endpoint                                             | Type | Description                           |     |
+| ---------------------------------------------------- | ---- | ------------------------------------- | --- |
+| [`POST /articles`](#create%20article)                | POST | Creation of new article in PDF format |     |
+| [`GET /articles`](#get%20articles%20list)              | GET  | Get list of articles                  |     |
+| [`GET /articles/{article_id}`](#get%20article%20by%20id)  | GET  | Get specified article by ID           |     |
 | [`POST /articles/{article_id}/update`](#Update%20Article) | POST | Update the article by its ID          |     |
 
 ### Create Article
 
 **Create new article**
-- **Endpoint:** `POST /articles/new`
+- **Endpoint:** `POST /articles`
 - **Authentication:** Required
 - **Content-Type:** `multipart/form-data`
 - **Description:** Creation of new article in PDF format

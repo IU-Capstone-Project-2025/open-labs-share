@@ -12,6 +12,36 @@ import java.util.Map;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(ArticleNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleFArticleNotFoundException(ArticleNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                ErrorResponse.builder()
+                        .message(ex.getMessage())
+                        .code(ArticleNotFoundException.code)
+                        .build()
+        );
+    }
+
+    @ExceptionHandler(ForbiddenAccessException.class)
+    public ResponseEntity<ErrorResponse> handleForbiddenAccessException(ForbiddenAccessException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                ErrorResponse.builder()
+                        .message(ex.getMessage())
+                        .code(ForbiddenAccessException.code)
+                        .build()
+        );
+    }
+
+    @ExceptionHandler(AssetUploadException.class)
+    public ResponseEntity<ErrorResponse> handleAssetUploadException(AssetUploadException ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ErrorResponse.builder()
+                        .message(ex.getMessage())
+                        .code(AssetUploadException.code)
+                        .build()
+        );
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthenticationExceptions(AuthenticationException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
