@@ -70,14 +70,14 @@ message Asset {
   int64 asset_id = 1;
   int64 submission_id = 2;
   string filename = 3;
-  int64 total_size = 4;
+  int64 filesize = 4;
   google.protobuf.Timestamp upload_date = 5;
 }
 
 message UploadAssetMetadata {
   int64 submission_id = 1;
   string filename = 2;
-  int64 total_size = 3;
+  int64 filesize = 3;
 }
 
 message UploadAssetRequest {
@@ -90,7 +90,7 @@ message UploadAssetRequest {
 message UpdateAssetMetadata {
   int64 asset_id = 1;
   string filename = 2;
-  int64 total_size = 3;
+  int64 filesize = 3;
 }
 
 message UpdateAssetRequest {

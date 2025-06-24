@@ -17,8 +17,8 @@ class Lab(Base, SerializerMixin):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     owner_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now)
-    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now, onupdate=func.now)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
     abstract: Mapped[Optional[str]] = mapped_column(Text)
     views: Mapped[int] = mapped_column(BigInteger, default=0)
     submissions: Mapped[int] = mapped_column(BigInteger, default=0)
@@ -35,7 +35,7 @@ class Lab(Base, SerializerMixin):
 
     def get_attrs(self):
         return {
-            "id": self.id,
+            "lab_id": self.id,
             "owner_id": self.owner_id,
             "title": self.title,
             "created_at": self.created_at,
@@ -43,7 +43,7 @@ class Lab(Base, SerializerMixin):
             "abstract": self.abstract,
             "views": self.views,
             "submissions": self.submissions,
-            "stars": self.stars,
+            "stars_total": self.stars,
             "people_rated": self.people_rated
         }
 
@@ -53,8 +53,8 @@ class Submission(Base, SerializerMixin):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     lab_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("labs.id", ondelete="CASCADE"), nullable=False)
     owner_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now)
-    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now, onupdate=func.now)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
     status: Mapped[str] = mapped_column(String(50), nullable=False)
     points: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -67,7 +67,7 @@ class Submission(Base, SerializerMixin):
 
     def get_attrs(self):
         return {
-            "id": str(self.id),
+            "submission_id": str(self.id),
             "lab_id": str(self.lab_id),
             "owner_id": str(self.owner_id),
             "created_at": self.created_at,
@@ -103,17 +103,17 @@ class LabAsset(Base, SerializerMixin):
     lab_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("labs.id", ondelete="CASCADE"), nullable=False)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     filesize: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    upload_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now)
+    upload_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     # Relationships
-    lab: Mapped["Lab"] = relationship("Lab", back_populates="assets")
+    lab = relationship("Lab", back_populates="assets")
 
     def __repr__(self):
         return f"<LabAsset(id={self.id}, lab_id={self.lab_id}, filename={self.filename})>"
 
     def get_attrs(self):
         return {
-            "id": self.id,
+            "asset_id": self.id,
             "lab_id": self.lab_id,
             "filename": self.filename,
             "filesize": self.filesize,
@@ -128,8 +128,20 @@ class SubmissionAsset(Base, SerializerMixin):
     solution_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("submissions.id", ondelete="CASCADE"), nullable=False)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     filesize: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    upload_date: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now)
+    upload_date: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     # Relationships
-    submission: Mapped["Submission"] = relationship("Submission", back_populates="submission_assets")
+    submission = relationship("Submission", back_populates="assets")
+
+    def __repr__(self):
+        return f"<SubmissionAsset(id={self.id}, solution_id={self.solution_id}, filename={self.filename})>"
+
+    def get_attrs(self):
+        return {
+            "asset_id": self.id,
+            "solution_id": self.solution_id,
+            "filename": self.filename,
+            "filesize": self.filesize,
+            "upload_date": self.upload_date
+        }
 
