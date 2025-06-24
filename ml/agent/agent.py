@@ -1,6 +1,6 @@
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
-from langchain_community.llms import HuggingFacePipeline
+from langchain_huggingface.llms import HuggingFacePipeline
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 from langgraph.graph import START, END, StateGraph
 from agent.schemas.rag_state import RAGState
@@ -13,9 +13,10 @@ from agent.config import \
     DEVICE, \
     SCORE_THRESHOLD
 from rag_backend.config import POSTGRES_URL
-import asyncpg
+import logging
 
 
+logger = logging.getLogger(__name__)
 
 class HelperAgent:
     # TODO: add logging
@@ -24,69 +25,73 @@ class HelperAgent:
         self._load_vector_storage()
         self._load_llm()
         self._load_graph_builder()
-        self._check_postgres()
-
-    async def _check_postgres(self) -> bool:
-        try:
-            conn = await asyncpg.connect(POSTGRES_URL)
-            await conn.close()
-            return True
-        except Exception as e:
-            print(f"Postgres connection failed: {e}")
-            return False
-
 
     def _load_vector_storage(self) -> None:
-        self._embedding_model = HuggingFaceEmbeddings(
-            model_name=EMBEDDING_MODEL_NAME,
-            model_kwargs={"device": DEVICE},
-            encode_kwargs={"normalize_embeddings": True}
-        )
-        self._db = FAISS.load_local(
-            RAG_DB_PATH,
-            self._embedding_model,
-            allow_dangerous_deserialization=True
-        )
-        self._retriever = self._db.as_retriever(
-            search_type="similarity",
-            k=3,
-            search_kwargs={
-                "score_threshold": SCORE_THRESHOLD,
-                # "filter": {"assignment_id": "1"} TODO: add argument when retrieving
-            }
-        )
+        try:
+            self._embedding_model = HuggingFaceEmbeddings(
+                model_name=EMBEDDING_MODEL_NAME,
+                model_kwargs={"device": DEVICE},
+                encode_kwargs={"normalize_embeddings": True}
+            )
+            self._db = FAISS.load_local(
+                RAG_DB_PATH,
+                self._embedding_model,
+                allow_dangerous_deserialization=True
+            )
+            self._retriever = self._db.as_retriever(
+                search_type="similarity",
+                k=3,
+                search_kwargs={
+                    "score_threshold": SCORE_THRESHOLD,
+                    # "filter": {"assignment_id": "1"} TODO: add argument when retrieving
+                }
+            )
+
+            logger.info("Vector storage loaded successfully")
+        except Exception as e:
+            logger.error(f"Vector storage load failed: {e}")
+            raise RuntimeError("Vector storage load failed") from e
+        
 
     def _load_llm(self):
-        tokenizer = AutoTokenizer.from_pretrained(
-            LLM_MODEL_NAME,
-            trust_remote_code=True
-        )
-        model = AutoModelForCausalLM.from_pretrained(
-            LLM_MODEL_NAME,
-            trust_remote_code=True,
-            device_map=DEVICE
-        )
-        text_gen = pipeline(
-            "text-generation",
-            model=model,
-            tokenizer=tokenizer,
-            max_new_tokens=1024
-        )
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(
+                LLM_MODEL_NAME,
+                trust_remote_code=True
+            )
+            model = AutoModelForCausalLM.from_pretrained(
+                LLM_MODEL_NAME,
+                trust_remote_code=True,
+                device_map=DEVICE
+            )
+            text_gen = pipeline(
+                "text-generation",
+                model=model,
+                tokenizer=tokenizer,
+                max_new_tokens=1024
+            )
 
-        self._llm = HuggingFacePipeline(pipeline=text_gen)
+            self._llm = HuggingFacePipeline(pipeline=text_gen)
+            logger.info("LLM loaded successfully")
+        except Exception as e:
+            logger.error(f"LLM load failed: {e}")
 
     def _load_graph_builder(self) -> None:
-        self._graph_builder = StateGraph(RAGState)
+        try:
+            self._graph_builder = StateGraph(RAGState)
 
-        self._graph_builder.add_node("retrieve", retrieve)
-        self._graph_builder.add_node("query_rag_llm", query_rag_llm)
-        self._graph_builder.add_node("query_llm", query_llm)
+            self._graph_builder.add_node("retrieve", retrieve)
+            self._graph_builder.add_node("query_rag_llm", query_rag_llm)
+            self._graph_builder.add_node("query_llm", query_llm)
 
-        self._graph_builder.add_conditional_edges("retrieve", route_rag_usage)
-        self._graph_builder.add_edge("query_rag_llm", END)
-        self._graph_builder.add_edge("query_llm", END)
+            self._graph_builder.add_conditional_edges("retrieve", route_rag_usage)
+            self._graph_builder.add_edge("query_rag_llm", END)
+            self._graph_builder.add_edge("query_llm", END)
 
-        self._graph_builder.set_entry_point("retrieve")
+            self._graph_builder.set_entry_point("retrieve")
+            logger.info("Graph loaded successfully")
+        except Exception as e:
+            logger.error(f"Graph load failed: {e}")
 
     async def async_prompt(self, input_state: RAGState, config: dict) -> RAGState:
         async with AsyncPostgresSaver.from_conn_string(POSTGRES_URL) as saver:
