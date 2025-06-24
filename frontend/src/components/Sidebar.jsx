@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { MoonIcon, SunIcon } from "@heroicons/react/24/outline";
+import { MoonIcon, SunIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 
 export default function Sidebar({
   isOpen,
@@ -9,6 +9,7 @@ export default function Sidebar({
   toggleTheme,
 }) {
   const [activePath, setActivePath] = useState("");
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
   useEffect(() => {
     setActivePath(window.location.pathname);
@@ -16,10 +17,26 @@ export default function Sidebar({
 
   const navItems = [
     { path: "/home", name: "Home" },
+    { path: "/all-labs", name: "All Labs" },
+    { path: "/all-articles", name: "All Articles" },
+  ];
+
+  const profileDropdownItems = [    
+    { path: "/profile", name: "Change Info" },
     { path: "/my-labs", name: "My Labs" },
     { path: "/my-articles", name: "My Articles" },
-    { path: "/profile", name: "Profile" },
   ];
+
+  const isProfileActive = profileDropdownItems.some(item => item.path === activePath);
+
+  const handleProfileClick = () => {
+    setIsProfileDropdownOpen(!isProfileDropdownOpen);
+  };
+
+  const handleDropdownItemClick = (path) => {
+    setActivePath(path);
+    toggleSidebar();
+  };
 
   return (
     <div
@@ -55,6 +72,46 @@ export default function Sidebar({
                 </NavLink>
               </li>
             ))}
+            
+            {/* Profile Dropdown */}
+            <li>
+              <button
+                onClick={handleProfileClick}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors font-inter ${
+                  isProfileActive
+                    ? "bg-blue-blue bg-opacity-20 text-white backdrop-blur-lg font-medium"
+                    : "text-white hover:bg-white hover:bg-opacity-10 font-light"
+                }`}
+              >
+                <span>Profile</span>
+                <ChevronDownIcon 
+                  className={`h-4 w-4 transition-transform duration-200 ${
+                    isProfileDropdownOpen ? "rotate-180" : ""
+                  }`} 
+                />
+              </button>
+              
+              {/* Dropdown Items */}
+              {isProfileDropdownOpen && (
+                <ul className="mt-2 ml-4 space-y-1">
+                  {profileDropdownItems.map((item) => (
+                    <li key={item.path}>
+                      <NavLink
+                        to={item.path}
+                        className={`block px-4 py-2 rounded-lg transition-colors font-inter text-sm ${
+                          activePath === item.path
+                            ? "bg-blue-blue bg-opacity-30 text-white font-medium"
+                            : "text-white hover:bg-white hover:bg-opacity-10 font-light"
+                        }`}
+                        onClick={() => handleDropdownItemClick(item.path)}
+                      >
+                        {item.name}
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
           </ul>
         </nav>
 

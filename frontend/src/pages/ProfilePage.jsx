@@ -99,13 +99,14 @@ export default function MyArticles() {
 
   return (
     <div className="relative min-h-screen font-inter dark:bg-gray-900 py-10 px-6 bg-transparent">
-      <div className="relative z-10 dark:bg-gray-900/80 p-6">
-        <h1 className="text-3xl font-bold text-msc dark:text-white mb-6">
-          Profile
-        </h1>
-      </div>
+      <div className="max-w-6xl mx-auto">
+        <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-8 shadow-lg mb-6">
+          <h1 className="text-3xl font-bold text-msc dark:text-white mb-6">
+            Profile
+          </h1>
+        </div>
 
-      <div className="relative z-10 bg-light-blue bg-opacity-50 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-6 shadow-lg mb-6 max-w-3xl mx-auto">
+        <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-8 shadow-lg mb-6">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl font-bold text-msc dark:text-white">
             Edit user information
@@ -293,7 +294,7 @@ export default function MyArticles() {
         </div>
       </div>
 
-      <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-6 shadow-lg">
+        <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-8 shadow-lg">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <h1 className="text-2xl font-bold text-msc dark:text-white">
             My uploaded materials
@@ -396,6 +397,7 @@ export default function MyArticles() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

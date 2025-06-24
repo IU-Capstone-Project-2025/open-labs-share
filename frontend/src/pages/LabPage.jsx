@@ -221,10 +221,11 @@ export default function LabPage() {
 
   return (
     <div className="flex dark:bg-gray-900 min-h-screen">
-      <div
-        ref={contentRef}
-        className="flex-1 p-8 overflow-y-auto scroll-smooth"
-      >
+      <div className="max-w-6xl mx-auto flex w-full">
+        <div
+          ref={contentRef}
+          className="flex-1 p-8 overflow-y-auto scroll-smooth"
+        >
         <article className="prose dark:prose-invert max-w-none">
           <ReactMarkdown
             rehypePlugins={[rehypeHighlight]}
@@ -308,9 +309,9 @@ export default function LabPage() {
             </button>
           </div>
         </section>
-      </div>
+        </div>
 
-      <aside className="w-64 p-4 border-l border-gray-200 dark:border-gray-700 overflow-y-auto sticky top-0 h-screen">
+        <aside className="w-64 p-4 border-l border-gray-200 dark:border-gray-700 overflow-y-auto sticky top-0 h-screen">
         <ul className="space-y-1">
           {headings.map((heading, index) => (
             <li
@@ -353,6 +354,7 @@ export default function LabPage() {
           Submit homework
         </button>
       </aside>
+      </div>
     </div>
   );
 }
