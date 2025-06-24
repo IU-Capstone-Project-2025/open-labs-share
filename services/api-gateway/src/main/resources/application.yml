@@ -6,7 +6,17 @@ spring:
     name: ${SPRING_APP_NAME:api-gateway}
   profiles:
     active: ${PROFILE:default}
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: false
+
   grpc:
+    upload:
+      chuck-size: 8192
+      timeout-seconds: 60
+      max-file-size: 104857600
     client:
       channels:
         auth-service:
@@ -19,6 +29,14 @@ spring:
           negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
         user-service:
           address: "${USER_SERVICE_HOST:localhost}:${USER_SERVICE_PORT:9091}"
+          keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
+          keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
+          keep-alive-without-calls: true
+          max-inbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          max-outbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
+        article-service:
+          address: "${ARTICLE_SERVICE_HOST:localhost}:${ARTICLE_SERVICE_PORT:9092}"
           keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
           keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
           keep-alive-without-calls: true

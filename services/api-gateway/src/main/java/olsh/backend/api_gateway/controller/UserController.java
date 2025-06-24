@@ -23,13 +23,7 @@ public class UserController {
         this.userService = userService;
     }
 
-    /**
-     * Endpoint retrieves data for the specified user by his id.
-     * Requires authentication.
-     * @param userId
-     * @param request
-     * @return
-     */
+
     @RequireAuth
     @GetMapping("/{user_id}")
     public ResponseEntity<UserResponse> getUser(
