@@ -1,8 +1,8 @@
-from ml.agent.schemas.rag_state import RAGState
+from agent.schemas.rag_state import RAGState
 from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.graph import MessagesState
 from langchain_core.language_models import BaseLanguageModel
-from ml.agent.utils import format_model_response, format_prompt
+from agent.utils import format_model_response, format_prompt
 from transformers import PreTrainedTokenizerBase
 
 def query_llm(

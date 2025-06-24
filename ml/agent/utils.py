@@ -1,5 +1,5 @@
 from langchain_core.messages import BaseMessage
-from ml.agent.schemas.prompt_message import PromptMessage
+from agent.schemas.prompt_message import PromptMessage
 from transformers import PreTrainedTokenizerBase
 import typing as tp
 import re

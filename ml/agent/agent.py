@@ -3,16 +3,16 @@ from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_community.llms import HuggingFacePipeline
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 from langgraph.graph import START, END, StateGraph
-from ml.agent.schemas.rag_state import RAGState
-from ml.agent.nodes import retrieve, query_rag_llm, query_llm, route_rag_usage
-from langgraph.checkpoint.postgres import AsyncPostgresSaver
-from ml.agent.config import \
+from agent.schemas.rag_state import RAGState
+from agent.nodes import retrieve, query_rag_llm, query_llm, route_rag_usage
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from agent.config import \
     RAG_DB_PATH, \
     EMBEDDING_MODEL_NAME, \
     LLM_MODEL_NAME, \
     DEVICE, \
     SCORE_THRESHOLD
-from ml.rag_backend.config import POSTGRES_URL
+from rag_backend.config import POSTGRES_URL
 import asyncpg
 
 
@@ -26,7 +26,7 @@ class HelperAgent:
         self._load_graph_builder()
         self._check_postgres()
 
-    async def _check_postgres(self):
+    async def _check_postgres(self) -> bool:
         try:
             conn = await asyncpg.connect(POSTGRES_URL)
             await conn.close()
@@ -88,7 +88,7 @@ class HelperAgent:
 
         self._graph_builder.set_entry_point("retrieve")
 
-    async def async_prompt(self, input_state: RAGState, config: dict):
+    async def async_prompt(self, input_state: RAGState, config: dict) -> RAGState:
         async with AsyncPostgresSaver.from_conn_string(POSTGRES_URL) as saver:
             graph = self._graph_builder.compile(checkpointer=saver)
             response_state = await graph.ainvoke(input_state, config=config)
