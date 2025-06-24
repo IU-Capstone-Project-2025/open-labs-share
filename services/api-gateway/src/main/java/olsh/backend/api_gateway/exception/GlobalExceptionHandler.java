@@ -22,14 +22,19 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(LabNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleLabNotFoundException(LabNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), "The requested lab was not found");
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
-        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), "");
+        return buildResponse(HttpStatus.BAD_REQUEST, "Invalid arguments were provided", ex.getMessage());
     }
 
     @ExceptionHandler(ArticleNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleFArticleNotFoundException(ArticleNotFoundException ex) {
-        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), "");
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), "The requested article was not found");
     }
 
     @ExceptionHandler(ForbiddenAccessException.class)

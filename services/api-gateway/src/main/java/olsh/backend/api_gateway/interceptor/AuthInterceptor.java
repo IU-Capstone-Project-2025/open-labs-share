@@ -2,6 +2,7 @@ package olsh.backend.api_gateway.interceptor;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.annotation.RequireAuth;
@@ -20,6 +21,10 @@ import java.util.Arrays;
 public class AuthInterceptor implements HandlerInterceptor {
 
     private final AuthService authService;
+    @Getter
+    private final String ATTRIBUTE_USER = "authenticatedUser";
+    @Getter
+    private final String ATTRIBUTE_RESPONSE = "authResponse";
 
     @Override
     public boolean preHandle(HttpServletRequest request,
@@ -88,8 +93,8 @@ public class AuthInterceptor implements HandlerInterceptor {
 
             // Store user info for controller access
             // Use request attributes for this
-            request.setAttribute("authenticatedUser", authResponse.getUserInfo());
-            request.setAttribute("authResponse", authResponse);
+            request.setAttribute(ATTRIBUTE_USER, authResponse.getUserInfo());
+            request.setAttribute(ATTRIBUTE_RESPONSE, authResponse);
 
             log.debug("Authentication successful for user: {} (Role: {})",
                     authResponse.getUserInfo().getUsername(), authResponse.getUserInfo().getRole());

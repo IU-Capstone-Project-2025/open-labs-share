@@ -5,10 +5,10 @@ import io.grpc.Channel;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.config.UploadFileConfiguration;
-import olsh.backend.api_gateway.exception.ArticleNotFoundException;
 import olsh.backend.api_gateway.exception.AssetUploadException;
-import olsh.backend.api_gateway.grpc.proto.ArticleProto.*;
-import olsh.backend.api_gateway.grpc.proto.ArticleServiceGrpc;
+import olsh.backend.api_gateway.exception.LabNotFoundException;
+import olsh.backend.api_gateway.grpc.proto.LabProto.*;
+import olsh.backend.api_gateway.grpc.proto.LabServiceGrpc;
 import org.springframework.grpc.client.GrpcChannelFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,46 +22,101 @@ import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Service
-public class ArticleServiceClient {
+public class LabServiceClient {
 
-    private final ArticleServiceGrpc.ArticleServiceStub asyncStub; // async
-    private final ArticleServiceGrpc.ArticleServiceBlockingStub blockingStub; // sync
+    private final LabServiceGrpc.LabServiceStub asyncStub;
+    private final LabServiceGrpc.LabServiceBlockingStub blockingStub;
     private final UploadFileConfiguration uploadConfig;
 
-    public ArticleServiceClient(GrpcChannelFactory channelFactory, UploadFileConfiguration uploadConfig) {
-        Channel channel = channelFactory.createChannel("article-service");
-        this.asyncStub = ArticleServiceGrpc.newStub(channel);
-        this.blockingStub = ArticleServiceGrpc.newBlockingStub(channel);
+    public LabServiceClient(GrpcChannelFactory channelFactory, UploadFileConfiguration uploadConfig) {
+        Channel channel = channelFactory.createChannel("lab-service");
+        this.asyncStub = LabServiceGrpc.newStub(channel);
+        this.blockingStub = LabServiceGrpc.newBlockingStub(channel);
         this.uploadConfig = uploadConfig;
     }
 
-    public Article createArticle(CreateArticleRequest request) {
-        log.debug("Calling article-service gRPC CreateArticle for title: {}", request.getTitle());
-
+    public Lab createLab(CreateLabRequest request) {
+        log.debug("Calling lab-service gRPC CreateLab for title: {}", request.getTitle());
         try {
-            Article response = blockingStub.createArticle(request);
-            log.debug("Successfully created article via gRPC with ID: {}", response.getArticleId());
+            Lab response = blockingStub.createLab(request);
+            log.debug("Successfully created lab via gRPC with ID: {}", response.getLabId());
             return response;
         } catch (Exception e) {
-            log.error("Error calling CreateArticle gRPC: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to create article via gRPC", e);
+            log.error("Error calling CreateLab gRPC: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to create lab via gRPC", e);
         }
     }
 
-    public void uploadAsset(Long articleId, MultipartFile file) {
-        log.debug("Starting asset upload for article ID: {}, filename: {}, size: {} bytes",
-                articleId, file.getOriginalFilename(), file.getSize());
+    public Lab getLab(Long labId) {
+        log.debug("Calling gRPC GetLab for lab ID: {}", labId);
+        try {
+            GetLabRequest request = GetLabRequest.newBuilder()
+                    .setLabId(labId)
+                    .build();
+
+            Lab response = blockingStub.getLab(request);
+            log.debug("Successfully retrieved lab via gRPC with ID: {}", response.getLabId());
+            return response;
+        } catch (Exception e) {
+            log.error("Error calling GetLab gRPC for ID {}: {}", labId, e.getMessage(), e);
+            if (e.getMessage().contains("NOT_FOUND")) {
+                throw new LabNotFoundException(String.format("Lab with id=%d not found", labId));
+            }
+            throw new RuntimeException("Failed to get lab via gRPC", e);
+        }
+    }
+
+    public LabList getLabs(Integer page, Integer limit) {
+        log.debug("Calling gRPC GetLabs for page: {}, limit: {}", page, limit);
+        try {
+            GetLabsRequest request = GetLabsRequest.newBuilder()
+                    .setPageNumber(page)
+                    .setPageSize(limit)
+                    .build();
+
+            LabList response = blockingStub.getLabs(request);
+            log.debug("Successfully retrieved {} labs via gRPC (total: {})",
+                    response.getLabsCount(), response.getTotalCount());
+            return response;
+        } catch (Exception e) {
+            log.error("Error calling GetLabs gRPC: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to get labs via gRPC", e);
+        }
+    }
+
+    public boolean deleteLab(Long labId) {
+        log.debug("Calling gRPC DeleteLab for lab ID: {}", labId);
+        try {
+            DeleteLabRequest request = DeleteLabRequest.newBuilder()
+                    .setLabId(labId)
+                    .build();
+
+            DeleteLabResponse response = blockingStub.deleteLab(request);
+            boolean success = response.getSuccess();
+            log.debug("DeleteLab gRPC call completed with success: {}", success);
+            return success;
+        } catch (Exception e) {
+            if (e.getMessage().contains("NOT_FOUND")) {
+                throw new LabNotFoundException(String.format("Lab with id=%d not found", labId));
+            }
+            log.error("Error calling DeleteLab gRPC for ID {}: {}", labId, e.getMessage(), e);
+            throw new RuntimeException("Failed to delete lab via gRPC", e);
+        }
+    }
+
+    public void uploadAsset(Long labId, MultipartFile file) {
+        log.debug("Starting asset upload for lab ID: {}, filename: {}, size: {} bytes",
+                labId, file.getOriginalFilename(), file.getSize());
 
         try {
             CompletableFuture<Asset> future = new CompletableFuture<>();
             StreamObserver<UploadAssetRequest> requestObserver = createUploadStream(future);
 
-            sendMetadata(requestObserver, articleId, file);
+            sendMetadata(requestObserver, labId, file);
             long totalSent = streamFileContent(requestObserver, file);
             requestObserver.onCompleted();
 
             Asset result = future.get(uploadConfig.getTimeoutSeconds(), TimeUnit.SECONDS);
-
             log.info("Successfully uploaded asset: ID={}, filename={}, size={} bytes",
                     result.getAssetId(), file.getOriginalFilename(), totalSent);
 
@@ -100,9 +155,9 @@ public class ArticleServiceClient {
         });
     }
 
-    private void sendMetadata(StreamObserver<UploadAssetRequest> requestObserver, Long articleId, MultipartFile file) {
-        AssetMetadata metadata = AssetMetadata.newBuilder()
-                .setArticleId(articleId)
+    private void sendMetadata(StreamObserver<UploadAssetRequest> requestObserver, Long labId, MultipartFile file) {
+        UploadAssetMetadata metadata = UploadAssetMetadata.newBuilder()
+                .setLabId(labId)
                 .setFilename(file.getOriginalFilename())
                 .setTotalSize(file.getSize())
                 .build();
@@ -124,7 +179,6 @@ public class ArticleServiceClient {
             int bytesRead;
             while ((bytesRead = inputStream.read(buffer)) != -1) {
                 ByteString chunk = ByteString.copyFrom(buffer, 0, bytesRead);
-
                 UploadAssetRequest chunkRequest = UploadAssetRequest.newBuilder()
                         .setChunk(chunk)
                         .build();
@@ -132,7 +186,6 @@ public class ArticleServiceClient {
                 requestObserver.onNext(chunkRequest);
                 totalSent += bytesRead;
 
-                // Log progress every MB
                 long currentMB = totalSent / (1024 * 1024);
                 if (currentMB > lastLoggedMB) {
                     log.debug("Upload progress: {} MB / {} MB", currentMB, file.getSize() / (1024 * 1024));
@@ -144,70 +197,5 @@ public class ArticleServiceClient {
         log.debug("Finished streaming file content. Total sent: {} bytes", totalSent);
         return totalSent;
     }
-
-    public Article getArticle(Long articleId) {
-        log.debug("Calling gRPC GetArticle for article ID: {}", articleId);
-
-        try {
-            GetArticleRequest request = GetArticleRequest.newBuilder()
-                    .setArticleId(articleId)
-                    .build();
-
-            Article response = blockingStub.getArticle(request);
-
-            log.debug("Successfully retrieved article via gRPC with ID: {}", response.getArticleId());
-            return response;
-
-        } catch (Exception e) {
-            log.error("Error calling GetArticle gRPC for ID {}: {}", articleId, e.getMessage(), e);
-            if (e.getMessage().contains("NOT_FOUND")) {
-                throw new ArticleNotFoundException(String.format("Article with id=%d not found", articleId));
-            }
-            throw new RuntimeException("Failed to get article via gRPC", e);
-        }
-    }
-
-    public ArticleList getArticles(Integer page, Integer limit) {
-        log.debug("Calling gRPC GetArticles for page: {}, limit: {}", page, limit);
-
-        try {
-            GetArticlesRequest request = GetArticlesRequest.newBuilder()
-                    .setPageNumber(page)
-                    .setPageSize(limit)
-                    .build();
-
-            ArticleList response = blockingStub.getArticles(request);
-            log.debug("Successfully retrieved {} articles via gRPC (total: {})",
-                    response.getArticlesCount(), response.getTotalCount());
-            return response;
-
-        } catch (Exception e) {
-            log.error("Error calling GetArticles gRPC: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to get articles via gRPC", e);
-        }
-    }
-
-    public boolean deleteArticle(Long articleId) {
-        log.debug("Calling gRPC DeleteArticle for article ID: {}", articleId);
-
-        try {
-            DeleteArticleRequest request = DeleteArticleRequest.newBuilder()
-                    .setArticleId(articleId)
-                    .build();
-
-            DeleteArticleResponse response = blockingStub.deleteArticle(request);
-
-            boolean success = response.getSuccess();
-            log.debug("DeleteArticle gRPC call completed with success: {}", success);
-            return success;
-
-        } catch (Exception e) {
-            if (e.getMessage().contains("NOT_FOUND")) {
-                throw new ArticleNotFoundException(String.format("Article with id=%d not found", articleId));
-            }
-            log.error("Error calling DeleteArticle gRPC for ID {}: {}", articleId, e.getMessage(), e);
-            throw new RuntimeException("Failed to delete article via gRPC", e);
-        }
-    }
-
 }
+

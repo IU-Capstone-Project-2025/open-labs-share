@@ -24,10 +24,12 @@ import org.springframework.web.bind.annotation.*;
 public class ArticleController {
 
     private final ArticleService articleService;
+    private final RequestAttributesExtractor attributesProvider;
 
     @Autowired
-    public ArticleController(ArticleService articleService) {
+    public ArticleController(ArticleService articleService, RequestAttributesExtractor attributesProvider) {
         this.articleService = articleService;
+        this.attributesProvider = attributesProvider;
     }
 
     @RequireAuth
@@ -38,7 +40,8 @@ public class ArticleController {
 
         log.debug("Received request to create article with title: {}", request.getTitle());
 
-        CreateArticleResponse response = articleService.createArticle(request, extractUserIdFromRequest(httpRequest));
+        CreateArticleResponse response = articleService.createArticle(request,
+                attributesProvider.extractUserIdFromRequest(httpRequest));
 
         log.debug("Successfully created article");
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -79,31 +82,12 @@ public class ArticleController {
 
         log.debug("Received request to delete article with ID: {}", articleId);
 
-        Long userId = extractUserIdFromRequest(request);
+        Long userId = attributesProvider.extractUserIdFromRequest(request);
         DeleteArticleResponse response = articleService.deleteArticle(articleId, userId);
 
         log.debug("Successfully deleted article with ID: {}", articleId);
         return ResponseEntity.ok(response);
     }
 
-
-    private Long extractUserIdFromRequest(HttpServletRequest request) {
-        try {
-            // Get the authenticated user info stored by AuthInterceptor
-            olsh.backend.api_gateway.grpc.model.UserInfo userInfo =
-                    (olsh.backend.api_gateway.grpc.model.UserInfo) request.getAttribute("authenticatedUser");
-
-            if (userInfo == null) {
-                log.error("No authenticated user found in request attributes");
-                throw new RuntimeException("Authentication information not found");
-            }
-
-            return userInfo.getId();
-
-        } catch (Exception e) {
-            log.error("Failed to extract user ID from request: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to extract user information", e);
-        }
-    }
 }
 
