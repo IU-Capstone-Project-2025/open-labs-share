@@ -1,6 +1,7 @@
 CREATE TABLE feedbacks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id BIGINT NOT NULL,
+    student_id BIGINT NOT NULL,
     lab_id BIGINT NOT NULL,
     title VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT NOW(),
@@ -27,6 +28,7 @@ CREATE TABLE lab_comments (
 );
 
 CREATE INDEX idx_feedbacks_user_id ON feedbacks(user_id);
+CREATE INDEX idx_feedbacks_student_id ON feedbacks(student_id);
 CREATE INDEX idx_feedbacks_lab_id ON feedbacks(lab_id);
 CREATE INDEX idx_feedbacks_created_at ON feedbacks(created_at);
 CREATE INDEX idx_feedback_assets_feedback_id ON feedback_assets(feedback_id);
