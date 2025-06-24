@@ -1,30 +1,34 @@
 # Import downloaded modules
-from uuid import UUID, uuid4
-from sqlalchemy import ForeignKey, BigInteger, String, UUID, TIMESTAMP, Text, Boolean, Integer
-from sqlalchemy.orm import Mapped, mapped_column, relationship, declarative_base
-from sqlalchemy_serializer import SerializerMixin
-from sqlalchemy.sql import func
+from datetime import datetime
+from typing import List, Optional
 
-# Import project files
+# Import built-in modules
+from sqlalchemy import BigInteger, ForeignKey, String, Text, Integer, DateTime, TIMESTAMP
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import func
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy_serializer import SerializerMixin
 
 Base = declarative_base()
+
 class Lab(Base, SerializerMixin):
     __tablename__ = "labs"
 
-    id: Mapped[UUID] = mapped_column(UUID, primary_key=True, default=uuid4)
-    owner_id: Mapped[UUID] = mapped_column(UUID, nullable=False)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    owner_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    created_at: Mapped[TIMESTAMP] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
-    updated_at: Mapped[TIMESTAMP] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
-    abstract: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now)
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now, onupdate=func.now)
+    abstract: Mapped[Optional[str]] = mapped_column(Text)
     views: Mapped[int] = mapped_column(BigInteger, default=0)
     submissions: Mapped[int] = mapped_column(BigInteger, default=0)
     stars: Mapped[int] = mapped_column(BigInteger, default=0)
     people_rated: Mapped[int] = mapped_column(BigInteger, default=0)
 
-    lab_submissions = relationship("Submission", back_populates="lab")
-    assets = relationship("LabAsset", back_populates="lab")
-    articles = relationship("ArticleRelation", back_populates="lab")
+    # Relationships
+    lab_submissions = relationship("Submission", back_populates="lab", cascade="all, delete")
+    assets = relationship("LabAsset", back_populates="lab", cascade="all, delete")
+    articles = relationship("ArticleRelation", back_populates="lab", cascade="all, delete")
 
     def __repr__(self):
         return f"<Lab(id={self.id}, title={self.title})>"
@@ -43,20 +47,20 @@ class Lab(Base, SerializerMixin):
             "people_rated": self.people_rated
         }
 
-
 class Submission(Base, SerializerMixin):
     __tablename__ = "submissions"
 
-    id: Mapped[UUID] = mapped_column(UUID, primary_key=True, default=uuid4)
-    lab_id: Mapped[UUID] = mapped_column(UUID, ForeignKey("labs.id", ondelete="CASCADE"), nullable=False)
-    owner_id: Mapped[UUID] = mapped_column(UUID, nullable=False)
-    created_at: Mapped[TIMESTAMP] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
-    updated_at: Mapped[TIMESTAMP] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    lab_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("labs.id", ondelete="CASCADE"), nullable=False)
+    owner_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now)
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now, onupdate=func.now)
     status: Mapped[str] = mapped_column(String(50), nullable=False)
-    points: Mapped[int] = mapped_column(Integer)
+    points: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Relationships
     lab = relationship("Lab", back_populates="lab_submissions")
-    assets = relationship("SubmissionAsset", back_populates="submission")
+    assets = relationship("SubmissionAsset", back_populates="submission", cascade="all, delete")
 
     def __repr__(self):
         return f"<Submission(id={self.id}, lab_id={self.lab_id})>"
@@ -76,9 +80,10 @@ class Submission(Base, SerializerMixin):
 class ArticleRelation(Base, SerializerMixin):
     __tablename__ = "article_relations"
 
-    lab_id: Mapped[UUID] = mapped_column(UUID, ForeignKey("labs.id", ondelete="CASCADE"), primary_key=True)
-    article_id: Mapped[UUID] = mapped_column(UUID, primary_key=True)
+    lab_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("labs.id", ondelete="CASCADE"), primary_key=True)
+    article_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
 
+    # Relationships
     lab = relationship("Lab", back_populates="articles")
 
     def __repr__(self):
@@ -94,25 +99,24 @@ class ArticleRelation(Base, SerializerMixin):
 class LabAsset(Base, SerializerMixin):
     __tablename__ = "lab_assets"
 
-    id: Mapped[UUID] = mapped_column(UUID, primary_key=True, default=uuid4)
-    lab_id: Mapped[UUID] = mapped_column(UUID, ForeignKey("labs.id", ondelete="CASCADE"), nullable=False)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    lab_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("labs.id", ondelete="CASCADE"), nullable=False)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    total_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    is_lab: Mapped[bool] = mapped_column(Boolean, default=False)
-    upload_date: Mapped[TIMESTAMP] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    filesize: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    upload_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now)
 
-    lab = relationship("Lab", back_populates="assets")
+    # Relationships
+    lab: Mapped["Lab"] = relationship("Lab", back_populates="assets")
 
     def __repr__(self):
-        return f"<LabAsset(id={self.id}, filename={self.filename})>"
+        return f"<LabAsset(id={self.id}, lab_id={self.lab_id}, filename={self.filename})>"
 
     def get_attrs(self):
         return {
             "id": self.id,
             "lab_id": self.lab_id,
             "filename": self.filename,
-            "total_size": self.total_size,
-            "is_lab": self.is_lab,
+            "filesize": self.filesize,
             "upload_date": self.upload_date
         }
 
@@ -120,22 +124,12 @@ class LabAsset(Base, SerializerMixin):
 class SubmissionAsset(Base, SerializerMixin):
     __tablename__ = "submission_assets"
 
-    id: Mapped[UUID] = mapped_column(UUID, primary_key=True, default=uuid4)
-    solution_id: Mapped[UUID] = mapped_column(UUID, ForeignKey("submissions.id", ondelete="CASCADE"), nullable=False)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    solution_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("submissions.id", ondelete="CASCADE"), nullable=False)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    total_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    upload_date: Mapped[TIMESTAMP] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    filesize: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    upload_date: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now)
 
-    submission = relationship("Submission", back_populates="assets")
+    # Relationships
+    submission: Mapped["Submission"] = relationship("Submission", back_populates="submission_assets")
 
-    def __repr__(self):
-        return f"<SubmissionAsset(id={self.id}, filename={self.filename})>"
-
-    def get_attrs(self):
-        return {
-            "id": self.id,
-            "solution_id": self.solution_id,
-            "filename": self.filename,
-            "total_size": self.total_size,
-            "upload_date": self.upload_date
-        }
