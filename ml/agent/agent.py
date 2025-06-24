@@ -47,7 +47,6 @@ class HelperAgent:
                 k=3,
                 search_kwargs={
                     "score_threshold": SCORE_THRESHOLD,
-                    # "filter": {"assignment_id": "1"} TODO: add argument when retrieving
                 }
             )
 
