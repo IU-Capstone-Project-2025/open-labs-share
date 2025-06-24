@@ -162,7 +162,7 @@ export default function Home() {
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link 
-                to="/my-labs" 
+                to="/all-labs" 
                 className="px-8 py-4 bg-msc text-white rounded-lg font-semibold hover:bg-msc-hover transition-colors flex items-center group"
               >
                 Explore Labs
@@ -170,7 +170,7 @@ export default function Home() {
               </Link>
               
               <Link 
-                to="/my-articles" 
+                to="/all-articles" 
                 className="px-8 py-4 bg-light-blue text-msc rounded-lg font-semibold hover:bg-light-blue-hover transition-colors"
               >
                 Browse Articles

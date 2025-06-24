@@ -4,6 +4,8 @@ import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import "highlight.js/styles/github-dark.css";
+import CommentsSection from "../components/CommentsSection";
+import { getCurrentUser, isAuthenticated } from "../utils/auth";
 
 const flattenText = (children) => {
   if (typeof children === "string") return children;
@@ -35,6 +37,15 @@ export default function LabPage() {
   const fileInputRef = useRef(null);
   const dropzoneRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [user, setUser] = useState(null);
+
+  // Initialize user state
+  useEffect(() => {
+    if (isAuthenticated()) {
+      const currentUser = getCurrentUser();
+      setUser(currentUser);
+    }
+  }, []);
 
   const scrollToSubmit = useCallback(() => {
     const submitSection = document.getElementById("submit-section");
@@ -226,16 +237,44 @@ export default function LabPage() {
           ref={contentRef}
           className="flex-1 p-8 overflow-y-auto scroll-smooth"
         >
-        <article className="prose dark:prose-invert max-w-none">
-          <ReactMarkdown
-            rehypePlugins={[rehypeHighlight]}
-            remarkPlugins={[remarkGfm]}
-            components={components}
-          >
-            {markdown}
-          </ReactMarkdown>
-        </article>
-        <section id="submit-section" className="mt-12">
+        {/* Header and Content Section */}
+        <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-8">
+          <article className="prose dark:prose-invert max-w-none">
+            <ReactMarkdown
+              rehypePlugins={[rehypeHighlight]}
+              remarkPlugins={[remarkGfm]}
+              components={components}
+            >
+              {markdown}
+            </ReactMarkdown>
+          </article>
+        </section>
+
+        {/* Homework Submission Section */}
+        <section id="submit-section" className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-8">
+          <div className="flex items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-600">
+            <div className="w-10 h-10 bg-msc rounded-full flex items-center justify-center mr-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Homework Submission</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Upload your completed assignment files</p>
+            </div>
+          </div>
+
           <div
             ref={dropzoneRef}
             onDrop={handleDrop}
@@ -247,7 +286,7 @@ export default function LabPage() {
             } rounded-lg p-8 text-center cursor-pointer transition-colors ${
               isDragging
                 ? "bg-blue-50 dark:bg-gray-800"
-                : "bg-white dark:bg-gray-800"
+                : "bg-gray-50 dark:bg-gray-750"
             }`}
           >
             <input
@@ -295,7 +334,7 @@ export default function LabPage() {
             )}
           </div>
 
-          <div className="mt-4 flex justify-center">
+          <div className="mt-6 flex justify-center">
             <button
               onClick={handleSubmit}
               disabled={!file}
@@ -308,6 +347,34 @@ export default function LabPage() {
               Submit homework
             </button>
           </div>
+        </section>
+
+        {/* Comments Section */}
+        <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
+          <div className="flex items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-600">
+            <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center mr-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Lab Discussion</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Share your thoughts and ask questions about this lab</p>
+            </div>
+          </div>
+          
+          <CommentsSection contentType="lab" contentId={id} userId={user?.id} />
         </section>
         </div>
 

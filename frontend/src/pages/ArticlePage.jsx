@@ -110,6 +110,8 @@ export default function ArticlePage() {
     };
   }, [id]);
 
+
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen dark:bg-gray-900">
@@ -136,34 +138,84 @@ export default function ArticlePage() {
     <div className="flex dark:bg-gray-900 min-h-screen">
       <div className="max-w-6xl mx-auto flex w-full">
         <div className="flex-1 p-8 overflow-y-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 mb-8">
-            {pdfFile && (
-              <Document
-                file={pdfFile}
-                onLoadSuccess={onDocumentLoadSuccess}
-                onLoadError={(error) =>
-                  setError(`Render error: ${error.message}`)
-                }
-                loading={<div className="text-center py-8">Loading PDF...</div>}
-              >
-                {Array.from({ length: numPages }, (_, i) => (
-                  <Page
-                    key={`page_${i + 1}`}
-                    pageNumber={i + 1}
-                    width={800}
-                    className="mb-4 border border-gray-200 dark:border-gray-700"
-                    loading={
-                      <div className="h-[800px] bg-gray-100 flex items-center justify-center">
-                        Loading page {i + 1}...
-                      </div>
-                    }
+          {/* Article Content Section */}
+          <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
+            <div className="flex items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-600">
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center mr-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
-                ))}
-              </Document>
-            )}
-          </div>
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Research Article</h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Read and review the academic paper</p>
+              </div>
+            </div>
+            
+            <div className="bg-gray-50 dark:bg-gray-750 rounded-lg p-4">
+              {pdfFile && (
+                <Document
+                  file={pdfFile}
+                  onLoadSuccess={onDocumentLoadSuccess}
+                  onLoadError={(error) =>
+                    setError(`Render error: ${error.message}`)
+                  }
+                  loading={<div className="text-center py-8">Loading PDF...</div>}
+                >
+                  {Array.from({ length: numPages }, (_, i) => (
+                    <Page
+                      key={`page_${i + 1}`}
+                      pageNumber={i + 1}
+                      width={800}
+                      className="mb-4 border border-gray-200 dark:border-gray-700"
+                      loading={
+                        <div className="h-[800px] bg-gray-100 flex items-center justify-center">
+                          Loading page {i + 1}...
+                        </div>
+                      }
+                    />
+                  ))}
+                </Document>
+              )}
+            </div>
+          </section>
 
-          <section id="submit-section" className="mt-8">
+          {/* Review Submission Section */}
+          <section id="submit-section" className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-8">
+            <div className="flex items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-600">
+              <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center mr-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Peer Review Submission</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Submit your review and feedback on this article</p>
+              </div>
+            </div>
+
             <div
               ref={dropzoneRef}
               onDrop={handleDrop}
@@ -175,7 +227,7 @@ export default function ArticlePage() {
               } rounded-lg p-8 text-center cursor-pointer transition-colors ${
                 isDragging
                   ? "bg-blue-50 dark:bg-gray-700"
-                  : "bg-white dark:bg-gray-800"
+                  : "bg-gray-50 dark:bg-gray-750"
               }`}
             >
               <input
@@ -236,6 +288,8 @@ export default function ArticlePage() {
               </button>
             </div>
           </section>
+
+
         </div>
 
         <aside className="w-64 p-4 border-l border-gray-200 dark:border-gray-700 overflow-y-auto sticky top-0 h-screen">
