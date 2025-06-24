@@ -1,6 +1,8 @@
 import os
 from dotenv import load_dotenv
 
+load_dotenv("agent/.env")
+
 DEVICE = os.getenv("DEVICE", "cpu")
 RAG_DB_PATH = os.getenv("RAG_DB_PATH")
 SCORE_THRESHOLD = float(os.getenv("SCORE_THRESHOLD"))

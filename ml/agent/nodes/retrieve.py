@@ -1,4 +1,4 @@
-from ml.agent.schemas.rag_state import RAGState
+from agent.schemas.rag_state import RAGState
 from langchain_core.retrievers import BaseRetriever
 
 
