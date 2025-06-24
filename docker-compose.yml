@@ -1,4 +1,5 @@
 services:
+  # Frontend Service
   frontend:
     build:
       context: .
@@ -11,6 +12,279 @@ services:
     environment:
       - NODE_ENV=development
     restart: unless-stopped
+    depends_on:
+      - api-gateway
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_APP_PORT=8080
+      - AUTH_SERVICE_HOST=auth-service
+      - AUTH_SERVICE_PORT=9092
+      - USER_SERVICE_HOST=users-service
+      - USER_SERVICE_PORT=9093
+      - ARTICLE_SERVICE_HOST=articles-service
+      - ARTICLE_SERVICE_PORT=9092
+      - LAB_SERVICE_HOST=labs-service
+      - LAB_SERVICE_PORT=9091
+      - FEEDBACK_SERVICE_HOST=feedback-service
+      - FEEDBACK_SERVICE_PORT=9090
+      - SPRING_PROFILES_ACTIVE=docker
+    restart: unless-stopped
+    depends_on:
+      - auth-service
+      - users-service
+      - articles-service
+      - labs-service
+      - feedback-service
+    networks:
+      - app-network
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.auth-service
+    ports:
+      - "8081:8081"
+      - "9092:9092"
+    environment:
+      - PORT=8081
+      - GRPC_PORT=9092
+      - USERS_SERVICE_HOST=users-service
+      - USERS_SERVICE_PORT=9093
+      - JWT_SIGNING_KEY=defaultSigningKey12345678901234567890123412341234123412341234123412341234
+      - ACCESS_TOKEN_EXPIRATION=144000000
+      - REFRESH_TOKEN_EXPIRATION=1008000000
+      - SPRING_PROFILES_ACTIVE=docker
+    restart: unless-stopped
+    depends_on:
+      - users-service
+    networks:
+      - app-network
+
+  # Users Service
+  users-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.users-service
+    ports:
+      - "9093:9093"
+    environment:
+      - GRPC_PORT=9093
+      - DB_URL=jdbc:postgresql://postgres-users:5432/users_service
+      - DB_USERNAME=users_user
+      - DB_PASSWORD=users_password
+      - HIBERNATE_DDL_AUTO=update
+      - SHOW_SQL=false
+      - LOG_LEVEL=INFO
+      - SPRING_PROFILES_ACTIVE=docker
+    restart: unless-stopped
+    depends_on:
+      postgres-users:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  # Articles Service (Python - placeholder implementation)
+  articles-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.articles-service
+    ports:
+      - "9094:9092"
+    environment:
+      - GRPC_PORT=9092
+      - DB_HOST=postgres-articles
+      - DB_PORT=5432
+      - DB_USER=articles_user
+      - DB_PASSWORD=articles_password
+      - DB_NAME=articles_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET_NAME=articles
+      - MINIO_USE_SSL=false
+    restart: unless-stopped
+    depends_on:
+      postgres-articles:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  # Labs Service (Python - placeholder implementation)
+  labs-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.labs-service
+    ports:
+      - "9095:9091"
+    environment:
+      - GRPC_PORT=9091
+      - DB_HOST=postgres-labs
+      - DB_PORT=5432
+      - DB_USER=labs_user
+      - DB_PASSWORD=labs_password
+      - DB_NAME=labs_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET_NAME=labs
+      - MINIO_USE_SSL=false
+    restart: unless-stopped
+    depends_on:
+      postgres-labs:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  # Feedback Service
+  feedback-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.feedback-service
+    ports:
+      - "9090:9090"
+    environment:
+      - GRPC_PORT=9090
+      - DB_HOST=postgres-feedback
+      - DB_PORT=5432
+      - DB_USER=feedback_user
+      - DB_PASSWORD=feedback_password
+      - DB_NAME=feedback_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET_NAME=feedback
+      - MINIO_USE_SSL=false
+    restart: unless-stopped
+    depends_on:
+      postgres-feedback:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - app-network
+
+
+  # Database for Users Service
+  postgres-users:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=users_service
+      - POSTGRES_USER=users_user
+      - POSTGRES_PASSWORD=users_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-users-data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U users_user -d users_service
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Database for Articles Service
+  postgres-articles:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=articles_db
+      - POSTGRES_USER=articles_user
+      - POSTGRES_PASSWORD=articles_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-articles-data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U articles_user -d articles_db
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Database for Labs Service
+  postgres-labs:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=labs_db
+      - POSTGRES_USER=labs_user
+      - POSTGRES_PASSWORD=labs_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-labs-data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U labs_user -d labs_db
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Database for Feedback Service
+  postgres-feedback:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=feedback_db
+      - POSTGRES_USER=feedback_user
+      - POSTGRES_PASSWORD=feedback_password
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres-feedback-data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U feedback_user -d feedback_db
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   frontend_node_modules:
+  postgres-users-data:
+  postgres-articles-data:
+  postgres-labs-data:
+  postgres-feedback-data:
+  minio-data:
