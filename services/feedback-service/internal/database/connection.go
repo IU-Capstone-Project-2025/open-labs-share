@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/Ravwvil/feedback/internal/config"
+	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/config"
 	_ "github.com/lib/pq" // PostgreSQL driver
 )
 

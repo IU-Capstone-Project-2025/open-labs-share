@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/Ravwvil/feedback/internal/models"
-	"github.com/Ravwvil/feedback/internal/repository"
-	"github.com/Ravwvil/feedback/internal/storage"
+	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/models"
+	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/repository"
+	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/storage"
 	"github.com/google/uuid"
 )
 

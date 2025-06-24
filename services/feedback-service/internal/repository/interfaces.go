@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"github.com/Ravwvil/feedback/internal/models"
+	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/models"
 	"github.com/google/uuid"
 )
 

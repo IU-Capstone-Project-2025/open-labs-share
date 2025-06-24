@@ -9,12 +9,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Ravwvil/feedback/internal/config"
-	"github.com/Ravwvil/feedback/internal/database"
-	"github.com/Ravwvil/feedback/internal/grpc/server"
-	"github.com/Ravwvil/feedback/internal/repository"
-	"github.com/Ravwvil/feedback/internal/service"
-	"github.com/Ravwvil/feedback/internal/storage"
+	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/config"
+	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/database"
+	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/grpc/server"
+	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/repository"
+	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/service"
+	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/storage"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
