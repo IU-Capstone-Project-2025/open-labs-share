@@ -37,8 +37,6 @@ services:
     depends_on:
       - auth-service
       - users-service
-      - articles-service
-      - labs-service
       - feedback-service
     networks:
       - app-network
@@ -87,60 +85,7 @@ services:
     networks:
       - app-network
 
-  articles-service:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.articles-service
-    ports:
-      - "9094:9092"
-    environment:
-      - GRPC_PORT=9092
-      - DB_HOST=postgres-articles
-      - DB_PORT=5432
-      - DB_USER=articles_user
-      - DB_PASSWORD=articles_password
-      - DB_NAME=articles_db
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - MINIO_BUCKET_NAME=articles
-      - MINIO_USE_SSL=false
-    restart: unless-stopped
-    depends_on:
-      postgres-articles:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    networks:
-      - app-network
 
-
-  labs-service:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.labs-service
-    ports:
-      - "9095:9091"
-    environment:
-      - GRPC_PORT=9091
-      - DB_HOST=postgres-labs
-      - DB_PORT=5432
-      - DB_USER=labs_user
-      - DB_PASSWORD=labs_password
-      - DB_NAME=labs_db
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - MINIO_BUCKET_NAME=labs
-      - MINIO_USE_SSL=false
-    restart: unless-stopped
-    depends_on:
-      postgres-labs:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    networks:
-      - app-network
 
   feedback-service:
     build:
@@ -189,43 +134,7 @@ services:
     networks:
       - app-network
 
-  postgres-articles:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=articles_db
-      - POSTGRES_USER=articles_user
-      - POSTGRES_PASSWORD=articles_password
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres-articles-data:/var/lib/postgresql/data
-    healthcheck:
-      test: pg_isready -U articles_user -d articles_db
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    networks:
-      - app-network
 
-  postgres-labs:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=labs_db
-      - POSTGRES_USER=labs_user
-      - POSTGRES_PASSWORD=labs_password
-    ports:
-      - "5434:5432"
-    volumes:
-      - postgres-labs-data:/var/lib/postgresql/data
-    healthcheck:
-      test: pg_isready -U labs_user -d labs_db
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    networks:
-      - app-network
 
   postgres-feedback:
     image: postgres:15-alpine
@@ -273,7 +182,5 @@ networks:
 volumes:
   frontend_node_modules:
   postgres-users-data:
-  postgres-articles-data:
-  postgres-labs-data:
   postgres-feedback-data:
   minio-data:
