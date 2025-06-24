@@ -21,6 +21,7 @@ spring:
       channels:
         auth-service:
           address: "${AUTH_SERVICE_HOST:localhost}:${AUTH_SERVICE_PORT:9090}"
+          wait-for-ready: true # Will not fail if the service is not ready
           keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
           keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
           keep-alive-without-calls: true
@@ -29,6 +30,7 @@ spring:
           negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
         user-service:
           address: "${USER_SERVICE_HOST:localhost}:${USER_SERVICE_PORT:9091}"
+          wait-for-ready: true
           keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
           keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
           keep-alive-without-calls: true
@@ -37,6 +39,7 @@ spring:
           negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
         article-service:
           address: "${ARTICLE_SERVICE_HOST:localhost}:${ARTICLE_SERVICE_PORT:9092}"
+          wait-for-ready: true
           keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
           keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
           keep-alive-without-calls: true
@@ -45,6 +48,7 @@ spring:
           negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
         lab-service:
           address: "${LAB_SERVICE_HOST:localhost}:${LAB_SERVICE_PORT:9092}"
+          wait-for-ready: true
           keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
           keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
           keep-alive-without-calls: true
@@ -72,3 +76,21 @@ management:
   endpoint:
     health:
       show-details: when_authorized
+
+# OpenAPI Documentation Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true
+  info:
+    title: Open Labs Share API Gateway
+    description: API Gateway service for Open Labs Share platform
+    version: 1.0.0
+    contact:
+      name: Open Labs Share Team
+  default-produces-media-type: application/json
+  default-consumes-media-type: application/json
