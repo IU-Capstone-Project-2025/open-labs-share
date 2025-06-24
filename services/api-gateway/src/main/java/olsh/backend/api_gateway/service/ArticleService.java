@@ -52,7 +52,12 @@ public class ArticleService {
     }
 
     private Article registerArticle(CreateArticleRequest request, Long authorId) {
-        olsh.backend.api_gateway.grpc.proto.CreateArticleRequest grpcRequest = olsh.backend.api_gateway.grpc.proto.CreateArticleRequest.newBuilder().setOwnerId(authorId).setTitle(request.getTitle()).setAbstract(request.getShort_desc()).build();
+        olsh.backend.api_gateway.grpc.proto.CreateArticleRequest grpcRequest =
+                olsh.backend.api_gateway.grpc.proto.CreateArticleRequest.newBuilder()
+                        .setOwnerId(authorId)
+                        .setTitle(request.getTitle())
+                        .setAbstract(request.getShort_desc())
+                        .build();
         olsh.backend.api_gateway.grpc.proto.Article article = articleServiceClient.createArticle(grpcRequest);
         log.debug("Successfully registered article with ID: {}", article.getArticleId());
         return article;
