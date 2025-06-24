@@ -6,9 +6,9 @@ import (
 	"io"
 	"time"
 
-	pb "github.com/Ravwvil/feedback/api"
-	"github.com/Ravwvil/feedback/internal/models"
-	"github.com/Ravwvil/feedback/internal/service"
+	pb "github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/api"
+	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/models"
+	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/service"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -75,14 +75,14 @@ func (s *feedbackServer) CreateFeedback(stream pb.FeedbackService_CreateFeedback
 
 	// Create a pipe to stream data to the upload function
 	pipeReader, pipeWriter := io.Pipe()
-	
+
 	// Error channel for goroutine communication
 	uploadErrCh := make(chan error, 1)
-	
+
 	// Start upload in a goroutine
 	go func() {
 		defer pipeReader.Close()
-		
+
 		// Upload the content
 		err := s.feedbackService.UploadFeedbackContent(
 			stream.Context(),
@@ -97,7 +97,7 @@ func (s *feedbackServer) CreateFeedback(stream pb.FeedbackService_CreateFeedback
 	var totalReceived int64
 	streamError := func() error {
 		defer pipeWriter.Close() // Ensure pipe writer is closed when streaming completes
-		
+
 		for {
 			// Check if context is canceled
 			select {
@@ -105,7 +105,7 @@ func (s *feedbackServer) CreateFeedback(stream pb.FeedbackService_CreateFeedback
 				return stream.Context().Err()
 			default:
 			}
-			
+
 			req, err := stream.Recv()
 			if err == io.EOF {
 				// End of stream reached
@@ -119,7 +119,7 @@ func (s *feedbackServer) CreateFeedback(stream pb.FeedbackService_CreateFeedback
 			if chunk == nil {
 				continue
 			}
-			
+
 			totalReceived += int64(len(chunk))
 			if totalReceived > metadata.TotalSize {
 				return fmt.Errorf("received more data than expected: %d > %d", totalReceived, metadata.TotalSize)
@@ -130,7 +130,7 @@ func (s *feedbackServer) CreateFeedback(stream pb.FeedbackService_CreateFeedback
 				return fmt.Errorf("failed to write chunk to upload stream: %v", err)
 			}
 		}
-		
+
 		return nil
 	}()
 
@@ -139,7 +139,7 @@ func (s *feedbackServer) CreateFeedback(stream pb.FeedbackService_CreateFeedback
 		pipeWriter.CloseWithError(streamError)
 		// Clean up the created feedback entry on streaming error
 		_ = s.feedbackService.DeleteFeedback(stream.Context(), createdFeedback.ID)
-		
+
 		if streamError == stream.Context().Err() {
 			return status.Error(codes.Canceled, "stream canceled")
 		}
@@ -150,8 +150,8 @@ func (s *feedbackServer) CreateFeedback(stream pb.FeedbackService_CreateFeedback
 	if totalReceived != metadata.TotalSize {
 		pipeWriter.CloseWithError(fmt.Errorf("data size mismatch"))
 		_ = s.feedbackService.DeleteFeedback(stream.Context(), createdFeedback.ID)
-		return status.Error(codes.InvalidArgument, 
-			fmt.Sprintf("received data size (%d) doesn't match declared size (%d)", 
+		return status.Error(codes.InvalidArgument,
+			fmt.Sprintf("received data size (%d) doesn't match declared size (%d)",
 				totalReceived, metadata.TotalSize))
 	}
 
@@ -182,7 +182,7 @@ func (s *feedbackServer) CreateFeedback(stream pb.FeedbackService_CreateFeedback
 		CreatedAt: timestamppb.New(createdFeedback.CreatedAt),
 		UpdatedAt: timestamppb.New(createdFeedback.UpdatedAt),
 	}
-	
+
 	return stream.SendAndClose(feedback)
 }
 
@@ -223,7 +223,7 @@ func (s *feedbackServer) GetFeedback(req *pb.GetFeedbackRequest, stream pb.Feedb
 	})
 	if err != nil {
 		return status.Error(codes.Internal, fmt.Sprintf("failed to send feedback info: %v", err))
-	}	// Get and stream feedback content
+	} // Get and stream feedback content
 	reader, _, err := s.feedbackService.DownloadFeedbackContent(stream.Context(), id)
 	if err != nil {
 		if err.Error() == "feedback content not found" {
@@ -307,18 +307,18 @@ func (s *feedbackServer) UpdateFeedback(stream pb.FeedbackService_UpdateFeedback
 	}
 	// Create a pipe to stream data to the update function
 	pipeReader, pipeWriter := io.Pipe()
-	
+
 	// Result channel for goroutine communication
 	type result struct {
 		feedback *pb.FeedbackFile
 		err      error
 	}
 	resultCh := make(chan result, 1)
-	
+
 	// Start feedback update in a goroutine
 	go func() {
 		defer pipeReader.Close()
-		
+
 		// Check context before starting
 		select {
 		case <-stream.Context().Done():
@@ -326,7 +326,7 @@ func (s *feedbackServer) UpdateFeedback(stream pb.FeedbackService_UpdateFeedback
 			return
 		default:
 		}
-		
+
 		// First update the feedback content
 		err := s.feedbackService.UpdateFeedbackContent(
 			stream.Context(),
@@ -338,7 +338,7 @@ func (s *feedbackServer) UpdateFeedback(stream pb.FeedbackService_UpdateFeedback
 			resultCh <- result{err: err}
 			return
 		}
-		
+
 		// Then update the title if provided
 		var updatedFeedback *models.Feedback
 		if metadata.Title != nil {
@@ -350,7 +350,7 @@ func (s *feedbackServer) UpdateFeedback(stream pb.FeedbackService_UpdateFeedback
 			resultCh <- result{err: err}
 			return
 		}
-				// Success - send the feedback response
+		// Success - send the feedback response
 		feedback := &pb.FeedbackFile{
 			Id:        updatedFeedback.ID.String(),
 			UserId:    updatedFeedback.UserID,
@@ -366,7 +366,7 @@ func (s *feedbackServer) UpdateFeedback(stream pb.FeedbackService_UpdateFeedback
 	// Stream chunks to the pipe
 	var totalReceived int64
 	streamingDone := false
-	
+
 	for !streamingDone {
 		// Check if context is canceled
 		select {
@@ -375,7 +375,7 @@ func (s *feedbackServer) UpdateFeedback(stream pb.FeedbackService_UpdateFeedback
 			return status.Error(codes.Canceled, "stream canceled")
 		default:
 		}
-		
+
 		req, err := stream.Recv()
 		if err == io.EOF {
 			streamingDone = true
@@ -390,7 +390,7 @@ func (s *feedbackServer) UpdateFeedback(stream pb.FeedbackService_UpdateFeedback
 		if chunk == nil {
 			continue
 		}
-		
+
 		totalReceived += int64(len(chunk))
 		if totalReceived > *metadata.TotalSize {
 			pipeWriter.CloseWithError(fmt.Errorf("received more data than expected"))
@@ -414,8 +414,8 @@ func (s *feedbackServer) UpdateFeedback(stream pb.FeedbackService_UpdateFeedback
 
 	// Verify we received all data
 	if totalReceived != *metadata.TotalSize {
-		return status.Error(codes.InvalidArgument, 
-			fmt.Sprintf("received data size (%d) doesn't match declared size (%d)", 
+		return status.Error(codes.InvalidArgument,
+			fmt.Sprintf("received data size (%d) doesn't match declared size (%d)",
 				totalReceived, *metadata.TotalSize))
 	}
 
@@ -486,7 +486,7 @@ func (s *feedbackServer) ListUserFeedbacks(ctx context.Context, req *pb.ListUser
 	feedbacks, totalCount, err := s.feedbackService.ListUserFeedbacks(ctx, req.UserId, labID, req.Page, req.Limit)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list feedbacks: %v", err))
-	}	// Convert to protobuf
+	} // Convert to protobuf
 	pbFeedbacks := make([]*pb.FeedbackFile, len(feedbacks))
 	for i, feedback := range feedbacks {
 		pbFeedbacks[i] = &pb.FeedbackFile{
@@ -581,12 +581,12 @@ func (s *feedbackServer) UploadAsset(stream pb.FeedbackService_UploadAssetServer
 	}
 	// Create a pipe to stream data to the upload function
 	pipeReader, pipeWriter := io.Pipe()
-	
+
 	// Start upload in a goroutine
 	uploadErrCh := make(chan error, 1)
 	go func() {
 		defer pipeReader.Close()
-		
+
 		// Check context before starting
 		select {
 		case <-stream.Context().Done():
@@ -594,7 +594,7 @@ func (s *feedbackServer) UploadAsset(stream pb.FeedbackService_UploadAssetServer
 			return
 		default:
 		}
-		
+
 		err := s.feedbackService.UploadAsset(
 			stream.Context(),
 			feedbackID,
@@ -609,7 +609,7 @@ func (s *feedbackServer) UploadAsset(stream pb.FeedbackService_UploadAssetServer
 	// Stream chunks to the pipe
 	var totalReceived int64
 	streamingDone := false
-	
+
 	for !streamingDone {
 		// Check if context is canceled
 		select {
@@ -618,7 +618,7 @@ func (s *feedbackServer) UploadAsset(stream pb.FeedbackService_UploadAssetServer
 			return status.Error(codes.Canceled, "stream canceled")
 		default:
 		}
-		
+
 		req, err := stream.Recv()
 		if err == io.EOF {
 			streamingDone = true
@@ -633,7 +633,7 @@ func (s *feedbackServer) UploadAsset(stream pb.FeedbackService_UploadAssetServer
 		if chunk == nil {
 			continue
 		}
-		
+
 		totalReceived += int64(len(chunk))
 		if totalReceived > metadata.TotalSize {
 			pipeWriter.CloseWithError(fmt.Errorf("received more data than expected"))
@@ -657,8 +657,8 @@ func (s *feedbackServer) UploadAsset(stream pb.FeedbackService_UploadAssetServer
 
 	// Verify we received all data
 	if totalReceived != metadata.TotalSize {
-		return status.Error(codes.InvalidArgument, 
-			fmt.Sprintf("received data size (%d) doesn't match declared size (%d)", 
+		return status.Error(codes.InvalidArgument,
+			fmt.Sprintf("received data size (%d) doesn't match declared size (%d)",
 				totalReceived, metadata.TotalSize))
 	}
 

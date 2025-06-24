@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Ravwvil/feedback/internal/models"
+	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -149,7 +149,7 @@ func (r *feedbackRepository) ListByUser(ctx context.Context, filter models.Feedb
 
 	argCount++
 	baseQuery += fmt.Sprintf(" OFFSET $%d", argCount)
-	args = append(args, offset)	// Build the select query
+	args = append(args, offset) // Build the select query
 	selectQuery := `
 		SELECT id, user_id, student_id, lab_id, title, created_at, updated_at
 	` + baseQuery
