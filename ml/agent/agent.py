@@ -2,8 +2,12 @@ from langchain_community.vectorstores import FAISS
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_huggingface.llms import HuggingFacePipeline
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+from langchain_core.runnables import RunnableConfig
+from langgraph.types import StateSnapshot
 from langgraph.graph import START, END, StateGraph
 from agent.schemas.rag_state import RAGState
+from langchain_core.messages import AIMessage
+from functools import partial
 from agent.nodes import retrieve, query_rag_llm, query_llm, route_rag_usage
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from agent.config import \
@@ -55,7 +59,7 @@ class HelperAgent:
 
     def _load_llm(self):
         try:
-            tokenizer = AutoTokenizer.from_pretrained(
+            self._tokenizer = AutoTokenizer.from_pretrained(
                 LLM_MODEL_NAME,
                 trust_remote_code=True
             )
@@ -67,7 +71,7 @@ class HelperAgent:
             text_gen = pipeline(
                 "text-generation",
                 model=model,
-                tokenizer=tokenizer,
+                tokenizer=self._tokenizer,
                 max_new_tokens=1024
             )
 
@@ -80,9 +84,29 @@ class HelperAgent:
         try:
             self._graph_builder = StateGraph(RAGState)
 
-            self._graph_builder.add_node("retrieve", retrieve)
-            self._graph_builder.add_node("query_rag_llm", query_rag_llm)
-            self._graph_builder.add_node("query_llm", query_llm)
+            self._graph_builder.add_node(
+                "retrieve",
+                partial(
+                    retrieve,
+                    retriever=self._retriever
+                )
+            )
+            self._graph_builder.add_node(
+                "query_rag_llm",
+                partial(
+                    query_rag_llm,
+                    llm=self._llm,
+                    tokenizer=self._tokenizer
+                )
+            )
+            self._graph_builder.add_node(
+                "query_llm",
+                partial(
+                    query_llm,
+                    llm=self._llm,
+                    tokenizer=self._tokenizer
+                )
+            )
 
             self._graph_builder.add_conditional_edges("retrieve", route_rag_usage)
             self._graph_builder.add_edge("query_rag_llm", END)
@@ -93,8 +117,13 @@ class HelperAgent:
         except Exception as e:
             logger.error(f"Graph load failed: {e}")
 
-    async def async_prompt(self, input_state: RAGState, config: dict) -> RAGState:
+    async def get_last_state(self, config: RunnableConfig) -> StateSnapshot:
+        async with AsyncPostgresSaver.from_conn_string(POSTGRES_URL) as saver:
+            graph = self._graph_builder.compile(checkpointer=saver)
+            return await graph.aget_state(config=config)
+
+    async def prompt(self, input_state: RAGState, config: RunnableConfig) -> AIMessage:
         async with AsyncPostgresSaver.from_conn_string(POSTGRES_URL) as saver:
             graph = self._graph_builder.compile(checkpointer=saver)
             response_state = await graph.ainvoke(input_state, config=config)
-            return response_state
+            return response_state['msg_state']["messages"][-1]

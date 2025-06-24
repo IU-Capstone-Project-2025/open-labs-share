@@ -1,25 +1,18 @@
 from fastapi import APIRouter, Form, Depends, HTTPException, Request, Response
+from rag_backend.schemas import AgentResponse, AskRequest
+from rag_backend.services import AskService
+from rag_backend.dependencies import get_ask_service
 
 
 router = APIRouter(tags=["Model"])
 
-# @router.post("/predict", response_model=schemas.PredictionResponse)
-# async def predict_credit_approve(
-#     request: schemas.PredictionRequest,
-#     predict_service: services.PredictCreditService = Depends(dependencies.get_predict_credit_service),
-# ) -> schemas.PredictionResponse:
-#     try:
-#         pred, proba = predict_service.predict(request)
-#         return schemas.PredictionResponse(pred=pred, proba=proba)
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
 
-
-# @router.post("/ask", response_model=schemas.PredictionResponse)
-# async def ask(
-
-# ):
-#     try:
-#         pass
-#     except Exception as e:
-#         pass
+@router.post("/ask", response_model=AgentResponse)
+async def ask(
+    request: AskRequest,
+    ask_service: AskService = Depends(get_ask_service)
+):
+    try:
+        return await ask_service.ask(request)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

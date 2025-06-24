@@ -5,6 +5,6 @@ import typing as tp
 
 class RAGState(BaseModel):
     query: str
-    docs: str = None
+    docs: tp.Optional[str] = None
     msg_state: dict
     
