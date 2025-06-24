@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { signUp, validateSignUpData, isAuthenticated } from "../utils/auth";
 import Point from "../components/Point";
 
 export default function SignUp() {
@@ -12,47 +13,52 @@ export default function SignUp() {
     confirmPassword: "",
   });
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState("");
   const navigate = useNavigate();
+
+  // Redirect if already authenticated
+  if (isAuthenticated()) {
+    navigate("/home", { replace: true });
+    return null;
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
 
+    // Clear specific field error when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
+    
+    // Clear server error when user makes changes
+    if (serverError) {
+      setServerError("");
+    }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-    let isValid = true;
-
-    if (!formData.username.trim()) {
-      newErrors.username = "Username is required";
-      isValid = false;
-    } else if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
-      newErrors.username = "Only letters, numbers and _ are allowed";
-      isValid = false;
-    }
-
-    if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters";
-      isValid = false;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
-      isValid = false;
-    }
-
-    setErrors(newErrors);
-    return isValid;
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validateForm()) {
-      navigate("/home");
+    setLoading(true);
+    setServerError("");
+
+    // Validate form data
+    const validation = validateSignUpData(formData);
+    
+    if (!validation.isValid) {
+      setErrors(validation.errors);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await signUp(formData);
+      navigate("/home", { replace: true });
+    } catch (err) {
+      setServerError(err.message || "Sign up failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -75,6 +81,13 @@ export default function SignUp() {
       <div className="w-1/2 flex items-center justify-center p-12">
         <div className="w-full max-w-lg">
           <h1 className="text-3xl font-bold mb-8 text-gray-800">Sign Up</h1>
+          
+          {serverError && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600 text-sm">{serverError}</p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-2 gap-6">
               <div>
@@ -87,9 +100,15 @@ export default function SignUp() {
                   placeholder="Ryan"
                   value={formData.firstName}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-msc focus:border-transparent"
+                  className={`w-full border ${
+                    errors.firstName ? "border-red-500" : "border-gray-300"
+                  } rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-msc focus:border-transparent`}
                   required
+                  disabled={loading}
                 />
+                {errors.firstName && (
+                  <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
+                )}
               </div>
               <div>
                 <label className="block text-md font-medium text-gray-700 mb-1">
@@ -101,9 +120,15 @@ export default function SignUp() {
                   placeholder="Gosling"
                   value={formData.lastName}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-msc focus:border-transparent"
+                  className={`w-full border ${
+                    errors.lastName ? "border-red-500" : "border-gray-300"
+                  } rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-msc focus:border-transparent`}
                   required
+                  disabled={loading}
                 />
+                {errors.lastName && (
+                  <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
+                )}
               </div>
             </div>
             <div>
@@ -120,8 +145,7 @@ export default function SignUp() {
                   errors.username ? "border-red-500" : "border-gray-300"
                 } rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-msc focus:border-transparent`}
                 required
-                pattern="[a-zA-Z0-9_]+"
-                title="Only letters, numbers and underscore are allowed"
+                disabled={loading}
               />
               {errors.username && (
                 <p className="mt-1 text-sm text-red-600">{errors.username}</p>
@@ -137,9 +161,15 @@ export default function SignUp() {
                 placeholder="gosl1980@mail.com"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-msc focus:border-transparent"
+                className={`w-full border ${
+                  errors.email ? "border-red-500" : "border-gray-300"
+                } rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-msc focus:border-transparent`}
                 required
+                disabled={loading}
               />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-6">
@@ -157,6 +187,7 @@ export default function SignUp() {
                     errors.password ? "border-red-500" : "border-gray-300"
                   } rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-msc focus:border-transparent`}
                   required
+                  disabled={loading}
                 />
                 {errors.password && (
                   <p className="mt-1 text-sm text-red-600">{errors.password}</p>
@@ -178,6 +209,7 @@ export default function SignUp() {
                       : "border-gray-300"
                   } rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-msc focus:border-transparent`}
                   required
+                  disabled={loading}
                 />
                 {errors.confirmPassword && (
                   <p className="mt-1 text-sm text-red-600">
@@ -189,11 +221,22 @@ export default function SignUp() {
 
             <button
               type="submit"
-              className="w-full bg-msc hover:bg-msc-hover text-white py-3 px-4 rounded-lg shadow-md transition-colors duration-300 font-medium"
+              disabled={loading}
+              className="w-full bg-msc hover:bg-msc-hover text-white py-3 px-4 rounded-lg shadow-md transition-colors duration-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create Account
+              {loading ? "Creating Account..." : "Create Account"}
             </button>
           </form>
+
+          {/* Info about existing demo accounts */}
+          <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              <strong>Note:</strong> Demo accounts already exist for testing:
+              <br />• Username: demouser, ryanGosling1980, sarahjohnson
+              <br />• Email: demo@example.com, gosl1980@mail.com
+            </p>
+          </div>
+
           <div className="mt-8">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">

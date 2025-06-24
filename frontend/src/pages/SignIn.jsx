@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { signIn, isAuthenticated } from "../utils/auth";
 import Point from "../components/Point";
 
 export default function SignIn() {
@@ -7,16 +8,38 @@ export default function SignIn() {
     email: "",
     password: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
+
+  // Redirect if already authenticated
+  if (isAuthenticated()) {
+    navigate("/home", { replace: true });
+    return null;
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    // Clear error when user starts typing
+    if (error) {
+      setError("");
+    }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate("/home");
+    setLoading(true);
+    setError("");
+
+    try {
+      await signIn(formData.email, formData.password);
+      navigate("/home", { replace: true });
+    } catch (err) {
+      setError(err.message || "Sign in failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -40,6 +63,13 @@ export default function SignIn() {
           <h1 className="text-3xl font-bold mb-8 text-gray-800">
             Welcome back
           </h1>
+          
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600 text-sm">{error}</p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-md font-medium text-gray-700 mb-1">
@@ -53,6 +83,7 @@ export default function SignIn() {
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-msc focus:border-transparent"
                 required
+                disabled={loading}
               />
             </div>
             <div>
@@ -67,15 +98,28 @@ export default function SignIn() {
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-msc focus:border-transparent"
                 required
+                disabled={loading}
               />
             </div>
             <button
               type="submit"
-              className="w-full bg-msc hover:bg-msc-hover text-white py-3 px-4 rounded-lg shadow-md transition-colors duration-300 font-medium"
+              disabled={loading}
+              className="w-full bg-msc hover:bg-msc-hover text-white py-3 px-4 rounded-lg shadow-md transition-colors duration-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Sign In
+              {loading ? "Signing In..." : "Sign In"}
             </button>
           </form>
+
+          {/* Demo credentials section */}
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="text-sm font-semibold text-blue-800 mb-2">Demo Credentials:</h3>
+            <div className="text-sm text-blue-700 space-y-1">
+              <p><strong>Username:</strong> demouser | <strong>Password:</strong> password123</p>
+              <p><strong>Email:</strong> demo@example.com | <strong>Password:</strong> password123</p>
+              <p><strong>Or try:</strong> ryanGosling1980 | password123</p>
+            </div>
+          </div>
+
           <div className="mt-8">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
