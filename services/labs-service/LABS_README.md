@@ -42,59 +42,58 @@ The service works with the following entities:
 
 1. **Lab (Laboratory work):**
 
-| Field        | Type           |
-|--------------|----------------|
-| id (PK)      | UUID / long    |
-| owner_id     | UUID / long    |
-| title        | string         |
-| created_at   | datestamp      |
-| updated_at   | datestamp      |
-| abstract     | string         |
-| views        | integer / long |
-| submissions  | integer / long |
-| stars        | integer / long |
-| people_rated | integer / long |
+| Field        | Type      |
+|--------------|-----------|
+| id (PK)      | long      |
+| owner_id     | long      |
+| title        | string    |
+| created_at   | datestamp |
+| updated_at   | datestamp |
+| abstract     | string    |
+| views        | long      |
+| submissions  | long      |
+| stars        | long      |
+| people_rated | long      |
 
 2. **Submission (Student's submission):**
 
-| Field      | Type        |
-|------------|-------------|
-| id (PK)    | UUID / long |
-| lab_id     | UUID / long |
-| owner_id   | UUID / long |
-| created_at | datestamp   |
-| updated_at | datestamp   |
-| status     | string      |
-| points     | integer     |
+| Field      | Type      |
+|------------|-----------|
+| id (PK)    | long      |
+| lab_id     | long      |
+| owner_id   | long      |
+| created_at | datestamp |
+| updated_at | datestamp |
+| status     | string    |
+| points     | integer   |
 
 
 3. **Article relations:**
 
-| Field           | Type        |
-|-----------------|-------------|
-| lab_id (PK)     | UUID / long |
-| article_id (PK) | UUID / long |
+| Field           | Type |
+|-----------------|------|
+| lab_id (PK)     | long |
+| article_id (PK) | long |
 
 4. **Lab Assets:**
 
-| Field       | Type           |
-|-------------|----------------|
-| id (PK)     | UUID / long    |
-| lab_id      | UUID / long    |
-| filename    | string         |
-| total_size  | integer / long |
-| is_lab      | boolean        |
-| upload_date | datestamp      |
+| Field       | Type      |
+|-------------|-----------|
+| id (PK)     | long      |
+| lab_id      | long      |
+| filename    | string    |
+| filesize    | long      |
+| upload_date | datestamp |
 
 5. **Submission Assets:**
 
-| Field       | Type           |
-|-------------|----------------|
-| id (PK)     | UUID / long    |
-| solution_id | UUID / long    |
-| filename    | string         |
-| total_size  | integer / long |
-| upload_date | datestamp      |
+| Field       | Type      |
+|-------------|-----------|
+| id (PK)     | long      |
+| solution_id | long      |
+| filename    | string    |
+| filesize    | long      |
+| upload_date | datestamp |
 
 # gRPC Contract
 
