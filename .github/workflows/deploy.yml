@@ -33,7 +33,7 @@ jobs:
           docker-compose up -d
           
           # Wait for services to be ready
-          sleep 30
+          sleep 60
           
           # Check if main services are running
           docker-compose ps
@@ -115,9 +115,9 @@ jobs:
           # Start all services
           docker-compose up -d
           
-          # Wait for services to be ready
+          # Wait for services to be ready (Java services take longer)
           echo "Waiting for services to start..."
-          sleep 60
+          sleep 120
 
       - name: Verify deployment
         run: |
@@ -126,36 +126,34 @@ jobs:
           # Check service status
           docker-compose ps
           
-          # Check service health
+          # Check service health with retries
           echo "Checking service health..."
           
-          # Frontend
-          if curl -f -s http://localhost:5173 > /dev/null; then
-            echo "✅ Frontend is healthy"
-          else
-            echo "❌ Frontend is not responding"
-          fi
+          # Function to check service with retries
+          check_service() {
+            local name=$1
+            local url=$2
+            local max_attempts=10
+            local attempt=1
+            
+            while [ $attempt -le $max_attempts ]; do
+              if curl -f -s "$url" > /dev/null; then
+                echo "✅ $name is healthy"
+                return 0
+              fi
+              echo "⏳ $name not ready yet (attempt $attempt/$max_attempts)"
+              sleep 10
+              attempt=$((attempt + 1))
+            done
+            echo "❌ $name is not responding after $max_attempts attempts"
+            return 1
+          }
           
-          # API Gateway
-          if curl -f -s http://localhost:8080/actuator/health > /dev/null; then
-            echo "✅ API Gateway is healthy"
-          else
-            echo "❌ API Gateway is not responding"
-          fi
-          
-          # Auth Service
-          if curl -f -s http://localhost:8081/actuator/health > /dev/null; then
-            echo "✅ Auth Service is healthy"
-          else
-            echo "❌ Auth Service is not responding"
-          fi
-          
-          # MinIO
-          if curl -f -s http://localhost:9000/minio/health/live > /dev/null; then
-            echo "✅ MinIO is healthy"
-          else
-            echo "❌ MinIO is not responding"
-          fi
+          # Check services
+          check_service "Frontend" "http://localhost:5173"
+          check_service "API Gateway" "http://localhost:8080/actuator/health"
+          check_service "Auth Service" "http://localhost:8081/actuator/health"
+          check_service "MinIO" "http://localhost:9000/minio/health/live"
           
           # Show running containers
           echo "Running containers:"
@@ -177,40 +175,33 @@ jobs:
       - name: Setup log rotation
         run: |
           echo "Setting up log rotation..."
-          # Create logrotate configuration for docker logs
-          sudo tee /etc/logrotate.d/docker-compose > /dev/null << EOF
-          /var/lib/docker/containers/*/*.log {
-            rotate 7
-            daily
-            compress
-            size 10M
-            missingok
-            delaycompress
-            copytruncate
-          }
-          EOF
+          # Note: Log rotation would typically be configured by system administrator
+          # For now, we'll implement basic log cleanup via docker
+          echo "Log rotation configuration would be handled by system administrator"
+          echo "Current docker disk usage:"
+          docker system df
 
       - name: Create backup
         run: |
           echo "Creating backup of current deployment..."
-          # Create backup directory with timestamp
-          BACKUP_DIR="/opt/backups/open-labs-share/$(date +%Y%m%d_%H%M%S)"
-          sudo mkdir -p "$BACKUP_DIR"
+          # Create backup directory with timestamp in user home
+          BACKUP_DIR="$HOME/backups/open-labs-share/$(date +%Y%m%d_%H%M%S)"
+          mkdir -p "$BACKUP_DIR"
           
-          # Export docker volumes
-          for volume in $(docker volume ls -q | grep "$(pwd | sed 's/.*\///')" | grep -E "(postgres|minio)"); do
+          # Export docker volumes (without sudo)
+          for volume in $(docker volume ls -q | grep -E "(postgres|minio|frontend)"); do
             echo "Backing up volume: $volume"
-            sudo docker run --rm -v "$volume:/source:ro" -v "$BACKUP_DIR:/backup" alpine tar czf "/backup/${volume}.tar.gz" -C /source .
+            docker run --rm -v "$volume:/source:ro" -v "$BACKUP_DIR:/backup" alpine tar czf "/backup/${volume}.tar.gz" -C /source .
           done
           
           # Copy compose file and environment
-          sudo cp docker-compose.yml "$BACKUP_DIR/"
-          sudo cp .env "$BACKUP_DIR/" 2>/dev/null || true
+          cp docker-compose.yml "$BACKUP_DIR/"
+          cp .env "$BACKUP_DIR/" 2>/dev/null || true
           
           echo "Backup created at: $BACKUP_DIR"
           
           # Keep only last 5 backups
-          sudo find /opt/backups/open-labs-share -type d -name "20*" | sort -r | tail -n +6 | xargs sudo rm -rf
+          find "$HOME/backups/open-labs-share" -type d -name "20*" 2>/dev/null | sort -r | tail -n +6 | xargs rm -rf 2>/dev/null || true
 
   cleanup:
     runs-on: self-hosted
