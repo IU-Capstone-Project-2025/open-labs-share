@@ -89,7 +89,7 @@ export default function SignIn() {
             </div>
             <div className="mt-4 text-center">
               <Link
-                to="/"
+                to="/signup"
                 className="font-medium text-blue-blue hover:text-blue-hover transition-colors duration-300"
               >
                 Create a new account

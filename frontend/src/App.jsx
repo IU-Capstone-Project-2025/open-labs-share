@@ -5,6 +5,7 @@ import {
   Route,
   useLocation,
   Link,
+  Navigate,
 } from "react-router-dom";
 import { Bars3Icon } from "@heroicons/react/24/outline";
 import Sidebar from "./components/Sidebar";
@@ -14,6 +15,8 @@ import SignUp from "./pages/SignUp";
 import Profile from "./pages/ProfilePage";
 import MyLabs from "./pages/MyLabsPage";
 import MyArticles from "./pages/MyArticlesPage";
+import AllLabs from "./pages/AllLabsPage";
+import AllArticles from "./pages/AllArticlesPage";
 import LabPage from "./pages/LabPage";
 import ArticlePage from "./pages/ArticlePage";
 import BackgroundCircles from "./components/BackgroundCircles";
@@ -24,7 +27,7 @@ function AppContent() {
   const sidebarRef = useRef();
   const location = useLocation();
 
-  const showSidebar = !["/", "/signin"].includes(location.pathname);
+  const showSidebar = !["/signup", "/signin"].includes(location.pathname);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -130,12 +133,15 @@ function AppContent() {
         }`}
       >
         <Routes>
-          <Route path="/" element={<SignUp />} />
+          <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/signup" element={<SignUp />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/home" element={<Home />} />
           <Route path="/my-labs" element={<MyLabs />} />
+          <Route path="/all-labs" element={<AllLabs />} />
           <Route path="/lab/:id" element={<LabPage />} />
           <Route path="/my-articles" element={<MyArticles />} />
+          <Route path="/all-articles" element={<AllArticles />} />
           <Route path="/article/:id" element={<ArticlePage />} />
           <Route path="/profile" element={<Profile />} />
         </Routes>

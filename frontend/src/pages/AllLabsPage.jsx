@@ -1,14 +1,8 @@
 import LabCard from "../components/LabCard";
 
-export default function MyLabs() {
-  // Current user profile (in a real app, this would come from auth context)
-  const currentUser = {
-    firstName: "Ryan",
-    lastName: "Gosling"
-  };
-
+export default function AllLabs() {
   // All available labs from the platform
-  const allLabs = [
+  const availableLabs = [
     {
       id: 1,
       title: "Open Labs Share Platform",
@@ -47,35 +41,29 @@ export default function MyLabs() {
     }
   ];
 
-  // Filter labs to show only those created by the current user
-  const myLabs = allLabs.filter(lab => 
-    lab.author.firstName === currentUser.firstName && 
-    lab.author.lastName === currentUser.lastName
-  );
-
   const loadingCards = Array(2).fill(null);
 
   return (
     <div className="relative min-h-screen dark:bg-gray-900 py-10 px-6 bg-transparent">
       <div className="max-w-6xl mx-auto">
         <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-8 shadow-lg">
-        <h1 className="text-3xl font-bold text-msc dark:text-white mb-6">
-          My labs
-        </h1>
+          <h1 className="text-3xl font-bold text-msc dark:text-white mb-6">
+            All labs
+          </h1>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {myLabs.map((lab) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {availableLabs.map((lab) => (
               <LabCard key={lab.id} lab={lab} />
             ))}
-          {loadingCards.map((_, index) => (
-            <div
-              key={`loading-${index}`}
-              className="h-32 bg-light-blue bg-opacity-40 dark:bg-gray-700 animate-pulse rounded-xl"
-            />
-          ))}
-        </div>
+            {loadingCards.map((_, index) => (
+              <div
+                key={`loading-${index}`}
+                className="h-32 bg-light-blue bg-opacity-40 dark:bg-gray-700 animate-pulse rounded-xl"
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>
   );
-}
+} 
