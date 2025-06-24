@@ -1,15 +1,19 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { MoonIcon, SunIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { MoonIcon, SunIcon, ChevronDownIcon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
+import { signOut } from "../utils/auth";
 
 export default function Sidebar({
   isOpen,
   toggleSidebar,
   currentTheme,
   toggleTheme,
+  user,
+  onUserUpdate
 }) {
   const [activePath, setActivePath] = useState("");
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setActivePath(window.location.pathname);
@@ -38,6 +42,19 @@ export default function Sidebar({
     toggleSidebar();
   };
 
+  const handleLogout = () => {
+    signOut();
+    onUserUpdate(null);
+    navigate("/signin");
+    toggleSidebar();
+  };
+
+  // Get user display name
+  const getUserDisplayName = () => {
+    if (!user) return "User";
+    return `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username || "User";
+  };
+
   return (
     <div
       className={`fixed inset-y-0 left-0 transform ${
@@ -51,6 +68,26 @@ export default function Sidebar({
             Open Labs Share
           </h1>
         </div>
+
+        {/* User Info Section */}
+        {user && (
+          <div className="mb-6 p-4 bg-white bg-opacity-10 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-full bg-white bg-opacity-20 flex items-center justify-center text-white text-sm font-medium">
+                {user.firstName?.charAt(0)?.toUpperCase() || user.username?.charAt(0)?.toUpperCase() || "?"}
+                {user.lastName?.charAt(0)?.toUpperCase() || ""}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-medium text-sm truncate">
+                  {getUserDisplayName()}
+                </p>
+                <p className="text-white text-opacity-70 text-xs truncate">
+                  @{user.username}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <nav className="flex-1">
           <ul className="space-y-2">
@@ -109,6 +146,16 @@ export default function Sidebar({
                       </NavLink>
                     </li>
                   ))}
+                  {/* Logout Button */}
+                  <li>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors font-inter text-sm text-white hover:bg-red-500 hover:bg-opacity-20 font-light"
+                    >
+                      <ArrowRightOnRectangleIcon className="h-4 w-4" />
+                      <span>Sign Out</span>
+                    </button>
+                  </li>
                 </ul>
               )}
             </li>

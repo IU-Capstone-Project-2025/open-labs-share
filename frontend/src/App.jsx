@@ -8,6 +8,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { Bars3Icon } from "@heroicons/react/24/outline";
+import { getCurrentUser, isAuthenticated } from "./utils/auth";
 import Sidebar from "./components/Sidebar";
 import Home from "./pages/HomePage";
 import SignIn from "./pages/SignIn";
@@ -21,9 +22,18 @@ import LabPage from "./pages/LabPage";
 import ArticlePage from "./pages/ArticlePage";
 import BackgroundCircles from "./components/BackgroundCircles";
 
+// Component to protect routes that require authentication
+function ProtectedRoute({ children }) {
+  if (!isAuthenticated()) {
+    return <Navigate to="/signin" replace />;
+  }
+  return children;
+}
+
 function AppContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [theme, setTheme] = useState("light");
+  const [user, setUser] = useState(null);
   const sidebarRef = useRef();
   const location = useLocation();
 
@@ -52,11 +62,25 @@ function AppContent() {
     document.documentElement.classList.toggle("dark", savedTheme === "dark");
   }, []);
 
+  useEffect(() => {
+    // Update user state when location changes (e.g., after login/logout)
+    const currentUser = getCurrentUser();
+    setUser(currentUser);
+  }, [location]);
+
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
     localStorage.setItem("theme", newTheme);
     document.documentElement.classList.toggle("dark", newTheme === "dark");
+  };
+
+  // Get user initials for profile avatar
+  const getUserInitials = () => {
+    if (!user) return "?";
+    const firstInitial = user.firstName?.charAt(0)?.toUpperCase() || "";
+    const lastInitial = user.lastName?.charAt(0)?.toUpperCase() || "";
+    return firstInitial + lastInitial || user.username?.charAt(0)?.toUpperCase() || "?";
   };
 
   return (
@@ -105,10 +129,15 @@ function AppContent() {
               </div>
             </div>
 
-            <div className="flex items-center">
+            <div className="flex items-center space-x-3">
+              {user && (
+                <span className="text-sm text-gray-600 dark:text-gray-300 hidden sm:block">
+                  Welcome, {user.firstName || user.username}!
+                </span>
+              )}
               <Link to="/profile" className="flex items-center">
-                <div className="w-10 h-10 rounded-full bg-msc flex items-center justify-center text-white text-lg cursor-pointer hover:bg-msc-hover">
-                  <span>R</span>
+                <div className="w-10 h-10 rounded-full bg-msc flex items-center justify-center text-white text-sm cursor-pointer hover:bg-msc-hover transition-colors">
+                  <span>{getUserInitials()}</span>
                 </div>
               </Link>
             </div>
@@ -125,6 +154,8 @@ function AppContent() {
           toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           currentTheme={theme}
           toggleTheme={toggleTheme}
+          user={user}
+          onUserUpdate={setUser}
         />
       )}
       <main
@@ -136,14 +167,46 @@ function AppContent() {
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/signin" element={<SignIn />} />
-          <Route path="/home" element={<Home />} />
-          <Route path="/my-labs" element={<MyLabs />} />
-          <Route path="/all-labs" element={<AllLabs />} />
-          <Route path="/lab/:id" element={<LabPage />} />
-          <Route path="/my-articles" element={<MyArticles />} />
-          <Route path="/all-articles" element={<AllArticles />} />
-          <Route path="/article/:id" element={<ArticlePage />} />
-          <Route path="/profile" element={<Profile />} />
+          <Route path="/home" element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          } />
+          <Route path="/my-labs" element={
+            <ProtectedRoute>
+              <MyLabs />
+            </ProtectedRoute>
+          } />
+          <Route path="/all-labs" element={
+            <ProtectedRoute>
+              <AllLabs />
+            </ProtectedRoute>
+          } />
+          <Route path="/lab/:id" element={
+            <ProtectedRoute>
+              <LabPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/my-articles" element={
+            <ProtectedRoute>
+              <MyArticles />
+            </ProtectedRoute>
+          } />
+          <Route path="/all-articles" element={
+            <ProtectedRoute>
+              <AllArticles />
+            </ProtectedRoute>
+          } />
+          <Route path="/article/:id" element={
+            <ProtectedRoute>
+              <ArticlePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
         </Routes>
       </main>
     </div>
