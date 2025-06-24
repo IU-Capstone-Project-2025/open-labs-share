@@ -74,7 +74,7 @@ public class ArticleServiceClient {
         } catch (IOException e) {
             throw new AssetUploadException("Failed to read file content");
         } catch (Exception e) {
-            throw new AssetUploadException(e.getMessage());
+            throw e;
         }
     }
 

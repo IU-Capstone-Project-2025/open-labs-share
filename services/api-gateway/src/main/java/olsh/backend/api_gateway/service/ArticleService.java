@@ -29,17 +29,11 @@ public class ArticleService {
     public CreateArticleResponse createArticle(CreateArticleRequest request, Long authorId) {
         log.debug("Creating article with title: {} for author: {}", request.getTitle(), authorId);
 
-        try {
-            validatePdfFile(request.getPdf_file());
-            Article article = registerArticle(request, authorId);
-            articleServiceClient.uploadAsset(article.getArticleId(), request.getPdf_file());
+        validatePdfFile(request.getPdf_file());
+        Article article = registerArticle(request, authorId);
+        articleServiceClient.uploadAsset(article.getArticleId(), request.getPdf_file());
 
-            return CreateArticleResponse.builder().id(article.getArticleId()).message("Article created successfully").build();
-
-        } catch (Exception e) {
-            log.error("Error creating article: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to create article: " + e.getMessage());
-        }
+        return CreateArticleResponse.builder().id(article.getArticleId()).message("Article created successfully").build();
     }
 
     private void validatePdfFile(MultipartFile file) {
