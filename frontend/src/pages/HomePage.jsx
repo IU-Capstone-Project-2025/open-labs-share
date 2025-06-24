@@ -2,7 +2,7 @@ export default function Home() {
   const loadingCards = Array(6).fill(null);
 
   return (
-    <div className="relative min-h-screen bg-white dark:bg-gray-900 py-10 px-6 bg-transparent">
+    <div className="relative min-h-screen dark:bg-gray-900 py-10 px-6 bg-transparent">
       <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-6 shadow-lg">
         <article className="text-wrap text-center text-msc">
           <h1 className="text-4xl font-bold dark:text-white">
