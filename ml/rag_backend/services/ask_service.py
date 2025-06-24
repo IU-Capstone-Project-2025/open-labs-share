@@ -20,7 +20,6 @@ class AskService:
     async def _preprocess(self, request: AskRequest) -> tp.Tuple[RAGState, RunnableConfig]:
         config = {
             "configurable": {
-                "user_id": request.uuid,
                 "thread_id": f"{request.assignment_id}_{request.uuid}"
             }
         }
@@ -30,6 +29,8 @@ class AskService:
 
         if not last_state.values:
             input_state = RAGState(
+                uuid=request.uuid,
+                assignment_id=request.assignment_id,
                 query=request.content,
                 docs='',
                 msg_state=MessagesState(
@@ -41,6 +42,8 @@ class AskService:
             )
         else:
             input_state = RAGState(
+                uuid=request.uuid,
+                assignment_id=request.assignment_id,
                 query=request.content,
                 docs='',
                 msg_state=last_state.values["msg_state"]

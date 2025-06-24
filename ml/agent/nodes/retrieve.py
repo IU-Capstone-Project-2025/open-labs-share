@@ -4,7 +4,10 @@ from langchain_core.retrievers import BaseRetriever
 
 def retrieve(state: RAGState, retriever: BaseRetriever) -> str:
     """Retrieve relevant (< threshold) information related to a query."""
-    retrieved_docs = retriever.get_relevant_documents(state.query)
+    retrieved_docs = retriever.invoke(
+        state.query,
+        filter={"assignment_id": state.assignment_id}
+    )
     serialized = "\n\n".join(
         (f"{doc.page_content}\n")
         for doc in retrieved_docs
