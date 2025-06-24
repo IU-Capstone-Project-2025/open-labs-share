@@ -8,8 +8,7 @@ import olsh.backend.api_gateway.dto.request.GetArticlesRequest;
 import olsh.backend.api_gateway.dto.response.*;
 import olsh.backend.api_gateway.exception.ForbiddenAccessException;
 import olsh.backend.api_gateway.grpc.client.ArticleServiceClient;
-import olsh.backend.api_gateway.grpc.proto.Article;
-import olsh.backend.api_gateway.grpc.proto.ArticleList;
+import olsh.backend.api_gateway.grpc.proto.ArticleProto;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -30,7 +29,7 @@ public class ArticleService {
         log.debug("Creating article with title: {} for author: {}", request.getTitle(), authorId);
 
         validatePdfFile(request.getPdf_file());
-        Article article = registerArticle(request, authorId);
+        ArticleProto.Article article = registerArticle(request, authorId);
         articleServiceClient.uploadAsset(article.getArticleId(), request.getPdf_file());
 
         return CreateArticleResponse.builder().id(article.getArticleId()).message("Article created successfully").build();
@@ -51,14 +50,14 @@ public class ArticleService {
         }
     }
 
-    private Article registerArticle(CreateArticleRequest request, Long authorId) {
-        olsh.backend.api_gateway.grpc.proto.CreateArticleRequest grpcRequest =
-                olsh.backend.api_gateway.grpc.proto.CreateArticleRequest.newBuilder()
-                        .setOwnerId(authorId)
-                        .setTitle(request.getTitle())
-                        .setAbstract(request.getShort_desc())
-                        .build();
-        olsh.backend.api_gateway.grpc.proto.Article article = articleServiceClient.createArticle(grpcRequest);
+    private ArticleProto.Article registerArticle(CreateArticleRequest request, Long authorId) {
+        ArticleProto.CreateArticleRequest grpcRequest = ArticleProto.CreateArticleRequest
+                .newBuilder()
+                .setOwnerId(authorId)
+                .setTitle(request.getTitle())
+                .setAbstract(request.getShort_desc())
+                .build();
+        ArticleProto.Article article = articleServiceClient.createArticle(grpcRequest);
         log.debug("Successfully registered article with ID: {}", article.getArticleId());
         return article;
     }
@@ -70,7 +69,7 @@ public class ArticleService {
         log.debug("Getting article with ID: {}", articleId);
 
         // Get article and its user from gRPC service
-        Article article = articleServiceClient.getArticle(articleId);
+        ArticleProto.Article article = articleServiceClient.getArticle(articleId);
         UserResponse author = userService.getUserById(article.getOwnerId());
 
         // Convert protobuf Timestamp to ISO 8601 string
@@ -78,31 +77,7 @@ public class ArticleService {
 
         log.debug("Successfully retrieved article: {}", article.getTitle());
 
-        return ArticleResponse.builder()
-                .id(article.getArticleId())
-                .title(article.getTitle())
-                .shortDesc(article.getAbstract())
-                .createdAt(createdAt)
-                .views(article.getViews())
-                .authorId(article.getOwnerId())
-                .authorName(author.name())
-                .authorSurname(author.surname())
-                .build();
-    }
-
-    private String convertTimestampToIso(com.google.protobuf.Timestamp timestamp) {
-        if (timestamp == null) {
-            return null;
-        }
-
-        try {
-            java.time.Instant instant = java.time.Instant.ofEpochSecond(
-                    timestamp.getSeconds(), timestamp.getNanos());
-            return instant.toString();
-        } catch (Exception e) {
-            log.warn("Failed to convert timestamp: {}", e.getMessage());
-            return null;
-        }
+        return buildArticleResponse(article, author);
     }
 
     public ArticleListResponse getArticles(GetArticlesRequest request) {
@@ -110,7 +85,7 @@ public class ArticleService {
 
         try {
             // Get articles from gRPC service
-            ArticleList grpcResponse =
+            ArticleProto.ArticleList grpcResponse =
                     articleServiceClient.getArticles(request.getPage(), request.getLimit());
 
             // Convert articles to response DTOs
@@ -118,7 +93,7 @@ public class ArticleService {
 
             HashMap<Long, UserResponse> authorCache = new HashMap<>();
 
-            for (Article article : grpcResponse.getArticlesList()) {
+            for (ArticleProto.Article article : grpcResponse.getArticlesList()) {
                 // TODO: Implement batch loading with caching for better performance
                 UserResponse author;
                 if (authorCache.containsKey(article.getOwnerId())) {
@@ -128,18 +103,7 @@ public class ArticleService {
                     authorCache.put(article.getOwnerId(), author);
                 }
 
-                ArticleResponse articleResponse = ArticleResponse.builder()
-                        .id(article.getArticleId())
-                        .title(article.getTitle())
-                        .shortDesc(article.getAbstract())
-                        .createdAt(convertTimestampToIso(article.getCreatedAt()))
-                        .views(article.getViews())
-                        .authorId(article.getOwnerId())
-                        .authorName(author.name())
-                        .authorSurname(author.surname())
-                        .build();
-
-                articleResponses.add(articleResponse);
+                articleResponses.add(buildArticleResponse(article, author));
             }
 
             // Calculate pagination
@@ -172,7 +136,7 @@ public class ArticleService {
         log.debug("Deleting article with ID: {} for user: {}", articleId, requestingUserId);
 
         // First, get the article to check ownership
-        Article article = articleServiceClient.getArticle(articleId);
+        ArticleProto.Article article = articleServiceClient.getArticle(articleId);
 
         // TODO: Send to article-service also the id of user request. The service itself should handle this.
         // Check if the requesting user is the owner
@@ -197,5 +161,31 @@ public class ArticleService {
 
     }
 
+    private String convertTimestampToIso(com.google.protobuf.Timestamp timestamp) {
+        if (timestamp == null) {
+            return null;
+        }
 
+        try {
+            java.time.Instant instant = java.time.Instant.ofEpochSecond(
+                    timestamp.getSeconds(), timestamp.getNanos());
+            return instant.toString();
+        } catch (Exception e) {
+            log.warn("Failed to convert timestamp: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private ArticleResponse buildArticleResponse(ArticleProto.Article article, UserResponse author) {
+        return ArticleResponse.builder()
+                .id(article.getArticleId())
+                .title(article.getTitle())
+                .shortDesc(article.getAbstract())
+                .createdAt(convertTimestampToIso(article.getCreatedAt()))
+                .views(article.getViews())
+                .authorId(article.getOwnerId())
+                .authorName(author.name())
+                .authorSurname(author.surname())
+                .build();
+    }
 }

@@ -7,7 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.config.UploadFileConfiguration;
 import olsh.backend.api_gateway.exception.ArticleNotFoundException;
 import olsh.backend.api_gateway.exception.AssetUploadException;
-import olsh.backend.api_gateway.grpc.proto.*;
+import olsh.backend.api_gateway.grpc.proto.ArticleProto.*;
+import olsh.backend.api_gateway.grpc.proto.ArticleServiceGrpc;
 import org.springframework.grpc.client.GrpcChannelFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -208,6 +209,5 @@ public class ArticleServiceClient {
             throw new RuntimeException("Failed to delete article via gRPC", e);
         }
     }
-
 
 }
