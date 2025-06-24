@@ -1,10 +1,9 @@
 # Import downloaded modules
 from uuid import UUID, uuid4
 from sqlalchemy import ForeignKey, BigInteger, String, UUID, TIMESTAMP, Text, Boolean, Integer
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, declarative_base
 from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy.sql import func
-from sqlalchemy.ext.declarative import declarative_base
 
 # Import project files
 
@@ -30,6 +29,20 @@ class Lab(Base, SerializerMixin):
     def __repr__(self):
         return f"<Lab(id={self.id}, title={self.title})>"
 
+    def get_attrs(self):
+        return {
+            "id": self.id,
+            "owner_id": self.owner_id,
+            "title": self.title,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "abstract": self.abstract,
+            "views": self.views,
+            "submissions": self.submissions,
+            "stars": self.stars,
+            "people_rated": self.people_rated
+        }
+
 
 class Submission(Base, SerializerMixin):
     __tablename__ = "submissions"
@@ -48,6 +61,17 @@ class Submission(Base, SerializerMixin):
     def __repr__(self):
         return f"<Submission(id={self.id}, lab_id={self.lab_id})>"
 
+    def get_attrs(self):
+        return {
+            "id": str(self.id),
+            "lab_id": str(self.lab_id),
+            "owner_id": str(self.owner_id),
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "status": self.status,
+            "points": self.points
+        }
+
 
 class ArticleRelation(Base, SerializerMixin):
     __tablename__ = "article_relations"
@@ -59,6 +83,12 @@ class ArticleRelation(Base, SerializerMixin):
 
     def __repr__(self):
         return f"<ArticleRelation(lab_id={self.lab_id}, article_id={self.article_id})>"
+
+    def get_attrs(self):
+        return {
+            "lab_id": self.lab_id,
+            "article_id": self.article_id
+        }
 
 
 class LabAsset(Base, SerializerMixin):
@@ -76,6 +106,16 @@ class LabAsset(Base, SerializerMixin):
     def __repr__(self):
         return f"<LabAsset(id={self.id}, filename={self.filename})>"
 
+    def get_attrs(self):
+        return {
+            "id": self.id,
+            "lab_id": self.lab_id,
+            "filename": self.filename,
+            "total_size": self.total_size,
+            "is_lab": self.is_lab,
+            "upload_date": self.upload_date
+        }
+
 
 class SubmissionAsset(Base, SerializerMixin):
     __tablename__ = "submission_assets"
@@ -90,3 +130,12 @@ class SubmissionAsset(Base, SerializerMixin):
 
     def __repr__(self):
         return f"<SubmissionAsset(id={self.id}, filename={self.filename})>"
+
+    def get_attrs(self):
+        return {
+            "id": self.id,
+            "solution_id": self.solution_id,
+            "filename": self.filename,
+            "total_size": self.total_size,
+            "upload_date": self.upload_date
+        }
