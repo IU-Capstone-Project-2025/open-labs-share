@@ -15,3 +15,5 @@ POSTGRES_URL = f"postgresql://{PG_USER}:{PG_PASS}@{PG_HOST}:{PG_PORT}/{PG_DB}?ss
 
 with PostgresSaver.from_conn_string(POSTGRES_URL) as saver:
     saver.setup()
+
+print("Pg storage is set up")
