@@ -136,11 +136,11 @@ class ArticleService(service.ArticleServiceServicer):
     def UploadAsset(self, request_iterator, context) -> stub.Asset:
         asset_metadata = next(request_iterator)
 
-        if asset_metadata.HasField('asset'):
+        if asset_metadata.HasField('metadata'):
             asset: dict = {
-                "article_id": asset_metadata.asset.article_id,
-                "filename": asset_metadata.asset.filename,
-                "filesize": asset_metadata.asset.filesize
+                "article_id": asset_metadata.metadata.article_id,
+                "filename": asset_metadata.metadata.filename,
+                "filesize": asset_metadata.metadata.filesize
             }
             print(f'{asset=}')
         else:
@@ -195,11 +195,11 @@ class ArticleService(service.ArticleServiceServicer):
     def UpdateAsset(self, request_iterator, context) -> stub.Asset:
         asset_metadata = next(request_iterator)
 
-        if asset_metadata.HasField('asset'):
+        if asset_metadata.HasField('metadata'):
             asset: dict = {
-                "asset_id": asset_metadata.asset.asset_id,
-                "filename": asset_metadata.asset.filename,
-                "filesize": asset_metadata.asset.filesize
+                "asset_id": asset_metadata.metadata.asset_id,
+                "filename": asset_metadata.metadata.filename,
+                "filesize": asset_metadata.metadata.filesize
             }
             print(f'{asset=}')
         else:

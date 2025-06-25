@@ -48,7 +48,7 @@ def DeleteArticle(stub, article_id):
 
 def UploadAsset(stub, article_id, filename):
     def generate_requests():
-        yield cf.UploadAssetRequest(metadata=cf.AssetMetadata(
+        yield cf.UploadAssetRequest(metadata=cf.UploadAssetMetadata(
             article_id=article_id,
             filename=filename,
             filesize=os.path.getsize(filename)
@@ -146,7 +146,7 @@ def main(server_address: str):
 
         # DeleteArticle(stub, article_id=1)
 
-        # UploadAsset(stub, article_id=1, filename='image.jpg')
+        UploadAsset(stub, article_id=1, filename='output.png')
 
         # UpdateAsset(stub, asset_id=1, filename='logo.png')
 
