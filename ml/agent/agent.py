@@ -23,8 +23,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 class HelperAgent:
-    # TODO: add logging
-
     def __init__(self):
         self._load_vector_storage()
         self._load_llm()

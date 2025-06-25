@@ -27,14 +27,42 @@ sudo docker run --name chat-postgres --env-file ml/.env -v pgdata:/var/lib/postg
 - Run fastapi server: `uvicorn rag_backend.main:app --host 0.0.0.0 --port 8081 `
 
 # Handlers documentation
-**/ask** `POST` 
+## **/ask** `POST` 
 
 `Content-Type: application/json`
 
-RequestModel:
+Request Model:
 ```
 class AskRequest(BaseModel):
     uuid: str
     assignment_id: str
     content: str
 ```
+
+Response Model:
+```
+class AgentResponse(BaseModel):
+    assignment_id: str
+    content: str
+```
+
+## **/get_chat_history** `GET`
+
+`Content-Type: application/json`
+
+Request Model:
+```
+class ChatHistoryRequest(BaseModel):
+    uuid: str
+    assignment_id: str
+```
+
+Response Model:
+```
+class ChatHistory(BaseModel):
+    uuid: str
+    assignment_id: str
+    history: List[BaseMessage] OR Empty List
+```
+
+[BaseMessage docs](https://python.langchain.com/api_reference/core/messages/langchain_core.messages.base.BaseMessage.html)
