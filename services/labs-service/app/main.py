@@ -34,6 +34,10 @@ class LabService(service.LabServiceServicer):
         if not self.minio_client.bucket_exists("labs"):
             self.minio_client.make_bucket("labs")
 
+        # Ensure the temporary files directory exists
+        if not os.path.exists('files'):
+            os.makedirs('files')
+
     # Labs Management
     def CreateLab(self, request, context) -> stub.Lab:
         data: dict = {
