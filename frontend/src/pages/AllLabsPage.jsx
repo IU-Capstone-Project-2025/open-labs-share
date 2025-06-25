@@ -16,10 +16,15 @@ export default function AllLabsPage() {
         console.log('AllLabsPage: Fetching labs from backend API...');
         const response = await labs.getLabs();
         console.log('AllLabsPage: Received response:', response);
+        console.log('AllLabsPage: Response type:', typeof response);
+        console.log('AllLabsPage: Response.labs:', response.labs);
+        console.log('AllLabsPage: Response.labs type:', typeof response.labs);
+        console.log('AllLabsPage: Response.labs length:', response.labs ? response.labs.length : 'null/undefined');
         
         // Handle different possible response structures
         const labsArray = response.labs || response || [];
         console.log('AllLabsPage: Processed labs array:', labsArray);
+        console.log('AllLabsPage: Processed labs array length:', labsArray.length);
         setLabsData(labsArray);
         
       } catch (err) {

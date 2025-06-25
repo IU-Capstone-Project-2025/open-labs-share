@@ -16,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -77,7 +78,7 @@ public class LabService {
     }
 
     private void validateAsset(MultipartFile asset){
-        if (asset == null ||!asset.isEmpty()) {
+        if (asset == null || asset.isEmpty()) {
             throw new IllegalArgumentException("Asset file for lab is empty or null arrived");
         }
         if (asset.getOriginalFilename() == null || asset.getOriginalFilename().isBlank()) {
@@ -166,15 +167,12 @@ public class LabService {
         }
     }
 
-    public DeleteLabResponse deleteLab(Long labId, Long requestingUserId) {
-        log.debug("Deleting lab with ID: {} for user: {}", labId, requestingUserId);
+    public DeleteLabResponse deleteLab(Long labId, Long userId) {
+        log.debug("Deleting lab with ID: {} by user: {}", labId, userId);
 
         LabProto.Lab lab = labServiceClient.getLab(labId);
-
-        if (lab.getOwnerId() != requestingUserId) {
-            log.warn("User {} attempted to delete lab {} owned by user {}",
-                    requestingUserId, labId, lab.getOwnerId());
-            throw new ForbiddenAccessException("You have no access to delete this lab");
+        if (lab.getOwnerId() != userId.longValue()) {
+            throw new ForbiddenAccessException("You can't delete a lab that you don't own!");
         }
 
         boolean success = labServiceClient.deleteLab(labId);
@@ -182,9 +180,39 @@ public class LabService {
             throw new RuntimeException("Failed to delete lab");
         }
 
-        log.debug("Successfully deleted lab with ID: {}", labId);
         return DeleteLabResponse.builder()
-                .message("Lab deleted successfully")
+                .message("Lab deleted successfully!")
+                .build();
+    }
+
+    // New methods for asset management
+    public AssetListResponse getLabAssets(Long labId) {
+        log.debug("Getting assets for lab ID: {}", labId);
+        LabProto.AssetList assetList = labServiceClient.listAssets(labId);
+        
+        // Convert protobuf objects to DTOs
+        List<AssetResponse> assetResponses = assetList.getAssetsList().stream()
+                .map(this::convertAssetToResponse)
+                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+        
+        return AssetListResponse.builder()
+                .totalCount(assetList.getTotalCount())
+                .assets(assetResponses)
+                .build();
+    }
+
+    public byte[] downloadLabAsset(Long assetId) {
+        log.debug("Downloading asset with ID: {}", assetId);
+        return labServiceClient.downloadAsset(assetId);
+    }
+
+    private AssetResponse convertAssetToResponse(LabProto.Asset asset) {
+        return AssetResponse.builder()
+                .assetId(asset.getAssetId())
+                .labId(asset.getLabId())
+                .filename(asset.getFilename())
+                .totalSize(asset.getTotalSize())
+                .uploadDate(convertTimestampToIso(asset.getUploadDate()))
                 .build();
     }
 
