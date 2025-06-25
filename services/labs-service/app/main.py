@@ -2,6 +2,7 @@
 import grpc
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
+import minio
 
 # Import built-in modules
 import os
@@ -23,6 +24,15 @@ class LabService(service.LabServiceServicer):
         url = f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
 
         self.engine = create_engine(url, echo=False)
+        self.minio_client = minio.Minio(
+            endpoint=Config.MINIO_ENDPOINT,
+            access_key=Config.MINIO_ACCESS_KEY,
+            secret_key=Config.MINIO_SECRET_KEY,
+            secure=False
+        )
+
+        if not self.minio_client.bucket_exists("labs"):
+            self.minio_client.make_bucket("labs")
 
     # Labs Management
     def CreateLab(self, request, context) -> stub.Lab:
@@ -161,18 +171,32 @@ class LabService(service.LabServiceServicer):
             new_asset = LabAsset(**data)
             session.add(new_asset)
 
-            # Create directory to store assets if it doesn't exist
-            if not os.path.exists(f'files/{data["lab_id"]}'):
-                os.makedirs(f'files/{data["lab_id"]}')
+            # Put file in minio bucket
+            try:
+                # Download the file to a local path
+                with open(f'files/{new_asset.filename}', 'wb') as f:
+                    for request in request_iterator:
+                        if request.HasField('chunk'):
+                            f.write(request.chunk)
+                        else:
+                            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                            context.set_details("Subsequent requests must contain chunk data")
+                            return stub.Asset()
 
-            with open(f'files/{data["lab_id"]}/{data["filename"]}', 'wb') as f:
-                for request in request_iterator:
-                    if request.HasField('chunk'):
-                        f.write(request.chunk)
-                    else:
-                        context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                        context.set_details("Subsequent requests must contain chunk data")
-                        return stub.Asset()
+                # Put the file in MinIO
+                self.minio_client.fput_object(
+                    "labs",
+                    f"{new_asset.lab_id}/{new_asset.filename}",
+                    f'files/{new_asset.filename}'
+                )
+
+                # Clean up local file after upload
+                os.remove(f'files/{new_asset.filename}'"")
+
+            except Exception as e:
+                context.set_code(grpc.StatusCode.INTERNAL)
+                context.set_details(f"Failed to upload asset to MinIO: {str(e)}")
+                return stub.Asset()
 
             session.commit()
             return stub.Asset(**new_asset.get_attrs())
@@ -181,7 +205,6 @@ class LabService(service.LabServiceServicer):
     def UpdateAsset(self, request_iterator, context) -> stub.Asset:
         # Check for metadata being the first request
         metadata_request = next(request_iterator)
-        print(metadata_request)
 
         if metadata_request.HasField('metadata'):
             data: dict = {
@@ -189,7 +212,6 @@ class LabService(service.LabServiceServicer):
                 "filename": metadata_request.metadata.filename,
                 "filesize": metadata_request.metadata.filesize
             }
-            print(data)
         else:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
             context.set_details("First request must contain metadata")
@@ -205,14 +227,19 @@ class LabService(service.LabServiceServicer):
                 context.set_details("Asset not found")
                 return stub.Asset()
 
-            # Delete existing asset file
-            os.remove(f'files/{lab_asset.lab_id}/{lab_asset.filename}')
+            # Try to remove the old asset file from MinIO
+            try:
+                self.minio_client.remove_object('labs', f"{lab_asset.lab_id}/{lab_asset.filename}")
+            except Exception as e:
+                context.set_code(grpc.StatusCode.NOT_FOUND)
+                context.set_details(f"Failed to delete asset from MinIO: {str(e)}")
+                return stub.Asset()
 
             lab_asset.filename = data["filename"]
             lab_asset.filesize = data["filesize"]
 
 
-            with open(f'files/{lab_asset.lab_id}/{lab_asset.filename}', 'wb') as f:
+            with open(f'files/{lab_asset.filename}', 'wb') as f:
                 for request in request_iterator:
                     if request.HasField('chunk'):
                         f.write(request.chunk)
@@ -220,6 +247,16 @@ class LabService(service.LabServiceServicer):
                         context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
                         context.set_details("Subsequent requests must contain chunk data")
                         return stub.Asset()
+
+            # Put the file in MinIO
+            self.minio_client.fput_object(
+                "labs",
+                f"{lab_asset.lab_id}/{lab_asset.filename}",
+                f'files/{lab_asset.filename}'
+            )
+
+            # Clean up local file after upload
+            os.remove(f'files/{lab_asset.filename}')
 
             session.commit()
             return stub.Asset(**lab_asset.get_attrs())
@@ -242,7 +279,19 @@ class LabService(service.LabServiceServicer):
 
                 yield stub.DownloadAssetResponse(asset=stub.Asset(**lab_asset.get_attrs()))
 
-                with open(f'files/{lab_asset.lab_id}/{lab_asset.filename}', 'rb') as f:
+                # Download the file from MinIO
+                try:
+                    self.minio_client.fget_object(
+                        "labs",
+                        f"{lab_asset.lab_id}/{lab_asset.filename}",
+                        f'files/{lab_asset.filename}'
+                    )
+                except Exception as e:
+                    context.set_code(grpc.StatusCode.INTERNAL)
+                    context.set_details(f"Failed to download asset from MinIO: {str(e)}")
+                    return stub.DownloadAssetResponse()
+
+                with open(f'files/{lab_asset.filename}', 'rb') as f:
                     while True:
                         chunk = f.read(8 * 1024)
 
@@ -250,6 +299,9 @@ class LabService(service.LabServiceServicer):
                             break
 
                         yield stub.DownloadAssetResponse(chunk=chunk)
+
+                # Clean up local file after download
+                os.remove(f'files/{lab_asset.filename}')
 
         return response_messages()
 
@@ -269,13 +321,19 @@ class LabService(service.LabServiceServicer):
                 return stub.DeleteAssetResponse(success=False)
 
             session.delete(asset)
+
+            # Remove the asset from MinIO
+            try:
+                self.minio_client.remove_object('labs', f"{asset.lab_id}/{asset.filename}")
+            except Exception as e:
+                context.set_code(grpc.StatusCode.INTERNAL)
+                context.set_details(f"Failed to delete asset from MinIO: {str(e)}")
+                return stub.DeleteAssetResponse(success=False)
+
             session.commit()
 
-            # Delete the asset file
-            if os.path.exists(f'files/{asset.lab_id}/{asset.filename}'):
-                os.remove(f'files/{asset.lab_id}/{asset.filename}')
-
             return stub.DeleteAssetResponse(success=True)
+
 
     def ListAssets(self, request, context) -> stub.AssetList:
         data: dict = {
