@@ -134,20 +134,224 @@ class ArticleService(service.ArticleServiceServicer):
 
     # Assets Management
     def UploadAsset(self, request_iterator, context) -> stub.Asset:
-        pass
+        asset_metadata = next(request_iterator)
+
+        if asset_metadata.HasField('asset'):
+            asset: dict = {
+                "article_id": asset_metadata.asset.article_id,
+                "filename": asset_metadata.asset.filename,
+                "filesize": asset_metadata.asset.filesize
+            }
+            print(f'{asset=}')
+        else:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            context.set_details("First request must contain metadata")
+            return stub.Asset()
+
+        with Session(self.engine) as session:
+            stmt = select(Article).where(Article.id == asset["article_id"])
+            article = session.execute(stmt).scalar_one_or_none()
+
+            if article is None:
+                context.set_code(grpc.StatusCode.NOT_FOUND)
+                context.set_details("Article not found")
+                return stub.Asset()
+
+            # Create a new ArticleAsset instance
+            new_asset = ArticleAsset(**asset)
+            session.add(new_asset)
+
+            # Put file to MinIO bucket
+            try:
+                with open(f'files/{new_asset.filename}', 'wb') as f:
+                    for request in request_iterator:
+                        if request.HasField('chunk'):
+                            f.write(request.chunk)
+                        else:
+                            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                            context.set_details("Subsequent requests must contain chunk data")
+                            return stub.Asset()
+
+                # Put the file in MinIO
+                self.minio_client.fput_object(
+                    "articles",
+                    f"{new_asset.lab_id}/{new_asset.filename}",
+                    f'files/{new_asset.filename}'
+                )
+
+                # Clean up local file after upload
+                os.remove(f'files/{new_asset.filename}'"")
+
+            except Exception as e:
+                context.set_code(grpc.StatusCode.INTERNAL)
+                context.set_details(f"Failed to upload asset to MinIO: {str(e)}")
+                return stub.Asset()
+
+            session.commit()
+            return stub.Asset(**new_asset.get_attrs())
+
+
 
     def UpdateAsset(self, request_iterator, context) -> stub.Asset:
-        pass
+        asset_metadata = next(request_iterator)
+
+        if asset_metadata.HasField('asset'):
+            asset: dict = {
+                "asset_id": asset_metadata.asset.asset_id,
+                "filename": asset_metadata.asset.filename,
+                "filesize": asset_metadata.asset.filesize
+            }
+            print(f'{asset=}')
+        else:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            context.set_details("First request must contain metadata")
+            return stub.Asset()
+
+        with Session(self.engine) as session:
+            stmt = select(ArticleAsset).where(ArticleAsset.id == asset["asset_id"])
+            article_asset = session.execute(stmt).scalar_one_or_none()
+
+            if article_asset is None:
+                context.set_code(grpc.StatusCode.NOT_FOUND)
+                context.set_details("Asset not found")
+                return stub.Asset()
+
+            # Try to remove the old asset file from MinIO
+            try:
+                self.minio_client.remove_object('labs', f"{lab_asset.lab_id}/{lab_asset.filename}")
+            except Exception as e:
+                context.set_code(grpc.StatusCode.NOT_FOUND)
+                context.set_details(f"Failed to delete asset from MinIO: {str(e)}")
+                return stub.Asset()
+
+            # Update the asset's filename and filesize
+            article_asset.filename = asset["filename"]
+            article_asset.filesize = asset["filesize"]
+
+            # Put file to MinIO bucket
+            try:
+                with open(f'files/{article_asset.filename}', 'wb') as f:
+                    for request in request_iterator:
+                        if request.HasField('chunk'):
+                            f.write(request.chunk)
+                        else:
+                            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                            context.set_details("Subsequent requests must contain chunk data")
+                            return stub.Asset()
+
+                # Put the file in MinIO
+                self.minio_client.fput_object(
+                    "articles",
+                    f"{article_asset.article_id}/{article_asset.filename}",
+                    f'files/{article_asset.filename}'
+                )
+
+                # Clean up local file after upload
+                os.remove(f'files/{article_asset.filename}')
+
+            except Exception as e:
+                context.set_code(grpc.StatusCode.INTERNAL)
+                context.set_details(f"Failed to upload asset to MinIO: {str(e)}")
+                return stub.Asset()
+
+            session.commit()
+            return stub.Asset(**article_asset.get_attrs())
 
     def DownloadAsset(self, request, context) -> stub.DownloadAssetResponse:
-        pass
+        def response_messages():
+            data: dict = {
+                "asset_id": request.asset_id
+            }
+
+            with Session(self.engine) as session:
+                stmt = select(ArticleAsset).where(ArticleAsset.id == data["asset_id"])
+                article_asset = session.execute(stmt).scalar_one_or_none()
+
+                if article_asset is None:
+                    context.set_code(grpc.StatusCode.NOT_FOUND)
+                    context.set_details("Asset not found")
+                    return stub.DownloadAssetResponse()
+
+                # Send asset metadata
+                yield stub.DownloadAssetResponse(asset=stub.Asset(**article_asset.get_attrs()))
+
+                # Download the file from MinIO
+                try:
+                    self.minio_client.fget_object(
+                        "labs",
+                        f"{article_asset.article_id}/{article_asset.filename}",
+                        f'files/{article_asset.filename}'
+                    )
+                except Exception as e:
+                    context.set_code(grpc.StatusCode.INTERNAL)
+                    context.set_details(f"Failed to download asset from MinIO: {str(e)}")
+                    return stub.DownloadAssetResponse()
+
+                with open(f'files/{article_asset.filename}', 'rb') as f:
+                    while True:
+                        chunk = f.read(8 * 1024)
+
+                        if not chunk:
+                            break
+
+                        yield stub.DownloadAssetResponse(chunk=chunk)
+
+                # Clean up local file after download
+                os.remove(f'files/{article_asset.filename}')
+
+        return response_messages()
 
     def DeleteAsset(self, request, context) -> stub.DeleteAssetResponse:
-        pass
+        data: dict = {
+            "asset_id": request.asset_id
+        }
+
+        with Session(self.engine) as session:
+            stmt = select(ArticleAsset).where(ArticleAsset.id == data["asset_id"])
+            asset = session.execute(stmt).scalar_one_or_none()
+
+            if asset is None:
+                context.set_code(grpc.StatusCode.NOT_FOUND)
+                context.set_details("Asset not found")
+                return stub.DeleteAssetResponse(success=False)
+
+            session.delete(asset)
+
+            # Try to remove the asset file from MinIO
+            try:
+                self.minio_client.remove_object('articles', f"{asset.article_id}/{asset.filename}")
+            except Exception as e:
+                context.set_code(grpc.StatusCode.INTERNAL)
+                context.set_details(f"Failed to delete asset from MinIO: {str(e)}")
+                return stub.DeleteAssetResponse(success=False)
+
+            session.commit()
+
+            return stub.DeleteAssetResponse(success=True)
 
     def ListAssets(self, request, context) -> stub.AssetList:
-        pass
+        data: dict = {
+            "article_id": request.article_id
+        }
+        with Session(self.engine) as session:
+            stmt = select(Article).where(Article.id == data["article_id"])
+            article = session.execute(stmt).scalar_one_or_none()
 
+            if article is None:
+                context.set_code(grpc.StatusCode.NOT_FOUND)
+                context.set_details("Article not found")
+                return stub.AssetList()
+
+            if article.assets is None:
+                context.set_code(grpc.StatusCode.NOT_FOUND)
+                context.set_details("No assets found for this article")
+                return stub.AssetList()
+
+            asset_list = stub.AssetList()
+            asset_list.total_count = len(article.assets)
+            asset_list.assets.extend([stub.Asset(**asset.get_attrs()) for asset in article.assets])
+
+            return asset_list
 
 if __name__ == "__main__":
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
