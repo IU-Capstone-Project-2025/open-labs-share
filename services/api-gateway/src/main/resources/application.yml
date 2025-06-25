@@ -86,11 +86,5 @@ springdoc:
     operationsSorter: method
     tagsSorter: alpha
     tryItOutEnabled: true
-  info:
-    title: Open Labs Share API Gateway
-    description: API Gateway service for Open Labs Share platform
-    version: 1.0.0
-    contact:
-      name: Open Labs Share Team
   default-produces-media-type: application/json
   default-consumes-media-type: application/json
