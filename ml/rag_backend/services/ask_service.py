@@ -18,45 +18,51 @@ class AskService:
 
 
     async def _preprocess(self, request: AskRequest) -> tp.Tuple[RAGState, RunnableConfig]:
-        config = {
-            "configurable": {
-                "thread_id": f"{request.assignment_id}_{request.uuid}"
+        try:
+            config = {
+                "configurable": {
+                    "thread_id": f"{request.assignment_id}_{request.uuid}"
+                }
             }
-        }
 
-        last_state = await self._agent.get_last_state(config=config)
-        logger.info("Last state retrieved")
+            last_state = await self._agent.get_last_state(config=config)
+            logger.info("Last state retrieved")
 
-        if not last_state.values:
-            input_state = RAGState(
-                uuid=request.uuid,
-                assignment_id=request.assignment_id,
-                query=request.content,
-                docs='',
-                msg_state=MessagesState(
-                    thread_id=config["configurable"]["thread_id"],
-                    messages=[
-                        SystemMessage(content=SYSTEM_PROMPT)
-                    ]
+            if not last_state.values:
+                input_state = RAGState(
+                    uuid=request.uuid,
+                    assignment_id=request.assignment_id,
+                    query=request.content,
+                    docs='',
+                    msg_state=MessagesState(
+                        thread_id=config["configurable"]["thread_id"],
+                        messages=[
+                            SystemMessage(content=SYSTEM_PROMPT)
+                        ]
+                    )
                 )
-            )
-        else:
-            input_state = RAGState(
-                uuid=request.uuid,
-                assignment_id=request.assignment_id,
-                query=request.content,
-                docs='',
-                msg_state=last_state.values["msg_state"]
-            )
+            else:
+                input_state = RAGState(
+                    uuid=request.uuid,
+                    assignment_id=request.assignment_id,
+                    query=request.content,
+                    docs='',
+                    msg_state=last_state.values["msg_state"]
+                )
 
-        return input_state, config
+            return input_state, config
+        except Exception as e:
+            logger.error(f"Preprocessing error {e}")
     
 
     def _postprocess(self, request: AskRequest, response: AIMessage) -> AgentResponse:
-        return AgentResponse(
-            assignment_id=request.assignment_id,
-            content=response.content
-        )
+        try:
+            return AgentResponse(
+                assignment_id=request.assignment_id,
+                content=response.content
+            )
+        except Exception as e:
+            logger.error(f"Postprocess error: {e}")
 
 
     async def ask(self, request: AskRequest) -> AgentResponse:
