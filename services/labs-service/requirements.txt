@@ -1,0 +1,7 @@
+grpcio==1.67.1
+grpcio-tools==1.67.1
+sqlalchemy==2.0.29
+psycopg2-binary==2.9.9
+minio==7.2.10
+python-dotenv==1.0.1
+sqlalchemy-serializer==1.4.22 

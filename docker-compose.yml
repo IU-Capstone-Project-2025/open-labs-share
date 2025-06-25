@@ -37,6 +37,7 @@ services:
     depends_on:
       - auth-service
       - users-service
+      - labs-service
       - feedback-service
     networks:
       - app-network
@@ -81,6 +82,32 @@ services:
     restart: unless-stopped
     depends_on:
       postgres-users:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  labs-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.labs-service
+    ports:
+      - "9091:9091"
+    environment:
+      - SERVICE_HOST=0.0.0.0
+      - SERVICE_PORT=9091
+      - DB_HOST=postgres-labs
+      - DB_PORT=5432
+      - DB_USER=labs_user
+      - DB_PASSWORD=labs_password
+      - DB_NAME=labs_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+    restart: unless-stopped
+    depends_on:
+      postgres-labs:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     networks:
       - app-network
@@ -155,6 +182,25 @@ services:
     networks:
       - app-network
 
+  postgres-labs:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=labs_db
+      - POSTGRES_USER=labs_user
+      - POSTGRES_PASSWORD=labs_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-labs-data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U labs_user -d labs_db
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
@@ -183,4 +229,5 @@ volumes:
   frontend_node_modules:
   postgres-users-data:
   postgres-feedback-data:
+  postgres-labs-data:
   minio-data:

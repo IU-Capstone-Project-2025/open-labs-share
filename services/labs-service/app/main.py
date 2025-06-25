@@ -24,6 +24,11 @@ class LabService(service.LabServiceServicer):
         url = f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
 
         self.engine = create_engine(url, echo=False)
+        
+        # Create tables if they don't exist
+        from utils.models import Base
+        Base.metadata.create_all(self.engine)
+        
         self.minio_client = minio.Minio(
             endpoint=Config.MINIO_ENDPOINT,
             access_key=Config.MINIO_ACCESS_KEY,
