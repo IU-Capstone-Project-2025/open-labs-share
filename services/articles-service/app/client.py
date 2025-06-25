@@ -146,7 +146,7 @@ def main(server_address: str):
 
         # DeleteArticle(stub, article_id=1)
 
-        UploadAsset(stub, article_id=1, filename='output.png')
+        # UploadAsset(stub, article_id=1, filename='output.png')
 
         # UpdateAsset(stub, asset_id=1, filename='logo.png')
 

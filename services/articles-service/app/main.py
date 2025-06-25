@@ -43,8 +43,8 @@ class ArticleService(service.ArticleServiceServicer):
     def CreateArticle(self, request, context):
         data: dict = {
             "owner_id": request.owner_id,
-            "title": request.title,
-            "abstract": request.abstract
+            "title": request.title.encode('utf-8').decode('utf-8'),
+            "abstract": request.abstract.encode('utf-8').decode('utf-8')
         }
 
         with Session(self.engine) as session:
@@ -90,8 +90,8 @@ class ArticleService(service.ArticleServiceServicer):
     def UpdateArticle(self, request, context) -> stub.Article:
         data: dict = {
             "article_id": request.article_id,
-            "title": request.title if request.HasField("title") else None,
-            "abstract": request.abstract if request.HasField("abstract") else None
+            "title": request.title.encode('utf-8').decode('utf-8') if request.HasField("title") else None,
+            "abstract": request.abstract.encode('utf-8').decode('utf-8') if request.HasField("abstract") else None
         }
 
         with Session(self.engine) as session:
@@ -139,7 +139,7 @@ class ArticleService(service.ArticleServiceServicer):
         if asset_metadata.HasField('metadata'):
             asset: dict = {
                 "article_id": asset_metadata.metadata.article_id,
-                "filename": asset_metadata.metadata.filename,
+                "filename": asset_metadata.metadata.filename.encode('utf-8').decode('utf-8'),
                 "filesize": asset_metadata.metadata.filesize
             }
             print(f'{asset=}')
@@ -198,7 +198,7 @@ class ArticleService(service.ArticleServiceServicer):
         if asset_metadata.HasField('metadata'):
             asset: dict = {
                 "asset_id": asset_metadata.metadata.asset_id,
-                "filename": asset_metadata.metadata.filename,
+                "filename": asset_metadata.metadata.filename.encode('utf-8').decode('utf-8'),
                 "filesize": asset_metadata.metadata.filesize
             }
             print(f'{asset=}')
