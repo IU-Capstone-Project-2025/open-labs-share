@@ -72,7 +72,7 @@ message Asset {
   int64 article_id = 2;
   string filename = 3;
   int64 filesize = 4;
-  google.protobuf.Timestamp uploaded_at = 5;
+  google.protobuf.Timestamp upload_date = 5;
 }
 
 message UploadAssetMetadata {

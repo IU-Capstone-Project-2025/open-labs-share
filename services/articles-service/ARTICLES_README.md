@@ -51,7 +51,7 @@ Article Service is the central repository of all scientific articles on the Open
 | article_id  | long      |
 | filename    | string    |
 | filesize    | long      |
-| uploaded_at | datestamp |
+| upload_date | datestamp |
 
 
 # gRPC Contract
