@@ -128,15 +128,19 @@ public class LabService {
             HashMap<Long, UserResponse> authorCache = new HashMap<>();
 
             for (LabProto.Lab lab : grpcResponse.getLabsList()) {
-                UserResponse author;
-                if (authorCache.containsKey(lab.getOwnerId())) {
-                    author = authorCache.get(lab.getOwnerId());
-                } else {
-                    author = userService.getUserById(lab.getOwnerId());
-                    authorCache.put(lab.getOwnerId(), author);
+                try {
+                    UserResponse author;
+                    if (authorCache.containsKey(lab.getOwnerId())) {
+                        author = authorCache.get(lab.getOwnerId());
+                    } else {
+                        author = userService.getUserById(lab.getOwnerId());
+                        authorCache.put(lab.getOwnerId(), author);
+                    }
+                    labResponses.add(buildLabResponse(lab, author));
+                } catch (Exception e) {
+                    log.warn("Skipping lab with ID {} due to an error fetching its owner (owner_id={}): {}", 
+                             lab.getLabId(), lab.getOwnerId(), e.getMessage());
                 }
-
-                labResponses.add(buildLabResponse(lab, author));
             }
 
             int totalItems = (int) grpcResponse.getTotalCount();

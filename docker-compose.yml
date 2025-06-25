@@ -13,6 +13,7 @@ services:
     restart: unless-stopped
     depends_on:
       - api-gateway
+      - auth-service
 
   api-gateway:
     build:
@@ -26,19 +27,14 @@ services:
       - AUTH_SERVICE_PORT=9092
       - USER_SERVICE_HOST=users-service
       - USER_SERVICE_PORT=9093
-      - ARTICLE_SERVICE_HOST=articles-service
-      - ARTICLE_SERVICE_PORT=9092
       - LAB_SERVICE_HOST=labs-service
       - LAB_SERVICE_PORT=9091
-      - FEEDBACK_SERVICE_HOST=feedback-service
-      - FEEDBACK_SERVICE_PORT=9090
       - SPRING_PROFILES_ACTIVE=docker
     restart: unless-stopped
     depends_on:
       - auth-service
       - users-service
       - labs-service
-      - feedback-service
     networks:
       - app-network
 
@@ -112,8 +108,6 @@ services:
     networks:
       - app-network
 
-
-
   feedback-service:
     build:
       context: .
@@ -141,7 +135,6 @@ services:
     networks:
       - app-network
 
-
   postgres-users:
     image: postgres:15-alpine
     environment:
@@ -160,8 +153,6 @@ services:
     restart: unless-stopped
     networks:
       - app-network
-
-
 
   postgres-feedback:
     image: postgres:15-alpine

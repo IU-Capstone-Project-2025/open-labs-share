@@ -8,9 +8,10 @@ import {
   Navigate,
 } from "react-router-dom";
 import { Bars3Icon } from "@heroicons/react/24/outline";
-import { getCurrentUser, isAuthenticated } from "./utils/auth";
+import { getCurrentUser, isAuthenticated, startTokenRefresh, stopTokenRefresh } from "./utils/auth";
 import Sidebar from "./components/Sidebar";
 import Home from "./pages/HomePage";
+import LandingPage from "./pages/LandingPage";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import Profile from "./pages/ProfilePage";
@@ -20,13 +21,36 @@ import AllLabs from "./pages/AllLabsPage";
 import AllArticles from "./pages/AllArticlesPage";
 import LabPage from "./pages/LabPage";
 import ArticlePage from "./pages/ArticlePage";
+import CreateLabPage from "./pages/CreateLabPage";
 import BackgroundCircles from "./components/BackgroundCircles";
 
 // Component to protect routes that require authentication
 function ProtectedRoute({ children }) {
-  if (!isAuthenticated()) {
+  const authenticated = isAuthenticated();
+  
+  if (!authenticated) {
+    console.log('User not authenticated, redirecting to signin');
     return <Navigate to="/signin" replace />;
   }
+  
+  return children;
+}
+
+// Component for routes that should only be accessible to unauthenticated users
+function PublicOnlyRoute({ children }) {
+  const authenticated = isAuthenticated();
+  
+  if (authenticated) {
+    console.log('User already authenticated, redirecting to home');
+    return <Navigate to="/home" replace />;
+  }
+  
+  return children;
+}
+
+// Component for the landing page (accessible to everyone)
+function LandingRoute({ children }) {
+  // This route is accessible to both authenticated and unauthenticated users
   return children;
 }
 
@@ -37,7 +61,8 @@ function AppContent() {
   const sidebarRef = useRef();
   const location = useLocation();
 
-  const showSidebar = !["/signup", "/signin"].includes(location.pathname);
+  const showSidebar = !["/signup", "/signin"].includes(location.pathname) && 
+                   !(location.pathname === "/" && !isAuthenticated());
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -67,6 +92,17 @@ function AppContent() {
     const currentUser = getCurrentUser();
     setUser(currentUser);
   }, [location]);
+
+  // Start automatic token refresh when app loads
+  useEffect(() => {
+    if (isAuthenticated()) {
+      startTokenRefresh();
+    }
+
+    return () => {
+      stopTokenRefresh();
+    };
+  }, []);
 
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
@@ -164,49 +200,20 @@ function AppContent() {
         }`}
       >
         <Routes>
-          <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="/signup" element={<SignUp />} />
-          <Route path="/signin" element={<SignIn />} />
-          <Route path="/home" element={
-            <ProtectedRoute>
-              <Home />
-            </ProtectedRoute>
-          } />
-          <Route path="/my-labs" element={
-            <ProtectedRoute>
-              <MyLabs />
-            </ProtectedRoute>
-          } />
-          <Route path="/all-labs" element={
-            <ProtectedRoute>
-              <AllLabs />
-            </ProtectedRoute>
-          } />
-          <Route path="/lab/:id" element={
-            <ProtectedRoute>
-              <LabPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/my-articles" element={
-            <ProtectedRoute>
-              <MyArticles />
-            </ProtectedRoute>
-          } />
-          <Route path="/all-articles" element={
-            <ProtectedRoute>
-              <AllArticles />
-            </ProtectedRoute>
-          } />
-          <Route path="/article/:id" element={
-            <ProtectedRoute>
-              <ArticlePage />
-            </ProtectedRoute>
-          } />
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          } />
+          <Route path="/" element={<LandingRoute><LandingPage /></LandingRoute>} />
+          <Route path="/signup" element={<PublicOnlyRoute><SignUp /></PublicOnlyRoute>} />
+          <Route path="/signin" element={<PublicOnlyRoute><SignIn /></PublicOnlyRoute>} />
+          <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+          <Route path="/my-labs" element={<ProtectedRoute><MyLabs /></ProtectedRoute>} />
+          <Route path="/all-labs" element={<ProtectedRoute><AllLabs /></ProtectedRoute>} />
+          <Route path="/create-lab" element={<ProtectedRoute><CreateLabPage /></ProtectedRoute>} />
+          <Route path="/lab/:id" element={<ProtectedRoute><LabPage /></ProtectedRoute>} />
+          <Route path="/my-articles" element={<ProtectedRoute><MyArticles /></ProtectedRoute>} />
+          <Route path="/all-articles" element={<ProtectedRoute><AllArticles /></ProtectedRoute>} />
+          <Route path="/article/:id" element={<ProtectedRoute><ArticlePage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          {/* Catch-all route for undefined paths */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
     </div>

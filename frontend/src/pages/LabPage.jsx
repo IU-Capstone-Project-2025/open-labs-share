@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import "highlight.js/styles/github-dark.css";
 import CommentsSection from "../components/CommentsSection";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
+import { labsAPI, submissionsAPI } from "../utils/api";
 
 const flattenText = (children) => {
   if (typeof children === "string") return children;
@@ -27,9 +28,11 @@ const generateId = (text) =>
 
 export default function LabPage() {
   const { id } = useParams();
+  const [lab, setLab] = useState(null);
   const [markdown, setMarkdown] = useState("");
   const [headings, setHeadings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeId, setActiveId] = useState("");
   const observer = useRef();
   const contentRef = useRef();
@@ -38,6 +41,7 @@ export default function LabPage() {
   const dropzoneRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [user, setUser] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   // Initialize user state
   useEffect(() => {
@@ -83,30 +87,64 @@ export default function LabPage() {
     fileInputRef.current?.click();
   };
 
-  const handleSubmit = () => {
-    if (file) {
-      //file upload logic
-      console.log("Uploading file:", file.name);
+  const handleSubmit = async () => {
+    if (!file || !user) return;
+
+    try {
+      setUploading(true);
+      await submissionsAPI.submitLabFile(id, user.id, file);
       alert(`The file "${file.name}" uploaded successfully`);
       setFile(null);
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert("Upload failed: " + err.message);
+    } finally {
+      setUploading(false);
     }
   };
 
   useEffect(() => {
-    const fetchMarkdown = async () => {
+    const fetchLabData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/labs_sample/${id}.md`);
-        const text = await response.text();
-        setMarkdown(text);
+        
+        // Fetch lab details
+        const labResponse = await labsAPI.getLabById(id);
+        console.log('Lab response:', labResponse);
+        setLab(labResponse);
+        
+        // For now, lab content retrieval is not implemented in the backend
+        // We'll show a placeholder message instead of trying to fetch content
+        setMarkdown(`# ${labResponse.title || 'Lab Content'}
+
+## About This Lab
+
+${labResponse.abstract || 'No description available.'}
+
+## Lab Content
+
+Lab content delivery is currently being developed. The markdown content for this lab will be available soon.
+
+### What you can do now:
+- Review the lab description above
+- Submit your solution using the file upload section below
+- Check back later for the full lab instructions
+
+---
+
+*Note: This is lab ID ${id}. Contact your instructor if you need the lab materials immediately.*`);
+        
       } catch (err) {
-        console.error("Markdown download error: ", err);
+        console.error("Error fetching lab data:", err);
+        setError(`Failed to load lab: ${err.message}`);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMarkdown();
+    if (id) {
+      fetchLabData();
+    }
   }, [id]);
 
   useEffect(() => {
@@ -199,33 +237,63 @@ export default function LabPage() {
         className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 overflow-x-auto my-4"
       />
     ),
-    code: ({ node, inline, className, ...props }) => {
-      const isBash = className?.includes("language-bash");
-      return inline ? (
+    code: ({ node, className, children, ...props }) => {
+      const match = /language-(\w+)/.exec(className || "");
+      const isInline = !match;
+
+      return isInline ? (
         <code
+          className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm"
           {...props}
-          className="bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-sm"
-        />
+        >
+          {children}
+        </code>
       ) : (
-        <div className="relative">
-          {isBash && (
-            <div className="absolute top-0 left-0 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 text-xs rounded-tl rounded-br">
-              bash
-            </div>
-          )}
-          <code
-            {...props}
-            className={`${className} block p-4 ${isBash ? "pt-8" : ""}`}
-          />
-        </div>
+        <code className={className} {...props}>
+          {children}
+        </code>
       );
     },
+    p: ({ node, ...props }) => (
+      <p {...props} className="my-4 leading-relaxed dark:text-gray-300" />
+    ),
+    blockquote: ({ node, ...props }) => (
+      <blockquote
+        {...props}
+        className="border-l-4 border-msc pl-4 my-4 italic dark:text-gray-300"
+      />
+    ),
+    a: ({ node, ...props }) => (
+      <a
+        {...props}
+        className="text-msc hover:text-msc-hover underline"
+        target="_blank"
+        rel="noopener noreferrer"
+      />
+    ),
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen dark:bg-gray-900">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-msc"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen dark:bg-gray-900">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-md">
+          <h2 className="text-xl font-bold text-red-500 mb-4">Error</h2>
+          <p className="text-gray-700 dark:text-gray-300 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-msc text-white rounded-lg hover:bg-msc-hover transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -337,14 +405,14 @@ export default function LabPage() {
           <div className="mt-6 flex justify-center">
             <button
               onClick={handleSubmit}
-              disabled={!file}
+              disabled={!file || uploading || !user}
               className={`px-16 py-3 rounded-md font-medium ${
-                file
+                file && !uploading && user
                   ? "bg-msc text-white hover:bg-msc-dark"
                   : "bg-light-blue-hover dark:bg-gray-600 text-gray-500 font-inter dark:text-gray-400 cursor-not-allowed"
               } transition-colors`}
             >
-              Submit homework
+              {uploading ? "Uploading..." : "Submit homework"}
             </button>
           </div>
         </section>

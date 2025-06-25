@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.CrossOrigin;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -38,6 +39,7 @@ import olsh.backend.authservice.service.AuthenticationService;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/auth")
+@CrossOrigin(origins = "*", maxAge = 3600)
 @RequiredArgsConstructor
 @Tag(name = "Authentication", description = "Authentication and authorization endpoints")
 public class AuthController {

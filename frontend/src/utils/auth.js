@@ -1,33 +1,37 @@
 // Authentication utility for Open Labs Share
-// This provides mock authentication functionality that can be easily replaced with real API integration
+// This connects to the real auth service API
 
-// Mock user database (in a real app, this would be stored on the server)
-const MOCK_USERS = [
-  {
-    id: 1,
-    firstName: "Demo",
-    lastName: "User",
-    username: "demouser",
-    email: "demo@example.com",
-    password: "password123" // In real app, this would be hashed
-  },
-  {
-    id: 2,
-    firstName: "Ryan",
-    lastName: "Gosling",
-    username: "ryanGosling1980",
-    email: "gosl1980@mail.com",
-    password: "password123"
-  },
-  {
-    id: 3,
-    firstName: "Dr. Sarah",
-    lastName: "Johnson",
-    username: "sarahjohnson",
-    email: "sarah.johnson@university.edu",
-    password: "password123"
+// API Configuration
+const AUTH_API_BASE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8081';
+const AUTH_API_ENDPOINT = `${AUTH_API_BASE_URL}/api/v1/auth`;
+
+// Helper function to make API calls
+const makeAuthRequest = async (endpoint, options = {}) => {
+  const url = `${AUTH_API_ENDPOINT}${endpoint}`;
+  
+  const defaultOptions = {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+
+  const finalOptions = { ...defaultOptions, ...options };
+  
+  try {
+    const response = await fetch(url, finalOptions);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Auth API request failed:', error);
+    throw error;
   }
-];
+};
 
 // Get current user from localStorage or return null
 export const getCurrentUser = () => {
@@ -37,19 +41,6 @@ export const getCurrentUser = () => {
     
     if (userJson && authToken) {
       return JSON.parse(userJson);
-    }
-    
-    // For backwards compatibility, return mock user if token exists but no user data
-    if (authToken) {
-      const mockUser = {
-        id: 1,
-        firstName: "Demo",
-        lastName: "User",
-        username: "demouser",
-        email: "demo@example.com"
-      };
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      return mockUser;
     }
     
     return null;
@@ -69,35 +60,31 @@ export const isAuthenticated = () => {
 // Sign in with email/username and password
 export const signIn = async (emailOrUsername, password) => {
   try {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const response = await makeAuthRequest('/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        usernameOrEmail: emailOrUsername,
+        password: password
+      })
+    });
     
-    // Find user by email or username
-    const user = MOCK_USERS.find(u => 
-      (u.email === emailOrUsername || u.username === emailOrUsername) && 
-      u.password === password
-    );
+    // Store user data and token from auth service response
+    const { accessToken, refreshToken, userInfo } = response;
     
-    if (!user) {
-      throw new Error('Invalid email/username or password');
-    }
-    
-    // Generate mock JWT token
-    const authToken = `mock-jwt-${user.id}-${Date.now()}`;
-    
-    // Store user data (without password)
     const userData = {
-      id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      username: user.username,
-      email: user.email
+      id: userInfo.userId,
+      firstName: userInfo.firstName,
+      lastName: userInfo.lastName,
+      username: userInfo.username,
+      email: userInfo.email,
+      role: userInfo.role
     };
     
-    localStorage.setItem('authToken', authToken);
+    localStorage.setItem('authToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('user', JSON.stringify(userData));
     
-    return { user: userData, token: authToken };
+    return { user: userData, token: accessToken };
   } catch (error) {
     console.error('Sign in error:', error);
     throw error;
@@ -107,9 +94,6 @@ export const signIn = async (emailOrUsername, password) => {
 // Sign up with user data
 export const signUp = async (userData) => {
   try {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
     const { firstName, lastName, username, email, password } = userData;
     
     // Validate required fields
@@ -117,49 +101,35 @@ export const signUp = async (userData) => {
       throw new Error('All fields are required');
     }
     
-    // Check if username or email already exists
-    const existingUser = MOCK_USERS.find(u => 
-      u.username === username || u.email === email
-    );
+    const response = await makeAuthRequest('/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        firstName,
+        lastName,
+        username,
+        email,
+        password,
+        role: 'ROLE_USER' // Default role
+      })
+    });
     
-    if (existingUser) {
-      if (existingUser.username === username) {
-        throw new Error('Username is already taken');
-      }
-      if (existingUser.email === email) {
-        throw new Error('Email is already registered');
-      }
-    }
+    // Store user data and token from auth service response
+    const { accessToken, refreshToken, userInfo } = response;
     
-    // Create new user
-    const newUser = {
-      id: MOCK_USERS.length + 1,
-      firstName,
-      lastName,
-      username,
-      email,
-      password // In real app, this would be hashed
-    };
-    
-    // Add to mock database
-    MOCK_USERS.push(newUser);
-    
-    // Generate mock JWT token
-    const authToken = `mock-jwt-${newUser.id}-${Date.now()}`;
-    
-    // Store user data (without password)
     const userDataToStore = {
-      id: newUser.id,
-      firstName: newUser.firstName,
-      lastName: newUser.lastName,
-      username: newUser.username,
-      email: newUser.email
+      id: userInfo.userId,
+      firstName: userInfo.firstName,
+      lastName: userInfo.lastName,
+      username: userInfo.username,
+      email: userInfo.email,
+      role: userInfo.role
     };
     
-    localStorage.setItem('authToken', authToken);
+    localStorage.setItem('authToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('user', JSON.stringify(userDataToStore));
     
-    return { user: userDataToStore, token: authToken };
+    return { user: userDataToStore, token: accessToken };
   } catch (error) {
     console.error('Sign up error:', error);
     throw error;
@@ -167,32 +137,102 @@ export const signUp = async (userData) => {
 };
 
 // Sign out
-export const signOut = () => {
-  localStorage.removeItem('authToken');
-  localStorage.removeItem('user');
+export const signOut = async () => {
+  try {
+    const authToken = localStorage.getItem('authToken');
+    
+    if (authToken) {
+      // Call logout endpoint to invalidate token on server
+      await makeAuthRequest('/logout', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Logout API call failed:', error);
+    // Continue with local logout even if API call fails
+  } finally {
+    // Stop token refresh
+    stopTokenRefresh();
+    
+    // Clear local storage
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+  }
+};
+
+// Refresh token
+export const refreshToken = async () => {
+  try {
+    const refreshTokenValue = localStorage.getItem('refreshToken');
+    
+    if (!refreshTokenValue) {
+      throw new Error('No refresh token available');
+    }
+    
+    const response = await makeAuthRequest('/refresh', {
+      method: 'POST',
+      body: JSON.stringify({
+        refreshToken: refreshTokenValue
+      })
+    });
+    
+    const { accessToken, refreshToken: newRefreshToken, userInfo } = response;
+    
+    // Update stored tokens
+    localStorage.setItem('authToken', accessToken);
+    if (newRefreshToken) {
+      localStorage.setItem('refreshToken', newRefreshToken);
+    }
+    
+    // Update user info if provided
+    if (userInfo) {
+      const userData = {
+        id: userInfo.userId,
+        firstName: userInfo.firstName,
+        lastName: userInfo.lastName,
+        username: userInfo.username,
+        email: userInfo.email,
+        role: userInfo.role
+      };
+      localStorage.setItem('user', JSON.stringify(userData));
+    }
+    
+    return accessToken;
+  } catch (error) {
+    console.error('Token refresh failed:', error);
+    // Clear invalid tokens
+    signOut();
+    throw error;
+  }
 };
 
 // Update user profile
 export const updateProfile = async (updatedData) => {
   try {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const authToken = localStorage.getItem('authToken');
     
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-      throw new Error('No user logged in');
+    if (!authToken) {
+      throw new Error('No authentication token available');
     }
     
-    // Update user data
+    // Get current profile first
+    const profileResponse = await makeAuthRequest('/profile', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      }
+    });
+    
+    // Update user data locally (profile update via users service would be through API Gateway)
+    const currentUser = getCurrentUser();
     const updatedUser = { ...currentUser, ...updatedData };
     
-    // Update in mock database
-    const userIndex = MOCK_USERS.findIndex(u => u.id === currentUser.id);
-    if (userIndex !== -1) {
-      MOCK_USERS[userIndex] = { ...MOCK_USERS[userIndex], ...updatedData };
-    }
-    
-    // Update localStorage
     localStorage.setItem('user', JSON.stringify(updatedUser));
     
     return updatedUser;
@@ -205,74 +245,125 @@ export const updateProfile = async (updatedData) => {
 // Change password
 export const changePassword = async (currentPassword, newPassword) => {
   try {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const authToken = localStorage.getItem('authToken');
     
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-      throw new Error('No user logged in');
+    if (!authToken) {
+      throw new Error('No authentication token available');
     }
     
-    // Find user in mock database to verify current password
-    const user = MOCK_USERS.find(u => u.id === currentUser.id);
-    if (!user || user.password !== currentPassword) {
-      throw new Error('Current password is incorrect');
-    }
+    await makeAuthRequest('/change-password', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        currentPassword,
+        newPassword
+      })
+    });
     
-    // Update password in mock database
-    const userIndex = MOCK_USERS.findIndex(u => u.id === currentUser.id);
-    if (userIndex !== -1) {
-      MOCK_USERS[userIndex].password = newPassword;
-    }
-    
-    return true;
+    return { success: true, message: 'Password changed successfully' };
   } catch (error) {
     console.error('Change password error:', error);
     throw error;
   }
 };
 
-// Validate form data
+// Get user profile from auth service
+export const getUserProfile = async () => {
+  try {
+    const authToken = localStorage.getItem('authToken');
+    
+    if (!authToken) {
+      throw new Error('No authentication token available');
+    }
+    
+    const response = await makeAuthRequest('/profile', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      }
+    });
+    
+    const userData = {
+      id: response.userInfo.userId,
+      firstName: response.userInfo.firstName,
+      lastName: response.userInfo.lastName,
+      username: response.userInfo.username,
+      email: response.userInfo.email,
+      role: response.userInfo.role
+    };
+    
+    // Update local storage with fresh data
+    localStorage.setItem('user', JSON.stringify(userData));
+    
+    return userData;
+  } catch (error) {
+    console.error('Get profile error:', error);
+    throw error;
+  }
+};
+
+// Validate sign up data
 export const validateSignUpData = (userData) => {
+  const { firstName, lastName, username, email, password, confirmPassword } = userData;
   const errors = {};
-  
-  if (!userData.firstName?.trim()) {
-    errors.firstName = 'First name is required';
+
+  if (!firstName || firstName.trim().length < 2) {
+    errors.firstName = 'First name must be at least 2 characters long';
   }
-  
-  if (!userData.lastName?.trim()) {
-    errors.lastName = 'Last name is required';
+
+  if (!lastName || lastName.trim().length < 2) {
+    errors.lastName = 'Last name must be at least 2 characters long';
   }
-  
-  if (!userData.username?.trim()) {
-    errors.username = 'Username is required';
-  } else if (!/^[a-zA-Z0-9_]+$/.test(userData.username)) {
-    errors.username = 'Username can only contain letters, numbers, and underscores';
-  } else if (userData.username.length < 3) {
+
+  if (!username || username.trim().length < 3) {
     errors.username = 'Username must be at least 3 characters long';
   }
-  
-  if (!userData.email?.trim()) {
-    errors.email = 'Email is required';
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userData.email)) {
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     errors.email = 'Please enter a valid email address';
   }
-  
-  if (!userData.password) {
-    errors.password = 'Password is required';
-  } else if (userData.password.length < 8) {
-    errors.password = 'Password must be at least 8 characters long';
+
+  if (!password || password.length < 6) {
+    errors.password = 'Password must be at least 6 characters long';
   }
-  
-  if (userData.password !== userData.confirmPassword) {
+
+  if (password !== confirmPassword) {
     errors.confirmPassword = 'Passwords do not match';
   }
-  
+
   return {
     isValid: Object.keys(errors).length === 0,
-    errors
+    errors: errors
   };
 };
 
-// For backwards compatibility - old function name
-export const logout = signOut; 
+// Auto-refresh token before expiration
+let refreshInterval = null;
+
+export const startTokenRefresh = () => {
+  stopTokenRefresh(); // Clear any existing interval
+  
+  // Refresh token every 20 minutes (tokens expire in 24 hours)
+  refreshInterval = setInterval(async () => {
+    if (isAuthenticated()) {
+      try {
+        await refreshToken();
+        console.log('Token refreshed automatically');
+      } catch (error) {
+        console.error('Auto token refresh failed:', error);
+        // If refresh fails, user will be logged out
+      }
+    }
+  }, 20 * 60 * 1000); // 20 minutes
+};
+
+export const stopTokenRefresh = () => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+    refreshInterval = null;
+  }
+}; 

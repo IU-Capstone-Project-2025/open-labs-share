@@ -84,16 +84,18 @@ class LabService(service.LabServiceServicer):
 
 
     def GetLabs(self, request, context) -> stub.LabList:
-        data: dict = {
-            "page_number": request.page_number,
-            "page_size": request.page_size
-        }
+        page_number = request.page_number if request.page_number > 0 else 1
+        page_size = request.page_size
 
         with Session(self.engine) as session:
-            stmt = select(Lab).offset((data["page_number"] - 1) * data["page_size"]).limit(data["page_size"])
+            # Get total count of labs
+            total_count = session.query(Lab).count()
+
+            # Get paginated labs
+            stmt = select(Lab).offset((page_number - 1) * page_size).limit(page_size)
             labs = session.execute(stmt).scalars().all()
 
-            lab_list = stub.LabList(total_count=len(labs))
+            lab_list = stub.LabList(total_count=total_count)
             for lab in labs:
                 lab_list.labs.append(stub.Lab(**lab.get_attrs()))
 

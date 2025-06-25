@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { commentsAPI } from "../utils/api";
 
 export default function CommentsSection({ contentType, contentId, userId }) {
   const [comments, setComments] = useState([]);
@@ -19,12 +18,13 @@ export default function CommentsSection({ contentType, contentId, userId }) {
     return null;
   }
 
-  // Fetch comments for the content
+  // Fetch comments for the content (temporarily disabled - comments service not connected)
   const fetchComments = async (pageNum = 1, resetComments = false) => {
     try {
       setLoading(pageNum === 1);
-      const data = await commentsAPI.getContentComments(contentType, contentId, pageNum, 20);
-      const newComments = data.comments || [];
+      // TODO: Replace with actual API call when comments service is connected
+      // const data = await commentsAPI.getContentComments(contentType, contentId, pageNum, 20);
+      const newComments = []; // Empty for now
       
       if (resetComments || pageNum === 1) {
         setComments(newComments);
@@ -32,8 +32,8 @@ export default function CommentsSection({ contentType, contentId, userId }) {
         setComments(prev => [...prev, ...newComments]);
       }
       
-      setTotalComments(data.total_count || 0);
-      setHasMore(newComments.length === 20);
+      setTotalComments(0);
+      setHasMore(false);
     } catch (error) {
       console.error("Error fetching comments:", error);
     } finally {
@@ -41,11 +41,12 @@ export default function CommentsSection({ contentType, contentId, userId }) {
     }
   };
 
-  // Fetch replies for a specific comment
+  // Fetch replies for a specific comment (temporarily disabled)
   const fetchReplies = async (commentId) => {
     try {
-      const data = await commentsAPI.getCommentReplies(commentId, 1, 50);
-      const replies = data.comments || [];
+      // TODO: Replace with actual API call when comments service is connected
+      // const data = await commentsAPI.getCommentReplies(commentId, 1, 50);
+      const replies = []; // Empty for now
       
       // Update the comments state to include replies
       setComments(prev => prev.map(comment => 
@@ -79,7 +80,9 @@ export default function CommentsSection({ contentType, contentId, userId }) {
         commentData.article_id = parseInt(contentId);
       }
 
-      await commentsAPI.createComment(commentData);
+      // TODO: Replace with actual API call when comments service is connected
+      // await commentsAPI.createComment(commentData);
+      console.log('Comment would be created:', commentData);
 
       setNewComment("");
       fetchComments(1, true); // Refresh comments
@@ -109,7 +112,9 @@ export default function CommentsSection({ contentType, contentId, userId }) {
         commentData.article_id = parseInt(contentId);
       }
 
-      await commentsAPI.createComment(commentData);
+      // TODO: Replace with actual API call when comments service is connected
+      // await commentsAPI.createComment(commentData);
+      console.log('Reply would be created:', commentData);
 
       setReplyText("");
       setReplyingTo(null);

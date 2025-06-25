@@ -1,49 +1,121 @@
 import ArticleCard from "../components/ArticleCard";
 import LabCard from "../components/LabCard";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getCurrentUser, isAuthenticated } from "../utils/auth";
+import { usersAPI, labsAPI } from "../utils/api";
 
 export default function MyArticles() {
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: "Ryan",
-    lastName: "Gosling",
-    username: "ryanGosling1980",
-    email: "gosl1980@mail.com",
+    firstName: "",
+    lastName: "",
+    username: "",
+    email: "",
     password: "",
     confirmPassword: "",
   });
+  const [originalData, setOriginalData] = useState({});
   const [errors, setErrors] = useState({});
   const [contentFilter, setContentFilter] = useState("all");
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadFileType, setUploadFileType] = useState('lab');
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [user, setUser] = useState(null);
+  const [userContent, setUserContent] = useState([]);
 
-  const sampleArticle = {
-    id: 1,
-    title: "Article 4: Scheduling",
-    description:
-      "Everyday practice shows that the beginning of daily work on the formation",
-    author: {
-      firstName: "Ryan",
-      lastName: "Gosling",
-    },
-    type: "article",
-  };
-  const sampleLab = {
-    id: 1,
-    title: "Lab 6: Scheduling task",
-    description:
-      "Everyday practice shows that the beginning of daily work on the formation",
-    author: {
-      firstName: "Ryan",
-      lastName: "Gosling",
-    },
-    type: "lab",
-  };
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        
+        if (isAuthenticated()) {
+          const currentUser = getCurrentUser();
+          setUser(currentUser);
+          
+          // Fetch full user profile
+          if (currentUser.id) {
+            try {
+              const userResponse = await usersAPI.getUserById(currentUser.id);
+              const userData = userResponse.data;
+              
+              const profileData = {
+                firstName: userData.firstName || currentUser.firstName || "",
+                lastName: userData.lastName || currentUser.lastName || "",
+                username: userData.username || currentUser.username || "",
+                email: userData.email || currentUser.email || "",
+                password: "",
+                confirmPassword: "",
+              };
+              
+              setFormData(profileData);
+              setOriginalData(profileData);
+            } catch (err) {
+              console.warn("Could not fetch full user profile:", err);
+              // Use current user data as fallback
+              const profileData = {
+                firstName: currentUser.firstName || "",
+                lastName: currentUser.lastName || "",
+                username: currentUser.username || "",
+                email: currentUser.email || "",
+                password: "",
+                confirmPassword: "",
+              };
+              
+              setFormData(profileData);
+              setOriginalData(profileData);
+            }
+          }
+          
+          // Fetch user's content (labs)
+          try {
+            const labsResponse = await labsAPI.getLabs();
+            const allLabs = labsResponse.data || [];
+            const myLabs = allLabs.filter(lab => 
+              lab.author && currentUser && 
+              lab.author.firstName === currentUser.firstName && 
+              lab.author.lastName === currentUser.lastName
+            );
+            
+            // For articles - use mock data since articles service is not connected
+            const mockArticles = [
+              {
+                id: 1,
+                title: "Article Management in Digital Platforms",
+                description: "Everyday practice shows that the beginning of daily work on the formation and implementation of content systems",
+                author: { firstName: currentUser.firstName, lastName: currentUser.lastName },
+                type: "article",
+              }
+            ];
+            
+            const myArticles = mockArticles.filter(article => 
+              article.author.firstName === currentUser.firstName && 
+              article.author.lastName === currentUser.lastName
+            );
+            
+            // Add type field to distinguish between labs and articles
+            const labsWithType = myLabs.map(lab => ({ ...lab, type: "lab" }));
+            setUserContent([...labsWithType, ...myArticles]);
+          } catch (err) {
+            console.error("Error fetching user content:", err);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching user data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const allMaterials = [sampleArticle, sampleLab, ...Array(4).fill(null)];
+    fetchUserData();
+  }, []);
+
   const filteredMaterials =
     contentFilter === "all"
-      ? allMaterials
-      : allMaterials.filter((item) => item?.type === contentFilter);
+      ? userContent
+      : userContent.filter((item) => item?.type === contentFilter);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -80,22 +152,139 @@ export default function MyArticles() {
     return isValid;
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    if (validateForm()) {
-      setEditMode(false);
-      //save to backend
+    if (!validateForm()) return;
+
+    try {
+      setSaving(true);
+      
+      const updateData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        username: formData.username,
+        email: formData.email,
+      };
+      
+      // Only include password if it's provided
+      if (formData.password) {
+        updateData.password = formData.password;
+      }
+      
+      if (user && user.id) {
+        await usersAPI.updateUser(user.id, updateData);
+        
+        // Update local storage with new user data
+        const updatedUser = { ...user, ...updateData };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        
+        setOriginalData({ ...formData, password: "", confirmPassword: "" });
+        setFormData(prev => ({ ...prev, password: "", confirmPassword: "" }));
+        setEditMode(false);
+        
+        alert("Profile updated successfully!");
+      }
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      alert("Failed to update profile: " + err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDeleteProfile = () => {
-    //delete profile logic
-    console.log("Profile deletion requested");
+  const handleCancel = () => {
+    setFormData(originalData);
+    setErrors({});
+    setEditMode(false);
+  };
+
+  const handleDeleteProfile = async () => {
+    if (window.confirm("Are you sure you want to delete your profile? This action cannot be undone.")) {
+      try {
+        if (user && user.id) {
+          await usersAPI.deleteUser(user.id);
+          
+          // Clear local storage and redirect to signin
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
+          
+          alert("Profile deleted successfully");
+          window.location.href = '/signin';
+        }
+      } catch (err) {
+        console.error("Error deleting profile:", err);
+        alert("Failed to delete profile: " + err.message);
+      }
+    }
   };
 
   const handleUploadClick = () => {
     setShowUploadModal(true);
   };
+
+  const handleFileUpload = async () => {
+    if (!uploadFile || !user) return;
+
+    try {
+      setUploading(true);
+      
+      if (uploadFileType === 'lab') {
+        // Upload as a lab asset (need to create lab first or upload to existing lab)
+        // For now, show message that lab creation is not implemented
+        alert('Lab upload functionality requires creating a new lab first. This feature is not yet fully implemented.');
+      } else if (uploadFileType === 'article') {
+        // Upload as an article
+        alert('Article upload is not yet implemented. Articles Service needs to be connected first.');
+      }
+      
+      // Reset form
+      setUploadFile(null);
+      setUploadFileType('lab');
+      setShowUploadModal(false);
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert("Upload failed: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (!isAuthenticated()) {
+    return (
+      <div className="relative min-h-screen font-inter dark:bg-gray-900 py-10 px-6 bg-transparent">
+        <div className="max-w-6xl mx-auto">
+          <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-8 shadow-lg">
+            <h1 className="text-3xl font-bold text-msc dark:text-white mb-6">
+              Profile
+            </h1>
+            <div className="text-center py-8">
+              <p className="text-gray-600 dark:text-gray-400">Please sign in to view your profile.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="relative min-h-screen font-inter dark:bg-gray-900 py-10 px-6 bg-transparent">
+        <div className="max-w-6xl mx-auto">
+          <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-8 shadow-lg">
+            <h1 className="text-3xl font-bold text-msc dark:text-white mb-6">
+              Profile
+            </h1>
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-msc mx-auto"></div>
+              <p className="text-gray-600 dark:text-gray-400 mt-4">Loading profile...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen font-inter dark:bg-gray-900 py-10 px-6 bg-transparent">
@@ -371,16 +560,24 @@ export default function MyArticles() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Select File Type
                 </label>
-                <select className="w-full border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 dark:bg-gray-700 dark:text-white">
-                  <option value="article">Article</option>
+                <select
+                  value={uploadFileType}
+                  onChange={(e) => setUploadFileType(e.target.value)}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 dark:bg-gray-700 dark:text-white"
+                >
                   <option value="lab">Lab</option>
+                  <option value="article">Article</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Choose File
                 </label>
-                <input type="file" className="w-full" />
+                <input
+                  type="file"
+                  onChange={(e) => setUploadFile(e.target.files[0])}
+                  className="w-full"
+                />
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button
@@ -389,8 +586,12 @@ export default function MyArticles() {
                 >
                   Cancel
                 </button>
-                <button className="px-4 py-2 bg-msc hover:bg-msc-hover text-white rounded-lg">
-                  Upload
+                <button
+                  onClick={handleFileUpload}
+                  className="px-4 py-2 bg-msc hover:bg-msc-hover text-white rounded-lg"
+                  disabled={!uploadFile || uploading}
+                >
+                  {uploading ? "Uploading..." : "Upload"}
                 </button>
               </div>
             </div>

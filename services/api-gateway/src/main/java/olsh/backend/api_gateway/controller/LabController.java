@@ -59,9 +59,27 @@ public class LabController {
     @RequireAuth
     @GetMapping
     public ResponseEntity<LabListResponse> getLabs(
-            @Valid @ParameterObject GetLabsRequest request,
+            @RequestParam(value = "page", defaultValue = "1") Integer page,
+            @RequestParam(value = "limit", defaultValue = "20") Integer limit,
             HttpServletRequest httpRequest) {
-        log.debug("Received request to get labs with page: {}, limit: {}", request.getPage(), request.getLimit());
+        log.debug("Received request to get labs with page: {}, limit: {}", page, limit);
+        
+        // Validate parameters manually
+        if (page < 1) {
+            page = 1;
+        }
+        if (limit < 1) {
+            limit = 20;
+        }
+        if (limit > 100) {
+            limit = 100;
+        }
+        
+        // Create the request object manually
+        GetLabsRequest request = new GetLabsRequest();
+        request.setPage(page);
+        request.setLimit(limit);
+        
         LabListResponse response = labService.getLabs(request);
         log.debug("Successfully retrieved labs list with {} labs", response.getLabs().size());
         return ResponseEntity.ok(response);

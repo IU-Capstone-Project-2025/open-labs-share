@@ -1,47 +1,39 @@
-// API configuration and endpoints for the feedback service
-// This will connect to the API Gateway which will proxy requests to the feedback service
+// API configuration and endpoints for Open Labs Share
+// This connects to the API Gateway which proxies requests to various microservices
 
 export const API_CONFIG = {
-  BASE_URL: '/api/v1/feedback', // This should point to the API Gateway
+  API_GATEWAY_URL: import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080',
+  API_GATEWAY_ENDPOINT: `${import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080'}/api/v1`,
   ENDPOINTS: {
-    // Comment endpoints
-    COMMENTS: '/comments',
-    LAB_COMMENTS: (labId) => `/comments/lab/${labId}`,
-    ARTICLE_COMMENTS: (articleId) => `/comments/article/${articleId}`,
-    COMMENT_REPLIES: (commentId) => `/comments/${commentId}/replies`,
+    // User endpoints (through API Gateway to Users Service)
+    USERS: '/users',
+    USER_BY_ID: (userId) => `/users/${userId}`,
     
-    // Feedback endpoints (for future use)
-    FEEDBACK: '/feedback',
-    USER_FEEDBACK: (userId) => `/feedback/user/${userId}`,
-    STUDENT_FEEDBACK: (studentId) => `/feedback/student/${studentId}`,
+    // Lab endpoints (through API Gateway to Labs Service)
+    LABS: '/labs',
+    LAB_BY_ID: (labId) => `/labs/${labId}`,
+    LAB_ASSETS: (labId) => `/labs/${labId}/assets`,
+    LAB_ASSET_DOWNLOAD: (labId, assetId) => `/labs/${labId}/assets/${assetId}/download`,
+    LAB_ASSET_UPLOAD: (labId) => `/labs/${labId}/assets/upload`,
+    
+    // Submission endpoints (through API Gateway to Labs Service)
+    SUBMISSIONS: '/submissions',
+    LAB_SUBMISSIONS: (labId) => `/labs/${labId}/submissions`,
+    SUBMISSION_BY_ID: (submissionId) => `/submissions/${submissionId}`,
+    SUBMISSION_ASSETS: (submissionId) => `/submissions/${submissionId}/assets`,
+    SUBMISSION_ASSET_DOWNLOAD: (submissionId, assetId) => `/submissions/${submissionId}/assets/${assetId}/download`,
+    SUBMISSION_ASSET_UPLOAD: (submissionId) => `/submissions/${submissionId}/assets/upload`,
+    
+    // Article endpoints (currently not connected as per requirements)
+    // ARTICLES: '/articles',
+    // ARTICLE_BY_ID: (articleId) => `/articles/${articleId}`,
+    
+    // Comments/Feedback endpoints (when feedback controller is implemented)
+    // COMMENTS: '/feedback/comments',
+    // LAB_COMMENTS: (labId) => `/feedback/comments/lab/${labId}`,
+    // ARTICLE_COMMENTS: (articleId) => `/feedback/comments/article/${articleId}`,
   }
 };
-
-// Mock data for testing
-let mockComments = [
-  {
-    id: 1,
-    content: "This is a great lab! Really helped me understand the concepts.",
-    user_id: 2,
-    lab_id: 1,
-    article_id: null,
-    parent_id: null,
-    created_at: "2024-01-15T10:30:00Z",
-    replies: []
-  },
-  {
-    id: 2,
-    content: "I found the exercise challenging but rewarding.",
-    user_id: 3,
-    lab_id: 1,
-    article_id: null,
-    parent_id: null,
-    created_at: "2024-01-15T14:20:00Z",
-    replies: []
-  }
-];
-
-let nextCommentId = mockComments.length + 1;
 
 // Helper function to get authorization headers
 export const getAuthHeaders = () => {
@@ -52,210 +44,282 @@ export const getAuthHeaders = () => {
   };
 };
 
-// Check if we're in development mode and backend is not available
-const isDevelopmentMode = () => {
-  return process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
-};
-
-// Mock API implementations for development
-const mockAPI = {
-  getLabComments: async (labId, page = 1, limit = 20) => {
-    await new Promise(resolve => setTimeout(resolve, 300)); // Simulate network delay
-    const labComments = mockComments.filter(c => c.lab_id == labId && !c.parent_id);
-    return {
-      comments: labComments,
-      total_count: labComments.length,
-      page,
-      limit
-    };
-  },
-
-  getArticleComments: async (articleId, page = 1, limit = 20) => {
-    await new Promise(resolve => setTimeout(resolve, 300)); // Simulate network delay
-    const articleComments = mockComments.filter(c => c.article_id == articleId && !c.parent_id);
-    return {
-      comments: articleComments,
-      total_count: articleComments.length,
-      page,
-      limit
-    };
-  },
-
-  getCommentReplies: async (commentId, page = 1, limit = 50) => {
-    await new Promise(resolve => setTimeout(resolve, 200)); // Simulate network delay
-    const replies = mockComments.filter(c => c.parent_id == commentId);
-    return {
-      comments: replies,
-      total_count: replies.length,
-      page,
-      limit
-    };
-  },
-
-  createComment: async (commentData) => {
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-    
-    const newComment = {
-      id: nextCommentId++,
-      content: commentData.content,
-      user_id: commentData.user_id,
-      lab_id: commentData.lab_id || null,
-      article_id: commentData.article_id || null,
-      parent_id: commentData.parent_id || null,
-      created_at: new Date().toISOString(),
-      replies: []
-    };
-
-    mockComments.push(newComment);
-    return newComment;
-  },
-
-  updateComment: async (commentId, content) => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const comment = mockComments.find(c => c.id == commentId);
-    if (comment) {
-      comment.content = content;
-      return comment;
-    }
-    throw new Error('Comment not found');
-  },
-
-  deleteComment: async (commentId) => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const index = mockComments.findIndex(c => c.id == commentId);
-    if (index !== -1) {
-      mockComments.splice(index, 1);
-      return { success: true };
-    }
-    throw new Error('Comment not found');
-  }
-};
-
-// API call wrapper with error handling and fallback to mock
+// API call wrapper with error handling
 export const apiCall = async (endpoint, options = {}) => {
+  const url = `${API_CONFIG.API_GATEWAY_ENDPOINT}${endpoint}`;
+  
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch(url, {
       headers: getAuthHeaders(),
       ...options,
     });
 
     if (!response.ok) {
-      throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `API call failed: ${response.status} ${response.statusText}`);
     }
 
     return await response.json();
   } catch (error) {
     console.error('API call error:', error);
-    
-    // In development mode, if the API call fails, we'll fall back to mock data
-    if (isDevelopmentMode()) {
-      console.warn('Falling back to mock API for development');
-      throw new Error('FALLBACK_TO_MOCK');
-    }
-    
     throw error;
   }
 };
 
-// Comment API functions with mock fallback
-export const commentsAPI = {
-  // Get comments for a lab
-  getLabComments: async (labId, page = 1, limit = 20) => {
-    try {
-      const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.LAB_COMMENTS(labId)}?page=${page}&limit=${limit}`;
-      return await apiCall(url);
-    } catch (error) {
-      if (isDevelopmentMode() && (error.message === 'FALLBACK_TO_MOCK' || error.message.includes('fetch'))) {
-        console.log('Using mock API for lab comments');
-        return await mockAPI.getLabComments(labId, page, limit);
+// User API functions
+export const usersAPI = {
+  // Get user by ID
+  getUserById: async (userId) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.USER_BY_ID(userId));
+  },
+
+  // Get all users with pagination
+  getAllUsers: async (page = 1, limit = 20) => {
+    return await apiCall(`${API_CONFIG.ENDPOINTS.USERS}?page=${page}&limit=${limit}`);
+  },
+
+  // Update user
+  updateUser: async (userId, userData) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.USER_BY_ID(userId), {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  },
+
+  // Delete user
+  deleteUser: async (userId) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.USER_BY_ID(userId), {
+      method: 'DELETE',
+    });
+  },
+
+  // Get current user's labs
+  getUserLabs: async (userId, page = 1, limit = 20) => {
+    return await apiCall(`${API_CONFIG.ENDPOINTS.USERS}/${userId}/labs?page=${page}&limit=${limit}`);
+  },
+
+  // Get current user's articles (when articles service is connected)
+  getUserArticles: async (userId, page = 1, limit = 20) => {
+    // TODO: Implement when articles service is connected
+    throw new Error('Articles service not yet connected');
+  },
+};
+
+// Labs API functions
+export const labsAPI = {
+  // Get all labs with pagination
+  getLabs: async (page = 1, limit = 20) => {
+    return await apiCall(`${API_CONFIG.ENDPOINTS.LABS}?page=${page}&limit=${limit}`);
+  },
+
+  // Get lab by ID
+  getLabById: async (labId) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.LAB_BY_ID(labId));
+  },
+
+  // Create a new lab with file upload
+  createLab: async (labData) => {
+    const formData = new FormData();
+    formData.append('title', labData.title);
+    formData.append('short_desc', labData.short_desc);
+    formData.append('md_file', labData.md_file);
+    
+    // Add optional asset files
+    if (labData.assets && labData.assets.length > 0) {
+      for (const asset of labData.assets) {
+        formData.append('assets', asset);
       }
-      throw error;
     }
+    
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.LABS}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Lab creation failed: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
   },
 
-  // Get comments for an article
-  getArticleComments: async (articleId, page = 1, limit = 20) => {
-    try {
-      const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ARTICLE_COMMENTS(articleId)}?page=${page}&limit=${limit}`;
-      return await apiCall(url);
-    } catch (error) {
-      if (isDevelopmentMode() && (error.message === 'FALLBACK_TO_MOCK' || error.message.includes('fetch'))) {
-        console.log('Using mock API for article comments');
-        return await mockAPI.getArticleComments(articleId, page, limit);
-      }
-      throw error;
-    }
+  // Update lab
+  updateLab: async (labId, labData) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.LAB_BY_ID(labId), {
+      method: 'PUT',
+      body: JSON.stringify(labData),
+    });
   },
 
-  // Get comments for content (generic - can be lab or article)
-  getContentComments: (contentType, contentId, page = 1, limit = 20) => {
-    if (contentType === 'lab') {
-      return commentsAPI.getLabComments(contentId, page, limit);
-    } else if (contentType === 'article') {
-      return commentsAPI.getArticleComments(contentId, page, limit);
-    } else {
-      throw new Error('Invalid content type. Must be "lab" or "article"');
-    }
+  // Delete lab
+  deleteLab: async (labId) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.LAB_BY_ID(labId), {
+      method: 'DELETE',
+    });
   },
 
-  // Get replies for a comment
-  getCommentReplies: async (commentId, page = 1, limit = 50) => {
-    try {
-      const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.COMMENT_REPLIES(commentId)}?page=${page}&limit=${limit}`;
-      return await apiCall(url);
-    } catch (error) {
-      if (isDevelopmentMode() && (error.message === 'FALLBACK_TO_MOCK' || error.message.includes('fetch'))) {
-        console.log('Using mock API for comment replies');
-        return await mockAPI.getCommentReplies(commentId, page, limit);
-      }
-      throw error;
-    }
+  // Get lab assets
+  getLabAssets: async (labId) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.LAB_ASSETS(labId));
   },
 
-  // Create a new comment (works for both labs and articles)
-  createComment: async (commentData) => {
-    try {
-      return await apiCall(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.COMMENTS}`, {
+  // Upload lab asset
+  uploadLabAsset: async (labId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.LAB_ASSET_UPLOAD(labId)}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Upload failed: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  },
+
+  // Download lab asset
+  downloadLabAsset: async (labId, assetId) => {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.LAB_ASSET_DOWNLOAD(labId, assetId)}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+    }
+
+    return response.blob();
+  },
+};
+
+// Submissions API functions
+export const submissionsAPI = {
+  // Get all submissions with pagination
+  getAllSubmissions: async (page = 1, limit = 100) => {
+    return await apiCall(`${API_CONFIG.ENDPOINTS.SUBMISSIONS}?page=${page}&limit=${limit}`);
+  },
+
+  // Get submissions for a lab
+  getLabSubmissions: async (labId, page = 1, limit = 20) => {
+    return await apiCall(`${API_CONFIG.ENDPOINTS.LAB_SUBMISSIONS(labId)}?page=${page}&limit=${limit}`);
+  },
+
+  // Get submission by ID
+  getSubmissionById: async (submissionId) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_BY_ID(submissionId));
+  },
+
+  // Create a new submission
+  createSubmission: async (submissionData) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSIONS, {
+      method: 'POST',
+      body: JSON.stringify(submissionData),
+    });
+  },
+
+  // Update submission
+  updateSubmission: async (submissionId, submissionData) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_BY_ID(submissionId), {
+      method: 'PUT',
+      body: JSON.stringify(submissionData),
+    });
+  },
+
+  // Delete submission
+  deleteSubmission: async (submissionId) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_BY_ID(submissionId), {
+      method: 'DELETE',
+    });
+  },
+
+  // Get submission assets
+  getSubmissionAssets: async (submissionId) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_ASSETS(submissionId));
+  },
+
+  // Upload submission asset
+  uploadSubmissionAsset: async (submissionId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.SUBMISSION_ASSET_UPLOAD(submissionId)}`, {
         method: 'POST',
-        body: JSON.stringify(commentData),
-      });
-    } catch (error) {
-      if (isDevelopmentMode() && (error.message === 'FALLBACK_TO_MOCK' || error.message.includes('fetch'))) {
-        console.log('Using mock API for creating comment');
-        return await mockAPI.createComment(commentData);
-      }
-      throw error;
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Upload failed: ${response.status} ${response.statusText}`);
     }
+
+    return await response.json();
   },
 
-  // Update a comment
-  updateComment: async (commentId, content) => {
-    try {
-      return await apiCall(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.COMMENTS}/${commentId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ content }),
-      });
-    } catch (error) {
-      if (isDevelopmentMode() && (error.message === 'FALLBACK_TO_MOCK' || error.message.includes('fetch'))) {
-        console.log('Using mock API for updating comment');
-        return await mockAPI.updateComment(commentId, content);
-      }
-      throw error;
+  // Download submission asset
+  downloadSubmissionAsset: async (submissionId, assetId) => {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.SUBMISSION_ASSET_DOWNLOAD(submissionId, assetId)}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Download failed: ${response.status} ${response.statusText}`);
     }
+
+    return response.blob();
   },
 
-  // Delete a comment
-  deleteComment: async (commentId) => {
+  // Submit a file for a lab (creates submission and uploads file)
+  submitLabFile: async (labId, userId, file) => {
     try {
-      return await apiCall(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.COMMENTS}/${commentId}`, {
-        method: 'DELETE',
-      });
-    } catch (error) {
-      if (isDevelopmentMode() && (error.message === 'FALLBACK_TO_MOCK' || error.message.includes('fetch'))) {
-        console.log('Using mock API for deleting comment');
-        return await mockAPI.deleteComment(commentId);
+      // First create a submission
+      const submissionData = {
+        lab_id: parseInt(labId),
+        owner_id: userId,
+        status: 'submitted'
+      };
+      
+      const submissionResponse = await submissionsAPI.createSubmission(submissionData);
+      const submissionId = submissionResponse.id || submissionResponse.data?.id;
+      
+      if (!submissionId) {
+        throw new Error('Failed to create submission');
       }
+
+      // Then upload the file as an asset to the submission
+      const uploadResponse = await submissionsAPI.uploadSubmissionAsset(submissionId, file);
+      
+      return {
+        submission: submissionResponse,
+        upload: uploadResponse
+      };
+    } catch (error) {
+      console.error('Error in submitLabFile:', error);
       throw error;
     }
   },
 }; 
+
+// Export the main APIs (clean backend-only APIs)
+export { usersAPI as users, labsAPI as labs, submissionsAPI as submissions }; 
