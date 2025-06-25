@@ -141,11 +141,11 @@ def main(server_address: str):
 
         # UploadAsset(stub, lab_id=2, filename='image.jpg')
 
-        # UpdateAsset(stub, asset_id=2, filename='logo.png')
+        # UpdateAsset(stub, asset_id=4, filename='logo.png')
 
-        # DownloadAsset(stub, asset_id=2)
+        DownloadAsset(stub, asset_id=5)
 
-        # DeleteAsset(stub, asset_id=3)
+        # DeleteAsset(stub, asset_id=4)
 
         # ListAssets(stub, lab_id=2)
 
