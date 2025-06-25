@@ -64,3 +64,15 @@ management:
   endpoint:
     health:
       show-details: when_authorized
+
+# OpenAPI Documentation Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true
+  default-produces-media-type: application/json
+  default-consumes-media-type: application/json

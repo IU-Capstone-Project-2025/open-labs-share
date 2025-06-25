@@ -16,11 +16,21 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/articles")
 @CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true", maxAge = 3600)
+@Tag(name = "Articles", description = "Endpoints for managing articles in PDF format")
+@SecurityRequirement(name = "bearerAuth")
 public class ArticleController {
 
     private final ArticleService articleService;
@@ -32,10 +42,24 @@ public class ArticleController {
         this.attributesProvider = attributesProvider;
     }
 
+    @Operation(
+        summary = "Create new article",
+        description = "Creates a new article with PDF file upload. Requires authentication."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "201",
+            description = "Article created successfully",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = CreateArticleResponse.class))
+        ),
+        @ApiResponse(responseCode = "400", description = "Invalid request data"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
+        @ApiResponse(responseCode = "403", description = "Forbidden - Access denied")
+    })
     @RequireAuth
     @PostMapping
     public ResponseEntity<CreateArticleResponse> createArticle(
-            @Valid @ModelAttribute CreateArticleRequest request,
+            @Valid @ModelAttribute @Parameter(description = "Article creation data including title, description, and PDF file") CreateArticleRequest request,
             HttpServletRequest httpRequest) {
 
         log.debug("Received request to create article with title: {}", request.getTitle());
@@ -47,9 +71,23 @@ public class ArticleController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @Operation(
+        summary = "Get article by ID",
+        description = "Retrieves detailed information about a specific article by its ID. Requires authentication."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Article found and returned successfully",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ArticleResponse.class))
+        ),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
+        @ApiResponse(responseCode = "404", description = "Article not found")
+    })
     @RequireAuth
     @GetMapping("/{article_id}")
     public ResponseEntity<ArticleResponse> getArticle(
+            @Parameter(description = "ID of the article to retrieve", required = true)
             @PathVariable("article_id") Long articleId,
             HttpServletRequest request) {
 
@@ -60,10 +98,23 @@ public class ArticleController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(
+        summary = "Get list of articles",
+        description = "Retrieves a paginated list of articles. Requires authentication."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Articles retrieved successfully",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ArticleListResponse.class))
+        ),
+        @ApiResponse(responseCode = "400", description = "Invalid pagination parameters"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required")
+    })
     @RequireAuth
     @GetMapping
     public ResponseEntity<ArticleListResponse> getArticles(
-            @Valid @ParameterObject GetArticlesRequest request,
+            @Valid @ParameterObject @Parameter(description = "Pagination parameters") GetArticlesRequest request,
             HttpServletRequest httpRequest) {
 
         log.debug("Received request to get articles with page: {}, limit: {}", request.getPage(), request.getLimit());
@@ -74,9 +125,24 @@ public class ArticleController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(
+        summary = "Delete article",
+        description = "Deletes a specific article by its ID. Only the article owner can delete it. Requires authentication."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Article deleted successfully",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = DeleteArticleResponse.class))
+        ),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
+        @ApiResponse(responseCode = "403", description = "Forbidden - No access to delete the article"),
+        @ApiResponse(responseCode = "404", description = "Article not found")
+    })
     @RequireAuth
     @DeleteMapping("/{article_id}")
     public ResponseEntity<DeleteArticleResponse> deleteArticle(
+            @Parameter(description = "ID of the article to delete", required = true)
             @PathVariable("article_id") Long articleId,
             HttpServletRequest request) {
 
@@ -88,6 +154,5 @@ public class ArticleController {
         log.debug("Successfully deleted article with ID: {}", articleId);
         return ResponseEntity.ok(response);
     }
-
 }
 

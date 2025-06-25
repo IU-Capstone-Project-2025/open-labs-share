@@ -7,20 +7,25 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.web.multipart.MultipartFile;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "Request object for creating a new article")
 public class CreateArticleRequest {
 
+    @Schema(description = "Title of the article", example = "Introduction to Machine Learning", required = true)
     @NotBlank(message = "Title is required")
     @Size(max = 255, message = "Title must not exceed 255 characters")
     private String title;
 
+    @Schema(description = "Short description of the article", example = "A comprehensive guide to machine learning basics", required = true)
     @NotBlank(message = "Short description is required")
     @Size(max = 1000, message = "Short description must not exceed 1000 characters")
     private String short_desc;
 
+    @Schema(description = "PDF file containing the article content", required = true)
     @NotNull(message = "PDF file is required")
     private MultipartFile pdf_file;
 }
