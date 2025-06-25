@@ -119,9 +119,7 @@ def DownloadAsset(stub, asset_id):
 
 
 def DeleteAsset(stub, asset_id):
-    response = stub.DeleteAsset(cf.DeleteAssetRequest(
-        asset_id=asset_id
-    ))
+    response = stub.DeleteAsset(cf.DeleteAssetRequest())
     print(response)
 
 

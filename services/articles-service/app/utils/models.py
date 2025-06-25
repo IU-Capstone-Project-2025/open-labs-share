@@ -26,11 +26,11 @@ class Article(Base, SerializerMixin):
 
     def get_attrs(self):
         return {
-            "id": self.id,
+            "article_id": self.id,
             "owner_id": self.owner_id,
             "title": self.title,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
             "abstract": self.abstract,
             "views": self.views,
             "stars": self.stars,
@@ -54,9 +54,9 @@ class ArticleAsset(Base, SerializerMixin):
 
     def get_attrs(self):
         return {
-            "id": self.id,
+            "asset_id": self.id,
             "article_id": self.article_id,
             "filename": self.filename,
             "filesize": self.filesize,
-            "uploaded_at": self.uploaded_at.isoformat()
+            "uploaded_at": self.uploaded_at
         }
