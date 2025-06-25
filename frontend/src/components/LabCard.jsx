@@ -12,18 +12,18 @@ export default function LabCard({ lab }) {
         </h3>
 
         <p className="text-msc dark:text-gray-300 text-sm line-clamp-2">
-          {lab.abstract || lab.description || 'No description available'}
+          {lab.shortDesc || lab.abstract || lab.description || 'No description available'}
         </p>
 
         <div className="flex items-center justify-between pt-2">
           <div className="flex items-center">
             <div className="w-6 h-6 rounded-full bg-msc flex items-center justify-center text-white text-xs font-medium mr-2">
-              {lab.author?.firstName?.[0] || 'U'}
-              {lab.author?.lastName?.[0] || ''}
+              {lab.authorName?.[0] || 'U'}
+              {lab.authorSurname?.[0] || ''}
             </div>
             <span className="text-base text-msc font-semibold dark:text-gray-300">
-              {lab.author?.firstName && lab.author?.lastName 
-                ? `${lab.author.firstName} ${lab.author.lastName}`
+              {lab.authorName && lab.authorSurname 
+                ? `${lab.authorName} ${lab.authorSurname}`
                 : 'Unknown Author'
               }
             </span>

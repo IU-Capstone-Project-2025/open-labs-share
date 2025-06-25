@@ -191,7 +191,7 @@ export default function LabPage() {
 
 ## About This Lab
 
-${labResponse.abstract || 'No description available.'}
+${labResponse.shortDesc || labResponse.abstract || 'No description available.'}
 
 ## Lab Content
 
@@ -365,7 +365,68 @@ Lab content delivery is currently being developed. The markdown content for this
           ref={contentRef}
           className="flex-1 p-8 overflow-y-auto scroll-smooth"
         >
-        {/* Header and Content Section */}
+        {/* Lab Header Section */}
+        {lab && (
+          <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-8">
+            <div className="border-b border-gray-200 dark:border-gray-600 pb-6 mb-6">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+                {lab.title}
+              </h1>
+              
+              {lab.shortDesc && (
+                <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">
+                  {lab.shortDesc}
+                </p>
+              )}
+              
+              <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                <div className="flex items-center mr-6">
+                  <div className="w-8 h-8 rounded-full bg-msc flex items-center justify-center text-white text-sm font-medium mr-3">
+                    {lab.authorName?.[0] || 'U'}
+                    {lab.authorSurname?.[0] || ''}
+                  </div>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {lab.authorName && lab.authorSurname 
+                      ? `${lab.authorName} ${lab.authorSurname}`
+                      : 'Unknown Author'
+                    }
+                  </span>
+                </div>
+                
+                {lab.createdAt && (
+                  <div className="flex items-center mr-6">
+                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
+                    </svg>
+                    Created: {new Date(lab.createdAt).toLocaleDateString()}
+                  </div>
+                )}
+                
+                <div className="flex items-center space-x-4">
+                  {lab.views !== undefined && (
+                    <span className="flex items-center">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                        <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
+                      </svg>
+                      {lab.views} views
+                    </span>
+                  )}
+                  {lab.submissions !== undefined && (
+                    <span className="flex items-center">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h12a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1V8z" clipRule="evenodd"/>
+                      </svg>
+                      {lab.submissions} submissions
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Lab Content Section */}
         <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-8">
           <article className="prose dark:prose-invert max-w-none">
             <ReactMarkdown

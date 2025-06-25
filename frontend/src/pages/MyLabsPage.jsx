@@ -22,12 +22,15 @@ export default function MyLabs() {
     const fetchMyLabs = async () => {
       try {
         setLoading(true);
-        // Fetch all labs and filter by current user
-        const response = await labs.getLabs();
-        const allLabs = response.labs || response || [];
-        const userLabs = allLabs.filter(lab => 
-          lab.owner_id && user && lab.owner_id === user.userId
-        );
+        console.log('MyLabsPage: Fetching labs for current user:', user);
+        
+        // Use the dedicated API endpoint for user's labs
+        const response = await labs.getMyLabs();
+        console.log('MyLabsPage: My labs response:', response);
+        
+        const userLabs = response.labs || response || [];
+        console.log('MyLabsPage: User labs array:', userLabs);
+        
         setMyLabs(userLabs);
       } catch (err) {
         console.error('Error fetching my labs:', err);

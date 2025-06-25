@@ -113,6 +113,11 @@ export const labsAPI = {
     return await apiCall(`${API_CONFIG.ENDPOINTS.LABS}?page=${page}&limit=${limit}`);
   },
 
+  // Get current user's labs
+  getMyLabs: async (page = 1, limit = 20) => {
+    return await apiCall(`${API_CONFIG.ENDPOINTS.LABS}/my?page=${page}&limit=${limit}`);
+  },
+
   // Get lab by ID
   getLabById: async (labId) => {
     return await apiCall(API_CONFIG.ENDPOINTS.LAB_BY_ID(labId));

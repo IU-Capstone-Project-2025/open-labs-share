@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
 import { usersAPI, labsAPI } from "../utils/api";
 
-export default function MyArticles() {
+export default function ProfilePage() {
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
@@ -71,35 +71,27 @@ export default function MyArticles() {
           
           // Fetch user's content (labs)
           try {
-            const labsResponse = await labsAPI.getLabs();
-            const allLabs = labsResponse.data || [];
-            const myLabs = allLabs.filter(lab => 
-              lab.author && currentUser && 
-              lab.author.firstName === currentUser.firstName && 
-              lab.author.lastName === currentUser.lastName
-            );
+            const labsResponse = await labsAPI.getMyLabs();
+            console.log('ProfilePage: My labs response:', labsResponse);
             
-            // For articles - use mock data since articles service is not connected
-            const mockArticles = [
-              {
-                id: 1,
-                title: "Article Management in Digital Platforms",
-                description: "Everyday practice shows that the beginning of daily work on the formation and implementation of content systems",
-                author: { firstName: currentUser.firstName, lastName: currentUser.lastName },
-                type: "article",
-              }
-            ];
+            const myLabs = labsResponse.labs || labsResponse || [];
+            console.log('ProfilePage: My labs:', myLabs);
             
-            const myArticles = mockArticles.filter(article => 
-              article.author.firstName === currentUser.firstName && 
-              article.author.lastName === currentUser.lastName
-            );
+            // For articles - try to fetch real articles if available, otherwise use empty array
+            // TODO: Replace with real articles API when articles service is implemented
+            const mockArticles = [];
             
             // Add type field to distinguish between labs and articles
             const labsWithType = myLabs.map(lab => ({ ...lab, type: "lab" }));
-            setUserContent([...labsWithType, ...myArticles]);
+            const articlesWithType = mockArticles.map(article => ({ ...article, type: "article" }));
+            
+            console.log('ProfilePage: Labs with type:', labsWithType);
+            console.log('ProfilePage: Articles with type:', articlesWithType);
+            
+            setUserContent([...labsWithType, ...articlesWithType]);
           } catch (err) {
             console.error("Error fetching user content:", err);
+            setUserContent([]);
           }
         }
       } catch (err) {
@@ -231,12 +223,12 @@ export default function MyArticles() {
       setUploading(true);
       
       if (uploadFileType === 'lab') {
-        // Upload as a lab asset (need to create lab first or upload to existing lab)
-        // For now, show message that lab creation is not implemented
-        alert('Lab upload functionality requires creating a new lab first. This feature is not yet fully implemented.');
+        // Redirect to lab creation page with the file
+        alert('To upload a lab, please use the "Create Lab" feature. Redirecting you now...');
+        window.location.href = '/create-lab';
       } else if (uploadFileType === 'article') {
-        // Upload as an article
-        alert('Article upload is not yet implemented. Articles Service needs to be connected first.');
+        // For articles, show message that articles service needs to be implemented
+        alert('Article upload functionality will be available when the Articles Service is fully integrated.');
       }
       
       // Reset form
@@ -531,21 +523,48 @@ export default function MyArticles() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {filteredMaterials.map((item, index) => {
-            if (!item) {
-              return (
-                <div
-                  key={index}
-                  className="h-32 bg-light-blue bg-opacity-40 dark:bg-gray-700 animate-pulse rounded-xl"
-                />
+          {filteredMaterials.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <div className="mb-4">
+                <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 48 48">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7h6m0 0v12m0-12l-6 6m6-6l6 6" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                No {contentFilter === 'all' ? 'materials' : contentFilter + 's'} uploaded yet
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                {contentFilter === 'lab' || contentFilter === 'all' 
+                  ? 'Start sharing your knowledge by creating your first lab!' 
+                  : 'Upload your first ' + contentFilter + ' to get started.'}
+              </p>
+              <button
+                onClick={() => window.location.href = '/create-lab'}
+                className="px-6 py-3 bg-msc text-white rounded-lg hover:bg-msc-hover transition-colors flex items-center mx-auto space-x-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Create Your First Lab</span>
+              </button>
+            </div>
+          ) : (
+            filteredMaterials.map((item, index) => {
+              if (!item) {
+                return (
+                  <div
+                    key={index}
+                    className="h-32 bg-light-blue bg-opacity-40 dark:bg-gray-700 animate-pulse rounded-xl"
+                  />
+                );
+              }
+              return item.type === "article" ? (
+                <ArticleCard key={item.id} article={item} />
+              ) : (
+                <LabCard key={item.id} lab={item} />
               );
-            }
-            return item.type === "article" ? (
-              <ArticleCard key={item.id} article={item} />
-            ) : (
-              <LabCard key={item.id} lab={item} />
-            );
-          })}
+            })
+          )}
         </div>
       </div>
 

@@ -43,14 +43,34 @@ public class LabController {
 
     @RequireAuth
     @PostMapping
-    public ResponseEntity<CreateLabResponse> createLab(
+    public ResponseEntity<?> createLab(
             @Valid @ModelAttribute CreateLabRequest request,
+            org.springframework.validation.BindingResult bindingResult,
             HttpServletRequest httpRequest) {
         log.debug("Received request to create lab with title: {}", request.getTitle());
-        CreateLabResponse response = labService.createLab(request,
-                attributesProvider.extractUserIdFromRequest(httpRequest));
-        log.debug("Successfully created lab");
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        log.debug("CreateLabRequest details - title: {}, short_desc: {}, md_file: {}, assets: {}", 
+                  request.getTitle(), request.getShort_desc(), 
+                  request.getMd_file() != null ? request.getMd_file().getOriginalFilename() : "null",
+                  request.getAssets() != null ? request.getAssets().length : 0);
+        
+        // Check for validation errors
+        if (bindingResult.hasErrors()) {
+            String errors = bindingResult.getFieldErrors().stream()
+                    .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                    .collect(Collectors.joining(", "));
+            log.error("Validation errors in createLab: {}", errors);
+            return ResponseEntity.badRequest().body("Invalid arguments were provided: " + errors);
+        }
+        
+        try {
+            CreateLabResponse response = labService.createLab(request,
+                    attributesProvider.extractUserIdFromRequest(httpRequest));
+            log.debug("Successfully created lab");
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (Exception e) {
+            log.error("Error creating lab: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body("Failed to create lab: " + e.getMessage());
+        }
     }
 
     @RequireAuth
@@ -61,6 +81,54 @@ public class LabController {
         log.debug("Received request to get lab with ID: {}", labId);
         LabResponse response = labService.getLabById(labId);
         log.debug("Successfully retrieved lab data for labId: {}", labId);
+        return ResponseEntity.ok(response);
+    }
+
+    @RequireAuth
+    @GetMapping("/my")
+    public ResponseEntity<?> getMyLabs(
+            @RequestParam(value = "page", defaultValue = "1") Integer page,
+            @RequestParam(value = "limit", defaultValue = "20") Integer limit,
+            HttpServletRequest httpRequest) {
+        log.debug("Received request to get my labs with page: {}, limit: {}", page, limit);
+
+        Long userId = attributesProvider.extractUserIdFromRequest(httpRequest);
+        log.debug("Getting labs for user ID: {}", userId);
+
+        GetLabsRequest request = new GetLabsRequest();
+        request.setPage(page);
+        request.setLimit(limit);
+
+        Set<ConstraintViolation<GetLabsRequest>> violations = validator.validate(request);
+        if (!violations.isEmpty()) {
+            String errors = violations.stream()
+                    .map(ConstraintViolation::getMessage)
+                    .collect(Collectors.joining(", "));
+            return ResponseEntity.badRequest().body("Invalid arguments provided: " + errors);
+        }
+        
+        // Get all labs and filter on the backend
+        LabListResponse allLabsResponse = labService.getLabs(request);
+        
+        // Filter labs by current user
+        java.util.List<LabResponse> userLabs = allLabsResponse.getLabs().stream()
+                .filter(lab -> lab.getAuthorId().equals(userId))
+                .collect(Collectors.toList());
+        
+        // Build filtered response
+        LabListResponse.PaginationResponse pagination =
+                LabListResponse.PaginationResponse.builder()
+                        .currentPage(page)
+                        .totalPages(1)
+                        .totalItems(userLabs.size())
+                        .build();
+
+        LabListResponse response = LabListResponse.builder()
+                .labs(userLabs)
+                .pagination(pagination)
+                .build();
+        
+        log.debug("Successfully retrieved my labs list with {} labs for user {}", userLabs.size(), userId);
         return ResponseEntity.ok(response);
     }
 
