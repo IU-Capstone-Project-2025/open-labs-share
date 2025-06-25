@@ -18,9 +18,7 @@ import org.springframework.context.annotation.Configuration;
         contact = @Contact(
             name = "Open Labs Share Team"
         )
-    ),
-    servers = {
-    }
+    )
 )
 @SecurityScheme(
     name = "bearerAuth",
