@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import "highlight.js/styles/github-dark.css";
 import CommentsSection from "../components/CommentsSection";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
+import { labsAPI, submissionsAPI } from "../utils/api";
 
 const flattenText = (children) => {
   if (typeof children === "string") return children;
@@ -27,9 +28,11 @@ const generateId = (text) =>
 
 export default function LabPage() {
   const { id } = useParams();
+  const [lab, setLab] = useState(null);
   const [markdown, setMarkdown] = useState("");
   const [headings, setHeadings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeId, setActiveId] = useState("");
   const observer = useRef();
   const contentRef = useRef();
@@ -38,6 +41,7 @@ export default function LabPage() {
   const dropzoneRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [user, setUser] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   // Initialize user state
   useEffect(() => {
@@ -83,31 +87,125 @@ export default function LabPage() {
     fileInputRef.current?.click();
   };
 
-  const handleSubmit = () => {
-    if (file) {
-      //file upload logic
-      console.log("Uploading file:", file.name);
+  const handleSubmit = async () => {
+    if (!file || !user) return;
+
+    try {
+      setUploading(true);
+      await submissionsAPI.submitLabFile(id, user.id, file);
       alert(`The file "${file.name}" uploaded successfully`);
       setFile(null);
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert("Upload failed: " + err.message);
+    } finally {
+      setUploading(false);
     }
   };
 
   useEffect(() => {
-    const fetchMarkdown = async () => {
+    const fetchLabData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/labs_sample/${id}.md`);
-        const text = await response.text();
-        setMarkdown(text);
+        
+        // Fetch lab details
+        const labResponse = await labsAPI.getLabById(id);
+        console.log('Lab response:', labResponse);
+        setLab(labResponse);
+        
+        // Fetch lab assets to find the markdown file
+        try {
+          const assetsResponse = await labsAPI.getLabAssets(id);
+          console.log('Assets response:', assetsResponse);
+          console.log('Assets response type:', typeof assetsResponse);
+          console.log('Assets response keys:', Object.keys(assetsResponse));
+          
+          // Check different possible property names for assets
+          const assetsList = assetsResponse.assets || assetsResponse.assetsList || assetsResponse.data || assetsResponse;
+          console.log('Parsed assets list:', assetsList);
+          console.log('Assets list type:', typeof assetsList);
+          console.log('Assets list is array:', Array.isArray(assetsList));
+          
+          if (assetsList && Array.isArray(assetsList) && assetsList.length > 0) {
+            console.log('Assets found, processing...');
+            console.log('First asset structure:', assetsList[0]);
+            console.log('First asset keys:', Object.keys(assetsList[0]));
+            
+            // Find the markdown file (usually the first .md file)
+            const markdownAsset = assetsList.find(asset => {
+              console.log('Checking asset:', asset);
+              const filename = asset.filename || asset.fileName || asset.name;
+              console.log('Asset filename:', filename);
+              return filename && filename.toLowerCase().endsWith('.md');
+            });
+            
+            if (markdownAsset) {
+              console.log('Found markdown asset:', markdownAsset);
+              console.log('Markdown asset keys:', Object.keys(markdownAsset));
+              
+              // Try different property names for asset ID
+              const assetId = markdownAsset.assetId || markdownAsset.asset_id || markdownAsset.id || markdownAsset.assetID;
+              console.log('Using asset ID:', assetId);
+              
+              // Download the markdown content
+              try {
+                const blob = await labsAPI.downloadLabAsset(id, assetId);
+                const text = await blob.text();
+                console.log('Downloaded markdown content:', text.substring(0, 200) + '...');
+                setMarkdown(text);
+              } catch (downloadError) {
+                console.error('Error downloading markdown:', downloadError);
+                setMarkdown(getPlaceholderContent(labResponse));
+              }
+            } else {
+              console.log('No markdown file found in assets');
+              console.log('Available files:', assetsList.map(a => a.filename || a.fileName || a.name || 'unknown'));
+              setMarkdown(getPlaceholderContent(labResponse));
+            }
+          } else {
+            console.log('No assets found for this lab or assets is not an array');
+            console.log('Assets data:', assetsList);
+            setMarkdown(getPlaceholderContent(labResponse));
+          }
+        } catch (assetsError) {
+          console.error('Error fetching lab assets:', assetsError);
+          setMarkdown(getPlaceholderContent(labResponse));
+        }
+        
       } catch (err) {
-        console.error("Markdown download error: ", err);
+        console.error("Error fetching lab data:", err);
+        setError(`Failed to load lab: ${err.message}`);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMarkdown();
+    if (id) {
+      fetchLabData();
+    }
   }, [id]);
+
+  // Helper function to generate placeholder content
+  const getPlaceholderContent = (labResponse) => {
+    return `# ${labResponse.title || 'Lab Content'}
+
+## About This Lab
+
+${labResponse.shortDesc || labResponse.abstract || 'No description available.'}
+
+## Lab Content
+
+Lab content delivery is currently being developed. The markdown content for this lab will be available soon.
+
+### What you can do now:
+- Review the lab description above
+- Submit your solution using the file upload section below
+- Check back later for the full lab instructions
+
+---
+
+*Note: This is lab ID ${id}. Contact your instructor if you need the lab materials immediately.*`;
+  };
 
   useEffect(() => {
     if (!contentRef.current) return;
@@ -199,33 +297,63 @@ export default function LabPage() {
         className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 overflow-x-auto my-4"
       />
     ),
-    code: ({ node, inline, className, ...props }) => {
-      const isBash = className?.includes("language-bash");
-      return inline ? (
+    code: ({ node, className, children, ...props }) => {
+      const match = /language-(\w+)/.exec(className || "");
+      const isInline = !match;
+
+      return isInline ? (
         <code
+          className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm"
           {...props}
-          className="bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-sm"
-        />
+        >
+          {children}
+        </code>
       ) : (
-        <div className="relative">
-          {isBash && (
-            <div className="absolute top-0 left-0 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 text-xs rounded-tl rounded-br">
-              bash
-            </div>
-          )}
-          <code
-            {...props}
-            className={`${className} block p-4 ${isBash ? "pt-8" : ""}`}
-          />
-        </div>
+        <code className={className} {...props}>
+          {children}
+        </code>
       );
     },
+    p: ({ node, ...props }) => (
+      <p {...props} className="my-4 leading-relaxed dark:text-gray-300" />
+    ),
+    blockquote: ({ node, ...props }) => (
+      <blockquote
+        {...props}
+        className="border-l-4 border-msc pl-4 my-4 italic dark:text-gray-300"
+      />
+    ),
+    a: ({ node, ...props }) => (
+      <a
+        {...props}
+        className="text-msc hover:text-msc-hover underline"
+        target="_blank"
+        rel="noopener noreferrer"
+      />
+    ),
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen dark:bg-gray-900">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-msc"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen dark:bg-gray-900">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-md">
+          <h2 className="text-xl font-bold text-red-500 mb-4">Error</h2>
+          <p className="text-gray-700 dark:text-gray-300 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-msc text-white rounded-lg hover:bg-msc-hover transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -237,7 +365,68 @@ export default function LabPage() {
           ref={contentRef}
           className="flex-1 p-8 overflow-y-auto scroll-smooth"
         >
-        {/* Header and Content Section */}
+        {/* Lab Header Section */}
+        {lab && (
+          <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-8">
+            <div className="border-b border-gray-200 dark:border-gray-600 pb-6 mb-6">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+                {lab.title}
+              </h1>
+              
+              {lab.shortDesc && (
+                <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">
+                  {lab.shortDesc}
+                </p>
+              )}
+              
+              <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                <div className="flex items-center mr-6">
+                  <div className="w-8 h-8 rounded-full bg-msc flex items-center justify-center text-white text-sm font-medium mr-3">
+                    {lab.authorName?.[0] || 'U'}
+                    {lab.authorSurname?.[0] || ''}
+                  </div>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {lab.authorName && lab.authorSurname 
+                      ? `${lab.authorName} ${lab.authorSurname}`
+                      : 'Unknown Author'
+                    }
+                  </span>
+                </div>
+                
+                {lab.createdAt && (
+                  <div className="flex items-center mr-6">
+                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
+                    </svg>
+                    Created: {new Date(lab.createdAt).toLocaleDateString()}
+                  </div>
+                )}
+                
+                <div className="flex items-center space-x-4">
+                  {lab.views !== undefined && (
+                    <span className="flex items-center">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                        <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
+                      </svg>
+                      {lab.views} views
+                    </span>
+                  )}
+                  {lab.submissions !== undefined && (
+                    <span className="flex items-center">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h12a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1V8z" clipRule="evenodd"/>
+                      </svg>
+                      {lab.submissions} submissions
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Lab Content Section */}
         <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-8">
           <article className="prose dark:prose-invert max-w-none">
             <ReactMarkdown
@@ -337,14 +526,14 @@ export default function LabPage() {
           <div className="mt-6 flex justify-center">
             <button
               onClick={handleSubmit}
-              disabled={!file}
+              disabled={!file || uploading || !user}
               className={`px-16 py-3 rounded-md font-medium ${
-                file
+                file && !uploading && user
                   ? "bg-msc text-white hover:bg-msc-dark"
                   : "bg-light-blue-hover dark:bg-gray-600 text-gray-500 font-inter dark:text-gray-400 cursor-not-allowed"
               } transition-colors`}
             >
-              Submit homework
+              {uploading ? "Uploading..." : "Submit homework"}
             </button>
           </div>
         </section>

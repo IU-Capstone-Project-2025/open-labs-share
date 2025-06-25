@@ -13,6 +13,7 @@ services:
     restart: unless-stopped
     depends_on:
       - api-gateway
+      - auth-service
 
   api-gateway:
     build:
@@ -26,18 +27,14 @@ services:
       - AUTH_SERVICE_PORT=9092
       - USER_SERVICE_HOST=users-service
       - USER_SERVICE_PORT=9093
-      - ARTICLE_SERVICE_HOST=articles-service
-      - ARTICLE_SERVICE_PORT=9092
       - LAB_SERVICE_HOST=labs-service
       - LAB_SERVICE_PORT=9091
-      - FEEDBACK_SERVICE_HOST=feedback-service
-      - FEEDBACK_SERVICE_PORT=9090
       - SPRING_PROFILES_ACTIVE=docker
     restart: unless-stopped
     depends_on:
       - auth-service
       - users-service
-      - feedback-service
+      - labs-service
     networks:
       - app-network
 
@@ -85,7 +82,31 @@ services:
     networks:
       - app-network
 
-
+  labs-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.labs-service
+    ports:
+      - "9091:9091"
+    environment:
+      - SERVICE_HOST=0.0.0.0
+      - SERVICE_PORT=9091
+      - DB_HOST=postgres-labs
+      - DB_PORT=5432
+      - DB_USER=labs_user
+      - DB_PASSWORD=labs_password
+      - DB_NAME=labs_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+    restart: unless-stopped
+    depends_on:
+      postgres-labs:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - app-network
 
   feedback-service:
     build:
@@ -114,7 +135,6 @@ services:
     networks:
       - app-network
 
-
   postgres-users:
     image: postgres:15-alpine
     environment:
@@ -134,8 +154,6 @@ services:
     networks:
       - app-network
 
-
-
   postgres-feedback:
     image: postgres:15-alpine
     environment:
@@ -148,6 +166,25 @@ services:
       - postgres-feedback-data:/var/lib/postgresql/data
     healthcheck:
       test: pg_isready -U feedback_user -d feedback_db
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  postgres-labs:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=labs_db
+      - POSTGRES_USER=labs_user
+      - POSTGRES_PASSWORD=labs_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-labs-data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U labs_user -d labs_db
       interval: 5s
       timeout: 5s
       retries: 5
@@ -183,4 +220,5 @@ volumes:
   frontend_node_modules:
   postgres-users-data:
   postgres-feedback-data:
+  postgres-labs-data:
   minio-data:

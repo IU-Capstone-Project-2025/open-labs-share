@@ -20,7 +20,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/users")
-@CrossOrigin(origins = "*", maxAge = 3600)
+@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true", maxAge = 3600)
 @Tag(name = "User Management", description = "Endpoints for managing user information")
 public class UserController {
 

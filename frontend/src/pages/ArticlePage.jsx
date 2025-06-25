@@ -47,18 +47,33 @@ export default function ArticlePage() {
 
     try {
       console.log("Uploading file:", file.name);
+      
+      // TODO: Implement proper article submission when Articles Service is connected
+      // For now, show a message that this feature is not yet available
+      alert(`Article submission is not yet implemented. Articles Service needs to be connected first.\nFile selected: "${file.name}"`);
+      setFile(null);
+      
+      /* When Articles Service is connected, use this instead:
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("/api/upload", {
+      const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}/articles/upload`, {
         method: "POST",
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
         body: formData,
       });
 
-      if (!response.ok) throw new Error("Upload failed");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Upload failed: ${response.status} ${response.statusText}`);
+      }
 
+      const result = await response.json();
       alert(`File "${file.name}" uploaded successfully`);
       setFile(null);
+      */
     } catch (err) {
       console.error("Upload error:", err);
       alert("Upload failed: " + err.message);

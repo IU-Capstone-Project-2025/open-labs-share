@@ -171,31 +171,81 @@ public class LabServiceClient {
     }
 
     private long streamFileContent(StreamObserver<UploadAssetRequest> requestObserver, MultipartFile file) throws IOException {
-        byte[] buffer = new byte[uploadConfig.getChunkSize()];
+        byte[] buffer = new byte[4096];
         long totalSent = 0;
-        long lastLoggedMB = 0;
 
         try (InputStream inputStream = file.getInputStream()) {
             int bytesRead;
             while ((bytesRead = inputStream.read(buffer)) != -1) {
-                ByteString chunk = ByteString.copyFrom(buffer, 0, bytesRead);
                 UploadAssetRequest chunkRequest = UploadAssetRequest.newBuilder()
-                        .setChunk(chunk)
+                        .setChunk(ByteString.copyFrom(buffer, 0, bytesRead))
                         .build();
 
                 requestObserver.onNext(chunkRequest);
                 totalSent += bytesRead;
-
-                long currentMB = totalSent / (1024 * 1024);
-                if (currentMB > lastLoggedMB) {
-                    log.debug("Upload progress: {} MB / {} MB", currentMB, file.getSize() / (1024 * 1024));
-                    lastLoggedMB = currentMB;
-                }
+                log.trace("Sent chunk of {} bytes", bytesRead);
             }
         }
 
-        log.debug("Finished streaming file content. Total sent: {} bytes", totalSent);
+        log.debug("Finished streaming file content: {} bytes total", totalSent);
         return totalSent;
+    }
+
+    // New methods for asset management
+    public AssetList listAssets(Long labId) {
+        log.debug("Listing assets for lab ID: {}", labId);
+        
+        ListAssetsRequest request = ListAssetsRequest.newBuilder()
+                .setLabId(labId)
+                .build();
+        
+        try {
+            AssetList response = blockingStub.listAssets(request);
+            log.debug("Successfully listed {} assets for lab ID: {}", response.getTotalCount(), labId);
+            return response;
+        } catch (Exception e) {
+            log.error("Failed to list assets for lab ID: {}", labId, e);
+            throw e;
+        }
+    }
+
+    public byte[] downloadAsset(Long assetId) {
+        log.debug("Downloading asset with ID: {}", assetId);
+        
+        DownloadAssetRequest request = DownloadAssetRequest.newBuilder()
+                .setAssetId(assetId)
+                .build();
+        
+        try {
+            java.io.ByteArrayOutputStream outputStream = new java.io.ByteArrayOutputStream();
+            
+            java.util.Iterator<DownloadAssetResponse> responseIterator = blockingStub.downloadAsset(request);
+            
+            // First response should contain asset metadata
+            if (responseIterator.hasNext()) {
+                DownloadAssetResponse first = responseIterator.next();
+                if (first.hasAsset()) {
+                    log.debug("Asset metadata received: filename={}, size={}", 
+                        first.getAsset().getFilename(), first.getAsset().getTotalSize());
+                }
+            }
+            
+            // Subsequent responses contain file chunks
+            while (responseIterator.hasNext()) {
+                DownloadAssetResponse response = responseIterator.next();
+                if (response.hasChunk()) {
+                    outputStream.write(response.getChunk().toByteArray());
+                }
+            }
+            
+            byte[] result = outputStream.toByteArray();
+            log.debug("Successfully downloaded asset ID: {}, size: {} bytes", assetId, result.length);
+            return result;
+            
+        } catch (Exception e) {
+            log.error("Failed to download asset ID: {}", assetId, e);
+            throw new RuntimeException("Failed to download asset", e);
+        }
     }
 }
 

@@ -28,7 +28,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/articles")
-@CrossOrigin(origins = "*", maxAge = 3600)
+@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true", maxAge = 3600)
 @Tag(name = "Articles", description = "Endpoints for managing articles in PDF format")
 @SecurityRequirement(name = "bearerAuth")
 public class ArticleController {

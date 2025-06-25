@@ -22,6 +22,7 @@ export default function Sidebar({
   const navItems = [
     { path: "/home", name: "Home" },
     { path: "/all-labs", name: "All Labs" },
+    { path: "/create-lab", name: "Create Lab" },
     { path: "/all-articles", name: "All Articles" },
   ];
 
@@ -42,11 +43,19 @@ export default function Sidebar({
     toggleSidebar();
   };
 
-  const handleLogout = () => {
-    signOut();
-    onUserUpdate(null);
-    navigate("/signin");
-    toggleSidebar();
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      onUserUpdate(null);
+      toggleSidebar();
+      navigate("/", { replace: true }); // Redirect to landing page
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still clear local state and redirect even if server logout fails
+      onUserUpdate(null);
+      toggleSidebar();
+      navigate("/", { replace: true });
+    }
   };
 
   // Get user display name
