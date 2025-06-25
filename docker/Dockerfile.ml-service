@@ -1,0 +1,47 @@
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    libpq-dev \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY ml/rag_backend/requirements.txt ./requirements.txt
+
+# Install Python dependencies
+RUN pip install -r requirements.txt
+
+# Copy the ML application
+COPY ml/ ./ml/
+
+# Set working directory to the rag_backend
+WORKDIR /app/ml/rag_backend
+
+# Create necessary directories
+RUN mkdir -p /app/ml/agent /app/ml/faiss /app/ml/data
+
+# Set environment variables
+ENV PYTHONPATH=/app:/app/ml
+ENV DEVICE=cpu
+ENV RAG_DB_PATH=/app/ml/faiss
+ENV SCORE_THRESHOLD=1.0
+ENV EMBEDDING_MODEL_NAME=BAAI/bge-small-en-v1.5
+ENV LLM_MODEL_NAME=Qwen/Qwen2.5-Coder-1.5B-Instruct
+ENV PDF_DIR=/app/ml/data/predator-pray-22/pdfs
+ENV CODE_DIR=/app/ml/data/predator-pray-22/code
+
+# Expose port
+EXPOSE 8081
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8081/health || exit 1
+
+# Run the application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8081"] 

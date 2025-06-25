@@ -1,0 +1,34 @@
+fastapi
+uvicorn[standard]
+pydantic
+python-multipart
+httpx
+asyncpg
+psycopg2-binary
+psycopg[binary]
+sqlalchemy
+alembic
+# Langchain packages
+langchain
+langchain-core
+langchain-community
+langchain-huggingface
+langchain-postgres
+langgraph
+langgraph-checkpoint-postgres
+# Huggingface and Torch
+transformers
+tokenizers
+torch
+accelerate
+sentence-transformers
+# Vector Store
+faiss-cpu
+# Utilities
+pypdf
+numpy
+pandas
+python-dotenv
+uvloop
+httptools
+colorlog 

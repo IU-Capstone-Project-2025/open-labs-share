@@ -5,6 +5,7 @@ import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import "highlight.js/styles/github-dark.css";
 import CommentsSection from "../components/CommentsSection";
+import ChatWindow from "../components/ChatWindow";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
 import { labsAPI, submissionsAPI } from "../utils/api";
 
@@ -42,6 +43,7 @@ export default function LabPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [user, setUser] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Initialize user state
   useEffect(() => {
@@ -566,6 +568,13 @@ Lab content delivery is currently being developed. The markdown content for this
           <CommentsSection contentType="lab" contentId={id} userId={user?.id} />
         </section>
         </div>
+
+        {/* Chat Window */}
+        <ChatWindow 
+          labId={id} 
+          isOpen={isChatOpen} 
+          onToggle={() => setIsChatOpen(!isChatOpen)} 
+        />
 
         <aside className="w-64 p-4 border-l border-gray-200 dark:border-gray-700 overflow-y-auto sticky top-0 h-screen">
         <ul className="space-y-1">

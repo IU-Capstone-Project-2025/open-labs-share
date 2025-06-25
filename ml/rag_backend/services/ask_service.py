@@ -2,7 +2,6 @@ from agent.agent import HelperAgent
 from rag_backend.schemas import AskRequest, AgentResponse
 from langchain_core.runnables import RunnableConfig
 from agent.schemas import RAGState
-from langgraph.graph import MessagesState
 from agent.prompts import SYSTEM_PROMPT
 from langchain_core.messages import SystemMessage, AIMessage
 import logging
@@ -34,12 +33,11 @@ class AskService:
                     assignment_id=request.assignment_id,
                     query=request.content,
                     docs='',
-                    msg_state=MessagesState(
-                        thread_id=config["configurable"]["thread_id"],
-                        messages=[
+                    msg_state={
+                        "messages": [
                             SystemMessage(content=SYSTEM_PROMPT)
                         ]
-                    )
+                    }
                 )
             else:
                 input_state = RAGState(
@@ -53,6 +51,7 @@ class AskService:
             return input_state, config
         except Exception as e:
             logger.error(f"Preprocessing error {e}")
+            raise
     
 
     def _postprocess(self, request: AskRequest, response: AIMessage) -> AgentResponse:
@@ -63,6 +62,7 @@ class AskService:
             )
         except Exception as e:
             logger.error(f"Postprocess error: {e}")
+            raise
 
 
     async def ask(self, request: AskRequest) -> AgentResponse:

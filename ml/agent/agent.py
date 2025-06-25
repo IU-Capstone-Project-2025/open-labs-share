@@ -3,8 +3,8 @@ from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_huggingface.llms import HuggingFacePipeline
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 from langchain_core.runnables import RunnableConfig
-from langgraph.types import StateSnapshot
-from langgraph.graph import START, END, StateGraph
+from langgraph.graph import StateGraph
+from typing import Any
 from agent.schemas.rag_state import RAGState
 from langchain_core.messages import AIMessage
 from functools import partial
@@ -106,15 +106,15 @@ class HelperAgent:
             )
 
             self._graph_builder.add_conditional_edges("retrieve", route_rag_usage)
-            self._graph_builder.add_edge("query_rag_llm", END)
-            self._graph_builder.add_edge("query_llm", END)
+            self._graph_builder.add_edge("query_rag_llm", "__end__")
+            self._graph_builder.add_edge("query_llm", "__end__")
 
             self._graph_builder.set_entry_point("retrieve")
             logger.info("Graph loaded successfully")
         except Exception as e:
             logger.error(f"Graph load failed: {e}")
 
-    async def get_last_state(self, config: RunnableConfig) -> StateSnapshot:
+    async def get_last_state(self, config: RunnableConfig) -> Any:
         async with AsyncPostgresSaver.from_conn_string(POSTGRES_URL) as saver:
             graph = self._graph_builder.compile(checkpointer=saver)
             return await graph.aget_state(config=config)
