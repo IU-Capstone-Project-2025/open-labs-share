@@ -30,18 +30,12 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={"detail": exc.errors(), "body": str(await request.body())}
     )
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Frontend URLs
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(router)
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint for Docker health check"""
-    return {"status": "healthy", "service": "ml-rag-backend"}

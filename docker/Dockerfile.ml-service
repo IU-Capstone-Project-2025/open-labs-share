@@ -1,47 +1,38 @@
 FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    libpq-dev \
-    postgresql-client \
+    gcc \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY ml/rag_backend/requirements.txt ./requirements.txt
+# Copy ML service requirements
+COPY ml/rag_backend/requirements.txt /app/requirements.txt
 
 # Install Python dependencies
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the ML application
-COPY ml/ ./ml/
-
-# Set working directory to the rag_backend
-WORKDIR /app/ml/rag_backend
+# Copy the entire ml directory
+COPY ml/ /app/ml/
 
 # Create necessary directories
-RUN mkdir -p /app/ml/agent /app/ml/faiss /app/ml/data
+RUN mkdir -p /app/models
 
-# Set environment variables
-ENV PYTHONPATH=/app:/app/ml
-ENV DEVICE=cpu
-ENV RAG_DB_PATH=/app/ml/faiss
-ENV SCORE_THRESHOLD=1.0
-ENV EMBEDDING_MODEL_NAME=BAAI/bge-small-en-v1.5
-ENV LLM_MODEL_NAME=Qwen/Qwen2.5-Coder-1.5B-Instruct
-ENV PDF_DIR=/app/ml/data/predator-pray-22/pdfs
-ENV CODE_DIR=/app/ml/data/predator-pray-22/code
+# Set working directory to ml for the service
+WORKDIR /app/ml
 
-# Expose port
+# Expose the port
 EXPOSE 8081
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8081/health || exit 1
+# Set environment variables
+ENV PYTHONPATH=/app/ml
+ENV DEVICE=cpu
 
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8081"] 
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8081/docs || exit 1
+
+# Run the FastAPI application
+CMD ["uvicorn", "rag_backend.main:app", "--host", "0.0.0.0", "--port", "8081"] 

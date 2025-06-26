@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { getCurrentUser } from '../utils/auth';
+import { mlAPI } from '../utils/api';
 
 const ChatWindow = ({ labId, isOpen, onToggle }) => {
   const [messages, setMessages] = useState([]);
@@ -32,24 +33,15 @@ const ChatWindow = ({ labId, isOpen, onToggle }) => {
     if (!user || !labId) return;
 
     try {
-             const response = await fetch(`http://localhost:8083/get_chat_history?uuid=${String(user.id)}&assignment_id=${String(labId)}`, {
-         method: 'GET',
-         headers: {
-           'Content-Type': 'application/json',
-         }
-       });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.history && Array.isArray(data.history)) {
-          const formattedMessages = data.history.map((msg, index) => ({
-            id: index,
-            text: msg.content,
-            isUser: msg.type === 'human',
-            timestamp: new Date()
-          }));
-          setMessages(formattedMessages);
-        }
+      const data = await mlAPI.getChatHistory(user.id, labId);
+      if (data.history && Array.isArray(data.history)) {
+        const formattedMessages = data.history.map((msg, index) => ({
+          id: index,
+          text: msg.content,
+          isUser: msg.type === 'human',
+          timestamp: new Date()
+        }));
+        setMessages(formattedMessages);
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
@@ -67,34 +59,19 @@ const ChatWindow = ({ labId, isOpen, onToggle }) => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const messageContent = inputValue;
     setInputValue('');
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8083/ask', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          uuid: String(user.id),
-          assignment_id: String(labId),
-          content: inputValue
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const aiMessage = {
-          id: Date.now() + 1,
-          text: data.content,
-          isUser: false,
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, aiMessage]);
-      } else {
-        throw new Error('Failed to get response from AI');
-      }
+      const data = await mlAPI.ask(user.id, labId, messageContent);
+      const aiMessage = {
+        id: Date.now() + 1,
+        text: data.content,
+        isUser: false,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
       console.error('Error sending message:', error);
       const errorMessage = {
