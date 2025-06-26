@@ -24,7 +24,13 @@ class ArticleService(service.ArticleServiceServicer):
         db_name = Config.DB_NAME
         url = f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
 
+        print(f"Creating connection at {url}")
+
         self.engine = create_engine(url, echo=True)
+
+        from utils.models import Base
+        Base.metadata.create_all(self.engine)
+
         self.minio_client = minio.Minio(
             endpoint=Config.MINIO_ENDPOINT,
             access_key=Config.MINIO_ACCESS_KEY,
