@@ -1,7 +1,10 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv("rag_backend/.env")
+# Only load .env file if it exists (for local development)
+env_file_path = "rag_backend/.env"
+if os.path.exists(env_file_path):
+    load_dotenv(env_file_path)
 
 POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
