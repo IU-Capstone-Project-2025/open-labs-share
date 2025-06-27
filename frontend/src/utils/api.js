@@ -4,6 +4,8 @@
 export const API_CONFIG = {
   API_GATEWAY_URL: import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080',
   API_GATEWAY_ENDPOINT: `${import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080'}/api/v1`,
+  // Direct ML service connection (bypasses API Gateway as per requirements)
+  ML_SERVICE_URL: import.meta.env.VITE_ML_SERVICE_URL || 'http://localhost:8083',
   ENDPOINTS: {
     // User endpoints (through API Gateway to Users Service)
     USERS: '/users',
@@ -23,6 +25,10 @@ export const API_CONFIG = {
     SUBMISSION_ASSETS: (submissionId) => `/submissions/${submissionId}/assets`,
     SUBMISSION_ASSET_DOWNLOAD: (submissionId, assetId) => `/submissions/${submissionId}/assets/${assetId}/download`,
     SUBMISSION_ASSET_UPLOAD: (submissionId) => `/submissions/${submissionId}/assets/upload`,
+    
+    // ML Service endpoints (direct connection)
+    ML_ASK: '/ask',
+    ML_CHAT_HISTORY: '/get_chat_history',
     
     // Article endpoints (currently not connected as per requirements)
     // ARTICLES: '/articles',
@@ -325,7 +331,63 @@ export const submissionsAPI = {
       throw error;
     }
   },
-}; 
+};
+
+// ML Service API functions (direct connection to FastAPI)
+export const mlAPI = {
+  // Send question to AI assistant
+  ask: async (uuid, assignmentId, content) => {
+    const url = `${API_CONFIG.ML_SERVICE_URL}${API_CONFIG.ENDPOINTS.ML_ASK}`;
+    
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          uuid: String(uuid),
+          assignment_id: String(assignmentId),
+          content: content
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `ML service error: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('ML API ask error:', error);
+      throw error;
+    }
+  },
+
+  // Get chat history for user and assignment
+  getChatHistory: async (uuid, assignmentId) => {
+    const url = `${API_CONFIG.ML_SERVICE_URL}${API_CONFIG.ENDPOINTS.ML_CHAT_HISTORY}?uuid=${String(uuid)}&assignment_id=${String(assignmentId)}`;
+    
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `ML service error: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('ML API chat history error:', error);
+      throw error;
+    }
+  }
+};
 
 // Export the main APIs (clean backend-only APIs)
 export { usersAPI as users, labsAPI as labs, submissionsAPI as submissions }; 

@@ -29,12 +29,15 @@ services:
       - USER_SERVICE_PORT=9093
       - LAB_SERVICE_HOST=labs-service
       - LAB_SERVICE_PORT=9091
+      - ML_SERVICE_HOST=ml-service
+      - ML_SERVICE_PORT=8082
       - SPRING_PROFILES_ACTIVE=docker
     restart: unless-stopped
     depends_on:
       - auth-service
       - users-service
       - labs-service
+      - ml-service
     networks:
       - app-network
 
@@ -192,6 +195,54 @@ services:
     networks:
       - app-network
 
+  ml-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ml-service
+    ports:
+      - "8083:8081"
+    environment:
+      - DEVICE=cpu
+      - RAG_DB_PATH=/app/ml/faiss
+      - SCORE_THRESHOLD=1.0
+      - EMBEDDING_MODEL_NAME=BAAI/bge-small-en-v1.5
+      - LLM_MODEL_NAME=Qwen/Qwen2.5-Coder-1.5B-Instruct
+      - PDF_DIR=/app/ml/data/predator-pray-22/pdfs
+      - CODE_DIR=/app/ml/data/predator-pray-22/code
+      - POSTGRES_USER=ml_user
+      - POSTGRES_PASSWORD=ml_password
+      - POSTGRES_HOST=postgres-ml
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=chat_history_db
+    volumes:
+      - ./ml:/app/ml
+      - ml-models:/app/models
+    restart: unless-stopped
+    depends_on:
+      postgres-ml:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  postgres-ml:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=chat_history_db
+      - POSTGRES_USER=ml_user
+      - POSTGRES_PASSWORD=ml_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-ml-data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U ml_user -d chat_history_db
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
@@ -221,4 +272,6 @@ volumes:
   postgres-users-data:
   postgres-feedback-data:
   postgres-labs-data:
+  postgres-ml-data:
+  ml-models:
   minio-data:

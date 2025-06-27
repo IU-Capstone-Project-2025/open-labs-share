@@ -5,6 +5,7 @@ import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import "highlight.js/styles/github-dark.css";
 import CommentsSection from "../components/CommentsSection";
+import ChatWindow from "../components/ChatWindow";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
 import { labsAPI, submissionsAPI } from "../utils/api";
 
@@ -42,6 +43,8 @@ export default function LabPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [user, setUser] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMode, setChatMode] = useState('floating'); // 'floating' or 'sidebar'
 
   // Initialize user state
   useEffect(() => {
@@ -359,8 +362,8 @@ Lab content delivery is currently being developed. The markdown content for this
   }
 
   return (
-    <div className="flex dark:bg-gray-900 min-h-screen">
-      <div className="max-w-6xl mx-auto flex w-full">
+    <>
+      <div className={`container mx-auto px-4 py-8 flex transition-all duration-300 ${isChatOpen && chatMode === 'sidebar' ? 'lg:mr-[400px]' : ''}`}>
         <div
           ref={contentRef}
           className="flex-1 p-8 overflow-y-auto scroll-smooth"
@@ -567,50 +570,62 @@ Lab content delivery is currently being developed. The markdown content for this
         </section>
         </div>
 
-        <aside className="w-64 p-4 border-l border-gray-200 dark:border-gray-700 overflow-y-auto sticky top-0 h-screen">
-        <ul className="space-y-1">
-          {headings.map((heading, index) => (
-            <li
-              key={index}
-              style={{ paddingLeft: `${(heading.level - 1) * 12}px` }}
-              className={`transition-colors ${
-                activeId === heading.id
-                  ? "text-msc dark:text-msc-light font-medium bg-blue-50 dark:bg-gray-700 rounded"
-                  : "text-gray-600 dark:text-gray-400 hover:text-msc dark:hover:text-msc-light"
-              }`}
-            >
-              <button
-                onClick={() => scrollToHeading(heading.id)}
-                className="text-left w-full py-1.5 px-2 text-sm truncate"
-                title={heading.title}
+        {/* Table of Contents */}
+        <aside className="w-64 pr-8 sticky top-24 self-start hidden lg:block">
+          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+            Table of Contents
+          </h3>
+          <ul className="space-y-1">
+            {headings.map((heading, index) => (
+              <li
+                key={index}
+                style={{ paddingLeft: `${(heading.level - 1) * 12}px` }}
+                className={`transition-colors ${
+                  activeId === heading.id
+                    ? "text-msc dark:text-msc-light font-medium bg-blue-50 dark:bg-gray-700 rounded"
+                    : "text-gray-600 dark:text-gray-400 hover:text-msc dark:hover:text-msc-light"
+                }`}
               >
-                {heading.title}
-              </button>
-            </li>
-          ))}
-        </ul>
-        <button
-          onClick={scrollToSubmit}
-          className="mt-4 w-full py-3 px-4 bg-msc font-inter text-white rounded-md hover:bg-msc-dark transition-colors flex items-center justify-center"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5 mr-2"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+                <button
+                  onClick={() => scrollToHeading(heading.id)}
+                  className="text-left w-full py-1.5 px-2 text-sm truncate"
+                  title={heading.title}
+                >
+                  {heading.title}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button
+            onClick={scrollToSubmit}
+            className="mt-4 w-full py-3 px-4 bg-msc font-inter text-white rounded-md hover:bg-msc-dark transition-colors flex items-center justify-center"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-            />
-          </svg>
-          Submit homework
-        </button>
-      </aside>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 mr-2"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+              />
+            </svg>
+            Submit homework
+          </button>
+        </aside>
       </div>
-    </div>
+
+      <ChatWindow
+        labId={id}
+        isOpen={isChatOpen}
+        onToggle={() => setIsChatOpen(!isChatOpen)}
+        chatMode={chatMode}
+        onSetChatMode={setChatMode}
+      />
+    </>
   );
 }
