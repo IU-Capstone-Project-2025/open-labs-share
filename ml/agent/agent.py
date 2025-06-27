@@ -18,6 +18,7 @@ from agent.config import \
     SCORE_THRESHOLD
 from rag_backend.config import POSTGRES_URL
 import logging
+import torch
 
 
 logger = logging.getLogger(__name__)
@@ -74,6 +75,7 @@ class HelperAgent:
 
             self._llm = HuggingFacePipeline(pipeline=text_gen)
             logger.info("LLM loaded successfully")
+            logger.info(f"Device is set to {'CUDA' if torch.cuda.is_available() else 'CPU'}")
         except Exception as e:
             logger.error(f"LLM load failed: {e}")
 
