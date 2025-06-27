@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  # Your API Gateway Service
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${CONTAINER_NAME:-api-gateway}
+    env_file:
+      - .env
+    ports:
+      - "${SPRING_APP_PORT:-8080}:8080"
+    networks:
+      - grpc-network
+#    restart: unless-stopped
+
+networks:
+  grpc-network:
+    external: true

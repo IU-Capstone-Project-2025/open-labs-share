@@ -2,6 +2,18 @@ package olsh.backend.authservice.controller;
 
 import java.security.Principal;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -21,24 +33,13 @@ import olsh.backend.authservice.dto.PasswordResetRequest;
 import olsh.backend.authservice.dto.RefreshTokenRequest;
 import olsh.backend.authservice.dto.SignInRequest;
 import olsh.backend.authservice.dto.SignUpRequest;
-import olsh.backend.authservice.dto.TokenValidationResponse;
-import olsh.backend.authservice.dto.UserProfileResponse;
-import olsh.backend.authservice.dto.ValidateTokenRequest;
+import olsh.backend.authservice.dto.UserProfileResponseWithUserInfo;
 import olsh.backend.authservice.service.AuthenticationService;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/auth")
+@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true", maxAge = 3600)
 @RequiredArgsConstructor
 @Tag(name = "Authentication", description = "Authentication and authorization endpoints")
 public class AuthController {
@@ -76,7 +77,7 @@ public class AuthController {
     public ResponseEntity<AuthenticationResponse> login(
         @RequestBody @Valid SignInRequest request,
         HttpServletRequest httpRequest) {
-        log.info("Login attempt for username: {}", request.getUsername());
+        log.info("Login attempt for username/email: {}", request.getUsernameOrEmail());
         AuthenticationResponse response = authenticationService.signIn(request);
         return ResponseEntity.ok(response);
     }
@@ -98,21 +99,7 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(
-        summary = "Validate JWT token",
-        description = "Validates JWT token and returns user information - used by API Gateway"
-    )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Token validation result",
-            content = @Content(schema = @Schema(implementation = TokenValidationResponse.class)))
-    })
-    @PostMapping("/validate")
-    public ResponseEntity<TokenValidationResponse> validateToken(
-        @RequestBody @Valid ValidateTokenRequest request) {
-        log.debug("Token validation request");
-        TokenValidationResponse response = authenticationService.validateToken(request);
-        return ResponseEntity.ok(response);
-    }
+
 
     @Operation(
         summary = "Logout user",
@@ -137,7 +124,9 @@ public class AuthController {
                 .message("Successfully logged out")
                 .build()
         );
-    }    @Operation(
+    }
+
+    @Operation(
         summary = "Request password reset ⚠️ NOT YET IMPLEMENTED",
         description = "Sends password reset instructions to user's email (functionality not yet implemented)"
     )
@@ -157,7 +146,9 @@ public class AuthController {
                 .message("Password reset instructions sent to your email")
                 .build()
         );
-    }    @Operation(
+    }
+
+    @Operation(
         summary = "Reset password ⚠️ NOT YET IMPLEMENTED",
         description = "Resets user password using reset token (functionality not yet implemented)"
     )
@@ -211,39 +202,21 @@ public class AuthController {
     )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Profile retrieved successfully",
-            content = @Content(schema = @Schema(implementation = UserProfileResponse.class))),
+            content = @Content(schema = @Schema(implementation = UserProfileResponseWithUserInfo.class))),
         @ApiResponse(responseCode = "401", description = "Unauthorized")
     })
     @GetMapping("/profile")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<UserProfileResponse> getProfile(Principal principal) {
+    public ResponseEntity<UserProfileResponseWithUserInfo> getProfile(Principal principal) {
         log.debug("Profile request for user: {}", principal.getName());
-        UserProfileResponse profile = authenticationService.getUserProfile(principal.getName());
+        UserProfileResponseWithUserInfo profile =
+            authenticationService.getUserProfileWithUserInfo(principal.getName());
         return ResponseEntity.ok(profile);
     }
 
+
+
     @Operation(
-        summary = "Health check",
-        description = "Returns the health status of the authentication service"
-    )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Service is healthy",
-            content = @Content(schema = @Schema(implementation = olsh.backend.authservice.dto.ApiResponse.class)))
-    })
-    @GetMapping("/health")
-    public ResponseEntity<olsh.backend.authservice.dto.ApiResponse> healthCheck() {
-        return ResponseEntity.ok(
-            olsh.backend.authservice.dto.ApiResponse.builder()
-                .success(true)
-                .message("Auth service is healthy")
-                .data(java.util.Map.of(
-                    "timestamp", java.time.Instant.now(),
-                    "service", "auth-service",
-                    "version", "1.0.0"
-                ))
-                .build()
-        );
-    }    @Operation(
         summary = "Verify email address ⚠️ NOT YET IMPLEMENTED",
         description = "Verifies user's email address using verification token (functionality not yet implemented)"
     )

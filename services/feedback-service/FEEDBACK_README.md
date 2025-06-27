@@ -13,25 +13,30 @@ The **Feedback Service** handles the creation, retrieval, and management of feed
 #### Tables
 
 - **`feedbacks`**
-    - `id` (UUID): Primary key, auto-generated
-    - `user_id` (BIGINT): Author of the feedback
-    - `lab_id` (BIGINT): Related lab assignment
-    - `title` (VARCHAR): Feedback title
-    - `created_at` (TIMESTAMP): Creation timestamp
+  - `id` (UUID): Primary key, auto-generated
+  - `user_id` (BIGINT): Author of the feedback
+  - `student_id` (BIGINT): Student whose solution is being reviewed
+  - `lab_id` (BIGINT): Related lab assignment
+  - `title` (VARCHAR): Feedback title
+  - `created_at` (TIMESTAMP): Creation timestamp
+  - `updated_at` (TIMESTAMP): Last update timestamp
 
 - **`feedback_assets`**
-    - `id` (UUID): Primary key, auto-generated
-    - `feedback_id` (UUID): Foreign key to `feedbacks.id`
-    - `filename` (VARCHAR): File name of the uploaded asset
-    - `created_at` (TIMESTAMP): Upload timestamp
+  - `id` (UUID): Primary key, auto-generated
+  - `feedback_id` (UUID): Foreign key to `feedbacks.id`
+  - `filename` (VARCHAR): File name of the uploaded asset
+  - `file_size` (BIGINT): Size of the file in bytes
+  - `content_type` (VARCHAR): MIME type of the file
+  - `created_at` (TIMESTAMP): Upload timestamp
 
 - **`lab_comments`**
-    - `id` (UUID): Primary key, auto-generated
-    - `lab_id` (BIGINT): Target lab
-    - `user_id` (BIGINT): Author of the comment
-    - `parent_id` (UUID, nullable): Parent comment for threaded replies
-    - `content` (TEXT): Comment content
-    - `created_at` (TIMESTAMP): Comment timestamp
+  - `id` (UUID): Primary key, auto-generated
+  - `lab_id` (BIGINT): Target lab
+  - `user_id` (BIGINT): Author of the comment
+  - `parent_id` (UUID, nullable): Parent comment for threaded replies
+  - `content` (TEXT): Comment content
+  - `created_at` (TIMESTAMP): Comment timestamp
+  - `updated_at` (TIMESTAMP): Last update timestamp
 
 ### Object Storage (MinIO)
 
@@ -56,12 +61,22 @@ feedback/
 - **UpdateFeedback**: Allows partial updates (title or content).
 - **DeleteFeedback**: Removes feedback and deletes associated assets.
 - **ListUserFeedbacks**: Lists feedbacks by user and optionally by lab, supports pagination.
+- **ListStudentFeedbacks**: Lists feedbacks for a student and optionally by lab, supports pagination.
 
 ### Asset Management
 
 - **UploadAsset (streaming)**: Upload a file using a metadata header and subsequent binary chunks.
 - **DownloadAsset (streaming)**: Return asset metadata and stream the binary content.
 - **ListAssets**: List all files associated with a feedback entry.
+
+### Comment Management
+
+- **CreateComment**: Creates a new comment for a lab, supports threaded replies via parent_id.
+- **GetComment**: Retrieves a specific comment by UUID.
+- **UpdateComment**: Allows updating comment content.
+- **DeleteComment**: Removes a comment and its replies (cascade delete).
+- **ListLabComments**: Lists all top-level comments for a lab with pagination.
+- **GetCommentReplies**: Gets all replies to a specific comment with pagination.
 
 ---
 
@@ -78,8 +93,15 @@ feedback/
 
 gRPC service is defined in `feedback.proto`. Main RPC methods:
 
+**Feedback Operations:**
 - `CreateFeedback`, `GetFeedback`, `UpdateFeedback`, `DeleteFeedback`
-- `ListUserFeedbacks`
+- `ListUserFeedbacks`, `ListStudentFeedbacks`
+
+**Asset Operations:**
 - `UploadAsset`, `DownloadAsset`, `ListAssets`
+
+**Comment Operations:**
+- `CreateComment`, `GetComment`, `UpdateComment`, `DeleteComment`
+- `ListLabComments`, `GetCommentReplies`
 
 ---

@@ -1,0 +1,60 @@
+FROM gradle:8-jdk21 AS build
+WORKDIR /app
+
+COPY services/api-gateway/gradle/ gradle/
+COPY services/api-gateway/gradlew services/api-gateway/build.gradle services/api-gateway/settings.gradle ./
+
+RUN gradle dependencies --no-daemon || true
+
+COPY services/api-gateway/src/ src/
+
+RUN gradle clean && \
+    gradle generateProto &&  \
+    gradle build --no-daemon -x test && \
+    gradle bootJar
+
+RUN jlink --verbose \
+          --module-path $JAVA_HOME/jmods \
+          --strip-debug \
+          --no-header-files \
+          --no-man-pages \
+          --compress=2 \
+          --add-modules java.base,java.logging,java.naming,java.desktop,\
+java.management,java.security.jgss,java.instrument,java.sql,\
+jdk.unsupported,java.xml,jdk.crypto.ec,java.net.http,jdk.httpserver \
+          --output /custom-jre
+
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /app
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget ca-certificates && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    mkdir -p /opt/app
+
+RUN groupadd -r appgroup && \
+    useradd -r -g appgroup appuser && \
+    chown appuser:appgroup /opt/app
+
+COPY --from=build /custom-jre /opt/jre
+COPY --from=build /app/build/libs/*.jar /opt/app/app.jar
+
+RUN chown -R appuser:appgroup /opt/app /opt/jre
+
+USER appuser
+
+ENV PATH="/opt/jre/bin:${PATH}" \
+    JAVA_HOME="/opt/jre" \
+    JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom"
+
+EXPOSE 8080
+
+ENTRYPOINT ["/opt/jre/bin/java", \
+            "-XX:+UseContainerSupport", \
+            "-XX:MaxRAMPercentage=75.0", \
+            "-XX:+UseG1GC", \
+            "-XX:+UseStringDeduplication", \
+            "-XX:+ExitOnOutOfMemoryError", \
+            "-Djava.security.egd=file:/dev/./urandom", \
+            "-jar", "/opt/app/app.jar"] 

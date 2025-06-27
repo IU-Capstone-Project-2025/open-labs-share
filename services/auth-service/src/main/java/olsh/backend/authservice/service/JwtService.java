@@ -25,6 +25,12 @@ public class JwtService {
     @Value("${token.signing.key}")
     private String jwtSigningKey;
 
+    @Value("${token.access.expiration}")
+    private long ACCESS_TOKEN_EXPIRATION_TIME;
+
+    @Value("${token.refresh.expiration}")
+    private long REFRESH_TOKEN_EXPIRATION_TIME;
+
     // In-memory token blacklist for now
     // TODO: Replace with a persistent store, maybe database.
     private static final Set<String> blacklistedTokens = ConcurrentHashMap.newKeySet();
@@ -40,7 +46,7 @@ public class JwtService {
             .setClaims(extraClaims)
             .setSubject(username)
             .setIssuedAt(new Date(System.currentTimeMillis()))
-            .setExpiration(new Date(System.currentTimeMillis() + 100000 * 60 * 24))
+            .setExpiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRATION_TIME))
             .signWith(getSigningKey(), SignatureAlgorithm.HS256)
             .compact();
     }
@@ -48,7 +54,7 @@ public class JwtService {
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         if (userDetails instanceof User customUserDetails) {
-            claims.put("id", customUserDetails.getId());
+            claims.put("id", customUserDetails.getUserId());
             claims.put("email", customUserDetails.getUsername());
             claims.put("role", customUserDetails.getRole());
         }
@@ -61,7 +67,7 @@ public class JwtService {
 
         if (userDetails instanceof User customUserDetails) {
             username = customUserDetails.getUsername();
-            claims.put("id", customUserDetails.getId());
+            claims.put("id", customUserDetails.getUserId());
             claims.put("email", customUserDetails.getUsername());
             claims.put("role", customUserDetails.getRole());
             claims.put("type", "refresh");
@@ -77,7 +83,8 @@ public class JwtService {
             .setClaims(claims)
             .setSubject(username)
             .setIssuedAt(new Date(System.currentTimeMillis()))
-            .setExpiration(new Date(System.currentTimeMillis() + 100000 * 60 * 24 * 7)) // 7 days
+            .setExpiration(new Date(
+                System.currentTimeMillis() + REFRESH_TOKEN_EXPIRATION_TIME))
             .signWith(getSigningKey(), SignatureAlgorithm.HS256)
             .compact();
     }

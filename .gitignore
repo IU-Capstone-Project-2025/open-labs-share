@@ -1,3 +1,8 @@
+### Python ###
+.env
+__pycache__
+
+
 HELP.md
 .gradle
 build/
@@ -37,3 +42,15 @@ out/
 ### VS Code ###
 .vscode/
 /.idea/
+.cursorrules/
+.cursorrules
+
+### Environment Variables ###
+# Ignore all .env files (containing sensitive data)
+**/.env
+.env
+*/.env
+# But keep .env.example files (safe templates)
+!**/.env.example
+!.env.example
+!*/.env.example

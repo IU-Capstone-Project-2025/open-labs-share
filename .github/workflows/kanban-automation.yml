@@ -1,0 +1,315 @@
+name: Kanban Automation
+
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened, closed]
+  push:
+    branches-ignore:
+      - main
+      - master
+
+env:
+  PROJECT_URL: "https://github.com/orgs/IU-Capstone-Project-2025/projects/6"
+  STATUS_FIELD_ID: "PVTSSF_lADODL8-ic4A7DnKzgvd7RM"
+  BACKLOG_OPTION_ID: "f75ad846"
+  IN_PROGRESS_OPTION_ID: "47fc9ee4"
+  IN_REVIEW_OPTION_ID: "df73e18b"
+  DONE_OPTION_ID: "98236657"
+
+jobs:
+  add-to-backlog:
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add issue to project
+        uses: actions/add-to-project@v0.5.0
+        with:
+          project-url: ${{ env.PROJECT_URL }}
+          github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
+
+  move-issue-to-in-progress:
+    if: github.event_name == 'push' && !contains(github.event.before, '000000')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if this is a new branch
+        id: check-new-branch
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const beforeSha = context.payload.before;
+            const isNewBranch = beforeSha === '0000000000000000000000000000000000000000';
+            
+            console.log(`Before SHA: ${beforeSha}`);
+            console.log(`Is new branch: ${isNewBranch}`);
+            
+            return isNewBranch;
+
+      - name: Get issue number from branch name
+        if: steps.check-new-branch.outputs.result == 'true'
+        id: get-issue-from-branch
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branchName = context.ref.replace('refs/heads/', '');
+            console.log(`Branch name: ${branchName}`);
+            
+            // Поиск номера issue в имени ветки
+            const patterns = [
+              /issue[_-]?(\d+)/gi,
+              /feature[/_-]issue[_-]?(\d+)/gi,
+              /fix[/_-]issue[_-]?(\d+)/gi,
+              /(\d+)[_-]?/g, // номер в начале
+              /[_-](\d+)$/g  // номер в конце
+            ];
+            
+            let issueNumber = null;
+            
+            for (const pattern of patterns) {
+              const match = pattern.exec(branchName);
+              if (match && match[1] && match[1].length <= 4) {
+                issueNumber = match[1];
+                break;
+              }
+            }
+            
+            console.log(`Found issue number: ${issueNumber}`);
+            return issueNumber;
+
+      - name: Move issue to In Progress
+        if: steps.get-issue-from-branch.outputs.result != 'null' && steps.check-new-branch.outputs.result == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
+          script: |
+            const issueNumber = ${{ steps.get-issue-from-branch.outputs.result }};
+            
+            try {
+              const issue = await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: parseInt(issueNumber)
+              });
+              
+              console.log(`Moving issue #${issueNumber} to In Progress (branch created)`);
+              
+              const query = `
+                query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    issue(number: $issueNumber) {
+                      projectItems(first: 10) {
+                        nodes {
+                          id
+                          project {
+                            id
+                            title
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              
+              const result = await github.graphql(query, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issueNumber: parseInt(issueNumber)
+              });
+              
+              for (const item of result.repository.issue.projectItems.nodes) {
+                const updateQuery = `
+                  mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: String!) {
+                    updateProjectV2ItemFieldValue(
+                      input: {
+                        projectId: $projectId
+                        itemId: $itemId
+                        fieldId: $fieldId
+                        value: {singleSelectOptionId: $value}
+                      }
+                    ) {
+                      projectV2Item {
+                        id
+                      }
+                    }
+                  }
+                `;
+                
+                                  await github.graphql(updateQuery, {
+                    projectId: item.project.id,
+                    itemId: item.id,
+                    fieldId: process.env.STATUS_FIELD_ID,
+                    value: process.env.IN_PROGRESS_OPTION_ID
+                  });
+              }
+            } catch (error) {
+              console.log(`Issue #${issueNumber} not found or error: ${error.message}`);
+            }
+
+  move-issue-to-in-review:
+    if: github.event_name == 'pull_request' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get linked issues for review
+        id: get-review-issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prTitle = context.payload.pull_request.title || '';
+            const prBody = context.payload.pull_request.body || '';
+            const branchName = context.payload.pull_request.head.ref || '';
+            const issueNumbers = [];
+            
+            console.log(`PR Title: ${prTitle}`);
+            console.log(`Branch: ${branchName}`);
+            
+            const patterns = [
+              /(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#(\d+)/gi,
+              /#(\d+)/g,
+              /issue[_-]?(\d+)/gi,
+              /feature[/_-]issue[_-]?(\d+)/gi,
+              /fix[/_-]issue[_-]?(\d+)/gi,
+              /(\d+)[_-]?/g,
+              /[_-](\d+)$/g
+            ];
+            
+            const texts = [prTitle, prBody, branchName];
+            
+            texts.forEach(text => {
+              patterns.forEach(pattern => {
+                let match;
+                while ((match = pattern.exec(text)) !== null) {
+                  const issueNum = match[1];
+                  if (issueNum && issueNum.length <= 4) {
+                    issueNumbers.push(issueNum);
+                  }
+                }
+              });
+            });
+            
+            const uniqueIssues = [...new Set(issueNumbers)];
+            console.log(`Found issues: ${uniqueIssues}`);
+            return uniqueIssues;
+
+      - name: Move linked issues to In Review
+        if: steps.get-review-issues.outputs.result != '[]'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
+          script: |
+            const issueNumbers = ${{ steps.get-review-issues.outputs.result }};
+            
+            for (const issueNumber of issueNumbers) {
+              try {
+                console.log(`Moving issue #${issueNumber} to In Review (PR created)`);
+                
+                const query = `
+                  query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                    repository(owner: $owner, name: $repo) {
+                      issue(number: $issueNumber) {
+                        projectItems(first: 10) {
+                          nodes {
+                            id
+                            project {
+                              id
+                              title
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                `;
+                
+                const result = await github.graphql(query, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issueNumber: parseInt(issueNumber)
+                });
+                
+                for (const item of result.repository.issue.projectItems.nodes) {
+                  const updateQuery = `
+                    mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: String!) {
+                      updateProjectV2ItemFieldValue(
+                        input: {
+                          projectId: $projectId
+                          itemId: $itemId
+                          fieldId: $fieldId
+                          value: {singleSelectOptionId: $value}
+                        }
+                      ) {
+                        projectV2Item {
+                          id
+                        }
+                      }
+                    }
+                  `;
+                  
+                                      await github.graphql(updateQuery, {
+                      projectId: item.project.id,
+                      itemId: item.id,
+                      fieldId: process.env.STATUS_FIELD_ID,
+                      value: process.env.IN_REVIEW_OPTION_ID
+                    });
+                }
+              } catch (error) {
+                console.log(`Error moving issue #${issueNumber} to review: ${error.message}`);
+              }
+            }
+
+  move-issue-to-done:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get linked issues and move to Done
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
+          script: |
+            const prTitle = context.payload.pull_request.title || '';
+            const prBody = context.payload.pull_request.body || '';
+            const branchName = context.payload.pull_request.head.ref || '';
+            const issueNumbers = [];
+            
+            const patterns = [
+              /(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#(\d+)/gi,
+              /#(\d+)/g,
+              /issue[_-]?(\d+)/gi,
+              /feature[/_-]issue[_-]?(\d+)/gi,
+              /fix[/_-]issue[_-]?(\d+)/gi,
+              /(\d+)[_-]?/g,
+              /[_-](\d+)$/g
+            ];
+            
+            const texts = [prTitle, prBody, branchName];
+            
+            texts.forEach(text => {
+              patterns.forEach(pattern => {
+                let match;
+                while ((match = pattern.exec(text)) !== null) {
+                  const issueNum = match[1];
+                  if (issueNum && issueNum.length <= 4) {
+                    issueNumbers.push(issueNum);
+                  }
+                }
+              });
+            });
+            
+            for (const issueNumber of [...new Set(issueNumbers)]) {
+              try {
+                console.log(`Closing issue #${issueNumber} and moving to Done`);
+                
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: parseInt(issueNumber),
+                  state: 'closed'
+                });
+                
+                console.log(`Issue #${issueNumber} closed successfully`);
+                
+              } catch (error) {
+                console.log(`Error closing issue #${issueNumber}: ${error.message}`);
+              }
+            }

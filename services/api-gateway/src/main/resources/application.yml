@@ -1,0 +1,94 @@
+# Import environment variables
+spring:
+  config:
+    import: optional:file:.env[.properties]
+  application:
+    name: ${SPRING_APP_NAME:api-gateway}
+  profiles:
+    active: ${PROFILE:default}
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: false
+
+  grpc:
+    upload:
+      chuck-size: 4096
+      timeout-seconds: 60
+      max-file-size: 104857600
+    client:
+      channels:
+        auth-service:
+          address: "${AUTH_SERVICE_HOST:localhost}:${AUTH_SERVICE_PORT:9092}"
+          keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
+          keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
+          keep-alive-without-calls: true
+          max-inbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          max-outbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
+        user-service:
+          address: "${USER_SERVICE_HOST:localhost}:${USER_SERVICE_PORT:9093}"
+          keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
+          keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
+          keep-alive-without-calls: true
+          max-inbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          max-outbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
+        article-service:
+          address: "${ARTICLE_SERVICE_HOST:localhost}:${ARTICLE_SERVICE_PORT:9092}"
+          keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
+          keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
+          keep-alive-without-calls: true
+          max-inbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          max-outbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
+        lab-service:
+          address: "${LAB_SERVICE_HOST:localhost}:${LAB_SERVICE_PORT:9093}"
+          keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
+          keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
+          keep-alive-without-calls: true
+          max-inbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          max-outbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
+        feedback-service:
+          address: "${FEEDBACK_SERVICE_HOST:localhost}:${FEEDBACK_SERVICE_PORT:9094}"
+          keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
+          keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
+          keep-alive-without-calls: true
+          max-inbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          max-outbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
+
+server:
+  port: ${SPRING_APP_PORT:8080}
+
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    olsh.backend: ${LOG_LEVEL_APP:DEBUG}
+    org.springframework.grpc: ${LOG_LEVEL_GRPC:INFO}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%-5level] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# OpenAPI Documentation Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true
+  default-produces-media-type: application/json
+  default-consumes-media-type: application/json

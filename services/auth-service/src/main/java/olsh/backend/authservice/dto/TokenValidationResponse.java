@@ -15,14 +15,8 @@ public class TokenValidationResponse {
     @Schema(description = "Whether token is valid", example = "true")
     private boolean valid;
 
-    @Schema(description = "User ID extracted from token", example = "123")
-    private Long userId;
-
-    @Schema(description = "Username extracted from token", example = "johndoe")
-    private String username;
-
-    @Schema(description = "User role extracted from token", example = "USER")
-    private String role;
+    @Schema(description = "User information extracted from token")
+    private UserInfo userInfo;
 
     @Schema(description = "Token expiration timestamp", example = "1622506800")
     private Long expirationTime;

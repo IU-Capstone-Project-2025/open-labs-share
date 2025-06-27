@@ -1,0 +1,42 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy ML service requirements
+COPY ml/rag_backend/requirements.txt /app/requirements.txt
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the entire ml directory
+COPY ml/ /app/ml/
+
+# Copy and make startup script executable
+COPY ml/startup.sh /app/startup.sh
+RUN chmod +x /app/startup.sh
+
+# Create necessary directories
+RUN mkdir -p /app/models
+
+# Set working directory to ml for the service
+WORKDIR /app/ml
+
+# Expose the port
+EXPOSE 8081
+
+# Set environment variables
+ENV PYTHONPATH=/app/ml
+ENV DEVICE=cpu
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8081/docs || exit 1
+
+# Run the startup script
+CMD ["/app/startup.sh"] 

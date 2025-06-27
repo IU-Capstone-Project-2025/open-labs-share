@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: users-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/users_service}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: ${HIBERNATE_DDL_AUTO:create-drop}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: ${SHOW_SQL:false}
+  grpc:
+    server:
+      port: ${GRPC_PORT:9093}
+      reflection:
+        enabled: true
+    auth-service:
+      host: ${AUTH_SERVICE_HOST:localhost}
+      port: ${AUTH_SERVICE_PORT:8383}
+
+logging:
+  level:
+    olsh.backend.usersservice: ${LOG_LEVEL:INFO}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env
+  endpoint:
+    health:
+      show-details: when-authorized
+  info:
+    env:
+      enabled: true
+    java:
+      enabled: true
+    build:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}

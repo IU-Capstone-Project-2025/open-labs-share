@@ -1,0 +1,241 @@
+name: PR Telegram Notification
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Send or Update Telegram Message
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_ACTION: ${{ github.event.action }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_ASSIGNEES: ${{ join(github.event.pull_request.assignees.*.login, ', ') }}
+          PR_REVIEWERS: ${{ join(github.event.pull_request.requested_reviewers.*.login, ', ') }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          cat << 'EOF' > telegram_updater.py
+          import os
+          import requests
+          import json
+          import re
+          from datetime import datetime
+          
+          TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
+          CHAT_ID = os.environ['TELEGRAM_CHAT_ID']
+          PR_NUMBER = os.environ['PR_NUMBER']
+          PR_URL = os.environ['PR_URL']
+          
+          def escape_markdown(text):
+              """Escape special characters for Telegram Markdown"""
+              if not text:
+                  return text
+              # Escape underscores, asterisks, backticks, and square brackets
+              text = text.replace('_', '\\_')
+              text = text.replace('*', '\\*')
+              text = text.replace('`', '\\`')
+              text = text.replace('[', '\\[')
+              text = text.replace(']', '\\]')
+              return text
+          
+          def get_message_title(action, merged):
+              titles = {
+                  'opened': '🔔 New Pull Request Created!',
+                  'edited': '✏️ Pull Request Updated!',
+                  'reopened': '🔄 Pull Request Reopened!',
+                  'ready_for_review': '👀 Pull Request Ready for Review!',
+                  'review_requested': '📝 Review Requested!'
+              }
+              
+              if action == 'closed':
+                  return '🎉 Pull Request Merged!' if merged == 'true' else '❌ Pull Request Closed!'
+              
+              return titles.get(action, '📬 Pull Request Activity!')
+          
+          def create_message():
+              action = os.environ['PR_ACTION']
+              merged = os.environ['PR_MERGED']
+              assignees = os.environ['PR_ASSIGNEES'] or 'None'
+              reviewers = os.environ['PR_REVIEWERS'] or 'None'
+              
+              # Escape markdown in dynamic fields
+              escaped_title = escape_markdown(os.environ['PR_TITLE'])
+              escaped_author = escape_markdown(os.environ['PR_AUTHOR'])
+              escaped_body = escape_markdown(os.environ['PR_BODY']) if os.environ['PR_BODY'] else 'No description provided'
+              escaped_head_ref = escape_markdown(os.environ['PR_HEAD_REF'])
+              escaped_base_ref = escape_markdown(os.environ['PR_BASE_REF'])
+              
+              # Add unique identifier to find this message later
+              pr_identifier = f"TELEGRAM_BOT_PR_{PR_NUMBER}_IDENTIFIER"
+              
+              return f"""**⭐ Check out new PR ⭐**
+          📋 **Title:** {escaped_title}
+          👤 **Author:** {escaped_author}
+          🌿 **Branch:** {escaped_head_ref} → {escaped_base_ref}
+          🔗 **URL:** {PR_URL}
+          👥 **Assignees:** {assignees}
+          👀 **Reviewers:** {reviewers}
+          📝 **Description:**
+          {escaped_body}
+          
+          `{pr_identifier}`"""
+          
+          def find_existing_message():
+              """Find existing message for this PR by searching recent messages"""
+              # Try multiple approaches to find the message
+              message_id = None
+              
+              # Method 1: Search in getUpdates
+              message_id = search_in_updates()
+              if message_id:
+                  return message_id
+              
+              # Method 2: Try with different offset values
+              for offset in [0, -50, -100]:
+                  message_id = search_in_updates(offset)
+                  if message_id:
+                      return message_id
+              
+              print(f"Could not find existing message for PR #{PR_NUMBER}")
+              return None
+          
+          def search_in_updates(offset=0):
+              """Search for PR message in Telegram updates"""
+              try:
+                  url = f'https://api.telegram.org/bot{TOKEN}/getUpdates'
+                  params = {'limit': 100}
+                  if offset != 0:
+                      params['offset'] = offset
+                  
+                  response = requests.get(url, params=params)
+                  updates = response.json()
+                  
+                  if not updates.get('ok'):
+                      print(f"Failed to get updates with offset {offset}: {updates}")
+                      return None
+                  
+                  # Look for messages containing this PR identifier
+                  pr_identifier = f"TELEGRAM_BOT_PR_{PR_NUMBER}_IDENTIFIER"
+                  chat_id_int = int(CHAT_ID)
+                  
+                  print(f"Searching for PR identifier: {pr_identifier} (offset: {offset})")
+                  
+                  results = updates.get('result', [])
+                  print(f"Found {len(results)} updates to check")
+                  
+                  for update in reversed(results):
+                      if 'message' in update:
+                          message = update['message']
+                          message_chat_id = message.get('chat', {}).get('id')
+                          message_text = message.get('text', '')
+                          message_id = message.get('message_id')
+                          
+                          if message_chat_id == chat_id_int and pr_identifier in message_text:
+                              print(f"Found existing message with ID: {message_id}")
+                              return message_id
+                  
+                  return None
+              except Exception as e:
+                  print(f"Error searching updates with offset {offset}: {e}")
+                  return None
+          
+          def main():
+              action = os.environ['PR_ACTION']
+              print(f"Processing action: {action} for PR #{PR_NUMBER}")
+              
+              if action in ['opened', 'review_requested']:
+                  # Check if message already exists for this PR
+                  existing_message_id = find_existing_message()
+                  
+                  if existing_message_id:
+                      # Update existing message
+                      message = create_message()
+                      print(f"Updating existing message with ID: {existing_message_id}")
+                      update_existing_message(existing_message_id, message)
+                  else:
+                      # Send new message
+                      message = create_message()
+                      print(f"Sending new message for '{action}' action...")
+                      send_new_message(message)
+              else:
+                  print(f"Action is '{action}' - no message will be sent")
+          
+          def send_new_message(message):
+              """Send a new Telegram message"""
+              print("Attempting to send new message...")
+              send_url = f'https://api.telegram.org/bot{TOKEN}/sendMessage'
+              send_data = {
+                  'chat_id': CHAT_ID,
+                  'text': message,
+                  'parse_mode': 'Markdown',
+                  'disable_web_page_preview': True
+              }
+              
+              try:
+                  response = requests.post(send_url, json=send_data)
+                  result = response.json()
+                  
+                  if result.get('ok'):
+                      print('New message sent successfully')
+                      print(f'Message ID: {result.get("result", {}).get("message_id")}')
+                  else:
+                      print(f'Failed to send message: {result}')
+              except Exception as e:
+                  print(f'Error sending message: {e}')
+          
+          def update_existing_message(message_id, message):
+              """Update an existing Telegram message"""
+              print(f"Attempting to update message {message_id}...")
+              edit_url = f'https://api.telegram.org/bot{TOKEN}/editMessageText'
+              edit_data = {
+                  'chat_id': CHAT_ID,
+                  'message_id': message_id,
+                  'text': message,
+                  'parse_mode': 'Markdown',
+                  'disable_web_page_preview': True
+              }
+              
+              try:
+                  response = requests.post(edit_url, json=edit_data)
+                  result = response.json()
+                  
+                  if result.get('ok'):
+                      print('Message updated successfully')
+                  else:
+                      print(f'Failed to update message: {result.get("description", "Unknown error")}')
+                      # If update fails, send a new message instead
+                      print("Falling back to sending new message...")
+                      send_new_message(message)
+              except Exception as e:
+                  print(f'Error updating message: {e}')
+                  # If update fails, send a new message instead
+                  print("Falling back to sending new message...")
+                  send_new_message(message)
+          
+          if __name__ == '__main__':
+              main()
+          EOF
+          
+          python telegram_updater.py 
