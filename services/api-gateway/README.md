@@ -109,6 +109,8 @@ The service can be configured using environment variables, which are imported fr
 | `ARTICLE_SERVICE_PORT`  | Port for the Article gRPC service.                 | `9092`        |
 | `LAB_SERVICE_HOST`      | Hostname for the Lab gRPC service.                 | `localhost`   |
 | `LAB_SERVICE_PORT`      | Port for the Lab gRPC service.                     | `9093`        |
+| `FEEDBACK_SERVICE_HOST` | Hostname for the Feedback gRPC service.            | `localhost`   |
+| `FEEDBACK_SERVICE_PORT` | Port for the Feedback gRPC service.                | `9094`        |
 | `GRPC_NEGOTIATION_TYPE` | gRPC negotiation type (e.g., `plaintext` or `tls`).| `plaintext`   |
 
 
