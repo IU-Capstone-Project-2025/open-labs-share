@@ -26,6 +26,8 @@ sudo docker run --name chat-postgres --env-file ml/.env -v pgdata:/var/lib/postg
 - Run `rag_backend/utils/storage_setup` script if it is your first app run
 - Run fastapi server: `uvicorn rag_backend.main:app --host 0.0.0.0 --port 8081 `
 
+If you want to run container on gpu, install nvidia container toolkit: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+
 # Handlers documentation
 ## **/ask** `POST` 
 
