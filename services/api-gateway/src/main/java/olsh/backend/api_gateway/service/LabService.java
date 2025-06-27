@@ -167,6 +167,32 @@ public class LabService {
         }
     }
 
+    public LabListResponse getMyLabs(GetLabsRequest request, Long userId){
+        LabListResponse allLabsResponse = getLabs(request);
+
+        // Filter labs by current user
+        List<LabResponse> userLabs = allLabsResponse.getLabs().stream()
+                .filter(lab -> lab.getAuthorId().equals(userId))
+                .collect(Collectors.toList());
+
+        // Build filtered response
+        LabListResponse.PaginationResponse pagination =
+                LabListResponse.PaginationResponse.builder()
+                        .currentPage(request.getPage())
+                        .totalPages(1)
+                        .totalItems(userLabs.size())
+                        .build();
+
+        LabListResponse response = LabListResponse.builder()
+                .labs(userLabs)
+                .pagination(pagination)
+                .build();
+
+        log.debug("Successfully retrieved my labs list with {} labs for user {}",
+                userLabs.size(), userId);
+        return response;
+    }
+
     public DeleteLabResponse deleteLab(Long labId, Long userId) {
         log.debug("Deleting lab with ID: {} by user: {}", labId, userId);
 

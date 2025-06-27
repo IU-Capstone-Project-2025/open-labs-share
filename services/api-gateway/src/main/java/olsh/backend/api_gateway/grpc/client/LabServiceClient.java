@@ -171,7 +171,7 @@ public class LabServiceClient {
     }
 
     private long streamFileContent(StreamObserver<UploadAssetRequest> requestObserver, MultipartFile file) throws IOException {
-        byte[] buffer = new byte[4096];
+        byte[] buffer = new byte[uploadConfig.getChunkSize()];
         long totalSent = 0;
 
         try (InputStream inputStream = file.getInputStream()) {
