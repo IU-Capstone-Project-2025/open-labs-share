@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { getCurrentUser } from '../utils/auth';
 import { mlAPI } from '../utils/api';
 
-const ChatWindow = ({ labId, isOpen, onToggle }) => {
+const ChatWindow = ({ labId, isOpen, onToggle, chatMode, onSetChatMode }) => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -94,6 +95,9 @@ const ChatWindow = ({ labId, isOpen, onToggle }) => {
     }
   };
 
+  const floatingStyles = "fixed bottom-6 right-6 w-[400px] h-[500px] min-w-[350px] min-h-[400px] max-w-[90vw] max-h-[90vh] rounded-lg resize overflow-auto";
+  const sidebarStyles = "fixed top-0 right-0 h-full w-[400px] border-l";
+
   if (!isOpen) {
     return (
       <button
@@ -109,7 +113,9 @@ const ChatWindow = ({ labId, isOpen, onToggle }) => {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 w-96 h-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 flex flex-col z-50">
+    <div 
+      className={`bg-white dark:bg-gray-800 shadow-xl border-gray-200 dark:border-gray-700 flex flex-col z-50 transition-all duration-300 ${chatMode === 'floating' ? floatingStyles : sidebarStyles}`}
+    >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center space-x-2">
@@ -123,14 +129,27 @@ const ChatWindow = ({ labId, isOpen, onToggle }) => {
             <p className="text-xs text-gray-500 dark:text-gray-400">Ask questions about this lab</p>
           </div>
         </div>
-        <button
-          onClick={onToggle}
-          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => onSetChatMode(chatMode === 'floating' ? 'sidebar' : 'floating')}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            title={chatMode === 'floating' ? 'Dock to sidebar' : 'Float window'}
+          >
+            {chatMode === 'floating' ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 15V9a2 2 0 012-2h12a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2z" /></svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 21h7a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v5m0 0h5m-5 0v5" /></svg>
+            )}
+          </button>
+          <button
+            onClick={onToggle}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
@@ -161,7 +180,9 @@ const ChatWindow = ({ labId, isOpen, onToggle }) => {
                     : 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white'
                 }`}
               >
-                <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <ReactMarkdown>{message.text}</ReactMarkdown>
+                </div>
                 <p className={`text-xs mt-1 ${
                   message.isUser ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
                 }`}>

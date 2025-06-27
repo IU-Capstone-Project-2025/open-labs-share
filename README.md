@@ -32,23 +32,33 @@ Open Labs Share is a collaborative learning platform that combines practical lab
 
 1. Clone our project: `git clone https://github.com/IU-Capstone-Project-2025/open-labs-share.git`
 2. Go into project folder on your system: `cd open-labs-share`
-3. Start our app (*hello-world* for now) using Docker Compose: `docker-compose up --build -d`
-4. Check `http://localhost:5173/`, there will render by the frontend. Please, read [Frontend Docs](frontend/README.md) before.
-5. After it, you can visit `http://localhost:8080/api/v1/hello`, there will be phrase - "Hello world! This is Capstone =)"
+3. Start our app using Docker Compose: `docker-compose up --build -d`
+4. Check `http://localhost:5173/` for the frontend.
+5. The API gateway is available at `http://localhost:8080/`.
 
 ## Services Architecture
 
 The platform consists of multiple microservices, each handling specific functionality:
 
 | Service | URL | Description | Documentation |
-|---------|-----|-------------|---------------|
-| **Frontend** | <http://localhost:5173/> | React + Vite frontend application | [Frontend Docs](frontend/README.md) |
-| **API Gateway** | - | Central routing and authentication gateway | [API Gateway Docs](services/api-gateway/README_API_GATEWAY.md) |
-| **Auth Service** | - | User authentication and JWT token management | [Auth Service](services/auth-service/AUTH_README.md) · [API Docs](services/auth-service/AUTH_API_DOCUMENTATION.md) |
-| **Labs Service** | - | Laboratory assignments and submissions management | [Labs Service Docs](services/labs-service/LABS_README.md) |
-| **Articles Service** | - | Scientific articles repository and management | [Articles Service Docs](services/articles-service/ARTICLES_README.md) |
-| **Feedback Service** | - | Lab feedback and comments system | [Feedback Service Docs](services/feedback-service/FEEDBACK_README.md) |
-| **Hello World App** | <http://localhost:8080/api/v1/hello> | Simple demo service for testing | - |
+|---|---|---|---|
+| **Frontend** | `http://localhost:5173` | React + Vite frontend application | [Frontend Docs](frontend/README.md) |
+| **API Gateway** | `http://localhost:8080` | Central routing and authentication gateway | [API Gateway Docs](services/api-gateway/DEPLOY.md) |
+| **Auth Service** | `http://localhost:8081` | User authentication and JWT token management | [Auth Service](services/auth-service/AUTH_README.md) · [API Docs](services/auth-service/AUTH_API_DOCUMENTATION.md) |
+| **Users Service** | gRPC on port `9093` | Manages user profiles and data | [Users Service Docs](services/users-service/README.md) |
+| **Labs Service** | gRPC on port `9091` | Manages lab assignments and submissions | [Labs Service Docs](services/labs-service/LABS_README.md) |
+| **Feedback Service** | gRPC on port `9090` | Lab feedback and comments system | [Feedback Service Docs](services/feedback-service/FEEDBACK_README.md) |
+| **ML Service** | `http://localhost:8083` | AI assistant for lab-related questions | [ML Service Docs](ml/README.md) |
+
+### Data Storage
+
+| Service | URL | Description |
+|---|---|---|
+| **PostgreSQL (Users)** | `localhost:5432` | Stores user data |
+| **PostgreSQL (Feedback)**| `localhost:5435` | Stores feedback and comments |
+| **PostgreSQL (Labs)** | `localhost:5434` | Stores lab data |
+| **PostgreSQL (ML)** | `localhost:5433` | Stores chat history for the ML service |
+| **MinIO** | `http://localhost:9000` | S3-compatible object storage for lab assets and submissions |
 
 ## Contributing
 
