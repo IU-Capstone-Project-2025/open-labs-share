@@ -1,4 +1,6 @@
 syntax = "proto3";
+option java_package = "olsh.backend.api_gateway.grpc.proto";
+option java_outer_classname = "LabProto";
 
 package labs;
 
@@ -138,4 +140,3 @@ message AssetList {
   int64 total_count = 1;
   repeated Asset assets = 2;
 }
-

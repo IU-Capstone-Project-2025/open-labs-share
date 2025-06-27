@@ -1,0 +1,44 @@
+name: Protocol Buffer Validation
+
+on:
+  push:
+    branches: [ main, dev ]
+    paths:
+      - '**/*.proto'
+      - 'scripts/validate-proto.sh'
+      - '.github/workflows/proto-validation.yml'
+  pull_request:
+    branches: [ main, dev ]
+    paths:
+      - '**/*.proto'
+      - 'scripts/validate-proto.sh'
+      - '.github/workflows/proto-validation.yml'
+
+jobs:
+  proto-validation:
+    name: Validate Protocol Buffer Files
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y protobuf-compiler
+        protoc --version
+        
+    - name: Run Proto Validation
+      run: |
+        chmod +x scripts/validate-proto.sh
+        ./scripts/validate-proto.sh
+        
+    - name: Upload validation results as artifact
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: proto-validation-results
+        path: |
+          **/*.proto
+        retention-days: 7 
