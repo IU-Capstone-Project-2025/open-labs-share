@@ -2,8 +2,6 @@ package olsh.backend.api_gateway.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Validator;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.annotation.RequireAuth;
 import olsh.backend.api_gateway.dto.request.CreateLabRequest;
@@ -14,12 +12,13 @@ import olsh.backend.api_gateway.dto.response.LabListResponse;
 import olsh.backend.api_gateway.dto.response.LabResponse;
 import olsh.backend.api_gateway.dto.response.AssetListResponse;
 import olsh.backend.api_gateway.service.LabService;
-import olsh.backend.api_gateway.controller.RequestAttributesExtractor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,13 +40,11 @@ public class LabController {
 
     private final LabService labService;
     private final RequestAttributesExtractor attributesProvider;
-    private final Validator validator;
 
     @Autowired
-    public LabController(LabService labService, RequestAttributesExtractor attributesProvider, Validator validator) {
+    public LabController(LabService labService, RequestAttributesExtractor attributesProvider) {
         this.labService = labService;
         this.attributesProvider  = attributesProvider;
-        this.validator = validator;
     }
 
     @Operation(
@@ -122,86 +119,54 @@ public class LabController {
     }
 
     @Operation(
-        summary = "Get list of labs",
-        description = "Retrieves a paginated list of laboratory works. Requires authentication."
+            summary = "Get my labs",
+            description = "Retrieves a paginated list of laboratory works created by the current user. Requires authentication."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Labs retrieved successfully",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = LabListResponse.class))
-        ),
-        @ApiResponse(responseCode = "400", description = "Invalid pagination parameters"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required")
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "User's labs retrieved successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = LabListResponse.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Invalid pagination parameters"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required")
     })
     @RequireAuth
     @GetMapping("/my")
-    public ResponseEntity<?> getMyLabs(
-            @RequestParam(value = "page", defaultValue = "1") Integer page,
-            @RequestParam(value = "limit", defaultValue = "20") Integer limit,
+    public ResponseEntity<LabListResponse> getMyLabs(
+            @ParameterObject @Valid GetLabsRequest request,
             HttpServletRequest httpRequest) {
-        log.debug("Received request to get my labs with page: {}, limit: {}", page, limit);
+        log.debug("Received request to get my labs with page: {}, limit: {}",
+                request.getPage(), request.getLimit());
 
         Long userId = attributesProvider.extractUserIdFromRequest(httpRequest);
         log.debug("Getting labs for user ID: {}", userId);
-
-        GetLabsRequest request = new GetLabsRequest();
-        request.setPage(page);
-        request.setLimit(limit);
-
-        Set<ConstraintViolation<GetLabsRequest>> violations = validator.validate(request);
-        if (!violations.isEmpty()) {
-            String errors = violations.stream()
-                    .map(ConstraintViolation::getMessage)
-                    .collect(Collectors.joining(", "));
-            return ResponseEntity.badRequest().body("Invalid arguments provided: " + errors);
-        }
-        
-        // Get all labs and filter on the backend
-        LabListResponse allLabsResponse = labService.getLabs(request);
-        
-        // Filter labs by current user
-        java.util.List<LabResponse> userLabs = allLabsResponse.getLabs().stream()
-                .filter(lab -> lab.getAuthorId().equals(userId))
-                .collect(Collectors.toList());
-        
-        // Build filtered response
-        LabListResponse.PaginationResponse pagination =
-                LabListResponse.PaginationResponse.builder()
-                        .currentPage(page)
-                        .totalPages(1)
-                        .totalItems(userLabs.size())
-                        .build();
-
-        LabListResponse response = LabListResponse.builder()
-                .labs(userLabs)
-                .pagination(pagination)
-                .build();
-        
-        log.debug("Successfully retrieved my labs list with {} labs for user {}", userLabs.size(), userId);
+        LabListResponse response = labService.getMyLabs(request, userId);
         return ResponseEntity.ok(response);
     }
 
+    @Operation(
+            summary = "Get list of labs",
+            description = "Retrieves a paginated list of laboratory works. Requires authentication."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Labs retrieved successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = LabListResponse.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Invalid pagination parameters"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required")
+    })
     @RequireAuth
     @GetMapping
-    public ResponseEntity<?> getLabs(
-            @RequestParam(value = "page", defaultValue = "1") Integer page,
-            @RequestParam(value = "limit", defaultValue = "20") Integer limit,
+    public ResponseEntity<LabListResponse> getLabs(
+            @ParameterObject @Valid GetLabsRequest request,
             HttpServletRequest httpRequest) {
-        log.debug("Received request to get labs with page: {}, limit: {}", page, limit);
 
-        GetLabsRequest request = new GetLabsRequest();
-        request.setPage(page);
-        request.setLimit(limit);
+        log.debug("Received request to get labs with page: {}, limit: {}",
+                request.getPage(), request.getLimit());
 
-        Set<ConstraintViolation<GetLabsRequest>> violations = validator.validate(request);
-        if (!violations.isEmpty()) {
-            String errors = violations.stream()
-                    .map(ConstraintViolation::getMessage)
-                    .collect(Collectors.joining(", "));
-            return ResponseEntity.badRequest().body("Invalid arguments provided: " + errors);
-        }
-        
         LabListResponse response = labService.getLabs(request);
         log.debug("Successfully retrieved labs list with {} labs", response.getLabs().size());
         return ResponseEntity.ok(response);
