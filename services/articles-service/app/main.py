@@ -10,8 +10,8 @@ from concurrent import futures
 
 # Import project files
 from config import Config
-import proto.articles_pb2 as stub # Generated from articles_service.proto
-import proto.articles_pb2_grpc as service # Generated from articles_service.proto
+import proto.articles_service_pb2 as stub # Generated from articles_service.proto
+import proto.articles_service_pb2_grpc as service # Generated from articles_service.proto
 from utils.models import Article, ArticleAsset
 
 
