@@ -30,28 +30,28 @@ Article Service is the central repository of all scientific articles on the Open
 
 1. **Article:**
 
-| Field        | Type           |
-|--------------|----------------|
-| id (PK)      | UUID / long    |
-| owner_id     | UUID / long    |
-| title        | string         |
-| created_at   | datestamp      |
-| updated_at   | datestamp      |
-| abstract     | string         |
-| views        | integer        |
-| stars        | integer / long |
-| people_rated | integer / long |
+| Field        | Type      |
+|--------------|-----------|
+| id (PK)      | long      |
+| owner_id     | long      |
+| title        | string    |
+| created_at   | datestamp |
+| updated_at   | datestamp |
+| abstract     | string    |
+| views        | long      |
+| stars        | long      |
+| people_rated | long      |
 
 
 2. **Article assets:**
 
-| Field       | Type           |
-|-------------|----------------|
-| id (PK)     | UUID / long    |
-| article_id  | UUID / long    |
-| filename    | string         |
-| total_size  | integer / long |
-| uploaded_at | datestamp      |
+| Field       | Type      |
+|-------------|-----------|
+| id (PK)     | long      |
+| article_id  | long      |
+| filename    | string    |
+| filesize    | long      |
+| upload_date | datestamp |
 
 
 # gRPC Contract
