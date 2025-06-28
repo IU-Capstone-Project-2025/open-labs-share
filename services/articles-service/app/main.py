@@ -10,8 +10,8 @@ from concurrent import futures
 
 # Import project files
 from config import Config
-import proto.articles_pb2 as stub # Generated from labs.proto
-import proto.articles_pb2_grpc as service # Generated from labs.proto
+import proto.articles_pb2 as stub # Generated from articles_service.proto
+import proto.articles_pb2_grpc as service # Generated from articles_service.proto
 from utils.models import Article, ArticleAsset
 
 
@@ -181,7 +181,7 @@ class ArticleService(service.ArticleServiceServicer):
                 # Put the file in MinIO
                 self.minio_client.fput_object(
                     "articles",
-                    f"{new_asset.lab_id}/{new_asset.filename}",
+                    f"{new_asset.article_id}/{new_asset.filename}",
                     f'files/{new_asset.filename}'
                 )
 
@@ -224,7 +224,7 @@ class ArticleService(service.ArticleServiceServicer):
 
             # Try to remove the old asset file from MinIO
             try:
-                self.minio_client.remove_object('labs', f"{lab_asset.lab_id}/{lab_asset.filename}")
+                self.minio_client.remove_object('articles', f"{article_asset.article_id}/{article_asset.filename}")
             except Exception as e:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
                 context.set_details(f"Failed to delete asset from MinIO: {str(e)}")
@@ -284,7 +284,7 @@ class ArticleService(service.ArticleServiceServicer):
                 # Download the file from MinIO
                 try:
                     self.minio_client.fget_object(
-                        "labs",
+                        "articles",
                         f"{article_asset.article_id}/{article_asset.filename}",
                         f'files/{article_asset.filename}'
                     )
@@ -311,6 +311,8 @@ class ArticleService(service.ArticleServiceServicer):
         data: dict = {
             "asset_id": request.asset_id
         }
+
+        print(data)
 
         with Session(self.engine) as session:
             stmt = select(ArticleAsset).where(ArticleAsset.id == data["asset_id"])

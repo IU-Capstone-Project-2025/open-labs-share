@@ -119,7 +119,7 @@ def DownloadAsset(stub, asset_id):
 
 
 def DeleteAsset(stub, asset_id):
-    response = stub.DeleteAsset(cf.DeleteAssetRequest())
+    response = stub.DeleteAsset(cf.DeleteAssetRequest(asset_id=asset_id))
     print(response)
 
 
@@ -129,14 +129,14 @@ def ListAssets(stub, article_id):
     ))
     print(response)
     for asset in response.assets:
-        print(f"Asset ID: {asset.id}, Filename: {asset.filename}, Filesize: {asset.filesize}")
+        print(f"Asset ID: {asset.asset_id}, Article ID: {asset.article_id}, Filename: {asset.filename}, Filesize: {asset.filesize}")
 
 
 def main(server_address: str):
     with grpc.insecure_channel(server_address) as channel:
         stub = cf_grpc.ArticleServiceStub(channel)
 
-        # CreateArticle(stub, number=1)
+        # CreateArticle(stub, number=2)
 
         # GetArticle(stub, article_id=1)
 
@@ -146,7 +146,7 @@ def main(server_address: str):
 
         # DeleteArticle(stub, article_id=1)
 
-        # UploadAsset(stub, article_id=1, filename='output.png')
+        # UploadAsset(stub, article_id=2, filename='output.png')
 
         # UpdateAsset(stub, asset_id=1, filename='logo.png')
 
@@ -154,7 +154,7 @@ def main(server_address: str):
 
         # DeleteAsset(stub, asset_id=1)
 
-        # ListAssets(stub, article_id=1)
+        ListAssets(stub, article_id=2)
 
 
 if __name__ == "__main__":

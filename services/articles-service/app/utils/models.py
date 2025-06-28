@@ -45,7 +45,7 @@ class ArticleAsset(Base, SerializerMixin):
     article_id: Mapped[int] = mapped_column(BigInteger, ForeignKey('articles.id', ondelete="CASCADE"), nullable=False)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     filesize: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    uploaded_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    upload_date: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
     article = relationship("Article", back_populates="assets")
 
@@ -58,5 +58,5 @@ class ArticleAsset(Base, SerializerMixin):
             "article_id": self.article_id,
             "filename": self.filename.encode('utf-8').decode('utf-8'),
             "filesize": self.filesize,
-            "uploaded_at": self.uploaded_at
+            "upload_date": self.upload_date
         }

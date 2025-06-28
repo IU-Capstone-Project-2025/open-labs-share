@@ -16,7 +16,7 @@ CREATE TABLE article_assets (
     article_id BIGINT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
     filename VARCHAR(255) NOT NULL,
     filesize BIGINT NOT NULL,
-    uploaded_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+    upload_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes for better performance
