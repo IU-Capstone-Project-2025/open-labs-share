@@ -1,12 +1,11 @@
 package olsh.backend.api_gateway.grpc.client;
 
-import com.olsh.users.proto.GetUserInfoRequest;
-import com.olsh.users.proto.UserInfoResponse;
-import com.olsh.users.proto.UsersServiceGrpc;
 import io.grpc.Channel;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.exception.UserNotFoundException;
 import olsh.backend.api_gateway.grpc.model.UserData;
+import olsh.backend.api_gateway.grpc.proto.UsersServiceGrpc;
+import olsh.backend.api_gateway.grpc.proto.UsersServiceProto.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.grpc.client.GrpcChannelFactory;
 import org.springframework.stereotype.Service;

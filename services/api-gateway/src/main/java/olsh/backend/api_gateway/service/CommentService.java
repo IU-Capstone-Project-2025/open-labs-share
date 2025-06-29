@@ -1,6 +1,5 @@
 package olsh.backend.api_gateway.service;
 
-import olsh.backend.api_gateway.dto.request.CreateCommentRequest;
 import olsh.backend.api_gateway.dto.request.GetCommentsRequest;
 import olsh.backend.api_gateway.dto.request.UpdateCommentRequest;
 import olsh.backend.api_gateway.dto.response.CommentListResponse;
@@ -10,6 +9,7 @@ import olsh.backend.api_gateway.exception.ForbiddenAccessException;
 import olsh.backend.api_gateway.exception.LabNotFoundException;
 import olsh.backend.api_gateway.exception.UserNotFoundException;
 import olsh.backend.api_gateway.grpc.client.CommentServiceClient;
+import olsh.backend.api_gateway.dto.request.CreateCommentRequest;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

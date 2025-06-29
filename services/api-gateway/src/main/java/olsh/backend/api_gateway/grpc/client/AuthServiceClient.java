@@ -4,9 +4,9 @@ import io.grpc.Channel;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.grpc.model.AuthValidationResponse;
 import olsh.backend.api_gateway.grpc.proto.AuthServiceGrpc;
+import olsh.backend.api_gateway.grpc.proto.AuthServiceProto;
+import olsh.backend.api_gateway.grpc.proto.AuthServiceProto.*;
 import olsh.backend.api_gateway.grpc.model.UserInfo;
-import olsh.backend.api_gateway.grpc.proto.ValidateTokenRequest;
-import olsh.backend.api_gateway.grpc.proto.ValidateTokenResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.grpc.client.GrpcChannelFactory;
 import org.springframework.stereotype.Service;
@@ -38,7 +38,9 @@ public class AuthServiceClient {
         // Convert gRPC response to our model
         UserInfo userInfo = null;
         if (response.hasUserInfo()) {
-            olsh.backend.api_gateway.grpc.proto.UserInfo grpcUserInfo = response.getUserInfo();
+            // Get gRPC response
+            AuthServiceProto.UserInfo grpcUserInfo = response.getUserInfo();
+
             userInfo = new UserInfo(
                     grpcUserInfo.getUserId(),
                     grpcUserInfo.getUsername(),

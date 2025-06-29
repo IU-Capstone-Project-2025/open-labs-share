@@ -39,7 +39,7 @@ public class CommentController {
     })
     public ResponseEntity<CommentResponse> createComment(
             @Parameter(description = "ID of the lab to comment on", required = true) @PathVariable long labId,
-            @Valid @RequestBody CreateCommentRequest request,
+            @Valid @RequestBody @Parameter(description = "Request to create comment") CreateCommentRequest request,
             HttpServletRequest httpRequest) {
         long userId = attributesExtractor.extractUserIdFromRequest(httpRequest);
         CommentResponse response = commentService.createComment(labId, userId, request);
