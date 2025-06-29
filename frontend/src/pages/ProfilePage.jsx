@@ -164,18 +164,24 @@ export default function ProfilePage() {
       }
       
       if (user && user.id) {
-        await usersAPI.updateUser(user.id, updateData);
+        const response = await usersAPI.updateUser(user.id, updateData);
         
-        // Update local storage with new user data
-        const updatedUser = { ...user, ...updateData };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
+        // The response contains updated user info and potentially new tokens
+        // usersAPI.updateUser already handles token updates internally
+        const updatedUser = response.userInfo || response;
+        
+        // Update local state with new user data
         setUser(updatedUser);
         
         setOriginalData({ ...formData, password: "", confirmPassword: "" });
         setFormData(prev => ({ ...prev, password: "", confirmPassword: "" }));
         setEditMode(false);
         
-        alert("Profile updated successfully!");
+        if (response.usernameChanged) {
+          alert("Profile updated successfully! New authentication tokens have been issued due to username change.");
+        } else {
+          alert("Profile updated successfully! Your current login session remains active.");
+        }
       }
     } catch (err) {
       console.error("Error updating profile:", err);
