@@ -3,7 +3,7 @@ import ArticleCard from "../components/ArticleCard";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
 // Note: articlesAPI is currently commented out in api.js
 // This code is prepared for when articles service is connected
-// import { articlesAPI } from "../utils/api";
+import { articlesAPI } from "../utils/api";
 
 export default function MyArticles() {
   const [articles, setArticles] = useState([]);
@@ -22,69 +22,9 @@ export default function MyArticles() {
     const fetchMyArticles = async () => {
       try {
         setLoading(true);
-        // TODO: Replace with real API call when articles service is connected
-        // if (user && user.id) {
-        //   const response = await articlesAPI.getUserArticles(user.id);
-        //   setArticles(response.data || []);
-        // } else {
-        //   const response = await articlesAPI.getAllArticles();
-        //   const allArticles = response.data || [];
-        //   const myArticles = allArticles.filter(article => 
-        //     article.author && user && 
-        //     article.author.firstName === user.firstName && 
-        //     article.author.lastName === user.lastName
-        //   );
-        //   setArticles(myArticles);
-        // }
+        const response = await articlesAPI.getMyArticles();
+        setArticles(response.articles || []);
         
-        // Temporary: Use mock data until articles service is connected
-        console.warn('Articles service not connected - using mock data');
-        const allArticles = [
-          {
-            id: 1,
-            title: "Educational Technology Research",
-            description: "Comprehensive study on peer-to-peer learning platforms and their effectiveness in modern educational environments",
-            author: { firstName: "Dr. Emma", lastName: "Williams" },
-          },
-          {
-            id: 2,
-            title: "Microservices Architecture Patterns",
-            description: "Best practices for building scalable educational platforms using microservices, Docker, and gRPC communication",
-            author: { firstName: "Prof. Michael", lastName: "Chen" },
-          },
-          {
-            id: 3,
-            title: "User Interface Design for Learning",
-            description: "Research on effective UI/UX patterns for educational web applications and student engagement optimization",
-            author: { firstName: "Dr. Sarah", lastName: "Johnson" },
-          },
-          {
-            id: 4,
-            title: "Article Management in Digital Platforms",
-            description: "Everyday practice shows that the beginning of daily work on the formation and implementation of content systems",
-            author: { firstName: "Ryan", lastName: "Gosling" },
-          },
-          {
-            id: 5,
-            title: "Authentication Systems Security",
-            description: "Comprehensive analysis of JWT-based authentication, security best practices, and stateless service architecture",
-            author: { firstName: "Security", lastName: "Research" },
-          },
-          {
-            id: 6,
-            title: "Feedback Systems in Education",
-            description: "Study on effective peer review systems, community feedback mechanisms, and their impact on learning outcomes",
-            author: { firstName: "Education", lastName: "Research" },
-          }
-        ];
-
-        // Filter articles to show only those created by the current user
-        const myArticles = user ? allArticles.filter(article => 
-          article.author.firstName === user.firstName && 
-          article.author.lastName === user.lastName
-        ) : [];
-        
-        setArticles(myArticles);
       } catch (err) {
         console.error('Error fetching my articles:', err);
         setError('Failed to load your articles');

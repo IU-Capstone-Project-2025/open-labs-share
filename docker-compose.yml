@@ -29,6 +29,8 @@ services:
       - USER_SERVICE_PORT=9093
       - LAB_SERVICE_HOST=labs-service
       - LAB_SERVICE_PORT=9091
+      - ARTICLE_SERVICE_HOST=articles-service
+      - ARTICLE_SERVICE_PORT=50051
       - ML_SERVICE_HOST=ml-service
       - ML_SERVICE_PORT=8082
       - SPRING_PROFILES_ACTIVE=docker
@@ -37,6 +39,7 @@ services:
       - auth-service
       - users-service
       - labs-service
+      - articles-service
       - ml-service
     networks:
       - app-network
@@ -105,6 +108,32 @@ services:
     restart: unless-stopped
     depends_on:
       postgres-labs:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  articles-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.articles-service
+    ports:
+      - "50051:50051"
+    environment:
+      - SERVICE_HOST=0.0.0.0
+      - SERVICE_PORT=50051
+      - DB_HOST=postgres-articles
+      - DB_PORT=5432
+      - DB_USER=articles_user
+      - DB_PASSWORD=articles_password
+      - DB_NAME=articles_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+    restart: unless-stopped
+    depends_on:
+      postgres-articles:
         condition: service_healthy
       minio:
         condition: service_healthy
@@ -188,6 +217,25 @@ services:
       - postgres-labs-data:/var/lib/postgresql/data
     healthcheck:
       test: pg_isready -U labs_user -d labs_db
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  postgres-articles:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=articles_db
+      - POSTGRES_USER=articles_user
+      - POSTGRES_PASSWORD=articles_password
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres-articles-data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U articles_user -d articles_db
       interval: 5s
       timeout: 5s
       retries: 5
@@ -279,6 +327,7 @@ volumes:
   postgres-users-data:
   postgres-feedback-data:
   postgres-labs-data:
+  postgres-articles-data:
   postgres-ml-data:
   ml-models:
   minio-data:
