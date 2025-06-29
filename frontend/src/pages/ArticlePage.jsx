@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { Document, Page } from "react-pdf";
 import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 import "react-pdf/dist/esm/Page/TextLayer.css";
+import { articlesAPI } from "../utils/api";
 
 import { pdfjs } from "react-pdf";
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -13,6 +14,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 export default function ArticlePage() {
   const { id } = useParams();
   const [numPages, setNumPages] = useState(null);
+  const [article, setArticle] = useState(null);
   const [pdfFile, setPdfFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -87,11 +89,17 @@ export default function ArticlePage() {
   useEffect(() => {
     const controller = new AbortController();
 
-    const fetchPdf = async () => {
+    const fetchArticleAndPdf = async () => {
       try {
         setLoading(true);
         setError(null);
 
+        // Fetch article metadata
+        const articleData = await articlesAPI.getArticleById(id);
+        setArticle(articleData);
+
+        // TODO: Implement asset download from Minio via backend
+        // For now, continue using the sample PDF
         const response = await fetch(`/articles_sample/${id}.pdf`, {
           signal: controller.signal,
         });
@@ -109,15 +117,15 @@ export default function ArticlePage() {
         setPdfFile(URL.createObjectURL(blob));
       } catch (err) {
         if (err.name !== "AbortError") {
-          console.error("PDF load error:", err);
-          setError(`Failed to load PDF: ${err.message}`);
+          console.error("Article or PDF load error:", err);
+          setError(`Failed to load article or PDF: ${err.message}`);
         }
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPdf();
+    fetchArticleAndPdf();
 
     return () => {
       controller.abort();
@@ -173,8 +181,12 @@ export default function ArticlePage() {
                 </svg>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Research Article</h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Read and review the academic paper</p>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {article ? article.title : "Research Article"}
+                </h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {article ? `By ${article.authorName} ${article.authorSurname}` : "Read and review the academic paper"}
+                </p>
               </div>
             </div>
             
