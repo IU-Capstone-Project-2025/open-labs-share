@@ -50,6 +50,7 @@ dependencies {
 dependencyManagement {
     imports {
         mavenBom "org.springframework.grpc:spring-grpc-dependencies:${springGrpcVersion}"
+        mavenBom "org.testcontainers:testcontainers-bom:1.19.8"
     }
 }
 
