@@ -75,6 +75,16 @@ protobuf {
 	}
 }
 
+// Add generated sources to source sets
+sourceSets {
+	main {
+		java {
+			srcDirs 'build/generated/sources/proto/main/java'
+			srcDirs 'build/generated/sources/proto/main/grpc'
+		}
+	}
+}
+
 
 
 tasks.named('test') {
