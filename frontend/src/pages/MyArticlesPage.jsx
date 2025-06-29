@@ -22,12 +22,14 @@ export default function MyArticles() {
     const fetchMyArticles = async () => {
       try {
         setLoading(true);
-        const response = await articlesAPI.getMyArticles();
-        setArticles(response.articles || []);
-        
+        const response = await articlesAPI.getArticles();
+        const userArticles = response.articles.filter(
+          (article) => article.authorId === user.id
+        );
+        setArticles(userArticles || []);
       } catch (err) {
-        console.error('Error fetching my articles:', err);
-        setError('Failed to load your articles');
+        console.error("Error fetching my articles:", err);
+        setError("Failed to load your articles");
       } finally {
         setLoading(false);
       }

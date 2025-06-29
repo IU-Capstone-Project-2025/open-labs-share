@@ -1,7 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Document, Page } from "react-pdf";
+import "react-pdf/dist/esm/Page/AnnotationLayer.css";
+import "react-pdf/dist/esm/Page/TextLayer.css";
 import { pdfjs } from "react-pdf";
+import { articlesAPI } from "../utils/api";
+import ArticleReviewModal from "../components/ArticleReviewModal";
+import CommentsSection from "../components/CommentsSection";
+import { getCurrentUser, isAuthenticated } from "../utils/auth";
+
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.js",
   import.meta.url
@@ -14,68 +21,25 @@ export default function ArticlePage() {
   const [pdfFile, setPdfFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [file, setFile] = useState(null);
-  const fileInputRef = useRef(null);
-  const dropzoneRef = useRef(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    if (isAuthenticated()) {
+      const currentUser = getCurrentUser();
+      setUser(currentUser);
+    }
+  }, []);
 
   const scrollToSubmit = () => {
     const submitSection = document.getElementById("submit-section");
     submitSection?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    setFile(selectedFile || null);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    handleFileChange({ target: { files: e.dataTransfer.files } });
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleSubmit = async () => {
-    if (!file) return;
-
-    try {
-      console.log("Uploading file:", file.name);
-      
-      // TODO: Implement proper article submission when Articles Service is connected
-      // For now, show a message that this feature is not yet available
-      alert(`Article submission is not yet implemented. Articles Service needs to be connected first.\nFile selected: "${file.name}"`);
-      setFile(null);
-      
-      /* When Articles Service is connected, use this instead:
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}/articles/upload`, {
-        method: "POST",
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Upload failed: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      alert(`File "${file.name}" uploaded successfully`);
-      setFile(null);
-      */
-    } catch (err) {
-      console.error("Upload error:", err);
-      alert("Upload failed: " + err.message);
-    }
+  const handleReviewSubmit = (text, files) => {
+    console.log("Submitting review:", { text, files });
+    // This is where you would implement the API call to submit the review
+    alert(`Review submitted!\nText: ${text}\nFiles: ${files.map(f => f.name).join(', ')}`);
   };
 
   const onDocumentLoadSuccess = ({ numPages }) => {
@@ -128,8 +92,6 @@ export default function ArticlePage() {
       if (pdfFile) URL.revokeObjectURL(pdfFile);
     };
   }, [id]);
-
-
 
   if (loading) {
     return (
@@ -239,80 +201,15 @@ export default function ArticlePage() {
               </div>
             </div>
 
-            <div
-              ref={dropzoneRef}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={() => setIsDragging(false)}
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 ${
-                isDragging ? "border-msc" : "border-dashed border-gray-400"
-              } rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                isDragging
-                  ? "bg-blue-50 dark:bg-gray-700"
-                  : "bg-gray-50 dark:bg-gray-750"
-              }`}
-            >
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                className="hidden"
-                accept=".pdf"
-              />
-              <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-full">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6 text-light-blue dark:text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                  />
-                </svg>
-              </div>
-              {file ? (
-                <div className="text-center">
-                  <p className="font-medium text-msc dark:text-white">
-                    Selected: {file.name}
-                  </p>
-                  <p className="text-sm text-light-blue dark:text-gray-400 mt-1">
-                    Click to change
-                  </p>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <p className="text-lg font-medium text-msc dark:text-white">
-                    {isDragging ? "Drop file" : "Select or put file"}
-                  </p>
-                  <p className="text-sm text-light-blue dark:text-gray-400 mt-1">
-                    PDF
-                  </p>
-                </div>
-              )}
-            </div>
-
             <div className="mt-6 flex justify-center">
               <button
-                onClick={handleSubmit}
-                disabled={!file}
-                className={`px-16 py-3 rounded-md font-medium ${
-                  file
-                    ? "bg-msc text-white hover:bg-msc-hover"
-                    : "bg-light-blue-hover dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                } transition-colors`}
+                onClick={() => setIsReviewModalOpen(true)}
+                className="px-16 py-3 rounded-md font-medium bg-msc text-white hover:bg-msc-hover transition-colors"
               >
-                Submit review
+                Submit Review
               </button>
             </div>
           </section>
-
-
         </div>
 
         <aside className="w-64 p-4 border-l border-gray-200 dark:border-gray-700 overflow-y-auto sticky top-0 h-screen">
@@ -338,6 +235,11 @@ export default function ArticlePage() {
           </button>
         </aside>
       </div>
+      <ArticleReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        onSubmit={handleReviewSubmit}
+      />
     </div>
   );
 }

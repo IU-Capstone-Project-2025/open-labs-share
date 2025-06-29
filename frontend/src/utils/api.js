@@ -9,6 +9,8 @@ export const API_CONFIG = {
   AUTH_SERVICE_ENDPOINT: `${import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8081'}/api/v1/auth`,
   // Direct ML service connection (bypasses API Gateway as per requirements)
   ML_SERVICE_URL: import.meta.env.VITE_ML_SERVICE_URL || 'http://localhost:8083',
+  // Direct MinIO connection for asset downloads
+  MINIO_URL: import.meta.env.VITE_MINIO_URL || 'http://localhost:9001',
   ENDPOINTS: {
     // User endpoints (through API Gateway to Users Service)
     USERS: '/users',
@@ -40,10 +42,10 @@ export const API_CONFIG = {
     ARTICLES: '/articles',
     ARTICLE_BY_ID: (articleId) => `/articles/${articleId}`,
     
-    // Comments/Feedback endpoints (when feedback controller is implemented)
-    // COMMENTS: '/feedback/comments',
-    // LAB_COMMENTS: (labId) => `/feedback/comments/lab/${labId}`,
-    // ARTICLE_COMMENTS: (articleId) => `/feedback/comments/article/${articleId}`,
+    // Comments endpoints (through API Gateway to Feedback Service)
+    COMMENTS: '/comments',
+    LAB_COMMENTS: (labId) => `/comments/lab/${labId}`,
+    COMMENT_REPLIES: (commentId) => `/comments/${commentId}/replies`,
   }
 };
 
@@ -224,6 +226,11 @@ export const labsAPI = {
     return await apiCall(API_CONFIG.ENDPOINTS.LAB_ASSETS(labId));
   },
 
+  // Generate direct MinIO URL for an asset
+  getDirectAssetUrl: (bucketName, assetPath) => {
+    return `${API_CONFIG.MINIO_URL}/${bucketName}/${assetPath}`;
+  },
+
   // Upload lab asset
   uploadLabAsset: async (labId, file) => {
     const formData = new FormData();
@@ -314,57 +321,30 @@ export const articlesAPI = {
 
 // Submissions API functions
 export const submissionsAPI = {
-  // Get all submissions with pagination
-  getAllSubmissions: async (page = 1, limit = 100) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.SUBMISSIONS}?page=${page}&limit=${limit}`);
+  // Get all submissions for a lab
+  getLabSubmissions: async (labId) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.LAB_SUBMISSIONS(labId));
   },
 
-  // Get submissions for a lab
-  getLabSubmissions: async (labId, page = 1, limit = 20) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.LAB_SUBMISSIONS(labId)}?page=${page}&limit=${limit}`);
-  },
-
-  // Get submission by ID
+  // Get a specific submission by ID
   getSubmissionById: async (submissionId) => {
     return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_BY_ID(submissionId));
   },
 
-  // Create a new submission
-  createSubmission: async (submissionData) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSIONS, {
-      method: 'POST',
-      body: JSON.stringify(submissionData),
-    });
-  },
-
-  // Update submission
-  updateSubmission: async (submissionId, submissionData) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_BY_ID(submissionId), {
-      method: 'PUT',
-      body: JSON.stringify(submissionData),
-    });
-  },
-
-  // Delete submission
-  deleteSubmission: async (submissionId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_BY_ID(submissionId), {
-      method: 'DELETE',
-    });
-  },
-
-  // Get submission assets
-  getSubmissionAssets: async (submissionId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_ASSETS(submissionId));
-  },
-
-  // Upload submission asset
-  uploadSubmissionAsset: async (submissionId, file) => {
+  // Submit files to a lab (creates a new submission)
+  submitLabFiles: async (labId, submissionText, files) => {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('text', submissionText);
+    
+    for (const file of files) {
+      formData.append('files', file);
+    }
     
     const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.SUBMISSION_ASSET_UPLOAD(submissionId)}`, {
-        method: 'POST',
+    const url = `${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.LAB_SUBMISSIONS(labId)}`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -373,56 +353,49 @@ export const submissionsAPI = {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Upload failed: ${response.status} ${response.statusText}`);
+      throw new Error(errorData.message || `Submission failed: ${response.status} ${response.statusText}`);
     }
 
     return await response.json();
   },
 
-  // Download submission asset
+  // Get assets for a submission
+  getSubmissionAssets: async (submissionId) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_ASSETS(submissionId));
+  },
+
+  // Download a submission asset
   downloadSubmissionAsset: async (submissionId, assetId) => {
     const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.SUBMISSION_ASSET_DOWNLOAD(submissionId, assetId)}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
+    const url = `${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.SUBMISSION_ASSET_DOWNLOAD(submissionId, assetId)}`;
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
     });
-
     if (!response.ok) {
       throw new Error(`Download failed: ${response.status} ${response.statusText}`);
     }
+    return await response.blob();
+  },
+};
 
-    return response.blob();
+// Comments API functions
+export const commentsAPI = {
+  // Get comments for a lab
+  getLabComments: async (labId, page = 1, limit = 20) => {
+    return await apiCall(`${API_CONFIG.ENDPOINTS.LAB_COMMENTS(labId)}?page=${page}&limit=${limit}`);
   },
 
-  // Submit a file for a lab (creates submission and uploads file)
-  submitLabFile: async (labId, userId, file) => {
-    try {
-      // First create a submission
-      const submissionData = {
-        lab_id: parseInt(labId),
-        owner_id: userId,
-        status: 'submitted'
-      };
-      
-      const submissionResponse = await submissionsAPI.createSubmission(submissionData);
-      const submissionId = submissionResponse.id || submissionResponse.data?.id;
-      
-      if (!submissionId) {
-        throw new Error('Failed to create submission');
-      }
+  // Get replies for a comment
+  getCommentReplies: async (commentId, page = 1, limit = 50) => {
+    return await apiCall(`${API_CONFIG.ENDPOINTS.COMMENT_REPLIES(commentId)}?page=${page}&limit=${limit}`);
+  },
 
-      // Then upload the file as an asset to the submission
-      const uploadResponse = await submissionsAPI.uploadSubmissionAsset(submissionId, file);
-      
-      return {
-        submission: submissionResponse,
-        upload: uploadResponse
-      };
-    } catch (error) {
-      console.error('Error in submitLabFile:', error);
-      throw error;
-    }
+  // Create a new comment
+  createComment: async (commentData) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.COMMENTS, {
+      method: 'POST',
+      body: JSON.stringify(commentData),
+    });
   },
 };
 

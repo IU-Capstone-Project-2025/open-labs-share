@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import "highlight.js/styles/github-dark.css";
 import CommentsSection from "../components/CommentsSection";
 import ChatWindow from "../components/ChatWindow";
+import LabSubmissionModal from "../components/LabSubmissionModal";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
 import { labsAPI, submissionsAPI } from "../utils/api";
 
@@ -45,6 +46,8 @@ export default function LabPage() {
   const [uploading, setUploading] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMode, setChatMode] = useState('floating'); // 'floating' or 'sidebar'
+  const [isSubmissionModalOpen, setIsSubmissionModalOpen] = useState(false);
+  const [submissionStatus, setSubmissionStatus] = useState({ state: 'idle', message: '' }); // idle, pending, success, error
 
   // Initialize user state
   useEffect(() => {
@@ -90,19 +93,22 @@ export default function LabPage() {
     fileInputRef.current?.click();
   };
 
-  const handleSubmit = async () => {
-    if (!file || !user) return;
+  const handleLabSubmit = async (text, files) => {
+    if (!user || files.length === 0) {
+      alert("You must be logged in and select at least one file to submit.");
+      return;
+    }
+
+    setSubmissionStatus({ state: 'pending', message: 'Submitting your work...' });
 
     try {
-      setUploading(true);
-      await submissionsAPI.submitLabFile(id, user.id, file);
-      alert(`The file "${file.name}" uploaded successfully`);
-      setFile(null);
+      const response = await submissionsAPI.submitLabFiles(id, text, files);
+      setSubmissionStatus({ state: 'success', message: 'Your work has been submitted successfully!' });
+      console.log('Submission successful:', response);
+      // Optionally, you can refresh submissions list or give other feedback
     } catch (err) {
-      console.error("Upload error:", err);
-      alert("Upload failed: " + err.message);
-    } finally {
-      setUploading(false);
+      console.error("Submission error:", err);
+      setSubmissionStatus({ state: 'error', message: `Submission failed: ${err.message}` });
     }
   };
 
@@ -150,15 +156,33 @@ export default function LabPage() {
               const assetId = markdownAsset.assetId || markdownAsset.asset_id || markdownAsset.id || markdownAsset.assetID;
               console.log('Using asset ID:', assetId);
               
-              // Download the markdown content
+              // New direct download from MinIO
+              const bucketName = 'labs'; // As per labs-service configuration
+              const assetPath = markdownAsset.path || `${id}/${markdownAsset.filename}`;
+              const directUrl = labsAPI.getDirectAssetUrl(bucketName, assetPath);
+
+              console.log('Fetching markdown from direct URL:', directUrl);
+
               try {
-                const blob = await labsAPI.downloadLabAsset(id, assetId);
-                const text = await blob.text();
+                const response = await fetch(directUrl);
+                if (!response.ok) {
+                  throw new Error(`Failed to fetch from MinIO: ${response.status} ${response.statusText}`);
+                }
+                const text = await response.text();
                 console.log('Downloaded markdown content:', text.substring(0, 200) + '...');
                 setMarkdown(text);
               } catch (downloadError) {
-                console.error('Error downloading markdown:', downloadError);
-                setMarkdown(getPlaceholderContent(labResponse));
+                  console.error('Error downloading markdown directly:', downloadError);
+                  // Fallback to old method if direct download fails
+                  console.log('Falling back to old download method...');
+                  try {
+                    const blob = await labsAPI.downloadLabAsset(id, assetId);
+                    const text = await blob.text();
+                    setMarkdown(text);
+                  } catch (fallbackError) {
+                    console.error('Error with fallback download:', fallbackError);
+                    setMarkdown(getPlaceholderContent(labResponse));
+                  }
               }
             } else {
               console.log('No markdown file found in assets');
@@ -442,105 +466,6 @@ Lab content delivery is currently being developed. The markdown content for this
           </article>
         </section>
 
-        {/* Homework Submission Section */}
-        <section id="submit-section" className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-8">
-          <div className="flex items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-600">
-            <div className="w-10 h-10 bg-msc rounded-full flex items-center justify-center mr-3">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Homework Submission</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Upload your completed assignment files</p>
-            </div>
-          </div>
-
-          <div
-            ref={dropzoneRef}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onClick={handleUploadClick}
-            className={`border-2 ${
-              isDragging ? "border-msc" : "border-dashed border-blue-blue"
-            } rounded-lg p-8 text-center cursor-pointer transition-colors ${
-              isDragging
-                ? "bg-blue-50 dark:bg-gray-800"
-                : "bg-gray-50 dark:bg-gray-750"
-            }`}
-          >
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              className="hidden"
-            />
-            <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center bg-light-blue-hover dark:bg-gray-700 rounded-full">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-light-blue"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                />
-              </svg>
-            </div>
-            {file ? (
-              <div className="text-center">
-                <p className="font-medium text-msc dark:text-white">
-                  The file is selected: {file.name}
-                </p>
-                <p className="text-sm text-light-blue dark:text-gray-400 mt-1">
-                  Click to select another file
-                </p>
-              </div>
-            ) : (
-              <div className="text-center">
-                <p className="text-lg font-medium text-msc dark:text-white">
-                  {isDragging
-                    ? "Put the file here"
-                    : "Select the file or put it here"}
-                </p>
-                <p className="text-sm text-light-blue dark:text-gray-400 mt-1">
-                  Supported file formats: PDF
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-6 flex justify-center">
-            <button
-              onClick={handleSubmit}
-              disabled={!file || uploading || !user}
-              className={`px-16 py-3 rounded-md font-medium ${
-                file && !uploading && user
-                  ? "bg-msc text-white hover:bg-msc-dark"
-                  : "bg-light-blue-hover dark:bg-gray-600 text-gray-500 font-inter dark:text-gray-400 cursor-not-allowed"
-              } transition-colors`}
-            >
-              {uploading ? "Uploading..." : "Submit homework"}
-            </button>
-          </div>
-        </section>
-
         {/* Comments Section */}
         <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
           <div className="flex items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-600">
@@ -566,7 +491,7 @@ Lab content delivery is currently being developed. The markdown content for this
             </div>
           </div>
           
-          <CommentsSection contentType="lab" contentId={id} userId={user?.id} />
+          <CommentsSection contentType="lab" contentId={id} user={user} />
         </section>
         </div>
 
@@ -597,8 +522,8 @@ Lab content delivery is currently being developed. The markdown content for this
             ))}
           </ul>
           <button
-            onClick={scrollToSubmit}
-            className="mt-4 w-full py-3 px-4 bg-msc font-inter text-white rounded-md hover:bg-msc-dark transition-colors flex items-center justify-center"
+            onClick={() => setIsSubmissionModalOpen(true)}
+            className="w-full mt-4 py-3 px-4 bg-msc font-inter text-white rounded-md hover:bg-msc-dark transition-colors flex items-center justify-center"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -614,7 +539,7 @@ Lab content delivery is currently being developed. The markdown content for this
                 d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
               />
             </svg>
-            Submit homework
+            Submit Your Work
           </button>
         </aside>
       </div>
@@ -625,6 +550,15 @@ Lab content delivery is currently being developed. The markdown content for this
         onToggle={() => setIsChatOpen(!isChatOpen)}
         chatMode={chatMode}
         onSetChatMode={setChatMode}
+      />
+      <LabSubmissionModal
+        isOpen={isSubmissionModalOpen}
+        onClose={() => {
+          setIsSubmissionModalOpen(false);
+          setSubmissionStatus({ state: 'idle', message: '' }); // Reset status on close
+        }}
+        onSubmit={handleLabSubmit}
+        status={submissionStatus}
       />
     </>
   );

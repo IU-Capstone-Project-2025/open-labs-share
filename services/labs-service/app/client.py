@@ -1,6 +1,6 @@
 import grpc
-import proto.labs_pb2 as cf
-import proto.labs_pb2_grpc as cf_grpc
+import proto.labs_service_pb2 as cf
+import proto.labs_service_pb2_grpc as cf_grpc
 
 from config import Config
 import os
