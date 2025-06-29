@@ -62,6 +62,7 @@ The service works with the following entities:
 | id (PK)    | long      |
 | lab_id     | long      |
 | owner_id   | long      |
+| text       | text      |
 | created_at | datestamp |
 | updated_at | datestamp |
 | status     | string    |
@@ -152,7 +153,7 @@ More gRPC details you can find in `labs.proto` and `submissions.proto` files
 - Technological stack:  
 	- Backend: **Python 3.12**
 	- Integration with external services: **gRPC**
-- **Database:** **PostgreSQL**  
+- **Database: PostgreSQL (Labs), MongoDB (Submissions)**  
 - **Deployment:** **Docker**
 - **File Storage:** **MinIO**
 
@@ -161,9 +162,8 @@ Bucket:
 labs
 └── lab_id
 	├── lab.md
-	└── assets
-        ├── example.png
-        └── cute_cat.png
+    ├── example.png
+    └── cute_cat.png
 
 submissions
 └── submission_id

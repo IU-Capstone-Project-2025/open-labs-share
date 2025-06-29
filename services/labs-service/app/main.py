@@ -1,8 +1,9 @@
 # Import downloaded modules
 import grpc
+import minio
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
-import minio
+from pymongo import MongoClient
 
 # Import built-in modules
 import os
@@ -10,18 +11,22 @@ from concurrent import futures
 
 # Import project files
 from config import Config
-import proto.labs_pb2 as stub # Generated from labs.proto
-import proto.labs_pb2_grpc as service # Generated from labs.proto
-from utils.models import Lab, LabAsset
+from utils.models import Lab, LabAsset, ArticleRelation
+import proto.labs_service_pb2 as labs_stub # Generated from labs.proto
+import proto.labs_service_pb2_grpc as labs_service # Generated from labs.proto
+import proto.submissions_service_pb2 as submissions_stub  # Generated from submissions_service.proto
+import proto.submissions_service_pb2_grpc as submissions_service  # Generated from submissions_service.proto
 
-class LabService(service.LabServiceServicer):
+class LabService(labs_service.LabServiceServicer):
     def __init__(self):
-        user = Config.DB_USER
-        password = Config.DB_PASSWORD
-        host = Config.DB_HOST
-        port = Config.DB_PORT
-        db_name = Config.DB_NAME
+        user = Config.POSTGRESQL_USER
+        password = Config.POSTGRESQL_PASSWORD
+        host = Config.POSTGRESQL_HOST
+        port = Config.POSTGRESQL_PORT
+        db_name = Config.POSTGRESQL_NAME
         url = f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
+
+        print(f"Connecting to PostgreSQL at {url}")
 
         self.engine = create_engine(url, echo=False)
         
@@ -43,8 +48,8 @@ class LabService(service.LabServiceServicer):
         if not os.path.exists('files'):
             os.makedirs('files')
 
-    # Labs Management
-    def CreateLab(self, request, context) -> stub.Lab:
+    # ------- Labs Management -------
+    def CreateLab(self, request, context) -> labs_stub.Lab:
         data: dict = {
             "owner_id": request.owner_id,
             "title": str(request.title),
@@ -63,10 +68,10 @@ class LabService(service.LabServiceServicer):
 
             print(new_lab.get_attrs())
 
-            return stub.Lab(**new_lab.get_attrs())
+            return labs_stub.Lab(**new_lab.get_attrs())
 
 
-    def GetLab(self, request, context) -> stub.Lab:
+    def GetLab(self, request, context) -> labs_stub.Lab:
         data: dict = {
             "lab_id": request.lab_id
         }
@@ -78,12 +83,12 @@ class LabService(service.LabServiceServicer):
             if lab is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
                 context.set_details("Lab not found")
-                return stub.Lab()
+                return labs_stub.Lab()
 
-            return stub.Lab(**lab.get_attrs())
+            return labs_stub.Lab(**lab.get_attrs())
 
 
-    def GetLabs(self, request, context) -> stub.LabList:
+    def GetLabs(self, request, context) -> labs_stub.LabList:
         page_number = request.page_number if request.page_number > 0 else 1
         page_size = request.page_size
 
@@ -95,14 +100,14 @@ class LabService(service.LabServiceServicer):
             stmt = select(Lab).offset((page_number - 1) * page_size).limit(page_size)
             labs = session.execute(stmt).scalars().all()
 
-            lab_list = stub.LabList(total_count=total_count)
+            lab_list = labs_stub.LabList(total_count=total_count)
             for lab in labs:
-                lab_list.labs.append(stub.Lab(**lab.get_attrs()))
+                lab_list.labs.append(labs_stub.Lab(**lab.get_attrs()))
 
             return lab_list
 
 
-    def UpdateLab(self, request, context) -> stub.Lab:
+    def UpdateLab(self, request, context) -> labs_stub.Lab:
         data: dict = {
             "lab_id": request.lab_id,
             "title": request.title if request.HasField("title") else None,
@@ -117,7 +122,7 @@ class LabService(service.LabServiceServicer):
             if lab is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
                 context.set_details("Lab not found")
-                return stub.Lab()
+                return labs_stub.Lab()
 
             if data["title"] is not None:
                 lab.title = data["title"]
@@ -131,10 +136,10 @@ class LabService(service.LabServiceServicer):
                 lab.articles.extend(article_ids)
 
             session.commit()
-            return stub.Lab(**lab.get_attrs())
+            return labs_stub.Lab(**lab.get_attrs())
 
 
-    def DeleteLab(self, request, context) -> stub.DeleteLabResponse:
+    def DeleteLab(self, request, context) -> labs_stub.DeleteLabResponse:
         data: dict = {
             "lab_id": request.lab_id
         }
@@ -146,14 +151,14 @@ class LabService(service.LabServiceServicer):
             if lab is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
                 context.set_details("Lab not found")
-                return stub.DeleteLabResponse(success=False)
+                return labs_stub.DeleteLabResponse(success=False)
 
             session.delete(lab)
             session.commit()
-            return stub.DeleteLabResponse(success=True)
+            return labs_stub.DeleteLabResponse(success=True)
 
-    # Assets Management
-    def UploadAsset(self, request_iterator, context) -> stub.Asset:
+    # ------- Lab Assets Management -------
+    def UploadLabAsset(self, request_iterator, context) -> labs_stub.Asset:
         # Check for metadata being the first request
         metadata_request = next(request_iterator)
 
@@ -166,7 +171,7 @@ class LabService(service.LabServiceServicer):
         else:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
             context.set_details("First request must contain metadata")
-            return stub.Asset()
+            return labs_stub.Asset()
 
         with Session(self.engine) as session:
             # Check if lab exists
@@ -176,7 +181,7 @@ class LabService(service.LabServiceServicer):
             if lab is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
                 context.set_details("Lab not found")
-                return stub.Asset()
+                return labs_stub.Asset()
 
             # Create new asset
             new_asset = LabAsset(**data)
@@ -192,7 +197,7 @@ class LabService(service.LabServiceServicer):
                         else:
                             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
                             context.set_details("Subsequent requests must contain chunk data")
-                            return stub.Asset()
+                            return labs_stub.Asset()
 
                 # Put the file in MinIO
                 self.minio_client.fput_object(
@@ -207,13 +212,13 @@ class LabService(service.LabServiceServicer):
             except Exception as e:
                 context.set_code(grpc.StatusCode.INTERNAL)
                 context.set_details(f"Failed to upload asset to MinIO: {str(e)}")
-                return stub.Asset()
+                return labs_stub.Asset()
 
             session.commit()
-            return stub.Asset(**new_asset.get_attrs())
+            return labs_stub.Asset(**new_asset.get_attrs())
 
 
-    def UpdateAsset(self, request_iterator, context) -> stub.Asset:
+    def UpdateLabAsset(self, request_iterator, context) -> labs_stub.Asset:
         # Check for metadata being the first request
         metadata_request = next(request_iterator)
 
@@ -226,7 +231,7 @@ class LabService(service.LabServiceServicer):
         else:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
             context.set_details("First request must contain metadata")
-            return stub.Asset()
+            return labs_stub.Asset()
 
         with Session(self.engine) as session:
             # Check if lab exists
@@ -236,7 +241,7 @@ class LabService(service.LabServiceServicer):
             if lab_asset is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
                 context.set_details("Asset not found")
-                return stub.Asset()
+                return labs_stub.Asset()
 
             # Try to remove the old asset file from MinIO
             try:
@@ -244,7 +249,7 @@ class LabService(service.LabServiceServicer):
             except Exception as e:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
                 context.set_details(f"Failed to delete asset from MinIO: {str(e)}")
-                return stub.Asset()
+                return labs_stub.Asset()
 
             lab_asset.filename = data["filename"]
             lab_asset.filesize = data["filesize"]
@@ -257,7 +262,7 @@ class LabService(service.LabServiceServicer):
                     else:
                         context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
                         context.set_details("Subsequent requests must contain chunk data")
-                        return stub.Asset()
+                        return labs_stub.Asset()
 
             # Put the file in MinIO
             self.minio_client.fput_object(
@@ -270,10 +275,10 @@ class LabService(service.LabServiceServicer):
             os.remove(f'files/{lab_asset.filename}')
 
             session.commit()
-            return stub.Asset(**lab_asset.get_attrs())
+            return labs_stub.Asset(**lab_asset.get_attrs())
 
 
-    def DownloadAsset(self, request, context) -> stub.DownloadAssetResponse:
+    def DownloadLabAsset(self, request, context) -> labs_stub.DownloadAssetResponse:
         def response_messages():
             data: dict = {
                 "asset_id": request.asset_id
@@ -286,9 +291,9 @@ class LabService(service.LabServiceServicer):
                 if lab_asset is None:
                     context.set_code(grpc.StatusCode.NOT_FOUND)
                     context.set_details("Asset not found")
-                    return stub.DownloadAssetResponse()
+                    return labs_stub.DownloadAssetResponse()
 
-                yield stub.DownloadAssetResponse(asset=stub.Asset(**lab_asset.get_attrs()))
+                yield labs_stub.DownloadAssetResponse(asset=labs_stub.Asset(**lab_asset.get_attrs()))
 
                 # Download the file from MinIO
                 try:
@@ -300,7 +305,7 @@ class LabService(service.LabServiceServicer):
                 except Exception as e:
                     context.set_code(grpc.StatusCode.INTERNAL)
                     context.set_details(f"Failed to download asset from MinIO: {str(e)}")
-                    return stub.DownloadAssetResponse()
+                    return labs_stub.DownloadAssetResponse()
 
                 with open(f'files/{lab_asset.filename}', 'rb') as f:
                     while True:
@@ -309,7 +314,7 @@ class LabService(service.LabServiceServicer):
                         if not chunk:
                             break
 
-                        yield stub.DownloadAssetResponse(chunk=chunk)
+                        yield labs_stub.DownloadAssetResponse(chunk=chunk)
 
                 # Clean up local file after download
                 os.remove(f'files/{lab_asset.filename}')
@@ -317,7 +322,7 @@ class LabService(service.LabServiceServicer):
         return response_messages()
 
 
-    def DeleteAsset(self, request, context) -> stub.DeleteAssetResponse:
+    def DeleteLabAsset(self, request, context) -> labs_stub.DeleteAssetResponse:
         data: dict = {
             "asset_id": request.asset_id
         }
@@ -329,7 +334,7 @@ class LabService(service.LabServiceServicer):
             if asset is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
                 context.set_details("Asset not found")
-                return stub.DeleteAssetResponse(success=False)
+                return labs_stub.DeleteAssetResponse(success=False)
 
             session.delete(asset)
 
@@ -339,14 +344,14 @@ class LabService(service.LabServiceServicer):
             except Exception as e:
                 context.set_code(grpc.StatusCode.INTERNAL)
                 context.set_details(f"Failed to delete asset from MinIO: {str(e)}")
-                return stub.DeleteAssetResponse(success=False)
+                return labs_stub.DeleteAssetResponse(success=False)
 
             session.commit()
 
-            return stub.DeleteAssetResponse(success=True)
+            return labs_stub.DeleteAssetResponse(success=True)
 
 
-    def ListAssets(self, request, context) -> stub.AssetList:
+    def ListLabAssets(self, request, context) -> labs_stub.AssetList:
         data: dict = {
             "lab_id": request.lab_id
         }
@@ -358,23 +363,70 @@ class LabService(service.LabServiceServicer):
             if lab is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
                 context.set_details("Lab not found")
-                return stub.AssetList()
+                return labs_stub.AssetList()
 
             if not lab.assets:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
                 context.set_details("Lab has no assets")
-                return stub.AssetList()
+                return labs_stub.AssetList()
 
-            asset_list = stub.AssetList()
+            asset_list = labs_stub.AssetList()
             asset_list.total_count = len(lab.assets)
-            asset_list.assets.extend([stub.Asset(**asset.get_attrs()) for asset in lab.assets])
+            asset_list.assets.extend([labs_stub.Asset(**asset.get_attrs()) for asset in lab.assets])
 
             return asset_list
 
 
+class SubmissionService(submissions_service.SubmissionServiceServicer):
+    def __init__(self):
+        host = Config.MONGODB_HOST
+        port = Config.MONGODB_PORT
+        db_name = Config.MONGODB_NAME
+        url = f"mongodb://{host}:{port}/"
+
+        print(f"Connecting to MongoDB at {url}")
+
+        mongo_db = MongoClient(url)[db_name]
+        self.submissions_collection = mongo_db["submissions"]
+        self.submission_assets_collection = mongo_db["submission_assets"]
+
+
+    # Submissions Management
+    def CreateSubmission(self, request, context) -> submissions_stub.Submission:
+        pass
+
+    def GetSubmission(self, request, context) -> submissions_stub.Submission:
+        pass
+
+    def GetSubmissions(self, request, context) -> submissions_stub.SubmissionList:
+        pass
+
+    def UpdateSubmission(self, request, context) -> submissions_stub.Submission:
+        pass
+
+    def DeleteSubmission(self, request, context) -> submissions_stub.DeleteSubmissionResponse:
+        pass
+
+    # Assets Management
+    def UploadAsset(self, request_iterator, context) -> submissions_stub.Asset:
+        pass
+
+    def UpdateAsset(self, request_iterator, context) -> submissions_stub.Asset:
+        pass
+
+    def DownloadAsset(self, request, context):
+        pass
+
+    def DeleteAsset(self, request, context) -> submissions_stub.DeleteAssetResponse:
+        pass
+
+    def ListAssets(self, request, context) -> submissions_stub.AssetList:
+        pass
+
 if __name__ == "__main__":
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    service.add_LabServiceServicer_to_server(LabService(), server)
+    labs_service.add_LabServiceServicer_to_server(LabService(), server)
+    submissions_service.add_SubmissionServiceServicer_to_server(SubmissionService(), server)
 
     server_address = f"{Config.SERVICE_HOST}:{Config.SERVICE_PORT}"
     server.add_insecure_port(server_address)
