@@ -101,10 +101,10 @@ public class ArticleServiceClient {
     }
 
     private void sendMetadata(StreamObserver<UploadAssetRequest> requestObserver, Long articleId, MultipartFile file) {
-        AssetMetadata metadata = AssetMetadata.newBuilder()
+        UploadAssetMetadata metadata = UploadAssetMetadata.newBuilder()
                 .setArticleId(articleId)
                 .setFilename(file.getOriginalFilename())
-                .setTotalSize(file.getSize())
+                .setFilesize(file.getSize())
                 .build();
 
         UploadAssetRequest metadataRequest = UploadAssetRequest.newBuilder()
