@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: users-service-test
+  datasource:
+    # Testcontainers will override these values
+    url: jdbc:postgresql://localhost:5432/test
+    username: test
+    password: test
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: true
+  sql:
+    init:
+      mode: never # Don't run schema.sql in tests
+
+logging:
+  level:
+    olsh.backend.usersservice: DEBUG
+    org.springframework.test: DEBUG
+    org.testcontainers: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# Disable gRPC server for repository tests
+spring.grpc.server.port: -1 
