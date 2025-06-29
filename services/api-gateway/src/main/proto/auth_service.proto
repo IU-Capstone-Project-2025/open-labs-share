@@ -1,9 +1,6 @@
 syntax = "proto3";
-
-option java_multiple_files = true;
 option java_package = "olsh.backend.api_gateway.grpc.proto";
 option java_outer_classname = "AuthServiceProto";
-
 package auth;
 
 service AuthService {
