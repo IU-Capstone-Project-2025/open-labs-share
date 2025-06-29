@@ -40,7 +40,7 @@ services:
       - users-service
       - labs-service
       - articles-service
-      # - ml-service
+      - ml-service
     networks:
       - app-network
 
@@ -243,60 +243,60 @@ services:
     networks:
       - app-network
 
-  # ml-service:
-  #   build:
-  #     context: .
-  #     dockerfile: docker/Dockerfile.ml-service
-  #   ports:
-  #     - "8083:8081"
-  #   environment:
-  #     - DEVICE=cuda
-  #     - RAG_DB_PATH=/app/ml/faiss
-  #     - SCORE_THRESHOLD=1.0
-  #     - EMBEDDING_MODEL_NAME=BAAI/bge-small-en-v1.5
-  #     - LLM_MODEL_NAME=Qwen/Qwen2.5-Coder-1.5B-Instruct
-  #     - PDF_DIR=/app/ml/data/predator-pray-22/pdfs
-  #     - CODE_DIR=/app/ml/data/predator-pray-22/code
-  #     - POSTGRES_USER=ml_user
-  #     - POSTGRES_PASSWORD=ml_password
-  #     - POSTGRES_HOST=postgres-ml
-  #     - POSTGRES_PORT=5432
-  #     - POSTGRES_DB=chat_history_db
-  #   volumes:
-  #     - ./ml:/app/ml
-  #     - ml-models:/app/models
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: all
-  #             capabilities: [gpu]
-  #   restart: unless-stopped
-  #   depends_on:
-  #     postgres-ml:
-  #       condition: service_healthy
-  #   networks:
-  #     - app-network
+  ml-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ml-service
+    ports:
+      - "8083:8081"
+    environment:
+      - DEVICE=cuda
+      - RAG_DB_PATH=/app/ml/faiss
+      - SCORE_THRESHOLD=1.0
+      - EMBEDDING_MODEL_NAME=BAAI/bge-small-en-v1.5
+      - LLM_MODEL_NAME=Qwen/Qwen2.5-Coder-1.5B-Instruct
+      - PDF_DIR=/app/ml/data/predator-pray-22/pdfs
+      - CODE_DIR=/app/ml/data/predator-pray-22/code
+      - POSTGRES_USER=ml_user
+      - POSTGRES_PASSWORD=ml_password
+      - POSTGRES_HOST=postgres-ml
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=chat_history_db
+    volumes:
+      - ./ml:/app/ml
+      - ml-models:/app/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+    depends_on:
+      postgres-ml:
+        condition: service_healthy
+    networks:
+      - app-network
 
-  # postgres-ml:
-  #   image: postgres:15-alpine
-  #   environment:
-  #     - POSTGRES_DB=chat_history_db
-  #     - POSTGRES_USER=ml_user
-  #     - POSTGRES_PASSWORD=ml_password
-  #   ports:
-  #     - "5433:5432"
-  #   volumes:
-  #     - postgres-ml-data:/var/lib/postgresql/data
-  #   healthcheck:
-  #     test: pg_isready -U ml_user -d chat_history_db
-  #     interval: 5s
-  #     timeout: 5s
-  #     retries: 5
-  #   restart: unless-stopped
-  #   networks:
-  #     - app-network
+  postgres-ml:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=chat_history_db
+      - POSTGRES_USER=ml_user
+      - POSTGRES_PASSWORD=ml_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-ml-data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U ml_user -d chat_history_db
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
 
   minio:
     image: minio/minio:latest
@@ -328,6 +328,6 @@ volumes:
   postgres-feedback-data:
   postgres-labs-data:
   postgres-articles-data:
-  # postgres-ml-data:
-  # ml-models:
+  postgres-ml-data:
+  ml-models:
   minio-data:
