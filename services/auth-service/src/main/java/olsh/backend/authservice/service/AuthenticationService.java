@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.authservice.client.UsersServiceClient;
 import olsh.backend.authservice.dto.AuthenticationResponse;
-import olsh.backend.authservice.dto.ChangePasswordRequest;
+
 import olsh.backend.authservice.dto.PasswordResetConfirmRequest;
 import olsh.backend.authservice.dto.PasswordResetRequest;
 import olsh.backend.authservice.dto.RefreshTokenRequest;
@@ -193,17 +193,6 @@ public class AuthenticationService {
     public void confirmPasswordReset(PasswordResetConfirmRequest request) {
         // Implementation would delegate to users-service if needed
         throw new UnsupportedOperationException("Password reset not implemented yet");
-    }
-
-    public void changePassword(ChangePasswordRequest request, String username) {
-        try {
-            User user = userService.getByUsername(username);
-            usersServiceClient.updatePassword(user.getUserId(), request.getCurrentPassword(), request.getNewPassword());
-            log.info("Password changed successfully for user: {}", username);
-        } catch (Exception e) {
-            log.error("Failed to change password for user: {}", username, e);
-            throw new ValidationException("Failed to change password: " + e.getMessage());
-        }
     }
 
     public UserProfileResponseWithUserInfo getUserProfileWithUserInfo(String username) {
