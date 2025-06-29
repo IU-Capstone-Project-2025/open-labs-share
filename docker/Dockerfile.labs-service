@@ -26,7 +26,7 @@ RUN chmod +x /usr/local/bin/wait-for-postgres.sh
 RUN touch proto/__init__.py utils/__init__.py
 
 # Generate protobuf files
-RUN python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto proto/labs.proto
+RUN python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto proto/labs_service.proto
 
 # List generated files for debugging
 RUN ls -la proto/

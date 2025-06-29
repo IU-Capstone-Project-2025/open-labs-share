@@ -4,12 +4,18 @@
 export const API_CONFIG = {
   API_GATEWAY_URL: import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080',
   API_GATEWAY_ENDPOINT: `${import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080'}/api/v1`,
+  // Direct Auth service connection for profile updates
+  AUTH_SERVICE_URL: import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8081',
+  AUTH_SERVICE_ENDPOINT: `${import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8081'}/api/v1/auth`,
   // Direct ML service connection (bypasses API Gateway as per requirements)
   ML_SERVICE_URL: import.meta.env.VITE_ML_SERVICE_URL || 'http://localhost:8083',
   ENDPOINTS: {
     // User endpoints (through API Gateway to Users Service)
     USERS: '/users',
     USER_BY_ID: (userId) => `/users/${userId}`,
+    
+    // Auth service endpoints (direct connection)
+    AUTH_PROFILE: '/profile',
     
     // Lab endpoints (through API Gateway to Labs Service)
     LABS: '/labs',
@@ -73,6 +79,29 @@ export const apiCall = async (endpoint, options = {}) => {
   }
 };
 
+// Auth service API call wrapper
+export const authApiCall = async (endpoint, options = {}) => {
+  const url = `${API_CONFIG.AUTH_SERVICE_ENDPOINT}${endpoint}`;
+  
+  try {
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+      ...options,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Auth API error data:', errorData);
+      throw new Error(errorData.message || `Auth API call failed: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Auth API call error:', error);
+    throw error;
+  }
+};
+
 // User API functions
 export const usersAPI = {
   // Get user by ID
@@ -85,12 +114,28 @@ export const usersAPI = {
     return await apiCall(`${API_CONFIG.ENDPOINTS.USERS}?page=${page}&limit=${limit}`);
   },
 
-  // Update user
+  // Update user profile - calls auth service directly
   updateUser: async (userId, userData) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.USER_BY_ID(userId), {
+    const response = await authApiCall(API_CONFIG.ENDPOINTS.AUTH_PROFILE, {
       method: 'PUT',
       body: JSON.stringify(userData),
     });
+    
+    // Update tokens only if they were provided (username was changed)
+    if (response.usernameChanged && response.accessToken && response.refreshToken) {
+      localStorage.setItem('authToken', response.accessToken);
+      localStorage.setItem('refreshToken', response.refreshToken);
+      console.log('Username changed - tokens updated');
+    } else if (!response.usernameChanged) {
+      console.log('Username not changed - keeping existing tokens');
+    }
+    
+    // Update local user data
+    if (response.userInfo) {
+      localStorage.setItem('user', JSON.stringify(response.userInfo));
+    }
+    
+    return response;
   },
 
   // Delete user

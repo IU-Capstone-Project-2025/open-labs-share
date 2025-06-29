@@ -237,7 +237,7 @@ public class LabService {
                 .assetId(asset.getAssetId())
                 .labId(asset.getLabId())
                 .filename(asset.getFilename())
-                .totalSize(asset.getTotalSize())
+                .totalSize(asset.getFilesize())
                 .uploadDate(convertTimestampToIso(asset.getUploadDate()))
                 .build();
     }
