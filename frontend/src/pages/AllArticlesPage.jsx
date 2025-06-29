@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import ArticleCard from "../components/ArticleCard";
 // Note: articlesAPI is currently commented out in api.js
 // This code is prepared for when articles service is connected
-// import { articlesAPI } from "../utils/api";
+import { articlesAPI } from "../utils/api";
 
 export default function AllArticles() {
   const [articles, setArticles] = useState([]);
@@ -14,50 +14,9 @@ export default function AllArticles() {
       try {
         setLoading(true);
         // TODO: Replace with real API call when articles service is connected
-        // const response = await articlesAPI.getAllArticles();
-        // setArticles(response.data || []);
+        const response = await articlesAPI.getArticles();
+        setArticles(response.articles || []);
         
-        // Temporary: Use mock data until articles service is connected
-        console.warn('Articles service not connected - using mock data');
-        const mockArticles = [
-          {
-            id: 1,
-            title: "Educational Technology Research",
-            description: "Comprehensive study on peer-to-peer learning platforms and their effectiveness in modern education",
-            author: { firstName: "Dr. Sarah", lastName: "Johnson" },
-          },
-          {
-            id: 2,
-            title: "Best Practices in Lab Design",
-            description: "Guidelines for creating engaging hands-on learning experiences with community feedback systems",
-            author: { firstName: "Prof. Michael", lastName: "Chen" },
-          },
-          {
-            id: 3,
-            title: "Microservices Architecture Patterns",
-            description: "Design patterns and best practices for building scalable distributed systems",
-            author: { firstName: "Backend", lastName: "Team" },
-          },
-          {
-            id: 4,
-            title: "Article 4: Scheduling",
-            description: "Everyday practice shows that the beginning of daily work on the formation",
-            author: { firstName: "Ryan", lastName: "Gosling" },
-          },
-          {
-            id: 5,
-            title: "Modern Frontend Development",
-            description: "Latest trends and technologies in frontend development with React and modern tooling",
-            author: { firstName: "Frontend", lastName: "Team" },
-          },
-          {
-            id: 6,
-            title: "Database Optimization Techniques",
-            description: "Advanced database optimization strategies for high-performance applications",
-            author: { firstName: "Platform", lastName: "Team" },
-          }
-        ];
-        setArticles(mockArticles);
       } catch (err) {
         console.error('Error fetching articles:', err);
         setError('Failed to load articles');

@@ -22,6 +22,7 @@ import AllArticles from "./pages/AllArticlesPage";
 import LabPage from "./pages/LabPage";
 import ArticlePage from "./pages/ArticlePage";
 import CreateLabPage from "./pages/CreateLabPage";
+import CreateArticlePage from "./pages/CreateArticlePage";
 import BackgroundCircles from "./components/BackgroundCircles";
 
 // Component to protect routes that require authentication
@@ -211,6 +212,7 @@ function AppContent() {
           <Route path="/my-articles" element={<ProtectedRoute><MyArticles /></ProtectedRoute>} />
           <Route path="/all-articles" element={<ProtectedRoute><AllArticles /></ProtectedRoute>} />
           <Route path="/article/:id" element={<ProtectedRoute><ArticlePage /></ProtectedRoute>} />
+          <Route path="/create-article" element={<ProtectedRoute><CreateArticlePage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           {/* Catch-all route for undefined paths */}
           <Route path="*" element={<Navigate to="/" replace />} />

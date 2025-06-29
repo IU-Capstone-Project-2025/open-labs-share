@@ -37,8 +37,8 @@ export const API_CONFIG = {
     ML_CHAT_HISTORY: '/get_chat_history',
     
     // Article endpoints (currently not connected as per requirements)
-    // ARTICLES: '/articles',
-    // ARTICLE_BY_ID: (articleId) => `/articles/${articleId}`,
+    ARTICLES: '/articles',
+    ARTICLE_BY_ID: (articleId) => `/articles/${articleId}`,
     
     // Comments/Feedback endpoints (when feedback controller is implemented)
     // COMMENTS: '/feedback/comments',
@@ -152,8 +152,7 @@ export const usersAPI = {
 
   // Get current user's articles (when articles service is connected)
   getUserArticles: async (userId, page = 1, limit = 20) => {
-    // TODO: Implement when articles service is connected
-    throw new Error('Articles service not yet connected');
+    return await apiCall(`${API_CONFIG.ENDPOINTS.USERS}/${userId}/articles?page=${page}&limit=${limit}`);
   },
 };
 
@@ -261,6 +260,55 @@ export const labsAPI = {
     }
 
     return response.blob();
+  },
+};
+
+// Articles API functions
+export const articlesAPI = {
+  // Get all articles with pagination
+  getArticles: async (page = 1, limit = 20) => {
+    return await apiCall(`${API_CONFIG.ENDPOINTS.ARTICLES}?page=${page}&limit=${limit}`);
+  },
+
+  // Get current user's articles
+  getMyArticles: async (page = 1, limit = 20) => {
+    return await apiCall(`${API_CONFIG.ENDPOINTS.ARTICLES}/my?page=${page}&limit=${limit}`);
+  },
+
+  // Get article by ID
+  getArticleById: async (articleId) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.ARTICLE_BY_ID(articleId));
+  },
+
+  // Create a new article with file upload
+  createArticle: async (articleData) => {
+    const formData = new FormData();
+    formData.append('title', articleData.title);
+    formData.append('short_desc', articleData.short_desc);
+    formData.append('pdf_file', articleData.pdf_file);
+    
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.ARTICLES}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Article creation failed: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  },
+
+  // Delete article
+  deleteArticle: async (articleId) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.ARTICLE_BY_ID(articleId), {
+      method: 'DELETE',
+    });
   },
 };
 

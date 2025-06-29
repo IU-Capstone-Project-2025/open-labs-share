@@ -1,0 +1,19 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY ./services/articles-service/app/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY ./services/articles-service/app .
+
+# Create files directory for tmp files
+RUN mkdir -p /app/files && chmod 777 /app/files
+
+# Expose gRPC port
+EXPOSE 50051
+
+# Run the gRPC service
+CMD ["python", "-u", "main.py"] 
