@@ -17,12 +17,12 @@ public class CreateArticleRequest {
 
     @Schema(description = "Title of the article", example = "Introduction to Machine Learning", required = true)
     @NotBlank(message = "Title is required")
-    @Size(max = 255, message = "Title must not exceed 255 characters")
+    @Size(min = 10, max = 255, message = "Title must be 10 to 255 characters")
     private String title;
 
     @Schema(description = "Short description of the article", example = "A comprehensive guide to machine learning basics", required = true)
     @NotBlank(message = "Short description is required")
-    @Size(max = 1000, message = "Short description must not exceed 1000 characters")
+    @Size(min = 20, max = 1000, message = "Short description must be 20 to 1000 characters")
     private String short_desc;
 
     @Schema(description = "PDF file containing the article content", required = true)

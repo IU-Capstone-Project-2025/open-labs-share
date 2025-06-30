@@ -53,12 +53,13 @@ public class LabService {
                 .build();
     }
 
-    private void validateMarkdownFile(MultipartFile file) {
-        if (file == null || file.isEmpty() || file.getOriginalFilename() == null) {
+    protected void validateMarkdownFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Markdown file is required");
         }
 
-        if (!file.getOriginalFilename().toLowerCase().endsWith(".md")) {
+        if (file.getOriginalFilename() == null || file.getOriginalFilename().isBlank() ||
+                !file.getOriginalFilename().toLowerCase().endsWith(".md")) {
             throw new IllegalArgumentException("Only Markdown files are allowed");
         }
 
@@ -68,7 +69,7 @@ public class LabService {
         }
     }
 
-    private void validateAssets(MultipartFile[] assets) {
+    protected void validateAssets(MultipartFile[] assets) {
         if (assets == null) {
             return;
         }
@@ -77,7 +78,7 @@ public class LabService {
         }
     }
 
-    private void validateAsset(MultipartFile asset){
+    protected void validateAsset(MultipartFile asset) {
         if (asset == null || asset.isEmpty()) {
             throw new IllegalArgumentException("Asset file for lab is empty or null arrived");
         }
@@ -107,7 +108,7 @@ public class LabService {
     }
 
     public LabResponse getLabById(Long labId) {
-        if (labId == null || labId == 0) {
+        if (labId == null || labId <= 0) {
             throw new IllegalArgumentException("LabId should be provided");
         }
 
@@ -139,8 +140,8 @@ public class LabService {
                     }
                     labResponses.add(buildLabResponse(lab, author));
                 } catch (Exception e) {
-                    log.warn("Skipping lab with ID {} due to an error fetching its owner (owner_id={}): {}", 
-                             lab.getLabId(), lab.getOwnerId(), e.getMessage());
+                    log.warn("Skipping lab with ID {} due to an error fetching its owner (owner_id={}): {}",
+                            lab.getLabId(), lab.getOwnerId(), e.getMessage());
                 }
             }
 
@@ -167,7 +168,7 @@ public class LabService {
         }
     }
 
-    public LabListResponse getMyLabs(GetLabsRequest request, Long userId){
+    public LabListResponse getMyLabs(GetLabsRequest request, Long userId) {
         LabListResponse allLabsResponse = getLabs(request);
 
         // Filter labs by current user
@@ -215,12 +216,12 @@ public class LabService {
     public AssetListResponse getLabAssets(Long labId) {
         log.debug("Getting assets for lab ID: {}", labId);
         LabProto.AssetList assetList = labServiceClient.listAssets(labId);
-        
+
         // Convert protobuf objects to DTOs
         List<AssetResponse> assetResponses = assetList.getAssetsList().stream()
                 .map(this::convertAssetToResponse)
                 .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
-        
+
         return AssetListResponse.builder()
                 .totalCount(assetList.getTotalCount())
                 .assets(assetResponses)
@@ -238,29 +239,15 @@ public class LabService {
                 .labId(asset.getLabId())
                 .filename(asset.getFilename())
                 .totalSize(asset.getFilesize())
-                .uploadDate(convertTimestampToIso(asset.getUploadDate()))
+                .uploadDate(TimestampConverter.convertTimestampToIso(asset.getUploadDate()))
                 .build();
     }
 
-    private String convertTimestampToIso(com.google.protobuf.Timestamp timestamp) {
-        if (timestamp == null) {
-            return null;
-        }
-
-        try {
-            java.time.Instant instant = java.time.Instant.ofEpochSecond(
-                    timestamp.getSeconds(), timestamp.getNanos());
-            return instant.toString();
-        } catch (Exception e) {
-            log.warn("Failed to convert timestamp: {}", e.getMessage());
-            return null;
-        }
-    }
 
     /**
      * Builds a LabResponse from Lab proto and UserResponse
      *
-     * @param lab the Lab proto object
+     * @param lab    the Lab proto object
      * @param author the UserResponse containing author information
      * @return LabResponse with all fields mapped
      */
@@ -269,12 +256,12 @@ public class LabService {
                 .id(lab.getLabId())
                 .title(lab.getTitle())
                 .shortDesc(lab.getAbstract())
-                .createdAt(convertTimestampToIso(lab.getCreatedAt()))
+                .createdAt(TimestampConverter.convertTimestampToIso(lab.getCreatedAt()))
                 .views(lab.getViews())
                 .submissions(lab.getSubmissions())
                 .authorId(lab.getOwnerId())
-                .authorName(author.name())
-                .authorSurname(author.surname())
+                .authorName(author.getName())
+                .authorSurname(author.getSurname())
                 .build();
     }
 

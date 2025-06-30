@@ -35,7 +35,7 @@ public class ArticleService {
         return CreateArticleResponse.builder().id(article.getArticleId()).message("Article created successfully").build();
     }
 
-    private void validatePdfFile(MultipartFile file) {
+    protected void validatePdfFile(MultipartFile file) {
         if (file == null || file.isEmpty() || file.getOriginalFilename() == null) {
             throw new IllegalArgumentException("PDF file is required");
         }
@@ -71,9 +71,6 @@ public class ArticleService {
         // Get article and its user from gRPC service
         ArticleProto.Article article = articleServiceClient.getArticle(articleId);
         UserResponse author = userService.getUserById(article.getOwnerId());
-
-        // Convert protobuf Timestamp to ISO 8601 string
-        String createdAt = convertTimestampToIso(article.getCreatedAt());
 
         log.debug("Successfully retrieved article: {}", article.getTitle());
 
@@ -161,31 +158,17 @@ public class ArticleService {
 
     }
 
-    private String convertTimestampToIso(com.google.protobuf.Timestamp timestamp) {
-        if (timestamp == null) {
-            return null;
-        }
-
-        try {
-            java.time.Instant instant = java.time.Instant.ofEpochSecond(
-                    timestamp.getSeconds(), timestamp.getNanos());
-            return instant.toString();
-        } catch (Exception e) {
-            log.warn("Failed to convert timestamp: {}", e.getMessage());
-            return null;
-        }
-    }
 
     private ArticleResponse buildArticleResponse(ArticleProto.Article article, UserResponse author) {
         return ArticleResponse.builder()
                 .id(article.getArticleId())
                 .title(article.getTitle())
                 .shortDesc(article.getAbstract())
-                .createdAt(convertTimestampToIso(article.getCreatedAt()))
+                .createdAt(TimestampConverter.convertTimestampToIso(article.getCreatedAt()))
                 .views(article.getViews())
                 .authorId(article.getOwnerId())
-                .authorName(author.name())
-                .authorSurname(author.surname())
+                .authorName(author.getName())
+                .authorSurname(author.getSurname())
                 .build();
     }
 }

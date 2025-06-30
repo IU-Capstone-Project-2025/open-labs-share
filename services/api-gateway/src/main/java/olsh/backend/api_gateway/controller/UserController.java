@@ -4,7 +4,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.annotation.RequireAuth;
 import olsh.backend.api_gateway.dto.response.UserResponse;
-import olsh.backend.api_gateway.service.AuthService;
 import olsh.backend.api_gateway.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
