@@ -25,15 +25,23 @@ message Submission {
   int64 submission_id = 1;
   int64 lab_id = 2;
   int64 owner_id = 3;
-  google.protobuf.Timestamp created_at = 4;
-  google.protobuf.Timestamp updated_at = 5;
-  string status = 6;
-  int32 points = 7;
+  string text = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  Status status = 7;
+}
+
+enum Status {
+  NOT_GRADED = 0;
+  IN_PROGRESS = 1;
+  ACCEPTED = 2;
+  REJECTED = 3;
 }
 
 message CreateSubmissionRequest {
   int64 lab_id = 1;
   int64 owner_id = 2;
+  string text = 3;
 }
 
 message GetSubmissionRequest {
@@ -53,8 +61,8 @@ message GetSubmissionsRequest {
 
 message UpdateSubmissionRequest {
   int64 submission_id = 1;
-  optional string status = 2;
-  optional int32 points = 3;
+  optional Status status = 2;
+  optional string text = 3;
 }
 
 message DeleteSubmissionRequest {

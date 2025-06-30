@@ -55,8 +55,7 @@ class Submission(Base, SerializerMixin):
     owner_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
-    status: Mapped[str] = mapped_column(String(50), nullable=False)
-    points: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Relationships
     lab = relationship("Lab", back_populates="lab_submissions")
@@ -67,13 +66,12 @@ class Submission(Base, SerializerMixin):
 
     def get_attrs(self):
         return {
-            "submission_id": str(self.id),
-            "lab_id": str(self.lab_id),
-            "owner_id": str(self.owner_id),
+            "submission_id": self.id,
+            "lab_id": self.lab_id,
+            "owner_id": self.owner_id,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
-            "status": self.status,
-            "points": self.points
+            "status": self.status
         }
 
 
@@ -125,7 +123,7 @@ class SubmissionAsset(Base, SerializerMixin):
     __tablename__ = "submission_assets"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    solution_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("submissions.id", ondelete="CASCADE"), nullable=False)
+    submission_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("submissions.id", ondelete="CASCADE"), nullable=False)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     filesize: Mapped[int] = mapped_column(BigInteger, nullable=False)
     upload_date: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
@@ -139,9 +137,8 @@ class SubmissionAsset(Base, SerializerMixin):
     def get_attrs(self):
         return {
             "asset_id": self.id,
-            "solution_id": self.solution_id,
+            "submission_id": self.submission_id,
             "filename": self.filename,
             "filesize": self.filesize,
             "upload_date": self.upload_date
         }
-
