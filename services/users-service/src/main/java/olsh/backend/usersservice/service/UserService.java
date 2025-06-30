@@ -9,6 +9,9 @@ import com.olsh.users.proto.FindUserByEmailRequest;
 import com.olsh.users.proto.FindUserByUsernameRequest;
 import com.olsh.users.proto.GetUserInfoRequest;
 import com.olsh.users.proto.GetUserProfileRequest;
+import com.olsh.users.proto.IncrementLabsReviewedRequest;
+import com.olsh.users.proto.IncrementLabsSolvedRequest;
+import com.olsh.users.proto.OperationResponse;
 import com.olsh.users.proto.SearchUsersRequest;
 import com.olsh.users.proto.SearchUsersResponse;
 import com.olsh.users.proto.UpdatePasswordRequest;
@@ -21,9 +24,11 @@ import com.olsh.users.proto.UserInfoResponse;
 import com.olsh.users.proto.UserProfileResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import olsh.backend.usersservice.config.PointsConfig;
 import olsh.backend.usersservice.entity.Role;
 import olsh.backend.usersservice.entity.User;
 import olsh.backend.usersservice.exception.AuthenticationException;
+import olsh.backend.usersservice.exception.InsufficientBalanceException;
 import olsh.backend.usersservice.exception.NotFoundException;
 import olsh.backend.usersservice.repository.UserRepository;
 import org.springframework.data.domain.Page;
@@ -38,6 +43,8 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PointsConfig pointsConfig;
+    private final UserStatsService userStatsService;
 
     public User findById(Long id) {
         return userRepository.findById(id)
@@ -174,22 +181,24 @@ public class UserService {
         Optional<User> existingUserWithEmail = userRepository.findByEmail(request.getEmail());
         if (existingUserWithEmail.isPresent()) {
             throw new IllegalArgumentException("User with this email already exists");
-        }        // Encode the password
+        }        
         String encodedPassword = passwordEncoder.encode(request.getPassword());
 
-        // Build user without explicitly setting ID - let JPA/database auto-generate it
         User user = User.builder()
-            // Don't set ID field, let database auto-generate it
             .username(request.getUsername())
             .firstName(request.getFirstName())
             .lastName(request.getLastName())
             .email(request.getEmail())
             .role(Role.valueOf(request.getRole()))
             .password(encodedPassword)
+            .labsSolved(0)
+            .labsReviewed(0)
+            .balance(pointsConfig.getInitialBalance())
             .build();
 
         User createdUser = userRepository.save(user);
-        log.info("Created user profile for username: {}", request.getUsername());
+        log.info("Created user profile for username: {} with initial balance: {}", 
+                 request.getUsername(), pointsConfig.getInitialBalance());
 
         return buildUserProfileResponse(createdUser);
     }
@@ -253,7 +262,9 @@ public class UserService {
         return UpdateUserLastLoginResponse.newBuilder()
             .setSuccess(true)
             .build();
-    }    /**
+    }
+
+    /**
      * Check if a username already exists in the system
      *
      * @param username The username to check
@@ -298,6 +309,50 @@ public class UserService {
         }
     }
 
+    /**
+     * Increment labs solved counter and deduct points
+     */
+    public OperationResponse incrementLabsSolved(IncrementLabsSolvedRequest request) {
+        try {
+            userStatsService.incrementLabsSolved(request.getUserId());
+            return OperationResponse.newBuilder()
+                .setSuccess(true)
+                .setMessage("Labs solved count incremented successfully")
+                .build();
+        } catch (InsufficientBalanceException e) {
+            log.warn("Failed to increment labs solved for user {}: {}", request.getUserId(), e.getMessage());
+            return OperationResponse.newBuilder()
+                .setSuccess(false)
+                .setMessage(e.getMessage())
+                .build();
+        } catch (Exception e) {
+            log.error("Error incrementing labs solved for user {}: {}", request.getUserId(), e.getMessage(), e);
+            return OperationResponse.newBuilder()
+                .setSuccess(false)
+                .setMessage("Failed to increment labs solved: " + e.getMessage())
+                .build();
+        }
+    }
+
+    /**
+     * Increment labs reviewed counter and add reward points
+     */
+    public OperationResponse incrementLabsReviewed(IncrementLabsReviewedRequest request) {
+        try {
+            userStatsService.incrementLabsReviewed(request.getUserId());
+            return OperationResponse.newBuilder()
+                .setSuccess(true)
+                .setMessage("Labs reviewed count incremented successfully")
+                .build();
+        } catch (Exception e) {
+            log.error("Error incrementing labs reviewed for user {}: {}", request.getUserId(), e.getMessage(), e);
+            return OperationResponse.newBuilder()
+                .setSuccess(false)
+                .setMessage("Failed to increment labs reviewed: " + e.getMessage())
+                .build();
+        }
+    }
+
     private UserInfo buildUserInfo(User user) {
         return UserInfo.newBuilder()
             .setUserId(user.getId())
@@ -306,6 +361,9 @@ public class UserService {
             .setLastName(user.getLastName())
             .setRole(user.getRole().name())
             .setEmail(user.getEmail())
+            .setLabsSolved(user.getLabsSolved())
+            .setLabsReviewed(user.getLabsReviewed())
+            .setBalance(user.getBalance())
             .build();
     }
 

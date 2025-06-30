@@ -13,6 +13,9 @@ import com.olsh.users.proto.GetUserInfoRequest;
 import com.olsh.users.proto.GetUserProfileRequest;
 import com.olsh.users.proto.HealthCheckRequest;
 import com.olsh.users.proto.HealthCheckResponse;
+import com.olsh.users.proto.IncrementLabsReviewedRequest;
+import com.olsh.users.proto.IncrementLabsSolvedRequest;
+import com.olsh.users.proto.OperationResponse;
 import com.olsh.users.proto.SearchUsersRequest;
 import com.olsh.users.proto.SearchUsersResponse;
 import com.olsh.users.proto.UpdatePasswordRequest;
@@ -349,20 +352,53 @@ public class UsersServiceGrpcImpl extends UsersServiceGrpc.UsersServiceImplBase 
             
             DeleteUserResponse response = DeleteUserResponse.newBuilder()
                 .setSuccess(success)
-                .setMessage(success ? 
-                    "User deleted successfully" : 
-                    "User deletion failed or user not found")
+                .setMessage(success ? "User deleted successfully" : "Failed to delete user")
                 .build();
                 
             responseObserver.onNext(response);
             responseObserver.onCompleted();
+        } catch (NotFoundException e) {
+            log.error("User not found with ID: {}", request.getUserId(), e);
+            responseObserver.onError(io.grpc.Status.NOT_FOUND
+                                         .withDescription("User not found with ID: " + request.getUserId())
+                                         .asException());
         } catch (Exception e) {
             log.error("Error deleting user with ID: {}", request.getUserId(), e);
             responseObserver.onError(io.grpc.Status.INTERNAL
-                                         .withDescription(
-                                             "Internal error deleting user: " + e.getMessage())
+                                         .withDescription("Internal server error: " + e.getMessage())
                                          .asException());
         }
     }
 
+    @Override
+    public void incrementLabsSolved(IncrementLabsSolvedRequest request,
+                                   StreamObserver<OperationResponse> responseObserver) {
+        try {
+            log.info("Received IncrementLabsSolved request for user ID: {}", request.getUserId());
+            OperationResponse response = userService.incrementLabsSolved(request);
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            log.error("Error incrementing labs solved for user ID: {}", request.getUserId(), e);
+            responseObserver.onError(io.grpc.Status.INTERNAL
+                                         .withDescription("Internal server error: " + e.getMessage())
+                                         .asException());
+        }
+    }
+
+    @Override
+    public void incrementLabsReviewed(IncrementLabsReviewedRequest request,
+                                     StreamObserver<OperationResponse> responseObserver) {
+        try {
+            log.info("Received IncrementLabsReviewed request for user ID: {}", request.getUserId());
+            OperationResponse response = userService.incrementLabsReviewed(request);
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            log.error("Error incrementing labs reviewed for user ID: {}", request.getUserId(), e);
+            responseObserver.onError(io.grpc.Status.INTERNAL
+                                         .withDescription("Internal server error: " + e.getMessage())
+                                         .asException());
+        }
+    }
 }
