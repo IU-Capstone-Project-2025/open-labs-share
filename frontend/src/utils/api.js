@@ -102,6 +102,31 @@ export const authApiCall = async (endpoint, options = {}) => {
   }
 };
 
+// ML service API call wrapper
+export const mlApiCall = async (endpoint, options = {}) => {
+  const url = `${API_CONFIG.ML_SERVICE_URL}${endpoint}`;
+  
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      ...options,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('ML API error data:', errorData);
+      throw new Error(errorData.message || `ML API call failed: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('ML API call error:', error);
+    throw error;
+  }
+};
+
 // User API functions
 export const usersAPI = {
   // Get user by ID
@@ -153,6 +178,16 @@ export const usersAPI = {
   // Get current user's articles (when articles service is connected)
   getUserArticles: async (userId, page = 1, limit = 20) => {
     return await apiCall(`${API_CONFIG.ENDPOINTS.USERS}/${userId}/articles?page=${page}&limit=${limit}`);
+  },
+
+  // Get submission assets
+  getSubmissionAssets: async (submissionId) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_ASSETS(submissionId));
+  },
+
+  // Download submission asset
+  downloadSubmissionAsset: async (submissionId, assetId) => {
+    // ... (implementation details as needed)
   },
 };
 
@@ -352,11 +387,6 @@ export const submissionsAPI = {
     });
   },
 
-  // Get submission assets
-  getSubmissionAssets: async (submissionId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_ASSETS(submissionId));
-  },
-
   // Upload submission asset
   uploadSubmissionAsset: async (submissionId, file) => {
     const formData = new FormData();
@@ -377,22 +407,6 @@ export const submissionsAPI = {
     }
 
     return await response.json();
-  },
-
-  // Download submission asset
-  downloadSubmissionAsset: async (submissionId, assetId) => {
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.SUBMISSION_ASSET_DOWNLOAD(submissionId, assetId)}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Download failed: ${response.status} ${response.statusText}`);
-    }
-
-    return response.blob();
   },
 
   // Submit a file for a lab (creates submission and uploads file)
@@ -426,60 +440,20 @@ export const submissionsAPI = {
   },
 };
 
-// ML Service API functions (direct connection to FastAPI)
+// ML API functions
 export const mlAPI = {
-  // Send question to AI assistant
-  ask: async (uuid, assignmentId, content) => {
-    const url = `${API_CONFIG.ML_SERVICE_URL}${API_CONFIG.ENDPOINTS.ML_ASK}`;
-    
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          uuid: String(uuid),
-          assignment_id: String(assignmentId),
-          content: content
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `ML service error: ${response.status} ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('ML API ask error:', error);
-      throw error;
-    }
+  // Get chat history for a lab
+  getChatHistory: async (uuid, assignment_id) => {
+    return await mlApiCall(`${API_CONFIG.ENDPOINTS.ML_CHAT_HISTORY}?uuid=${uuid}&assignment_id=${assignment_id}`);
   },
 
-  // Get chat history for user and assignment
-  getChatHistory: async (uuid, assignmentId) => {
-    const url = `${API_CONFIG.ML_SERVICE_URL}${API_CONFIG.ENDPOINTS.ML_CHAT_HISTORY}?uuid=${String(uuid)}&assignment_id=${String(assignmentId)}`;
-    
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `ML service error: ${response.status} ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('ML API chat history error:', error);
-      throw error;
-    }
-  }
+  // Ask the ML agent a question
+  askAgent: async (uuid, assignment_id, content) => {
+    return await mlApiCall(API_CONFIG.ENDPOINTS.ML_ASK, {
+      method: 'POST',
+      body: JSON.stringify({ uuid, assignment_id, content }),
+    });
+  },
 };
 
 // Export the main APIs (clean backend-only APIs)
