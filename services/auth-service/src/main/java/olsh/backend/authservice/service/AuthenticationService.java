@@ -148,16 +148,8 @@ public class AuthenticationService {
                 try {
                     userInfo = userProfileService.getUserInfo(user.getUserId());
                 } catch (Exception e) {
-                    log.warn("Failed to get user info from users-service", e);
-
-                    userInfo = UserInfo.builder()
-                        .userId(user.getUserId())
-                        .username(user.getUsername())
-                        .firstName(user.getFirstName())
-                        .lastName(user.getLastName())
-                        .email(user.getEmail())
-                        .role(user.getRole().name())
-                        .build();
+                    log.warn("Failed to get user info from users-service, using fallback values", e);
+                    userInfo = createFallbackUserInfo(user);
                 }
 
                 return TokenValidationResponse.builder()
@@ -254,6 +246,9 @@ public class AuthenticationService {
                 .lastName(updatedUserInfo.getLastName())
                 .email(updatedUserInfo.getEmail())
                 .role(updatedUserInfo.getRole())
+                .labsSolved(updatedUserInfo.getLabsSolved())
+                .labsReviewed(updatedUserInfo.getLabsReviewed())
+                .balance(updatedUserInfo.getBalance())
                 .build();
             
             return UpdateProfileResponse.builder()
@@ -275,14 +270,13 @@ public class AuthenticationService {
     private AuthenticationResponse buildAuthenticationResponse(User user,
                                                                String accessToken,
                                                                String refreshToken) {
-        UserInfo userInfo = UserInfo.builder()
-            .userId(user.getUserId())
-            .username(user.getUsername())
-            .firstName(user.getFirstName())
-            .lastName(user.getLastName())
-            .email(user.getEmail())
-            .role(user.getRole().name())
-            .build();
+        UserInfo userInfo;
+        try {
+            userInfo = userProfileService.getUserInfo(user.getUserId());
+        } catch (Exception e) {
+            log.warn("Failed to get complete user info from users-service, using fallback values", e);
+            userInfo = createFallbackUserInfo(user);
+        }
 
         return AuthenticationResponse.builder()
             .accessToken(accessToken)
@@ -303,5 +297,25 @@ public class AuthenticationService {
         if (usersServiceClient.isEmailExists(email)) {
             throw new ValidationException("Email already exists");
         }
+    }
+
+    /**
+     * Creates fallback UserInfo when users-service is unavailable
+     * ONLY includes static user data - NEVER includes mutable transactional data (points/counters)
+     * This ensures data integrity and prevents phantom balance issues
+     */
+    private UserInfo createFallbackUserInfo(User user) {
+        log.info("Creating fallback user info for user ID: {} - points data will be unavailable", user.getUserId());
+        return UserInfo.builder()
+            .userId(user.getUserId())
+            .username(user.getUsername() != null ? user.getUsername() : "")
+            .firstName(user.getFirstName() != null ? user.getFirstName() : "")
+            .lastName(user.getLastName() != null ? user.getLastName() : "")
+            .email(user.getEmail() != null ? user.getEmail() : "")
+            .role(user.getRole() != null ? user.getRole().name() : "")
+            .labsSolved(0)
+            .labsReviewed(0)
+            .balance(0)
+            .build();
     }
 }

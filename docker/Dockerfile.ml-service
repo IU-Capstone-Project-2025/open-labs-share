@@ -5,6 +5,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
+    dos2unix \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy ML service requirements
@@ -18,7 +20,7 @@ COPY ml/ /app/ml/
 
 # Copy and make startup script executable
 COPY ml/startup.sh /app/startup.sh
-RUN chmod +x /app/startup.sh
+RUN dos2unix /app/startup.sh && chmod +x /app/startup.sh
 
 # Create necessary directories
 RUN mkdir -p /app/models

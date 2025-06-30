@@ -2,7 +2,6 @@ syntax = "proto3";
 
 option java_package = "olsh.backend.api_gateway.grpc.proto";
 option java_outer_classname = "AuthServiceProto";
-
 package auth;
 
 service AuthService {
@@ -34,6 +33,9 @@ message UserInfo {
   string last_name = 4;
   string role = 5;
   string email = 6;
+  int32 labs_solved = 7;
+  int32 labs_reviewed = 8;
+  int32 balance = 9;
 }
 
 // Health check request

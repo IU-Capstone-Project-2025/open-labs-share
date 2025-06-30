@@ -1,10 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Document, Page } from "react-pdf";
-import "react-pdf/dist/esm/Page/AnnotationLayer.css";
-import "react-pdf/dist/esm/Page/TextLayer.css";
-import { articlesAPI } from "../utils/api";
-
 import { pdfjs } from "react-pdf";
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.js",
@@ -89,11 +85,17 @@ export default function ArticlePage() {
   useEffect(() => {
     const controller = new AbortController();
 
-    const fetchPdf = async () => {
+    const fetchArticleAndPdf = async () => {
       try {
         setLoading(true);
         setError(null);
 
+        // Fetch article metadata
+        const articleData = await articlesAPI.getArticleById(id);
+        setArticle(articleData);
+
+        // TODO: Implement asset download from Minio via backend
+        // For now, continue using the sample PDF
         const response = await fetch(`/articles_sample/${id}.pdf`, {
           signal: controller.signal,
         });

@@ -29,4 +29,13 @@ public class UserInfo {
     
     @Schema(description = "Email address", example = "john.doe@example.com")
     private String email;
+
+    @Schema(description = "Number of labs solved by the user", example = "5")
+    private Integer labsSolved;
+
+    @Schema(description = "Number of labs reviewed by the user", example = "3")
+    private Integer labsReviewed;
+
+    @Schema(description = "User's current points balance", example = "40")
+    private Integer balance;
 }
