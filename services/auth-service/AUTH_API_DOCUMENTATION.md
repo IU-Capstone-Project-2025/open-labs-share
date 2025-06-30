@@ -251,10 +251,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
     "firstName": "Jane",
     "lastName": "Smith",
     "email": "jane.smith@example.com",
-    "role": "ROLE_USER",
-    "labsSolved": 3,
-    "labsReviewed": 2,
-    "balance": 45
+    "role": "ROLE_USER"
   },
   "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",

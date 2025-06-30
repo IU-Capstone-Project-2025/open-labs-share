@@ -38,7 +38,9 @@ public class AuthServiceClient {
         // Convert gRPC response to our model
         UserInfo userInfo = null;
         if (response.hasUserInfo()) {
+            // Get gRPC response
             AuthServiceProto.UserInfo grpcUserInfo = response.getUserInfo();
+
             userInfo = new UserInfo(
                     grpcUserInfo.getUserId(),
                     grpcUserInfo.getUsername(),

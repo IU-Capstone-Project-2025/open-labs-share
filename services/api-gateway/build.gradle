@@ -38,6 +38,8 @@ dependencies {
 	// Testing
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
+	testImplementation 'io.grpc:grpc-testing:1.72.0'
+	testImplementation 'com.google.protobuf:protobuf-java-util:4.28.2'
 
 	// gRPC client
 	implementation 'org.springframework.grpc:spring-grpc-client-spring-boot-starter'
