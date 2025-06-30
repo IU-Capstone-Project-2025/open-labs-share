@@ -35,7 +35,10 @@ CREATE TABLE users (
     last_name VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL,
     created_at TIMESTAMP,
-    last_login_at TIMESTAMP
+    last_login_at TIMESTAMP,
+    labs_solved INTEGER DEFAULT 0,    -- Points system
+    labs_reviewed INTEGER DEFAULT 0,  -- Points system
+    balance INTEGER DEFAULT 10        -- Points system
 );
 ```
 
@@ -49,6 +52,9 @@ CREATE TABLE users (
 - **role**: User role (ROLE_USER, ROLE_ADMIN, etc.)
 - **created_at**: Account creation timestamp
 - **last_login_at**: Last successful login timestamp
+- **labs_solved**: Number of laboratory assignments completed by the user (points system)
+- **labs_reviewed**: Number of laboratory assignments reviewed by the user (points system)
+- **balance**: Current point balance available for solving new labs (points system)
 
 ## 4. gRPC API
 
@@ -75,6 +81,11 @@ CREATE TABLE users (
 - `CheckUsernameExists`: Check if username is available
 - `CheckEmailExists`: Check if email is available
 
+### Points System
+
+- `IncrementLabsSolved`: Increment labs solved counter and update balance
+- `IncrementLabsReviewed`: Increment labs reviewed counter and update balance
+
 ### System Support
 
 - `HealthCheck`: Service health status
@@ -91,6 +102,9 @@ message UserInfo {
   string last_name = 4;
   string role = 5;
   string email = 6;
+  int32 labs_solved = 7;
+  int32 labs_reviewed = 8;
+  int32 balance = 9;
 }
 
 message UserProfileResponse {
@@ -111,6 +125,19 @@ message AuthenticateUserRequest {
   string username = 1; // Can be username or email
   string password = 2;
   bool using_email = 3;
+}
+
+message IncrementLabsSolvedRequest {
+  int64 user_id = 1;
+}
+
+message IncrementLabsReviewedRequest {
+  int64 user_id = 1;
+}
+
+message IncrementStatsResponse {
+  UserInfo user_info = 1;
+  string message = 2;
 }
 ```
 
@@ -135,6 +162,10 @@ service UsersService {
   rpc SearchUsers (SearchUsersRequest) returns (SearchUsersResponse) {}
   rpc CheckUsernameExists (FindUserByUsernameRequest) returns (ExistsResponse) {}
   rpc CheckEmailExists (FindUserByEmailRequest) returns (ExistsResponse) {}
+  
+  // Points System
+  rpc IncrementLabsSolved (IncrementLabsSolvedRequest) returns (IncrementStatsResponse) {}
+  rpc IncrementLabsReviewed (IncrementLabsReviewedRequest) returns (IncrementStatsResponse) {}
   
   // System Support
   rpc GetUserInfo (GetUserInfoRequest) returns (UserInfoResponse) {}
@@ -167,6 +198,10 @@ The Users Service is the **primary dependency** of the Auth Service. All authent
    - Auth Service calls `UpdatePassword` for password changes
    - Users Service handles password hashing and validation
 
+5. **Points System Integration**:
+   - Labs Service calls `IncrementLabsSolved` when users complete labs
+   - Labs Service calls `IncrementLabsReviewed` when users review labs
+
 ### gRPC Client Configuration (Auth Service)
 
 ```yaml
@@ -176,16 +211,62 @@ grpc:
     port: ${USERS_SERVICE_PORT:9093}
 ```
 
-## 7. Configuration
+## 7. Points System
+
+### Overview
+
+- **Initial Balance**: New users start with 10 points (configurable via `POINTS_INITIAL_BALANCE`)
+- **Solving Labs**: Costs 1 points per lab assignment (configurable via `POINTS_SOLVE_COST`)
+- **Reviewing Labs**: Earns 3 points per lab reviewed (configurable via `POINTS_SOLVE_COSE` * `POINTS_REVIEW_MULTIPLIER`)
+- **Balance Validation**: Users cannot solve labs if their balance is insufficient
+
+### Points Configuration
+
+| Variable                    | Description                           | Default |
+|-----------------------------|---------------------------------------|---------|
+| POINTS_INITIAL_BALANCE      | Starting points for new users         | 10      |
+| POINTS_SOLVE_COST           | Points deducted when solving labs     | 1       |
+| POINTS_REVIEW_MULTIPLIER    | Multiplier for points earned reviewing| 3       |
+
+### Points Operations
+
+#### IncrementLabsSolved
+- **Purpose**: Called when a user completes a lab assignment
+- **Business Logic**: 
+  - Validates user has sufficient balance (>= solve cost)
+  - Increments `labs_solved` counter
+  - Deducts points from user balance (solve_cost)
+  - Operation is atomic and transactional
+- **Error Cases**: Returns `INSUFFICIENT_BALANCE` if user cannot afford the lab
+
+#### IncrementLabsReviewed
+- **Purpose**: Called when a user reviews a lab assignment
+- **Business Logic**:
+  - Increments `labs_reviewed` counter
+  - Adds points to user balance (solve_cost × review_multiplier)
+  - Operation is atomic and transactional
+- **Error Cases**: None (reviewing always succeeds)
+
+### Integration with Labs Service
+
+The points system is designed to integrate with the labs-service:
+- Labs-service calls `IncrementLabsSolved` when users submit labs
+- Labs-service calls `IncrementLabsReviewed` when users complete reviews
+- All user profile responses include current points data
+
+## 8. Configuration
 
 ### Environment Variables
 
-| Variable             | Description                      | Default                                          |
-|----------------------|----------------------------------|--------------------------------------------------|
-| DB_URL               | JDBC URL for PostgreSQL database | jdbc:postgresql://localhost:5432/users_service   |
-| DB_USERNAME          | Database username                | postgres                                         |
-| DB_PASSWORD          | Database password                | postgres                                         |
-| GRPC_PORT            | gRPC server port                 | 9093                                             |
-| HIBERNATE_DDL_AUTO   | Hibernate DDL auto mode          | update                                           |
-| SHOW_SQL             | Show SQL queries in logs         | false                                            |
-| LOG_LEVEL            | Application log level            | INFO                                             |
+| Variable                    | Description                           | Default                                          |
+|-----------------------------|---------------------------------------|--------------------------------------------------|
+| DB_URL                      | JDBC URL for PostgreSQL database     | jdbc:postgresql://localhost:5432/users_service   |
+| DB_USERNAME                 | Database username                     | postgres                                         |
+| DB_PASSWORD                 | Database password                     | postgres                                         |
+| GRPC_PORT                   | gRPC server port                      | 9093                                             |
+| HIBERNATE_DDL_AUTO          | Hibernate DDL auto mode               | update                                           |
+| SHOW_SQL                    | Show SQL queries in logs              | false                                            |
+| LOG_LEVEL                   | Application log level                 | INFO                                             |
+| POINTS_INITIAL_BALANCE      | Starting points for new users         | 10                                               |
+| POINTS_SOLVE_COST           | Points deducted when solving labs     | 1                                                |
+| POINTS_REVIEW_MULTIPLIER    | Multiplier for points earned reviewing| 3                                                |
