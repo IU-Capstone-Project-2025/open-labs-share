@@ -96,6 +96,8 @@ The auth-service heavily relies on users-service gRPC endpoints:
 - `UpdateUserLastLogin`: For tracking login times
 - `CheckUsernameExists`: For username availability validation
 - `CheckEmailExists`: For email availability validation
+- `IncrementLabsSolved`: For updating user points when labs are solved (used by labs-service)
+- `IncrementLabsReviewed`: For updating user points when labs are reviewed (used by labs-service)
 
 ### gRPC Client Configuration
 

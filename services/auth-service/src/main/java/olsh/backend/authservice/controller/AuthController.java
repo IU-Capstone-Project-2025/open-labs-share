@@ -27,12 +27,14 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.authservice.dto.AuthenticationResponse;
-import olsh.backend.authservice.dto.ChangePasswordRequest;
+
 import olsh.backend.authservice.dto.PasswordResetConfirmRequest;
 import olsh.backend.authservice.dto.PasswordResetRequest;
 import olsh.backend.authservice.dto.RefreshTokenRequest;
 import olsh.backend.authservice.dto.SignInRequest;
 import olsh.backend.authservice.dto.SignUpRequest;
+import olsh.backend.authservice.dto.UpdateProfileRequest;
+import olsh.backend.authservice.dto.UpdateProfileResponse;
 import olsh.backend.authservice.dto.UserProfileResponseWithUserInfo;
 import olsh.backend.authservice.service.AuthenticationService;
 
@@ -98,8 +100,6 @@ public class AuthController {
         AuthenticationResponse response = authenticationService.refreshToken(request);
         return ResponseEntity.ok(response);
     }
-
-
 
     @Operation(
         summary = "Logout user",
@@ -171,31 +171,6 @@ public class AuthController {
     }
 
     @Operation(
-        summary = "Change password",
-        description = "Changes user's password (requires authentication)",
-        security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Password changed successfully",
-            content = @Content(schema = @Schema(implementation = olsh.backend.authservice.dto.ApiResponse.class))),
-        @ApiResponse(responseCode = "400", description = "Invalid current password"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized")
-    })
-    @PutMapping("/change-password")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<olsh.backend.authservice.dto.ApiResponse> changePassword(
-        @RequestBody @Valid ChangePasswordRequest request, Principal principal) {
-        log.info("Password change request for user: {}", principal.getName());
-        authenticationService.changePassword(request, principal.getName());
-        return ResponseEntity.ok(
-            olsh.backend.authservice.dto.ApiResponse.builder()
-                .success(true)
-                .message("Password changed successfully")
-                .build()
-        );
-    }
-
-    @Operation(
         summary = "Get user profile",
         description = "Retrieves authenticated user's profile information",
         security = @SecurityRequirement(name = "bearerAuth")
@@ -214,7 +189,31 @@ public class AuthController {
         return ResponseEntity.ok(profile);
     }
 
-
+    @Operation(
+        summary = "Update user profile",
+        description = "Updates authenticated user's profile information. Returns new JWT tokens if username was changed, same tokens otherwise.",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Profile updated successfully",
+            content = @Content(schema = @Schema(implementation = UpdateProfileResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid request data or validation error"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "409", description = "Username or email already exists")
+    })
+    @PutMapping("/profile")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<UpdateProfileResponse> updateProfile(
+        @RequestBody @Valid UpdateProfileRequest request,
+        Principal principal,
+        HttpServletRequest httpRequest) {
+        log.info("Profile update request for user: {}", principal.getName());
+        
+        String currentToken = extractTokenFromRequest(httpRequest);
+        UpdateProfileResponse response = authenticationService.updateProfile(request, principal.getName(), currentToken);
+        
+        return ResponseEntity.ok(response);
+    }
 
     @Operation(
         summary = "Verify email address ⚠️ NOT YET IMPLEMENTED",

@@ -21,6 +21,12 @@ spring:
       host: ${AUTH_SERVICE_HOST:localhost}
       port: ${AUTH_SERVICE_PORT:8383}
 
+# Points system configuration
+points:
+  multiplier-review: ${POINTS_MULTIPLIER_REVIEW:3}  # k - multiplier for review rewards
+  base-cost: ${POINTS_BASE_COST:1}                  # n - base points cost/reward
+  initial-balance: ${INITIAL_BALANCE:10}            # m - initial balance for new users
+
 logging:
   level:
     olsh.backend.usersservice: ${LOG_LEVEL:INFO}

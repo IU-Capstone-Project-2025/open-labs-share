@@ -113,6 +113,9 @@ The service can be configured using environment variables, which are imported fr
 | `FEEDBACK_SERVICE_PORT` | Port for the Feedback gRPC service.                | `9094`        |
 | `GRPC_NEGOTIATION_TYPE` | gRPC negotiation type (e.g., `plaintext` or `tls`).| `plaintext`   |
 
+## Testing
+
+In order to test the application you can run `./gradlew test` from source code folder.
 
 ## Deployment
 

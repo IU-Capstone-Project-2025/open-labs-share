@@ -42,12 +42,16 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.grpc:spring-grpc-test'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly 'com.h2database:h2' // H2 database for application context tests
 }
 
 dependencyManagement {
     imports {
         mavenBom "org.springframework.grpc:spring-grpc-dependencies:${springGrpcVersion}"
+        mavenBom "org.testcontainers:testcontainers-bom:1.19.8"
     }
 }
 

@@ -1,6 +1,5 @@
 package olsh.backend.api_gateway.service;
 
-import olsh.backend.api_gateway.dto.request.CreateCommentRequest;
 import olsh.backend.api_gateway.dto.request.GetCommentsRequest;
 import olsh.backend.api_gateway.dto.request.UpdateCommentRequest;
 import olsh.backend.api_gateway.dto.response.CommentListResponse;
@@ -10,6 +9,7 @@ import olsh.backend.api_gateway.exception.ForbiddenAccessException;
 import olsh.backend.api_gateway.exception.LabNotFoundException;
 import olsh.backend.api_gateway.exception.UserNotFoundException;
 import olsh.backend.api_gateway.grpc.client.CommentServiceClient;
+import olsh.backend.api_gateway.dto.request.CreateCommentRequest;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,6 +49,12 @@ public class CommentService {
     }
 
     public CommentResponse updateComment(String commentId, long userId, UpdateCommentRequest request) {
+        CommentResponse oldComment = getCommentById(commentId);
+        if (userId != oldComment.getUserId()){
+            log.warn("User {} attempted to update comment {} owned by user {}",
+                    userId, commentId, oldComment.getUserId());
+            throw new ForbiddenAccessException("Only author can update the comment");
+        }
         CommentResponse comment = commentServiceClient.updateComment(commentId, request);
         return enrichCommentWithUserInfo(comment);
     }
@@ -87,9 +93,9 @@ public class CommentService {
             // If user is not found, we still return the comment but with empty user info
             user = new UserResponse(
                     comment.getUserId(),
-                    "Unknown",
-                    "Unknown",
                     "User",
+                    "Unknown",
+                    "Unknown",
                     null
             );
         }
@@ -98,8 +104,8 @@ public class CommentService {
                 .id(comment.getId())
                 .labId(comment.getLabId())
                 .userId(comment.getUserId())
-                .firstName(user.name())
-                .lastName(user.surname())
+                .firstName(user.getName())
+                .lastName(user.getSurname())
                 .parentId(comment.getParentId())
                 .content(comment.getContent())
                 .createdAt(comment.getCreatedAt())
@@ -133,8 +139,8 @@ public class CommentService {
                             .id(comment.getId())
                             .labId(comment.getLabId())
                             .userId(comment.getUserId())
-                            .firstName(user.name())
-                            .lastName(user.surname())
+                            .firstName(user.getName())
+                            .lastName(user.getSurname())
                             .parentId(comment.getParentId())
                             .content(comment.getContent())
                             .createdAt(comment.getCreatedAt())

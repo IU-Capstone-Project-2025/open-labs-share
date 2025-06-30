@@ -34,14 +34,16 @@ const ChatWindow = ({ labId, isOpen, onToggle, chatMode, onSetChatMode }) => {
     if (!user || !labId) return;
 
     try {
-      const data = await mlAPI.getChatHistory(user.id, labId);
+      const data = await mlAPI.getChatHistory(String(user.id), String(labId));
       if (data.history && Array.isArray(data.history)) {
-        const formattedMessages = data.history.map((msg, index) => ({
-          id: index,
-          text: msg.content,
-          isUser: msg.type === 'human',
-          timestamp: new Date()
-        }));
+        const formattedMessages = data.history
+          .filter(msg => msg.type !== 'system')
+          .map((msg, index) => ({
+            id: index,
+            text: msg.content,
+            isUser: msg.type === 'human',
+            timestamp: new Date()
+          }));
         setMessages(formattedMessages);
       }
     } catch (error) {
@@ -65,7 +67,7 @@ const ChatWindow = ({ labId, isOpen, onToggle, chatMode, onSetChatMode }) => {
     setIsLoading(true);
 
     try {
-      const data = await mlAPI.ask(user.id, labId, messageContent);
+      const data = await mlAPI.askAgent(String(user.id), String(labId), messageContent);
       const aiMessage = {
         id: Date.now() + 1,
         text: data.content,

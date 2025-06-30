@@ -4,12 +4,18 @@
 export const API_CONFIG = {
   API_GATEWAY_URL: import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080',
   API_GATEWAY_ENDPOINT: `${import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080'}/api/v1`,
+  // Direct Auth service connection for profile updates
+  AUTH_SERVICE_URL: import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8081',
+  AUTH_SERVICE_ENDPOINT: `${import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8081'}/api/v1/auth`,
   // Direct ML service connection (bypasses API Gateway as per requirements)
   ML_SERVICE_URL: import.meta.env.VITE_ML_SERVICE_URL || 'http://localhost:8083',
   ENDPOINTS: {
     // User endpoints (through API Gateway to Users Service)
     USERS: '/users',
     USER_BY_ID: (userId) => `/users/${userId}`,
+    
+    // Auth service endpoints (direct connection)
+    AUTH_PROFILE: '/profile',
     
     // Lab endpoints (through API Gateway to Labs Service)
     LABS: '/labs',
@@ -31,8 +37,8 @@ export const API_CONFIG = {
     ML_CHAT_HISTORY: '/get_chat_history',
     
     // Article endpoints (currently not connected as per requirements)
-    // ARTICLES: '/articles',
-    // ARTICLE_BY_ID: (articleId) => `/articles/${articleId}`,
+    ARTICLES: '/articles',
+    ARTICLE_BY_ID: (articleId) => `/articles/${articleId}`,
     
     // Comments/Feedback endpoints (when feedback controller is implemented)
     // COMMENTS: '/feedback/comments',
@@ -73,6 +79,54 @@ export const apiCall = async (endpoint, options = {}) => {
   }
 };
 
+// Auth service API call wrapper
+export const authApiCall = async (endpoint, options = {}) => {
+  const url = `${API_CONFIG.AUTH_SERVICE_ENDPOINT}${endpoint}`;
+  
+  try {
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+      ...options,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Auth API error data:', errorData);
+      throw new Error(errorData.message || `Auth API call failed: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Auth API call error:', error);
+    throw error;
+  }
+};
+
+// ML service API call wrapper
+export const mlApiCall = async (endpoint, options = {}) => {
+  const url = `${API_CONFIG.ML_SERVICE_URL}${endpoint}`;
+  
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      ...options,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('ML API error data:', errorData);
+      throw new Error(errorData.message || `ML API call failed: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('ML API call error:', error);
+    throw error;
+  }
+};
+
 // User API functions
 export const usersAPI = {
   // Get user by ID
@@ -85,12 +139,28 @@ export const usersAPI = {
     return await apiCall(`${API_CONFIG.ENDPOINTS.USERS}?page=${page}&limit=${limit}`);
   },
 
-  // Update user
+  // Update user profile - calls auth service directly
   updateUser: async (userId, userData) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.USER_BY_ID(userId), {
+    const response = await authApiCall(API_CONFIG.ENDPOINTS.AUTH_PROFILE, {
       method: 'PUT',
       body: JSON.stringify(userData),
     });
+    
+    // Update tokens only if they were provided (username was changed)
+    if (response.usernameChanged && response.accessToken && response.refreshToken) {
+      localStorage.setItem('authToken', response.accessToken);
+      localStorage.setItem('refreshToken', response.refreshToken);
+      console.log('Username changed - tokens updated');
+    } else if (!response.usernameChanged) {
+      console.log('Username not changed - keeping existing tokens');
+    }
+    
+    // Update local user data
+    if (response.userInfo) {
+      localStorage.setItem('user', JSON.stringify(response.userInfo));
+    }
+    
+    return response;
   },
 
   // Delete user
@@ -107,8 +177,17 @@ export const usersAPI = {
 
   // Get current user's articles (when articles service is connected)
   getUserArticles: async (userId, page = 1, limit = 20) => {
-    // TODO: Implement when articles service is connected
-    throw new Error('Articles service not yet connected');
+    return await apiCall(`${API_CONFIG.ENDPOINTS.USERS}/${userId}/articles?page=${page}&limit=${limit}`);
+  },
+
+  // Get submission assets
+  getSubmissionAssets: async (submissionId) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_ASSETS(submissionId));
+  },
+
+  // Download submission asset
+  downloadSubmissionAsset: async (submissionId, assetId) => {
+    // ... (implementation details as needed)
   },
 };
 
@@ -219,6 +298,55 @@ export const labsAPI = {
   },
 };
 
+// Articles API functions
+export const articlesAPI = {
+  // Get all articles with pagination
+  getArticles: async (page = 1, limit = 20) => {
+    return await apiCall(`${API_CONFIG.ENDPOINTS.ARTICLES}?page=${page}&limit=${limit}`);
+  },
+
+  // Get current user's articles
+  getMyArticles: async (page = 1, limit = 20) => {
+    return await apiCall(`${API_CONFIG.ENDPOINTS.ARTICLES}/my?page=${page}&limit=${limit}`);
+  },
+
+  // Get article by ID
+  getArticleById: async (articleId) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.ARTICLE_BY_ID(articleId));
+  },
+
+  // Create a new article with file upload
+  createArticle: async (articleData) => {
+    const formData = new FormData();
+    formData.append('title', articleData.title);
+    formData.append('short_desc', articleData.short_desc);
+    formData.append('pdf_file', articleData.pdf_file);
+    
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.ARTICLES}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Article creation failed: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  },
+
+  // Delete article
+  deleteArticle: async (articleId) => {
+    return await apiCall(API_CONFIG.ENDPOINTS.ARTICLE_BY_ID(articleId), {
+      method: 'DELETE',
+    });
+  },
+};
+
 // Submissions API functions
 export const submissionsAPI = {
   // Get all submissions with pagination
@@ -259,11 +387,6 @@ export const submissionsAPI = {
     });
   },
 
-  // Get submission assets
-  getSubmissionAssets: async (submissionId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_ASSETS(submissionId));
-  },
-
   // Upload submission asset
   uploadSubmissionAsset: async (submissionId, file) => {
     const formData = new FormData();
@@ -284,22 +407,6 @@ export const submissionsAPI = {
     }
 
     return await response.json();
-  },
-
-  // Download submission asset
-  downloadSubmissionAsset: async (submissionId, assetId) => {
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.SUBMISSION_ASSET_DOWNLOAD(submissionId, assetId)}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Download failed: ${response.status} ${response.statusText}`);
-    }
-
-    return response.blob();
   },
 
   // Submit a file for a lab (creates submission and uploads file)
@@ -333,60 +440,20 @@ export const submissionsAPI = {
   },
 };
 
-// ML Service API functions (direct connection to FastAPI)
+// ML API functions
 export const mlAPI = {
-  // Send question to AI assistant
-  ask: async (uuid, assignmentId, content) => {
-    const url = `${API_CONFIG.ML_SERVICE_URL}${API_CONFIG.ENDPOINTS.ML_ASK}`;
-    
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          uuid: String(uuid),
-          assignment_id: String(assignmentId),
-          content: content
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `ML service error: ${response.status} ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('ML API ask error:', error);
-      throw error;
-    }
+  // Get chat history for a lab
+  getChatHistory: async (uuid, assignment_id) => {
+    return await mlApiCall(`${API_CONFIG.ENDPOINTS.ML_CHAT_HISTORY}?uuid=${uuid}&assignment_id=${assignment_id}`);
   },
 
-  // Get chat history for user and assignment
-  getChatHistory: async (uuid, assignmentId) => {
-    const url = `${API_CONFIG.ML_SERVICE_URL}${API_CONFIG.ENDPOINTS.ML_CHAT_HISTORY}?uuid=${String(uuid)}&assignment_id=${String(assignmentId)}`;
-    
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `ML service error: ${response.status} ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('ML API chat history error:', error);
-      throw error;
-    }
-  }
+  // Ask the ML agent a question
+  askAgent: async (uuid, assignment_id, content) => {
+    return await mlApiCall(API_CONFIG.ENDPOINTS.ML_ASK, {
+      method: 'POST',
+      body: JSON.stringify({ uuid, assignment_id, content }),
+    });
+  },
 };
 
 // Export the main APIs (clean backend-only APIs)

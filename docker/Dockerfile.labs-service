@@ -7,6 +7,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     gcc \
     postgresql-client \
+    dos2unix \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file
@@ -20,20 +21,20 @@ COPY services/labs-service/app/ /app/
 
 # Copy wait script
 COPY services/labs-service/scripts/wait-for-postgres.sh /usr/local/bin/wait-for-postgres.sh
-RUN chmod +x /usr/local/bin/wait-for-postgres.sh
+RUN dos2unix /usr/local/bin/wait-for-postgres.sh && chmod +x /usr/local/bin/wait-for-postgres.sh
 
 # Create __init__.py files to make directories Python packages
 RUN touch proto/__init__.py utils/__init__.py
 
 # Generate protobuf files
-RUN python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto proto/labs.proto
+RUN python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto proto/labs_service.proto
 
 # List generated files for debugging
 RUN ls -la proto/
 
 # Fix import statements if files exist
-RUN if [ -f "proto/labs_pb2_grpc.py" ]; then \
-        sed -i 's/import labs_pb2/from . import labs_pb2/' proto/labs_pb2_grpc.py; \
+RUN if [ -f "proto/labs_service_pb2_grpc.py" ]; then \
+        sed -i 's/import labs_service_pb2/from . import labs_service_pb2/' proto/labs_service_pb2_grpc.py; \
     fi
 
 # Create files directory for temporary storage

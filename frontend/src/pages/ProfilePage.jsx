@@ -1,7 +1,7 @@
 import ArticleCard from "../components/ArticleCard";
 import LabCard from "../components/LabCard";
 import { useState, useEffect } from "react";
-import { getCurrentUser, isAuthenticated } from "../utils/auth";
+import { getCurrentUser, isAuthenticated, getUserProfile } from "../utils/auth";
 import { usersAPI, labsAPI } from "../utils/api";
 
 export default function ProfilePage() {
@@ -32,41 +32,39 @@ export default function ProfilePage() {
         setLoading(true);
         
         if (isAuthenticated()) {
-          const currentUser = getCurrentUser();
-          setUser(currentUser);
-          
-          // Fetch full user profile
-          if (currentUser.id) {
-            try {
-              const userResponse = await usersAPI.getUserById(currentUser.id);
-              const userData = userResponse.data;
-              
-              const profileData = {
-                firstName: userData.firstName || currentUser.firstName || "",
-                lastName: userData.lastName || currentUser.lastName || "",
-                username: userData.username || currentUser.username || "",
-                email: userData.email || currentUser.email || "",
-                password: "",
-                confirmPassword: "",
-              };
-              
-              setFormData(profileData);
-              setOriginalData(profileData);
-            } catch (err) {
-              console.warn("Could not fetch full user profile:", err);
-              // Use current user data as fallback
-              const profileData = {
-                firstName: currentUser.firstName || "",
-                lastName: currentUser.lastName || "",
-                username: currentUser.username || "",
-                email: currentUser.email || "",
-                password: "",
-                confirmPassword: "",
-              };
-              
-              setFormData(profileData);
-              setOriginalData(profileData);
-            }
+          // Fetch fresh profile data from auth service for consistency
+          try {
+            const userData = await getUserProfile();
+            setUser(userData);
+            
+            const profileData = {
+              firstName: userData.firstName || "",
+              lastName: userData.lastName || "",
+              username: userData.username || "",
+              email: userData.email || "",
+              password: "",
+              confirmPassword: "",
+            };
+            
+            setFormData(profileData);
+            setOriginalData(profileData);
+          } catch (err) {
+            console.error("Could not fetch user profile:", err);
+            // Fallback to current user data from localStorage
+            const currentUser = getCurrentUser();
+            setUser(currentUser);
+            
+            const profileData = {
+              firstName: currentUser.firstName || "",
+              lastName: currentUser.lastName || "",
+              username: currentUser.username || "",
+              email: currentUser.email || "",
+              password: "",
+              confirmPassword: "",
+            };
+            
+            setFormData(profileData);
+            setOriginalData(profileData);
           }
           
           // Fetch user's content (labs)
@@ -164,18 +162,40 @@ export default function ProfilePage() {
       }
       
       if (user && user.id) {
-        await usersAPI.updateUser(user.id, updateData);
+        const response = await usersAPI.updateUser(user.id, updateData);
         
-        // Update local storage with new user data
-        const updatedUser = { ...user, ...updateData };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        setUser(updatedUser);
+        // After successful update, fetch fresh data from auth service
+        try {
+          const freshUserData = await getUserProfile();
+          setUser(freshUserData);
+          
+          const refreshedProfileData = {
+            firstName: freshUserData.firstName || "",
+            lastName: freshUserData.lastName || "",
+            username: freshUserData.username || "",
+            email: freshUserData.email || "",
+            password: "",
+            confirmPassword: "",
+          };
+          
+          setFormData(refreshedProfileData);
+          setOriginalData(refreshedProfileData);
+        } catch (err) {
+          console.warn("Could not fetch fresh profile data after update:", err);
+          // Fallback to response data
+          const updatedUser = response.userInfo || response;
+          setUser(updatedUser);
+          setOriginalData({ ...formData, password: "", confirmPassword: "" });
+          setFormData(prev => ({ ...prev, password: "", confirmPassword: "" }));
+        }
         
-        setOriginalData({ ...formData, password: "", confirmPassword: "" });
-        setFormData(prev => ({ ...prev, password: "", confirmPassword: "" }));
         setEditMode(false);
         
-        alert("Profile updated successfully!");
+        if (response.usernameChanged) {
+          alert("Profile updated successfully! New authentication tokens have been issued due to username change.");
+        } else {
+          alert("Profile updated successfully! Your current login session remains active.");
+        }
       }
     } catch (err) {
       console.error("Error updating profile:", err);

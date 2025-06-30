@@ -15,7 +15,7 @@ public class AuthService {
     private final AuthServiceClient authServiceClient;
 
     public AuthValidationResponse validateToken(String token) {
-        if (token == null || token.trim().isEmpty()) {
+        if (token == null || token.isBlank()) {
             throw new AuthenticationException("Token is required");
         }
 

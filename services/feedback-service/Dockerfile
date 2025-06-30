@@ -21,7 +21,7 @@ COPY . .
 RUN mkdir -p internal/grpc/proto
 RUN protoc --go_out=. --go_opt=paths=source_relative \
     --go-grpc_out=. --go-grpc_opt=paths=source_relative \
-    api/feedback.proto
+    api/feedback_service.proto
 
 # Build binary
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o feedback-service ./cmd/

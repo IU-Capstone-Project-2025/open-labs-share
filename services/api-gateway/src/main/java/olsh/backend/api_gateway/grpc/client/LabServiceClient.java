@@ -159,7 +159,7 @@ public class LabServiceClient {
         UploadAssetMetadata metadata = UploadAssetMetadata.newBuilder()
                 .setLabId(labId)
                 .setFilename(file.getOriginalFilename())
-                .setTotalSize(file.getSize())
+                .setFilesize(file.getSize())
                 .build();
 
         UploadAssetRequest metadataRequest = UploadAssetRequest.newBuilder()
@@ -226,7 +226,7 @@ public class LabServiceClient {
                 DownloadAssetResponse first = responseIterator.next();
                 if (first.hasAsset()) {
                     log.debug("Asset metadata received: filename={}, size={}", 
-                        first.getAsset().getFilename(), first.getAsset().getTotalSize());
+                        first.getAsset().getFilename(), first.getAsset().getFilesize());
                 }
             }
             

@@ -13,6 +13,7 @@ export default function Sidebar({
 }) {
   const [activePath, setActivePath] = useState("");
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isCreateDropdownOpen, setIsCreateDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,8 +23,14 @@ export default function Sidebar({
   const navItems = [
     { path: "/home", name: "Home" },
     { path: "/all-labs", name: "All Labs" },
-    { path: "/create-lab", name: "Create Lab" },
     { path: "/all-articles", name: "All Articles" },
+    {
+      name: "Create",
+      dropdown: [
+        { path: "/create-lab", name: "Create Lab" },
+        { path: "/create-article", name: "Create Article" },
+      ],
+    },
   ];
 
   const profileDropdownItems = [    
@@ -33,9 +40,14 @@ export default function Sidebar({
   ];
 
   const isProfileActive = profileDropdownItems.some(item => item.path === activePath);
+  const isCreateActive = navItems.find(item => item.name === 'Create')?.dropdown?.some(subItem => subItem.path === activePath);
 
   const handleProfileClick = () => {
     setIsProfileDropdownOpen(!isProfileDropdownOpen);
+  };
+
+  const handleCreateClick = () => {
+    setIsCreateDropdownOpen(!isCreateDropdownOpen);
   };
 
   const handleDropdownItemClick = (path) => {
@@ -101,21 +113,62 @@ export default function Sidebar({
         <nav className="flex-1">
           <ul className="space-y-2">
             {navItems.map((item) => (
-              <li key={item.path}>
-                <NavLink
-                  to={item.path}
-                  className={`block px-4 py-3 rounded-lg transition-colors font-inter ${
-                    activePath === item.path
-                      ? "bg-blue-blue bg-opacity-20 text-white backdrop-blur-lg font-medium"
-                      : "text-white hover:bg-white hover:bg-opacity-10 font-light"
-                  }`}
-                  onClick={() => {
-                    setActivePath(item.path);
-                    toggleSidebar();
-                  }}
-                >
-                  {item.name}
-                </NavLink>
+              <li key={item.name}>
+                {item.dropdown ? (
+                  // Render dropdown menu
+                  <>
+                    <button
+                      onClick={handleCreateClick}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors font-inter ${
+                        isCreateActive
+                          ? "bg-blue-blue bg-opacity-20 text-white backdrop-blur-lg font-medium"
+                          : "text-white hover:bg-white hover:bg-opacity-10 font-light"
+                      }`}
+                    >
+                      <span>{item.name}</span>
+                      <ChevronDownIcon
+                        className={`h-4 w-4 transition-transform duration-200 ${
+                          isCreateDropdownOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {isCreateDropdownOpen && (
+                      <ul className="mt-2 ml-4 space-y-1">
+                        {item.dropdown.map((subItem) => (
+                          <li key={subItem.path}>
+                            <NavLink
+                              to={subItem.path}
+                              className={`block px-4 py-2 rounded-lg transition-colors font-inter text-sm ${
+                                activePath === subItem.path
+                                  ? "bg-blue-blue bg-opacity-30 text-white font-medium"
+                                  : "text-white hover:bg-white hover:bg-opacity-10 font-light"
+                              }`}
+                              onClick={() => handleDropdownItemClick(subItem.path)}
+                            >
+                              {subItem.name}
+                            </NavLink>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                ) : (
+                  // Render regular nav link
+                  <NavLink
+                    to={item.path}
+                    className={`block px-4 py-3 rounded-lg transition-colors font-inter ${
+                      activePath === item.path
+                        ? "bg-blue-blue bg-opacity-20 text-white backdrop-blur-lg font-medium"
+                        : "text-white hover:bg-white hover:bg-opacity-10 font-light"
+                    }`}
+                    onClick={() => {
+                      setActivePath(item.path);
+                      toggleSidebar();
+                    }}
+                  >
+                    {item.name}
+                  </NavLink>
+                )}
               </li>
             ))}
             
@@ -155,33 +208,34 @@ export default function Sidebar({
                       </NavLink>
                     </li>
                   ))}
-                  {/* Logout Button */}
-                  <li>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors font-inter text-sm text-white hover:bg-red-500 hover:bg-opacity-20 font-light"
-                    >
-                      <ArrowRightOnRectangleIcon className="h-4 w-4" />
-                      <span>Sign Out</span>
-                    </button>
-                  </li>
                 </ul>
               )}
             </li>
           </ul>
         </nav>
 
-        <div className="mt-auto p-4 flex justify-center">
+        <div className="mt-auto">
+          {/* Logout Button outside Profile Dropdown */}
           <button
-            onClick={toggleTheme}
-            className="p-2 rounded-full bg-white bg-opacity-10 hover:bg-opacity-20 transition-colors"
+            onClick={handleLogout}
+            className="w-full flex items-center space-x-2 px-4 py-3 rounded-lg transition-colors font-inter text-sm text-white hover:bg-red-500 hover:bg-opacity-20 font-light"
           >
-            {currentTheme === "dark" ? (
-              <SunIcon className="h-6 w-6 text-white" />
-            ) : (
-              <MoonIcon className="h-6 w-6 text-white" />
-            )}
+            <ArrowRightOnRectangleIcon className="h-5 w-5" />
+            <span>Sign Out</span>
           </button>
+          
+          <div className="p-4 flex justify-center">
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-full bg-white bg-opacity-10 hover:bg-opacity-20 transition-colors"
+            >
+              {currentTheme === "dark" ? (
+                <SunIcon className="h-6 w-6 text-white" />
+              ) : (
+                <MoonIcon className="h-6 w-6 text-white" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
