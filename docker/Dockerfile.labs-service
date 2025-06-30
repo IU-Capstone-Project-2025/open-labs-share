@@ -32,8 +32,8 @@ RUN python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out
 RUN ls -la proto/
 
 # Fix import statements if files exist
-RUN if [ -f "proto/labs_pb2_grpc.py" ]; then \
-        sed -i 's/import labs_pb2/from . import labs_pb2/' proto/labs_pb2_grpc.py; \
+RUN if [ -f "proto/labs_service_pb2_grpc.py" ]; then \
+        sed -i 's/import labs_service_pb2/from . import labs_service_pb2/' proto/labs_service_pb2_grpc.py; \
     fi
 
 # Create files directory for temporary storage

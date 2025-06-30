@@ -24,7 +24,7 @@ async def ask(
 
 @router.get("/get_chat_history", response_model=ChatHistory)
 async def get_chat_history(
-    request: ChatHistoryRequest,
+    request: ChatHistoryRequest = Depends(),
     chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
 ):
     try:
