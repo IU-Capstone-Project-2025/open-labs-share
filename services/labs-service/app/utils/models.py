@@ -55,8 +55,7 @@ class Submission(Base, SerializerMixin):
     owner_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default="Not Graded")
-    points: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Relationships
     lab = relationship("Lab", back_populates="lab_submissions")
@@ -72,8 +71,7 @@ class Submission(Base, SerializerMixin):
             "owner_id": self.owner_id,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
-            "status": self.status,
-            "points": self.points
+            "status": self.status
         }
 
 

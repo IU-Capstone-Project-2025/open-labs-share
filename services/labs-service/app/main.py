@@ -7,9 +7,10 @@ from sqlalchemy import create_engine, select
 from google.protobuf.timestamp_pb2 import Timestamp
 
 # Import built-in modules
-from concurrent import futures
 import sys
 import os
+import logging
+from concurrent import futures
 
 # Fixes import path for proto files
 sys.path.append(os.path.join(os.path.dirname(__file__), "proto"))
@@ -23,14 +24,22 @@ import proto.submissions_service_pb2 as submissions_stub  # Generated from submi
 import proto.submissions_service_pb2_grpc as submissions_service  # Generated from submissions_service.proto
 
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
 class Tools:
     _minio_client: minio.Minio = None
     _mongo_client: MongoClient = None
     _postgresql_engine = None
 
+    def __init__(self):
+        self.logger = logging.getLogger(self.__class__.__name__)
+
     def get_minio_client(self) -> minio.Minio:
         if self._minio_client is None:
-            print(f"Connection to MinIO at {Config.MINIO_ENDPOINT}")
+            self.logger.info(f"Connection to MinIO at {Config.MINIO_ENDPOINT}")
             self._minio_client = minio.Minio(
                 endpoint=Config.MINIO_ENDPOINT,
                 access_key=Config.MINIO_ACCESS_KEY,
@@ -43,7 +52,7 @@ class Tools:
         if self._mongo_client is None:
             url = f"mongodb://{Config.MONGODB_HOST}:{Config.MONGODB_PORT}/"
 
-            print(f"Connecting to MongoDB at {url}")
+            self.logger.info(f"Connecting to MongoDB at {url}")
             self._mongo_client = MongoClient(url)
 
         return self._mongo_client
@@ -57,7 +66,7 @@ class Tools:
             db_name = Config.POSTGRESQL_NAME
             url = f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
 
-            print(f"Connecting to PostgreSQL at {url}")
+            self.logger.info(f"Connecting to PostgreSQL at {url}")
             self._postgresql_engine = create_engine(url, echo=False)
 
             # Create tables if they don't exist
@@ -74,6 +83,7 @@ class LabService(labs_service.LabServiceServicer):
     def __init__(self):
         self.engine = tools.get_postgresql_engine()
         self.minio_client = tools.get_minio_client()
+        self.logger = logging.getLogger(self.__class__.__name__)
 
         if not self.minio_client.bucket_exists("labs"):
             self.minio_client.make_bucket("labs")
@@ -100,7 +110,7 @@ class LabService(labs_service.LabServiceServicer):
 
             session.commit()
 
-            print(new_lab.get_attrs())
+            self.logger.info(f"Created Lab with id={new_lab.id}, title={new_lab.title}")
 
             return labs_stub.Lab(**new_lab.get_attrs())
 
@@ -118,6 +128,8 @@ class LabService(labs_service.LabServiceServicer):
                 context.set_code(grpc.StatusCode.NOT_FOUND)
                 context.set_details("Lab not found")
                 return labs_stub.Lab()
+
+            self.logger.info(f"Retrieved Lab with id={lab.id}, title={lab.title}")
 
             return labs_stub.Lab(**lab.get_attrs())
 
@@ -137,6 +149,8 @@ class LabService(labs_service.LabServiceServicer):
             lab_list = labs_stub.LabList(total_count=total_count)
             for lab in labs:
                 lab_list.labs.append(labs_stub.Lab(**lab.get_attrs()))
+
+            self.logger.info(f"Retrieved {len(labs)} labs, page {page_number} of size {page_size}")
 
             return lab_list
 
@@ -170,6 +184,9 @@ class LabService(labs_service.LabServiceServicer):
                 lab.articles.extend(article_ids)
 
             session.commit()
+
+            self.logger.info(f"Updated Lab with id={lab.id}, title={lab.title}")
+
             return labs_stub.Lab(**lab.get_attrs())
 
 
@@ -189,6 +206,18 @@ class LabService(labs_service.LabServiceServicer):
 
             session.delete(lab)
             session.commit()
+
+            # Remove all assets from MinIO
+            try:
+                for asset in lab.assets:
+                    self.minio_client.remove_object('labs', f"{lab.id}/{asset.filename}")
+            except Exception as e:
+                context.set_code(grpc.StatusCode.INTERNAL)
+                context.set_details(f"Failed to delete assets from MinIO: {str(e)}")
+                return labs_stub.DeleteLabResponse(success=False)
+
+            self.logger.info(f"Deleted Lab with id={lab.id}, title={lab.title}")
+
             return labs_stub.DeleteLabResponse(success=True)
 
     # ------- Lab Assets Management -------
@@ -249,6 +278,9 @@ class LabService(labs_service.LabServiceServicer):
                 return labs_stub.Asset()
 
             session.commit()
+
+            self.logger.info(f"Uploaded asset with id={new_asset.id}, filename={new_asset.filename} for lab_id={new_asset.lab_id}")
+
             return labs_stub.Asset(**new_asset.get_attrs())
 
 
@@ -309,6 +341,9 @@ class LabService(labs_service.LabServiceServicer):
             os.remove(f'files/{lab_asset.filename}')
 
             session.commit()
+
+            self.logger.info(f"Updated asset with id={lab_asset.id}, filename={lab_asset.filename} for lab_id={lab_asset.lab_id}")
+
             return labs_stub.Asset(**lab_asset.get_attrs())
 
 
@@ -353,6 +388,8 @@ class LabService(labs_service.LabServiceServicer):
                 # Clean up local file after download
                 os.remove(f'files/{lab_asset.filename}')
 
+        self.logger.info(f"Downloading asset with id={request.asset_id}")
+
         return response_messages()
 
 
@@ -382,6 +419,8 @@ class LabService(labs_service.LabServiceServicer):
 
             session.commit()
 
+            self.logger.info(f"Deleted asset with id={asset.id}, filename={asset.filename} for lab_id={asset.lab_id}")
+
             return labs_stub.DeleteAssetResponse(success=True)
 
 
@@ -408,6 +447,8 @@ class LabService(labs_service.LabServiceServicer):
             asset_list.total_count = len(lab.assets)
             asset_list.assets.extend([labs_stub.Asset(**asset.get_attrs()) for asset in lab.assets])
 
+            self.logger.info(f"Listed {len(lab.assets)} assets for lab_id={data['lab_id']}")
+
             return asset_list
 
 
@@ -415,8 +456,25 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
     def __init__(self):
         self.minio_client = tools.get_minio_client()
         self.postgresql_engine = tools.get_postgresql_engine()
+
         mongo_client = tools.get_mongo_client()
         self.submissions_texts = mongo_client[Config.MONGODB_NAME]["submissions_texts"]
+
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+        self.get_grpc_status: dict = {
+            0: submissions_stub.Status.NOT_GRADED,
+            1: submissions_stub.Status.IN_PROGRESS,
+            2: submissions_stub.Status.ACCEPTED,
+            3: submissions_stub.Status.REJECTED
+        }
+
+        self.get_db_status: dict = {
+            submissions_stub.Status.NOT_GRADED: 0,
+            submissions_stub.Status.IN_PROGRESS: 1,
+            submissions_stub.Status.ACCEPTED: 2,
+            submissions_stub.Status.REJECTED: 3
+        }
 
         if not self.minio_client.bucket_exists("submissions"):
             self.minio_client.make_bucket("submissions")
@@ -433,9 +491,6 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
         }
 
         text = request.text
-
-        print(f"data: {data}")
-        print(f"text: {text}")
 
         with Session(self.postgresql_engine) as session:
             # Check if lab exists
@@ -460,6 +515,9 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
             result = submissions_stub.Submission(**new_submission.get_attrs())
             result.text = text
+            result.status = self.get_grpc_status[result.status]
+
+            self.logger.info(f"Created Submission with id={new_submission.id}, lab_id={new_submission.lab_id}")
 
             return result
 
@@ -481,8 +539,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             text_data = self.submissions_texts.find_one({"submission_id": str(submission.id)})
 
             result = submissions_stub.Submission(**submission.get_attrs())
+            result.status = self.get_grpc_status[result.status]
             if text_data:
                 result.text = text_data.get("text", "")
+
+            self.logger.info(f"Retrieved Submission with id={submission.id}, lab_id={submission.lab_id}")
 
             return result
 
@@ -512,9 +573,12 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
                 # Fetch text from MongoDB
                 text_data = self.submissions_texts.find_one({"submission_id": str(submission.id)})
                 result = submissions_stub.Submission(**submission.get_attrs())
+                result.status = self.get_grpc_status[result.status]
                 if text_data:
                     result.text = text_data.get("text", "")
                 submission_list.submissions.append(result)
+
+            self.logger.info(f"Retrieved {len(submissions)} submissions for lab_id={data['lab_id']}, page {data['page_number']} of size {data['page_size']}")
 
             return submission_list
 
@@ -522,7 +586,6 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
         data: dict = {
             "submission_id": request.submission_id,
             "status": request.status if request.HasField("status") else None,
-            "points": request.points if request.HasField("points") else None,
             "text": request.text if request.HasField("text") else None
         }
 
@@ -536,14 +599,12 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
                 return submissions_stub.Submission()
 
             if data["status"] is not None:
-                submission.status = data["status"]
-
-            if data["points"] is not None:
-                submission.points = data["points"]
+                submission.status = self.get_db_status[data["status"]]
 
             session.commit()
 
             result = submissions_stub.Submission(**submission.get_attrs())
+            result.status = data["status"] if data["status"] is not None else self.get_grpc_status[result.status]
 
             # Update text in MongoDB
             if data["text"] is not None:
@@ -558,6 +619,8 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
                 text_data = self.submissions_texts.find_one({"submission_id": str(submission.id)})
                 if text_data:
                     result.text = text_data.get("text", "")
+
+            self.logger.info(f"Updated Submission with id={submission.id}, status={submission.status}")
 
             return result
 
@@ -580,6 +643,17 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
             # Delete submission text from MongoDB
             self.submissions_texts.delete_many({"submission_id": str(submission.id)})
+
+            # Remove all assets from MinIO
+            try:
+                for asset in submission.assets:
+                    self.minio_client.remove_object('submissions', f"{submission.id}/{asset.filename}")
+            except Exception as e:
+                context.set_code(grpc.StatusCode.INTERNAL)
+                context.set_details(f"Failed to delete assets from MinIO: {str(e)}")
+                return submissions_stub.DeleteSubmissionResponse(success=False)
+
+            self.logger.info(f"Deleted Submission with id={submission.id}, lab_id={submission.lab_id}")
 
             return submissions_stub.DeleteSubmissionResponse(success=True)
 
@@ -640,6 +714,8 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
                 context.set_details(f"Failed to upload asset to MinIO: {str(e)}")
                 return submissions_stub.Asset()
 
+            self.logger.info(f"Uploaded asset with id={new_asset.id}, filename={new_asset.filename} for submission_id={new_asset.submission_id}")
+
             return submissions_stub.Asset(**new_asset.get_attrs())
 
     def UpdateAsset(self, request_iterator, context) -> submissions_stub.Asset:
@@ -698,9 +774,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             # Clean up local file after upload
             os.remove(f'files/{asset.filename}')
 
+            self.logger.info(f"Updated asset with id={asset.id}, filename={asset.filename} for submission_id={asset.submission_id}")
+
             return submissions_stub.Asset(**asset.get_attrs())
 
-    def DownloadAsset(self, request, context):
+    def DownloadAsset(self, request, context) -> submissions_stub.DownloadAssetResponse:
         def response_messages():
             data: dict = {
                 "asset_id": request.asset_id
@@ -741,6 +819,8 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
                 # Clean up local file after download
                 os.remove(f'files/{asset.filename}')
 
+        self.logger.info(f"Downloading asset with id={request.asset_id}")
+
         return response_messages()
 
     def DeleteAsset(self, request, context) -> submissions_stub.DeleteAssetResponse:
@@ -768,6 +848,8 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
                 context.set_details(f"Failed to delete asset from MinIO: {str(e)}")
                 return submissions_stub.DeleteAssetResponse(success=False)
 
+            self.logger.info(f"Deleted asset with id={asset.id}, filename={asset.filename} for submission_id={asset.submission_id}")
+
             return submissions_stub.DeleteAssetResponse(success=True)
 
     def ListAssets(self, request, context) -> submissions_stub.AssetList:
@@ -793,19 +875,23 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             asset_list.total_count = len(submission.assets)
             asset_list.assets.extend([submissions_stub.Asset(**asset.get_attrs()) for asset in submission.assets])
 
+            self.logger.info(f"Listed {len(submission.assets)} assets for submission_id={data['submission_id']}")
+
             return asset_list
 
 if __name__ == "__main__":
+    logger = logging.getLogger("__main__")
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     labs_service.add_LabServiceServicer_to_server(LabService(), server)
     submissions_service.add_SubmissionServiceServicer_to_server(SubmissionService(), server)
 
     server_address = f"{Config.SERVICE_HOST}:{Config.SERVICE_PORT}"
     server.add_insecure_port(server_address)
-    print(f"Starting gRPC server on {server_address}")
+    logger.info(f"Starting gRPC server on {server_address}")
     server.start()
     try:
         server.wait_for_termination()
-    except KeyboardInterrupt:
-        print("Server is shutting down...")
+    except Exception as e:
+        logger.info("Server is shutting down...")
+        logger.error(f"Server shutdown due to: {e}")
         server.stop(0)

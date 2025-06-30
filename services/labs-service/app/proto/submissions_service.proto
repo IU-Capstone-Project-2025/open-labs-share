@@ -28,8 +28,14 @@ message Submission {
   string text = 4;
   google.protobuf.Timestamp created_at = 5;
   google.protobuf.Timestamp updated_at = 6;
-  string status = 7;
-  int32 points = 8;
+  Status status = 7;
+}
+
+enum Status {
+  NOT_GRADED = 0;
+  IN_PROGRESS = 1;
+  ACCEPTED = 2;
+  REJECTED = 3;
 }
 
 message CreateSubmissionRequest {
@@ -55,9 +61,8 @@ message GetSubmissionsRequest {
 
 message UpdateSubmissionRequest {
   int64 submission_id = 1;
-  optional string status = 2;
-  optional int32 points = 3;
-  optional string text = 4;
+  optional Status status = 2;
+  optional string text = 3;
 }
 
 message DeleteSubmissionRequest {
