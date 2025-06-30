@@ -154,7 +154,7 @@ def main(server_address: str):
 
         # DeleteAsset(stub, asset_id=1)
 
-        ListAssets(stub, article_id=2)
+        # ListAssets(stub, article_id=2)
 
 
 if __name__ == "__main__":

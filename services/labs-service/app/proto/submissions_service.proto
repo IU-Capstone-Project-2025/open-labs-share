@@ -25,15 +25,17 @@ message Submission {
   int64 submission_id = 1;
   int64 lab_id = 2;
   int64 owner_id = 3;
-  google.protobuf.Timestamp created_at = 4;
-  google.protobuf.Timestamp updated_at = 5;
-  string status = 6;
-  int32 points = 7;
+  string text = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  string status = 7;
+  int32 points = 8;
 }
 
 message CreateSubmissionRequest {
   int64 lab_id = 1;
   int64 owner_id = 2;
+  string text = 3;
 }
 
 message GetSubmissionRequest {
@@ -55,6 +57,7 @@ message UpdateSubmissionRequest {
   int64 submission_id = 1;
   optional string status = 2;
   optional int32 points = 3;
+  optional string text = 4;
 }
 
 message DeleteSubmissionRequest {
