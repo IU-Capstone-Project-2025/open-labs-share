@@ -31,6 +31,8 @@ def CreateLab(stub, number):
     ))
     logger.info(f"Obtained response:\n{response}")
 
+    return response
+
 
 def GetLab(stub, lab_id):
     logger.info(f"Fetching lab with ID: {lab_id}")
@@ -38,6 +40,8 @@ def GetLab(stub, lab_id):
     response = stub.GetLab(labs_service_cf.GetLabRequest(lab_id=lab_id))
 
     logger.info(f"Obtained response:\n{response}")
+
+    return response
 
 
 def GetLabs(stub, page_number, page_size):
