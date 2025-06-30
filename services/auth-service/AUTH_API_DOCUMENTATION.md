@@ -36,7 +36,10 @@
     "firstName": "John",
     "lastName": "Doe",
     "email": "johndoe@example.com",
-    "role": "ROLE_USER"
+    "role": "ROLE_USER",
+    "labsSolved": 0,
+    "labsReviewed": 0,
+    "balance": 10
   }
 }
 ```
@@ -117,7 +120,10 @@
     "firstName": "John",
     "lastName": "Doe",
     "email": "johndoe@example.com",
-    "role": "ROLE_USER"
+    "role": "ROLE_USER",
+    "labsSolved": 0,
+    "labsReviewed": 0,
+    "balance": 10
   }
 }
 ```
@@ -195,7 +201,10 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
     "firstName": "John",
     "lastName": "Doe",
     "email": "johndoe@example.com",
-    "role": "ROLE_USER"
+    "role": "ROLE_USER",
+    "labsSolved": 3,
+    "labsReviewed": 2,
+    "balance": 45
   },
   "status": "ACTIVE"
 }
@@ -242,7 +251,10 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
     "firstName": "Jane",
     "lastName": "Smith",
     "email": "jane.smith@example.com",
-    "role": "ROLE_USER"
+    "role": "ROLE_USER",
+    "labsSolved": 3,
+    "labsReviewed": 2,
+    "balance": 45
   },
   "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -263,7 +275,10 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
     "firstName": "Jane",
     "lastName": "Smith",
     "email": "jane.smith@example.com",
-    "role": "ROLE_USER"
+    "role": "ROLE_USER",
+    "labsSolved": 3,
+    "labsReviewed": 2,
+    "balance": 45
   },
   "accessToken": null,
   "refreshToken": null,
