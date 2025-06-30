@@ -10,8 +10,8 @@ from concurrent import futures
 
 # Import project files
 from config import Config
-import proto.labs_pb2 as stub # Generated from labs.proto
-import proto.labs_pb2_grpc as service # Generated from labs.proto
+import proto.labs_service_pb2 as stub # Generated from labs.proto
+import proto.labs_service_pb2_grpc as service # Generated from labs.proto
 from utils.models import Lab, LabAsset
 
 class LabService(service.LabServiceServicer):
