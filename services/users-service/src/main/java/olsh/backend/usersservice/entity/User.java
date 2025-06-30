@@ -1,6 +1,12 @@
 package olsh.backend.usersservice.entity;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,12 +22,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
-
-import java.util.Collection;
-import java.util.List;
 
 @Entity
 @Getter
@@ -60,6 +60,19 @@ public class User implements UserDetails {
 
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
+
+    // Points system fields
+    @Column(name = "labs_solved", nullable = false)
+    @Builder.Default
+    private Integer labsSolved = 0;
+
+    @Column(name = "labs_reviewed", nullable = false)
+    @Builder.Default
+    private Integer labsReviewed = 0;
+
+    @Column(name = "balance", nullable = false)
+    @Builder.Default
+    private Integer balance = 10; // Will be set from configuration
 
     @PrePersist
     protected void onCreate() {

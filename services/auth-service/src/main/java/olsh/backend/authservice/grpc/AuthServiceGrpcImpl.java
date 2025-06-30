@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
 public class AuthServiceGrpcImpl extends AuthServiceGrpc.AuthServiceImplBase {
 
     private final AuthenticationService authenticationService;
-
+    
     @Override
     public void validateToken(ValidateTokenRequest request, StreamObserver<ValidateTokenResponse> responseObserver) {
         log.debug("gRPC token validation request");
@@ -46,14 +46,7 @@ public class AuthServiceGrpcImpl extends AuthServiceGrpc.AuthServiceImplBase {
             
             if (serviceResponse.getUserInfo() != null) {
                 olsh.backend.authservice.dto.UserInfo userInfo = serviceResponse.getUserInfo();
-                UserInfo grpcUserInfo = UserInfo.newBuilder()
-                    .setUserId(userInfo.getUserId())
-                    .setUsername(userInfo.getUsername())
-                    .setFirstName(userInfo.getFirstName() != null ? userInfo.getFirstName() : "")
-                    .setLastName(userInfo.getLastName() != null ? userInfo.getLastName() : "")
-                    .setRole(userInfo.getRole() != null ? userInfo.getRole() : "")
-                    .setEmail(userInfo.getEmail() != null ? userInfo.getEmail() : "")
-                    .build();
+                UserInfo grpcUserInfo = buildGrpcUserInfo(userInfo);
                 responseBuilder.setUserInfo(grpcUserInfo);
             }
             
@@ -105,5 +98,43 @@ public class AuthServiceGrpcImpl extends AuthServiceGrpc.AuthServiceImplBase {
             responseObserver.onNext(errorResponse);
             responseObserver.onCompleted();
         }
+    }
+
+    /**
+     * Converts DTO UserInfo to protobuf UserInfo
+     */
+    private UserInfo buildGrpcUserInfo(olsh.backend.authservice.dto.UserInfo userInfo) {
+        UserInfo.Builder builder = UserInfo.newBuilder()
+            .setUserId(userInfo.getUserId());
+        
+        // Only set string fields if they're not null (protobuf default is empty string)
+        if (userInfo.getUsername() != null) {
+            builder.setUsername(userInfo.getUsername());
+        }
+        if (userInfo.getFirstName() != null) {
+            builder.setFirstName(userInfo.getFirstName());
+        }
+        if (userInfo.getLastName() != null) {
+            builder.setLastName(userInfo.getLastName());
+        }
+        if (userInfo.getRole() != null) {
+            builder.setRole(userInfo.getRole());
+        }
+        if (userInfo.getEmail() != null) {
+            builder.setEmail(userInfo.getEmail());
+        }
+        
+        // Only set integer fields if they're not null (protobuf default is 0)
+        if (userInfo.getLabsSolved() != null) {
+            builder.setLabsSolved(userInfo.getLabsSolved());
+        }
+        if (userInfo.getLabsReviewed() != null) {
+            builder.setLabsReviewed(userInfo.getLabsReviewed());
+        }
+        if (userInfo.getBalance() != null) {
+            builder.setBalance(userInfo.getBalance());
+        }
+        
+        return builder.build();
     }
 } 

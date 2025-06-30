@@ -40,9 +40,16 @@ service UsersService {
 
   // Create a new user profile (for use during registration)
   rpc CreateUser (CreateUserRequest) returns (UserProfileResponse) {}
-  
+
   // Delete a user (for rollback in case of transaction failures)
   rpc DeleteUser (DeleteUserRequest) returns (DeleteUserResponse) {}
+
+  // Points system methods
+  // Increment labs solved counter and deduct points
+  rpc IncrementLabsSolved (IncrementLabsSolvedRequest) returns (OperationResponse) {}
+  
+  // Increment labs reviewed counter and add points
+  rpc IncrementLabsReviewed (IncrementLabsReviewedRequest) returns (OperationResponse) {}
 
   // Health check endpoint
   rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse) {}
@@ -67,6 +74,9 @@ message UserInfo {
   string last_name = 4;
   string role = 5;
   string email = 6;
+  int32 labs_solved = 7;
+  int32 labs_reviewed = 8;
+  int32 balance = 9;
 }
 
 // Request to update a user's profile
@@ -156,6 +166,23 @@ message CreateUserRequest {
   string email = 4;
   string role = 5;
   string password = 6;
+}
+
+// Points system messages
+// Request to increment labs solved counter
+message IncrementLabsSolvedRequest {
+  int64 user_id = 1;
+}
+
+// Request to increment labs reviewed counter
+message IncrementLabsReviewedRequest {
+  int64 user_id = 1;
+}
+
+// Generic operation response
+message OperationResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 // Health check response
