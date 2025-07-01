@@ -24,7 +24,7 @@ jobs:
       
       - name: Create CI docker-compose file
         run: |
-          yq eval 'del(.services.ml-service) | .services.api-gateway.depends_on -= ["ml-service"]' docker-compose.yml > docker-compose.ci.yml
+          yq eval 'del(.services.ml-service) | .services.api-gateway.depends_on -= ["ml-service"] | del(.services.postgres-ml) | del(.volumes.postgres-ml-data) | del(.volumes.ml-models)' docker-compose.yml > docker-compose.ci.yml
           echo "Generated docker-compose.ci.yml:"
           cat docker-compose.ci.yml
 
