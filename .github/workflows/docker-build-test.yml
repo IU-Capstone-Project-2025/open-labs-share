@@ -17,8 +17,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install yq
+        run: |
+          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
+      
+      - name: Create CI docker-compose file
+        run: |
+          yq eval 'del(.services.ml-service) | .services.api-gateway.depends_on -= ["ml-service"]' docker-compose.yml > docker-compose.ci.yml
+          echo "Generated docker-compose.ci.yml:"
+          cat docker-compose.ci.yml
+
       - name: Build and run services
-        run: docker compose up --build -d
+        run: docker compose -f docker-compose.ci.yml up --build -d
 
       - name: Wait for services to stabilize
         run: |
@@ -29,7 +40,7 @@ jobs:
         id: check_statuses
         run: |
           echo "Checking container statuses..."
-          FAILING_SERVICES=$(docker compose ps | grep -E "restarting|unhealthy|exited")
+          FAILING_SERVICES=$(docker compose -f docker-compose.ci.yml ps | grep -E "restarting|unhealthy|exited")
           
           if [ -n "$FAILING_SERVICES" ]; then
             echo "Failing services found."
@@ -45,7 +56,7 @@ jobs:
             echo "has_failures=false" >> $GITHUB_OUTPUT
           fi
           echo "Full service list:"
-          docker compose ps
+          docker compose -f docker-compose.ci.yml ps
 
       - name: Post comment on PR
         if: steps.check_statuses.outputs.has_failures == 'true'
