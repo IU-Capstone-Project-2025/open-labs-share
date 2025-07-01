@@ -38,4 +38,31 @@ public class UserService {
                 userData.getEmail()
         );
     }
+
+    public UserResponse getUserByIdSafe(Long userId) {
+        log.debug("Getting user data for userId: {}", userId);
+
+        UserData userData = userServiceClient.getUser(userId);
+
+        if (!userData.isFound()) {
+            log.error("User data was not found for userId: {}", userId);
+            return new UserResponse(
+                    0L,
+                    "Unknown",
+                    "Unknown",
+                    "Unknown",
+                    "Unknown"
+            );
+        }
+
+        log.debug("User data retrieved successfully for userId: {}", userId);
+
+        return new UserResponse(
+                userData.getId(),
+                userData.getUsername(),
+                userData.getName(),
+                userData.getSurname(),
+                userData.getEmail()
+        );
+    }
 }
