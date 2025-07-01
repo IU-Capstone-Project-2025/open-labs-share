@@ -77,12 +77,18 @@ export const signIn = async (emailOrUsername, password) => {
       lastName: userInfo.lastName,
       username: userInfo.username,
       email: userInfo.email,
-      role: userInfo.role
+      role: userInfo.role,
+      balance: userInfo.balance,
+      labsSolved: userInfo.labsSolved,
+      labsReviewed: userInfo.labsReviewed
     };
     
     localStorage.setItem('authToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('user', JSON.stringify(userData));
+    
+    // Notify all components about the update
+    notifyUserDataUpdate();
     
     return { user: userData, token: accessToken };
   } catch (error) {
@@ -122,12 +128,18 @@ export const signUp = async (userData) => {
       lastName: userInfo.lastName,
       username: userInfo.username,
       email: userInfo.email,
-      role: userInfo.role
+      role: userInfo.role,
+      balance: userInfo.balance,
+      labsSolved: userInfo.labsSolved,
+      labsReviewed: userInfo.labsReviewed
     };
     
     localStorage.setItem('authToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('user', JSON.stringify(userDataToStore));
+    
+    // Notify all components about the update
+    notifyUserDataUpdate();
     
     return { user: userDataToStore, token: accessToken };
   } catch (error) {
@@ -191,15 +203,21 @@ export const refreshToken = async () => {
     
     // Update user info if provided
     if (userInfo) {
-      const userData = {
-        id: userInfo.userId,
-        firstName: userInfo.firstName,
-        lastName: userInfo.lastName,
-        username: userInfo.username,
-        email: userInfo.email,
-        role: userInfo.role
-      };
-      localStorage.setItem('user', JSON.stringify(userData));
+            const userData = {
+      id: userInfo.userId,
+      firstName: userInfo.firstName,
+      lastName: userInfo.lastName,
+      username: userInfo.username,
+      email: userInfo.email,
+      role: userInfo.role,
+      balance: userInfo.balance,
+      labsSolved: userInfo.labsSolved,
+      labsReviewed: userInfo.labsReviewed
+    };
+    localStorage.setItem('user', JSON.stringify(userData));
+    
+      // Notify all components about the update
+      notifyUserDataUpdate();
     }
     
     return accessToken;
@@ -234,6 +252,9 @@ export const updateProfile = async (updatedData) => {
     const updatedUser = { ...currentUser, ...updatedData };
     
     localStorage.setItem('user', JSON.stringify(updatedUser));
+    
+    // Notify all components about the update
+    notifyUserDataUpdate();
     
     return updatedUser;
   } catch (error) {
@@ -273,16 +294,10 @@ export const changePassword = async (currentPassword, newPassword) => {
 // Get user profile from auth service
 export const getUserProfile = async () => {
   try {
-    const authToken = localStorage.getItem('authToken');
-    
-    if (!authToken) {
-      throw new Error('No authentication token available');
-    }
-    
     const response = await makeAuthRequest('/profile', {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${authToken}`,
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
         'Content-Type': 'application/json',
       }
     });
@@ -293,15 +308,21 @@ export const getUserProfile = async () => {
       lastName: response.userInfo.lastName,
       username: response.userInfo.username,
       email: response.userInfo.email,
-      role: response.userInfo.role
+      role: response.userInfo.role,
+      balance: response.userInfo.balance,
+      labsSolved: response.userInfo.labsSolved,
+      labsReviewed: response.userInfo.labsReviewed
     };
     
-    // Update local storage with fresh data
+    // Update localStorage with fresh data
     localStorage.setItem('user', JSON.stringify(userData));
+    
+    // Notify all components about the update
+    notifyUserDataUpdate();
     
     return userData;
   } catch (error) {
-    console.error('Get profile error:', error);
+    console.error('Error fetching user profile:', error);
     throw error;
   }
 };
@@ -366,4 +387,9 @@ export const stopTokenRefresh = () => {
     clearInterval(refreshInterval);
     refreshInterval = null;
   }
+};
+
+// Function to notify all components about user data updates
+export const notifyUserDataUpdate = () => {
+  window.dispatchEvent(new CustomEvent('userDataUpdated'));
 }; 
