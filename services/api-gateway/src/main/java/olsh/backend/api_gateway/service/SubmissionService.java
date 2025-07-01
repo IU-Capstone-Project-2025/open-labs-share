@@ -6,10 +6,10 @@ import olsh.backend.api_gateway.dto.request.CreateSubmissionRequest;
 import olsh.backend.api_gateway.dto.response.*;
 import olsh.backend.api_gateway.exception.ForbiddenAccessException;
 import olsh.backend.api_gateway.grpc.client.SubmissionServiceClient;
+import olsh.backend.api_gateway.grpc.proto.SubmissionProto;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 @Slf4j
@@ -30,10 +30,45 @@ public class SubmissionService {
             }
         }
 
-        // Placeholder implementation
-        log.debug("TODO: Call gRPC CreateSubmission method");
+        SubmissionResponse submission = registerSubmission(request, ownerId);
+        List<SubmissionAssetResponse> assets = uploadAssetsForSubmission(
+                submission.getSubmissionId(),
+                request.getFiles()
+        );
+        submission.setAssets(assets);
 
+        return CreateSubmissionResponse.builder()
+                .success(true)
+                .message("Submission created successfully")
+                .submissionMetadata(submission)
+                .build();
+    }
 
+    private SubmissionResponse registerSubmission(CreateSubmissionRequest request, Long ownerId) {
+        SubmissionProto.CreateSubmissionRequest protoRequest = SubmissionProto.CreateSubmissionRequest.newBuilder()
+                .setLabId(request.getLabId())
+                .setOwnerId(ownerId)
+                .setText(request.getTextComment() != null ? request.getTextComment() : "")
+                .build();
+
+        SubmissionProto.Submission submission = submissionServiceClient.createSubmission(protoRequest);
+        UserResponse owner = userService.getUserByIdSafe(ownerId);
+        return convertSubmissionToResponse(submission, owner, new ArrayList<>());
+    }
+
+    private List<SubmissionAssetResponse> uploadAssetsForSubmission(Long submissionId, MultipartFile[] files) {
+        List<SubmissionAssetResponse> assetResponses = new ArrayList<>();
+
+        if (files != null) {
+            for (MultipartFile file : files) {
+                if (!file.isEmpty()) {
+                    SubmissionProto.Asset asset = submissionServiceClient.uploadAsset(submissionId, file);
+                    assetResponses.add(convertAssetToResponse(asset));
+                }
+            }
+        }
+
+        return assetResponses;
     }
 
     public SubmissionResponse getSubmissionById(Long submissionId) {
@@ -43,69 +78,72 @@ public class SubmissionService {
 
         log.debug("Getting submission with ID: {}", submissionId);
 
-        // TODO: Get submission from gRPC service
-        log.debug("TODO: Call gRPC GetSubmission method for ID: {}", submissionId);
+        SubmissionProto.Submission submission = submissionServiceClient.getSubmission(submissionId);
+        UserResponse owner = userService.getUserByIdSafe(submission.getOwnerId());
 
-        // TODO: Get submission assets
-        log.debug("TODO: Call gRPC ListAssets method for submission ID: {}", submissionId);
+        SubmissionProto.AssetList assetList = submissionServiceClient.listAssets(submissionId);
+        List<SubmissionAssetResponse> assets = assetList.getAssetsList().stream()
+                .map(this::convertAssetToResponse)
+                .toList();
 
-        // TODO: Get owner information
-        log.debug("TODO: Get user information for submission owner");
-
-        // Placeholder response
-        return SubmissionResponse.builder()
-                .submissionId(submissionId)
-                .labId(1L)
-                .ownerId(1L)
-                .ownerName("John")
-                .ownerSurname("Doe")
-                .text("Sample submission text")
-                .status("NOT_GRADED")
-                .createdAt("2024-03-15T14:30:00Z")
-                .updatedAt("2024-03-15T14:30:00Z")
-                .assets(new ArrayList<>())
-                .build();
+        return convertSubmissionToResponse(submission, owner, assets);
     }
 
-    public SubmissionListResponse getSubmissionsByLabId(Long labId) {
+    public SubmissionListResponse getSubmissionsByLabId(Long labId, Integer pageNum, Integer pageSize) {
         if (labId == null || labId <= 0) {
             throw new IllegalArgumentException("Lab ID should be provided and positive");
         }
+        if (pageNum < 0) {
+            throw new IllegalArgumentException("Page number cannot be negative");
+        }
+        if (pageSize <= 0) {
+            throw new IllegalArgumentException("Page size must be positive");
+        }
 
-        log.debug("Getting submissions for lab ID: {}", labId);
+        log.debug("Getting submissions for lab ID: {} (page: {}, size: {})",
+                labId, pageNum, pageSize);
 
-        // TODO: Get submissions from gRPC service
-        log.debug("TODO: Call gRPC GetSubmissions method for lab ID: {}", labId);
+        SubmissionProto.SubmissionList submissionList =
+                submissionServiceClient.getSubmissions(labId, pageNum, pageSize);
 
-        // TODO: For each submission, get its assets
-        log.debug("TODO: Get assets for each submission");
+        List<SubmissionResponse> submissions = submissionList.getSubmissionsList().stream()
+                .map(submission -> {
+                    UserResponse owner = userService.getUserByIdSafe(submission.getOwnerId());
+                    SubmissionProto.AssetList assets = submissionServiceClient.listAssets(submission.getSubmissionId());
+                    List<SubmissionAssetResponse> assetResponses = assets.getAssetsList().stream()
+                            .map(this::convertAssetToResponse)
+                            .toList();
+                    return convertSubmissionToResponse(submission, owner, assetResponses);
+                })
+                .toList();
 
-        // TODO: Get owner information for each submission (with caching)
-        log.debug("TODO: Get user information for submission owners");
-
-        // Placeholder response
         return SubmissionListResponse.builder()
-                .submissions(new ArrayList<>())
-                .totalCount(0L)
+                .submissions(submissions)
+                .totalCount(submissionList.getTotalCount())
                 .build();
     }
 
     public DeleteSubmissionResponse deleteSubmission(Long submissionId, Long userId) {
         log.debug("Deleting submission with ID: {} by user: {}", submissionId, userId);
 
-        // TODO: Get submission to check ownership
-        log.debug("TODO: Get submission to verify ownership");
+        SubmissionProto.Submission submission = submissionServiceClient.getSubmission(submissionId);
+        // Check user ownership
+        if (submission.getOwnerId() != userId) {
+            log.warn("User {} attempted to delete submission {} owned by {}",
+                    userId, submissionId, submission.getOwnerId());
+            throw new ForbiddenAccessException("You don't have permission to delete this submission");
+        }
 
-        // TODO: Check if user owns the submission
-        log.debug("TODO: Verify user {} owns submission {}", userId, submissionId);
+        // Delete submission
+        boolean deleted = submissionServiceClient.deleteSubmission(submissionId);
+        if (!deleted) {
+            throw new RuntimeException("Failed to delete submission");
+        }
 
-        // TODO: Delete submission via gRPC
-        log.debug("TODO: Call gRPC DeleteSubmission method");
-
-        // Placeholder response
+        log.info("Successfully deleted submission {} by user {}", submissionId, userId);
         return DeleteSubmissionResponse.builder()
                 .success(true)
-                .message("Submission deleted successfully!")
+                .message("Submission deleted successfully")
                 .build();
     }
 
@@ -127,8 +165,33 @@ public class SubmissionService {
         log.debug("File validation passed for: {}", file.getOriginalFilename());
     }
 
-    // TODO: Add utility methods for converting proto objects to DTOs
-    // private SubmissionResponse convertSubmissionToResponse(SubmissionProto.Submission submission, UserResponse owner, List<AssetResponse> assets)
-    // private AssetResponse convertAssetToResponse(SubmissionProto.Asset asset)
+    private SubmissionResponse convertSubmissionToResponse(
+            SubmissionProto.Submission submission,
+            UserResponse owner,
+            List<SubmissionAssetResponse> assets) {
+        return SubmissionResponse.builder()
+                .submissionId(submission.getSubmissionId())
+                .labId(submission.getLabId())
+                .ownerId(submission.getOwnerId())
+                .username(owner.getUsername())
+                .ownerName(owner.getName())
+                .ownerSurname(owner.getSurname())
+                .text(submission.getText())
+                .createdAt(submission.getCreatedAt().toString())
+                .updatedAt(submission.getUpdatedAt().toString())
+                .status(submission.getStatus().name())
+                .assets(assets)
+                .build();
+    }
+
+    private SubmissionAssetResponse convertAssetToResponse(SubmissionProto.Asset asset) {
+        return SubmissionAssetResponse.builder()
+                .assetId(asset.getAssetId())
+                .submissionId(asset.getSubmissionId())
+                .filename(asset.getFilename())
+                .totalSize(asset.getFilesize())
+                .uploadDate(asset.getUploadDate().toString())
+                .build();
+    }
 }
 

@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.stream.Collectors;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -88,14 +89,9 @@ public class SubmissionController {
 
         log.debug("Received request to get submission with ID: {}", submissionId);
 
-        try {
-            SubmissionResponse response = submissionService.getSubmissionById(submissionId);
-            log.debug("Successfully retrieved submission data for submissionId: {}", submissionId);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("Error getting submission with ID {}: {}", submissionId, e.getMessage(), e);
-            return ResponseEntity.badRequest().body("Failed to get submission: " + e.getMessage());
-        }
+        SubmissionResponse response = submissionService.getSubmissionById(submissionId);
+        log.debug("Successfully retrieved submission data for submissionId: {}", submissionId);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(
@@ -114,21 +110,18 @@ public class SubmissionController {
     @RequireAuth
     @GetMapping("/lab/{lab_id}")
     public ResponseEntity<?> getSubmissionsByLab(
-            @Parameter(description = "ID of the lab to get submissions for", required = true)
             @PathVariable("lab_id") Long labId,
+            @RequestParam(defaultValue = "0") @Schema(description = "Номер страницы", example = "0") Integer pageNum,
+            @RequestParam(defaultValue = "20") @Schema(description = "Размер страницы", example = "20") Integer pageSize,
             HttpServletRequest request) {
 
-        log.debug("Received request to get submissions for lab ID: {}", labId);
+        log.debug("Received request to get submissions for lab ID: {} (page: {}, size: {})",
+                labId, pageNum, pageSize);
 
-        try {
-            SubmissionListResponse response = submissionService.getSubmissionsByLabId(labId);
-            log.debug("Successfully retrieved {} submissions for lab ID: {}",
-                    response.getSubmissions().size(), labId);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("Error getting submissions for lab ID {}: {}", labId, e.getMessage(), e);
-            return ResponseEntity.badRequest().body("Failed to get submissions: " + e.getMessage());
-        }
+        SubmissionListResponse response = submissionService.getSubmissionsByLabId(labId, pageNum, pageSize);
+        log.debug("Successfully retrieved {} submissions for lab ID: {}",
+                response.getSubmissions().size(), labId);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(
