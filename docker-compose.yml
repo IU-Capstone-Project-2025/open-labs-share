@@ -40,7 +40,7 @@ services:
       - users-service
       - labs-service
       - articles-service
-      # - ml-service
+      - ml-service
     networks:
       - app-network
 
