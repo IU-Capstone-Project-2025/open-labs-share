@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { MoonIcon, SunIcon, ChevronDownIcon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
+import GemIcon from "./GemIcon";
 import { signOut } from "../utils/auth";
 
 export default function Sidebar({
@@ -93,7 +94,7 @@ export default function Sidebar({
         {/* User Info Section */}
         {user && (
           <div className="mb-6 p-4 bg-white bg-opacity-10 rounded-lg">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-white bg-opacity-20 flex items-center justify-center text-white text-sm font-medium">
                 {user.firstName?.charAt(0)?.toUpperCase() || user.username?.charAt(0)?.toUpperCase() || "?"}
                 {user.lastName?.charAt(0)?.toUpperCase() || ""}
@@ -106,6 +107,10 @@ export default function Sidebar({
                   @{user.username}
                 </p>
               </div>
+            </div>
+            <div className="flex items-center space-x-2 text-white text-opacity-90">
+              <GemIcon className="h-4 w-4" color="rgba(255, 255, 255, 0.9)" />
+              <span className="text-xs font-medium">{user.balance || 0} points</span>
             </div>
           </div>
         )}
