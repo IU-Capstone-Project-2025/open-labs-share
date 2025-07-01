@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build and run services
-        run: docker-compose up --build -d
+        run: docker compose up --build -d
 
       - name: Wait for services to stabilize
         run: |
@@ -29,7 +29,7 @@ jobs:
         id: check_statuses
         run: |
           echo "Checking container statuses..."
-          FAILING_SERVICES=$(docker-compose ps | grep -E "restarting|unhealthy|exited")
+          FAILING_SERVICES=$(docker compose ps | grep -E "restarting|unhealthy|exited")
           
           if [ -n "$FAILING_SERVICES" ]; then
             echo "Failing services found."
@@ -45,7 +45,7 @@ jobs:
             echo "has_failures=false" >> $GITHUB_OUTPUT
           fi
           echo "Full service list:"
-          docker-compose ps
+          docker compose ps
 
       - name: Post comment on PR
         if: steps.check_statuses.outputs.has_failures == 'true'
