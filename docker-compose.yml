@@ -97,11 +97,11 @@ services:
     environment:
       - SERVICE_HOST=0.0.0.0
       - SERVICE_PORT=9091
-      - DB_HOST=postgres-labs
-      - DB_PORT=5432
-      - DB_USER=labs_user
-      - DB_PASSWORD=labs_password
-      - DB_NAME=labs_db
+      - POSTGRESQL_HOST=postgres-labs
+      - POSTGRESQL_PORT=5432
+      - POSTGRESQL_USER=labs_user
+      - POSTGRESQL_PASSWORD=labs_password
+      - POSTGRESQL_NAME=labs_db
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
