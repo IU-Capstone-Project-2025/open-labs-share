@@ -40,7 +40,7 @@ jobs:
         id: check_statuses
         run: |
           echo "Checking container statuses..."
-          FAILING_SERVICES=$(docker compose -f docker-compose.ci.yml ps | grep -E "restarting|unhealthy|exited")
+          FAILING_SERVICES=$(docker compose -f docker-compose.ci.yml ps | grep -E "restarting|unhealthy|exited" || true)
           
           if [ -n "$FAILING_SERVICES" ]; then
             echo "Failing services found."
