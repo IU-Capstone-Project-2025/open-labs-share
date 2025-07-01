@@ -78,7 +78,7 @@ func main() {
 
 	// Initialize repositories
 	feedbackRepo := repository.NewFeedbackRepository(db, mongodb)
-	attachmentRepo := repository.NewAttachmentRepository(minioClient, cfg.MinIO.BucketName)
+	attachmentRepo := repository.NewAttachmentRepository(minioClient, cfg.MinIO.BucketName, cfg.MinIO.Endpoint, cfg.MinIO.UseSSL)
 	commentRepo := repository.NewCommentRepository(mongodb)
 
 	// Initialize services

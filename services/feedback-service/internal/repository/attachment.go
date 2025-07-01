@@ -183,3 +183,90 @@ func (r *attachmentRepository) DeleteAll(ctx context.Context, feedbackID uuid.UU
 
 	return nil
 }
+
+// GetLocationInfo returns location information for a specific attachment
+func (r *attachmentRepository) GetLocationInfo(ctx context.Context, feedbackID uuid.UUID, filename string) (*models.AttachmentLocationInfo, error) {
+	// Create object name: feedback{feedbackID}/filename
+	objectName := fmt.Sprintf("feedback%s/%s", feedbackID.String(), filename)
+
+	// Get object info
+	objInfo, err := r.minioClient.StatObject(ctx, r.bucketName, objectName, minio.StatObjectOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get attachment info: %w", err)
+	}
+
+	// Parse uploaded time from metadata
+	uploadedAt := time.Now()
+	if uploadedAtStr, ok := objInfo.UserMetadata["X-Uploaded-At"]; ok {
+		if parsedTime, err := time.Parse(time.RFC3339, uploadedAtStr); err == nil {
+			uploadedAt = parsedTime
+		}
+	}
+
+	locationInfo := &models.AttachmentLocationInfo{
+		Filename:        filename,
+		Size:            objInfo.Size,
+		ContentType:     objInfo.ContentType,
+		UploadedAt:      uploadedAt,
+		MinioBucket:     r.bucketName,
+		MinioObjectPath: objectName,
+		MinioEndpoint:   r.minioEndpoint,
+		UseSSL:          r.useSSL,
+	}
+
+	return locationInfo, nil
+}
+
+// ListLocationInfo returns location information for all attachments of a specific feedback
+func (r *attachmentRepository) ListLocationInfo(ctx context.Context, feedbackID uuid.UUID) ([]*models.AttachmentLocationInfo, error) {
+	// Create prefix for this feedback: feedback{feedbackID}/
+	prefix := fmt.Sprintf("feedback%s/", feedbackID.String())
+
+	// List objects with the prefix
+	objectCh := r.minioClient.ListObjects(ctx, r.bucketName, minio.ListObjectsOptions{
+		Prefix:    prefix,
+		Recursive: true,
+	})
+
+	var locationInfos []*models.AttachmentLocationInfo
+	for object := range objectCh {
+		if object.Err != nil {
+			return nil, fmt.Errorf("failed to list attachments: %w", object.Err)
+		}
+
+		// Extract filename from object key (remove prefix)
+		filename := strings.TrimPrefix(object.Key, prefix)
+		if filename == "" {
+			continue // Skip if no filename (shouldn't happen)
+		}
+
+		// Get additional metadata
+		objInfo, err := r.minioClient.StatObject(ctx, r.bucketName, object.Key, minio.StatObjectOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get attachment metadata: %w", err)
+		}
+
+		// Parse uploaded time from metadata
+		uploadedAt := object.LastModified
+		if uploadedAtStr, ok := objInfo.UserMetadata["X-Uploaded-At"]; ok {
+			if parsedTime, err := time.Parse(time.RFC3339, uploadedAtStr); err == nil {
+				uploadedAt = parsedTime
+			}
+		}
+
+		locationInfo := &models.AttachmentLocationInfo{
+			Filename:        filename,
+			Size:            object.Size,
+			ContentType:     objInfo.ContentType,
+			UploadedAt:      uploadedAt,
+			MinioBucket:     r.bucketName,
+			MinioObjectPath: object.Key,
+			MinioEndpoint:   r.minioEndpoint,
+			UseSSL:          r.useSSL,
+		}
+
+		locationInfos = append(locationInfos, locationInfo)
+	}
+
+	return locationInfos, nil
+}

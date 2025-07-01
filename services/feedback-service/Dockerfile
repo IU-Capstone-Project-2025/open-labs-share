@@ -19,9 +19,12 @@ COPY . .
 
 # Generate protobuf code
 RUN mkdir -p internal/grpc/proto && \
-    protoc --go_out=. --go_opt=paths=source_relative \
+    /usr/bin/protoc-29.4.0 --go_out=. --go_opt=paths=source_relative \
            --go-grpc_out=. --go-grpc_opt=paths=source_relative \
-           api/feedback_service.proto
+           api/feedback_service.proto && \
+    /usr/bin/protoc-29.4.0 --go_out=. --go_opt=paths=source_relative \
+           --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+           api/comment_service.proto
 
 # Build the binary
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o feedback-service ./cmd/
