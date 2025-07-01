@@ -56,7 +56,7 @@ public class SubmissionController {
     })
     @RequireAuth
     @PostMapping
-    public ResponseEntity<?> createSubmission(
+    public ResponseEntity<CreateSubmissionResponse> createSubmission(
             @Valid @ModelAttribute CreateSubmissionRequest request,
             HttpServletRequest httpRequest) {
         log.debug("Received request to create submission for lab ID: {}", request.getLabId());
@@ -82,7 +82,7 @@ public class SubmissionController {
     })
     @RequireAuth
     @GetMapping("/{submission_id}")
-    public ResponseEntity<?> getSubmission(
+    public ResponseEntity<SubmissionResponse> getSubmission(
             @Parameter(description = "ID of the submission to retrieve", required = true)
             @PathVariable("submission_id") Long submissionId,
             HttpServletRequest request) {
@@ -109,7 +109,7 @@ public class SubmissionController {
     })
     @RequireAuth
     @GetMapping("/lab/{lab_id}")
-    public ResponseEntity<?> getSubmissionsByLab(
+    public ResponseEntity<SubmissionListResponse> getSubmissionsByLab(
             @PathVariable("lab_id") Long labId,
             @RequestParam(defaultValue = "0") @Schema(description = "Номер страницы", example = "0") Integer pageNum,
             @RequestParam(defaultValue = "20") @Schema(description = "Размер страницы", example = "20") Integer pageSize,
@@ -140,22 +140,17 @@ public class SubmissionController {
     })
     @RequireAuth
     @DeleteMapping("/{submission_id}")
-    public ResponseEntity<?> deleteSubmission(
+    public ResponseEntity<DeleteSubmissionResponse> deleteSubmission(
             @Parameter(description = "ID of the submission to delete", required = true)
             @PathVariable("submission_id") Long submissionId,
             HttpServletRequest request) {
 
         log.debug("Received request to delete submission with ID: {}", submissionId);
 
-        try {
-            Long userId = attributesProvider.extractUserIdFromRequest(request);
-            DeleteSubmissionResponse response = submissionService.deleteSubmission(submissionId, userId);
-            log.debug("Successfully processed deletion request for submission ID: {}", submissionId);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("Error deleting submission with ID {}: {}", submissionId, e.getMessage(), e);
-            return ResponseEntity.badRequest().body("Failed to delete submission: " + e.getMessage());
-        }
+        Long userId = attributesProvider.extractUserIdFromRequest(request);
+        DeleteSubmissionResponse response = submissionService.deleteSubmission(submissionId, userId);
+        log.debug("Successfully processed deletion request for submission ID: {}", submissionId);
+        return ResponseEntity.ok(response);
     }
 }
 

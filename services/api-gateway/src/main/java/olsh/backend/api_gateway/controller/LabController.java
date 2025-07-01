@@ -65,32 +65,12 @@ public class LabController {
     @PostMapping
     public ResponseEntity<?> createLab(
             @Valid @ModelAttribute CreateLabRequest request,
-            org.springframework.validation.BindingResult bindingResult,
             HttpServletRequest httpRequest) {
         log.debug("Received request to create lab with title: {}", request.getTitle());
-        log.debug("CreateLabRequest details - title: {}, short_desc: {}, md_file: {}, assets: {}", 
-                  request.getTitle(), request.getShort_desc(), 
-                  request.getMd_file() != null ? request.getMd_file().getOriginalFilename() : "null",
-                  request.getAssets() != null ? request.getAssets().length : 0);
-        
-        // Check for validation errors
-        if (bindingResult.hasErrors()) {
-            String errors = bindingResult.getFieldErrors().stream()
-                    .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                    .collect(Collectors.joining(", "));
-            log.error("Validation errors in createLab: {}", errors);
-            return ResponseEntity.badRequest().body("Invalid arguments were provided: " + errors);
-        }
-        
-        try {
-            CreateLabResponse response = labService.createLab(request,
-                    attributesProvider.extractUserIdFromRequest(httpRequest));
-            log.debug("Successfully created lab");
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (Exception e) {
-            log.error("Error creating lab: {}", e.getMessage(), e);
-            return ResponseEntity.badRequest().body("Failed to create lab: " + e.getMessage());
-        }
+        CreateLabResponse response = labService.createLab(request,
+                attributesProvider.extractUserIdFromRequest(httpRequest));
+        log.debug("Successfully created lab");
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @Operation(
@@ -224,7 +204,7 @@ public class LabController {
         try {
             byte[] content = labService.downloadLabAsset(assetId);
             log.debug("Successfully downloaded asset ID: {}, size: {} bytes", assetId, content.length);
-            
+
             return ResponseEntity.ok()
                     .header("Content-Type", "application/octet-stream")
                     .header("Content-Disposition", "attachment")
