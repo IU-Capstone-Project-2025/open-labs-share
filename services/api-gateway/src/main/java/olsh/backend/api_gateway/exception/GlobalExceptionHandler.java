@@ -53,6 +53,11 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(SubmissionNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleSubmissionNotFoundException(SubmissionNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), "The requested submission was not found");
+    }
+
     @ExceptionHandler(LabNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleLabNotFoundException(LabNotFoundException ex) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), "The requested lab was not found");
