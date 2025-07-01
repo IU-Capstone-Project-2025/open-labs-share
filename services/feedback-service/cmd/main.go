@@ -14,7 +14,8 @@ import (
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/grpc/server"
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/repository"
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/service"
-	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/storage"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -25,10 +26,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
-	// Initialize database connection
+
+	// Initialize PostgreSQL database connection
 	db, err := database.NewConnection(cfg.Database)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatalf("Failed to connect to PostgreSQL: %v", err)
 	}
 	defer db.Close()
 
@@ -37,19 +39,50 @@ func main() {
 		log.Fatalf("Failed to run database migrations: %v", err)
 	}
 
-	// Initialize MinIO storage
-	minioStorage, err := storage.NewMinIOStorage(cfg.MinIO)
+	// Initialize MongoDB connection
+	mongodb, err := database.ConnectMongoDB(cfg.MongoDB)
 	if err != nil {
-		log.Fatalf("Failed to initialize MinIO storage: %v", err)
+		log.Fatalf("Failed to connect to MongoDB: %v", err)
+	}
+	defer mongodb.Close(context.Background())
+
+	// Create MongoDB indexes
+	if err := mongodb.CreateIndexes(context.Background()); err != nil {
+		log.Fatalf("Failed to create MongoDB indexes: %v", err)
+	}
+
+	// Initialize MinIO client
+	minioClient, err := minio.New(cfg.MinIO.Endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(cfg.MinIO.AccessKey, cfg.MinIO.SecretKey, ""),
+		Secure: cfg.MinIO.UseSSL,
+	})
+	if err != nil {
+		log.Fatalf("Failed to initialize MinIO client: %v", err)
+	}
+
+	// Create bucket if it doesn't exist
+	if cfg.MinIO.CreateBucket {
+		ctx := context.Background()
+		exists, err := minioClient.BucketExists(ctx, cfg.MinIO.BucketName)
+		if err != nil {
+			log.Fatalf("Failed to check if bucket exists: %v", err)
+		}
+		if !exists {
+			err = minioClient.MakeBucket(ctx, cfg.MinIO.BucketName, minio.MakeBucketOptions{})
+			if err != nil {
+				log.Fatalf("Failed to create bucket: %v", err)
+			}
+			log.Printf("Created bucket: %s", cfg.MinIO.BucketName)
+		}
 	}
 
 	// Initialize repositories
-	feedbackRepo := repository.NewFeedbackRepository(db)
-	assetRepo := repository.NewAssetRepository(db)
-	commentRepo := repository.NewCommentRepository(db)
+	feedbackRepo := repository.NewFeedbackRepository(db, mongodb)
+	attachmentRepo := repository.NewAttachmentRepository(minioClient, cfg.MinIO.BucketName)
+	commentRepo := repository.NewCommentRepository(mongodb)
 
 	// Initialize services
-	feedbackService := service.NewFeedbackService(feedbackRepo, assetRepo, minioStorage)
+	feedbackService := service.NewFeedbackService(feedbackRepo, attachmentRepo)
 	commentService := service.NewCommentService(commentRepo)
 
 	// Create gRPC server
@@ -59,7 +92,8 @@ func main() {
 	)
 
 	// Register services
-	server.RegisterFeedbackServer(grpcServer, feedbackService, commentService)
+	server.RegisterFeedbackServer(grpcServer, feedbackService)
+	server.RegisterCommentServer(grpcServer, commentService)
 
 	// Enable reflection for easier debugging
 	reflection.Register(grpcServer)
