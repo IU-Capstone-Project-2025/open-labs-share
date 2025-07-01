@@ -40,7 +40,7 @@ services:
       - users-service
       - labs-service
       - articles-service
-      - ml-service
+      # - ml-service
     networks:
       - app-network
 
@@ -105,9 +105,16 @@ services:
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
+      - MONGODB_HOST=mongodb-labs
+      - MONGODB_PORT=27017
+      - MONGODB_USER=mongo
+      - MONGODB_PASSWORD=mongo
+      - MONGODB_NAME=labs_mongo_db
     restart: unless-stopped
     depends_on:
       postgres-labs:
+        condition: service_healthy
+      mongodb-labs:
         condition: service_healthy
       minio:
         condition: service_healthy
@@ -318,6 +325,25 @@ services:
     networks:
       - app-network
 
+  mongodb-labs:
+    image: mongo:latest
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=mongo
+      - MONGO_INITDB_ROOT_PASSWORD=mongo
+      - MONGO_INITDB_DATABASE=labs_mongo_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-labs-data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/labs_mongo_db --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge
@@ -331,3 +357,4 @@ volumes:
   postgres-ml-data:
   ml-models:
   minio-data:
+  mongodb-labs-data:
