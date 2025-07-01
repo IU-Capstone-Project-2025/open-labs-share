@@ -1,7 +1,7 @@
 import ArticleCard from "../components/ArticleCard";
 import LabCard from "../components/LabCard";
 import { useState, useEffect } from "react";
-import { getCurrentUser, isAuthenticated, getUserProfile } from "../utils/auth";
+import { getCurrentUser, isAuthenticated, getUserProfile, notifyUserDataUpdate } from "../utils/auth";
 import { usersAPI, labsAPI } from "../utils/api";
 import { BeakerIcon, EyeIcon } from "@heroicons/react/24/outline";
 import GemIcon from "../components/GemIcon";
@@ -171,6 +171,9 @@ export default function ProfilePage() {
           const freshUserData = await getUserProfile();
           setUser(freshUserData);
           
+          // Notify all components about the user data update
+          notifyUserDataUpdate();
+          
           const refreshedProfileData = {
             firstName: freshUserData.firstName || "",
             lastName: freshUserData.lastName || "",
@@ -187,6 +190,11 @@ export default function ProfilePage() {
           // Fallback to response data
           const updatedUser = response.userInfo || response;
           setUser(updatedUser);
+          
+          // Store updated user data in localStorage and notify
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          notifyUserDataUpdate();
+          
           setOriginalData({ ...formData, password: "", confirmPassword: "" });
           setFormData(prev => ({ ...prev, password: "", confirmPassword: "" }));
         }
