@@ -3,20 +3,14 @@ import { useNavigate } from "react-router-dom";
 import LabCard from "../components/LabCard";
 import { labs } from "../utils/api";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
+import { useUser } from "../hooks/useUser";
 
 export default function MyLabs() {
   const [myLabs, setMyLabs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [user, setUser] = useState(null);
+  const user = useUser();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (isAuthenticated()) {
-      const currentUser = getCurrentUser();
-      setUser(currentUser);
-    }
-  }, []);
 
   useEffect(() => {
     const fetchMyLabs = async () => {

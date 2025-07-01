@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import ArticleCard from "../components/ArticleCard";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
+import { useUser } from "../hooks/useUser";
 // Note: articlesAPI is currently commented out in api.js
 // This code is prepared for when articles service is connected
 import { articlesAPI } from "../utils/api";
@@ -9,14 +10,7 @@ export default function MyArticles() {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    if (isAuthenticated()) {
-      const currentUser = getCurrentUser();
-      setUser(currentUser);
-    }
-  }, []);
+  const user = useUser();
 
   useEffect(() => {
     const fetchMyArticles = async () => {

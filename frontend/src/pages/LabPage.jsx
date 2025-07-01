@@ -4,10 +4,12 @@ import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import "highlight.js/styles/github-dark.css";
+import GemIcon from "../components/GemIcon";
 import CommentsSection from "../components/CommentsSection";
 import ChatWindow from "../components/ChatWindow";
-import { getCurrentUser, isAuthenticated } from "../utils/auth";
+import { getCurrentUser, isAuthenticated, notifyUserDataUpdate } from "../utils/auth";
 import { labsAPI, submissionsAPI } from "../utils/api";
+import { useUser } from "../hooks/useUser";
 
 const flattenText = (children) => {
   if (typeof children === "string") return children;
@@ -41,18 +43,12 @@ export default function LabPage() {
   const fileInputRef = useRef(null);
   const dropzoneRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [user, setUser] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMode, setChatMode] = useState('floating'); // 'floating' or 'sidebar'
-
-  // Initialize user state
-  useEffect(() => {
-    if (isAuthenticated()) {
-      const currentUser = getCurrentUser();
-      setUser(currentUser);
-    }
-  }, []);
+  
+  // Use the custom hook for user state management
+  const user = useUser();
 
   const scrollToSubmit = useCallback(() => {
     const submitSection = document.getElementById("submit-section");
@@ -91,12 +87,22 @@ export default function LabPage() {
   };
 
   const handleSubmit = async () => {
-    if (!file || !user) return;
+    if (!file || !user || user.balance < 1) return;
 
     try {
       setUploading(true);
       await submissionsAPI.submitLabFile(id, user.id, file);
-      alert(`The file "${file.name}" uploaded successfully`);
+      
+      // Update user's balance locally after successful submission
+      const updatedUser = { ...user, balance: user.balance - 1 };
+      
+      // Store updated user data in localStorage
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      // Notify all components about the user data update (including this component)
+      notifyUserDataUpdate();
+      
+      alert(`The file "${file.name}" uploaded successfully!`);
       setFile(null);
     } catch (err) {
       console.error("Upload error:", err);
@@ -526,18 +532,53 @@ Lab content delivery is currently being developed. The markdown content for this
             )}
           </div>
 
-          <div className="mt-6 flex justify-center">
+          <div className="mt-6 flex flex-col items-center">
             <button
               onClick={handleSubmit}
-              disabled={!file || uploading || !user}
+              disabled={!file || uploading || !user || (user && user.balance < 1)}
               className={`px-16 py-3 rounded-md font-medium ${
-                file && !uploading && user
+                file && !uploading && user && user.balance >= 1
                   ? "bg-msc text-white hover:bg-msc-dark"
                   : "bg-light-blue-hover dark:bg-gray-600 text-gray-500 font-inter dark:text-gray-400 cursor-not-allowed"
               } transition-colors`}
             >
               {uploading ? "Uploading..." : "Submit homework"}
             </button>
+            
+            {/* Points requirement message */}
+            {user && user.balance < 1 && (
+              <div className="mt-3 text-sm text-red-600 dark:text-red-400 text-center">
+                <div className="flex items-center justify-center">
+                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <span className="flex items-center">
+                    Insufficient balance. You need at least 1
+                    <GemIcon className="h-4 w-4 mx-1" color="#dc2626" />
+                    to submit homework.
+                  </span>
+                </div>
+                <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
+                  <span className="flex items-center justify-center">
+                    Review other students' submissions to earn
+                    <GemIcon className="h-3 w-3 mx-1" color="#6b7280" />.
+                  </span>
+                </p>
+              </div>
+            )}
+            
+            {/* General submission info */}
+            {user && user.balance >= 1 && (
+              <p className="mt-3 text-sm text-gray-600 dark:text-gray-400 text-center">
+                <span className="flex items-center justify-center">
+                  <svg className="w-4 h-4 mr-1 text-accent" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  This submission will cost 1
+                  <GemIcon className="h-4 w-4 mx-1" color="#101e5a" />
+                </span>
+              </p>
+            )}
           </div>
         </section>
 

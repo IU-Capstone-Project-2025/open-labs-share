@@ -1,20 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { getCurrentUser } from '../utils/auth';
+import { useUser } from '../hooks/useUser';
 import { mlAPI } from '../utils/api';
 
 const ChatWindow = ({ labId, isOpen, onToggle, chatMode, onSetChatMode }) => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [user, setUser] = useState(null);
+  const user = useUser();
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
-
-  useEffect(() => {
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
-  }, []);
 
   useEffect(() => {
     scrollToBottom();
