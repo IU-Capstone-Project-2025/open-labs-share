@@ -167,7 +167,7 @@ class CommentServiceTest {
 
         // Mock lab validation to pass
         CommentListResponse mockResponse = createTestCommentListResponse();
-        when(commentServiceClient.getLabComments(validLabId, request)).thenReturn(mockResponse);
+        when(commentServiceClient.getComments(validLabId, request)).thenReturn(mockResponse);
         when(userService.getUserById(anyLong())).thenReturn(createTestUser(123L));
 
         // When

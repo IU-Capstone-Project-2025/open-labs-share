@@ -39,7 +39,7 @@ public class CommentService {
 
     public CommentListResponse getLabComments(long labId, GetCommentsRequest request) {
         validateLabExists(labId);
-        CommentListResponse response = commentServiceClient.getLabComments(labId, request);
+        CommentListResponse response = commentServiceClient.getComments(labId, request);
         return enrichCommentsWithUserInfo(response);
     }
 
