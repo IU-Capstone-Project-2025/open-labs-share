@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend.prod
+      args:
+        # This URL should be the public-facing address of your API gateway
+        VITE_API_GATEWAY_URL: http://open-labs-share.online:8080
+    ports:
+      - "80:80" # Expose Nginx on the standard HTTP port
+    volumes: [] # Unset the volume mount to use the static files from the image
+
+  api-gateway:
+    volumes: [] # Unset the volume mount to use the JAR from the image
+
+  auth-service:
+    volumes: [] # Unset the volume mount to use the JAR from the image
+
+  users-service:
+    volumes: [] # Unset the volume mount to use the JAR from the image
+
+  labs-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.labs-service.prod
+    volumes: [] # Unset the volume mount to use the code from the image
+
+  articles-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.articles-service.prod
+    volumes: [] # Unset the volume mount to use the code from the image
+
+  feedback-service:
+    volumes: [] # Unset the volume mount to use the binary from the image
+
+  ml-service:
+    # This service is disabled in the production environment by overriding its command.
+    command: ["/bin/true"]
+    restart: "no"
+    volumes: []
+    ports: []
+
+  # ... rest of the file remains unchanged ... 

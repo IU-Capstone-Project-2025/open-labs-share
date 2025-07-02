@@ -80,13 +80,13 @@ jobs:
 
       - name: Build and push images
         run: |
-          docker compose -f docker-compose.yml build
+          # Build all images using the production configuration
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml build
           
-          # Tag and push each service image
-          for service in $(docker compose -f docker-compose.yml config --services); do
+          # Tag and push each service image defined in the production config
+          for service in $(docker compose -f docker-compose.yml -f docker-compose.prod.yml config --services); do
             # Use the directory name as the image name prefix to avoid conflicts
-            # and ensure it matches the auto-generated image names by compose
-            project_name=$(basename $PWD)
+            project_name=$(basename $PWD | tr '[:upper:]' '[:lower:]')
             image_name="${project_name}-${service}"
             
             # Check if the image exists locally before tagging and pushing
@@ -95,7 +95,7 @@ jobs:
               docker tag ${image_name} ${{ secrets.DOCKER_HUB_USERNAME }}/${image_name}:latest
               docker push ${{ secrets.DOCKER_HUB_USERNAME }}/${image_name}:latest
             else
-              echo "Skipping push for ${service}, no local image found. It might be a base image like postgres."
+              echo "Skipping push for ${service}, no local image found. It might be a base image."
             fi
           done
 
@@ -114,36 +114,11 @@ jobs:
 
       - name: Deploy services
         run: |
-          # This script requires 'yq' (the Go version) to be installed on your server.
-          # On Debian/Ubuntu, you can install it with: sudo apt update && sudo apt install yq
-          
-          # Pull the latest versions of images from Docker Hub
-          # We only pull images that are defined with a `build` instruction in docker-compose.yml
-          for service in $(docker compose -f docker-compose.yml config --services); do
-            project_name="open-labs-share-1"
-            image_name="${project_name}-${service}"
-            
-            # The 'yq' command here checks if a service has a 'build' section.
-            if yq e ".services.${service} | has(\"build\")" docker-compose.yml | grep -q "true"; then
-              echo "Pulling image for service: $service"
-              docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/${image_name}:latest || echo "Could not pull ${image_name}. It might not be a custom-built image."
-            fi
-          done
-
-          # Before starting, ensure docker-compose uses the pulled images from Docker Hub.
-          # We will modify the docker-compose file in place.
-          for service in $(docker compose -f docker-compose.yml config --services); do
-            project_name="open-labs-share-1"
-            image_name="${project_name}-${service}"
-            hub_image="${{ secrets.DOCKER_HUB_USERNAME }}/${image_name}:latest"
-            
-            if yq e ".services.${service} | has(\"build\")" docker-compose.yml | grep -q "true"; then
-                yq e ".services.${service}.image = \"${hub_image}\"" -i docker-compose.yml
-            fi
-          done
+          # Pull the latest images from Docker Hub
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
           
           # Restart the services with the new images
-          docker compose -f docker-compose.yml up -d
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
           
       - name: Wait for services to stabilize
         run: |
@@ -154,7 +129,7 @@ jobs:
         id: check_statuses
         run: |
           echo "Checking container statuses..."
-          FAILING_SERVICES=$(docker compose -f docker-compose.yml ps | grep -E "restarting|unhealthy|exited" || true)
+          FAILING_SERVICES=$(docker compose -f docker-compose.yml -f docker-compose.prod.yml ps | grep -E "restarting|unhealthy|exited" || true)
           
           if [ -n "$FAILING_SERVICES" ]; then
             echo "Failing services found."
@@ -170,13 +145,13 @@ jobs:
             echo "has_failures=false" >> $GITHUB_OUTPUT
           fi
           echo "Full service list:"
-          docker compose -f docker-compose.yml ps
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 
       - name: Stop services on failure
         if: steps.check_statuses.outputs.has_failures == 'true'
         run: |
           echo "One or more services are unstable. Stopping all services."
-          docker compose -f docker-compose.yml down --remove-orphans
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml down --remove-orphans
           exit 1
           
       - name: Clean up old, dangling images
