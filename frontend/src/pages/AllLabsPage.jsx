@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import LabCard from "../components/LabCard";
-import { labs } from "../utils/api";
+import { labsAPI } from "../utils/api";
 
 export default function AllLabsPage() {
   const [labsData, setLabsData] = useState([]);
@@ -14,7 +14,7 @@ export default function AllLabsPage() {
       try {
         setLoading(true);
         console.log('AllLabsPage: Fetching labs from backend API...');
-        const response = await labs.getLabs();
+        const response = await labsAPI.getLabs();
         console.log('AllLabsPage: Received response:', response);
         console.log('AllLabsPage: Response type:', typeof response);
         console.log('AllLabsPage: Response.labs:', response.labs);

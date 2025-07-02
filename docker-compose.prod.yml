@@ -3,38 +3,51 @@ version: '3.8'
 services:
   frontend:
     build:
-      context: .
-      dockerfile: docker/Dockerfile.frontend.prod
-      args:
-        # This URL should be the public-facing address of your API gateway
-        VITE_API_GATEWAY_URL: http://open-labs-share.online:8080
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend.prod
     ports:
-      - "80:80" # Expose Nginx on the standard HTTP port
+      - "80:80"
+    restart: always
+    networks:
+      - app-network
     volumes: [] # Unset the volume mount to use the static files from the image
 
   api-gateway:
+    ports: [] # The API gateway is no longer directly exposed to the host.
     volumes: [] # Unset the volume mount to use the JAR from the image
+    networks:
+      - app-network
 
   auth-service:
     volumes: [] # Unset the volume mount to use the JAR from the image
+    networks:
+      - app-network
 
   users-service:
     volumes: [] # Unset the volume mount to use the JAR from the image
+    networks:
+      - app-network
 
   labs-service:
     build:
       context: .
       dockerfile: docker/Dockerfile.labs-service.prod
     volumes: [] # Unset the volume mount to use the code from the image
+    networks:
+      - app-network
 
   articles-service:
     build:
       context: .
       dockerfile: docker/Dockerfile.articles-service.prod
     volumes: [] # Unset the volume mount to use the code from the image
+    networks:
+      - app-network
 
   feedback-service:
     volumes: [] # Unset the volume mount to use the binary from the image
+    networks:
+      - app-network
 
   ml-service:
     # This service is disabled in the production environment by overriding its command.
@@ -42,5 +55,11 @@ services:
     restart: "no"
     volumes: []
     ports: []
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
 
   # ... rest of the file remains unchanged ... 

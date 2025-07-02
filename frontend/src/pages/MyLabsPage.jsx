@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import LabCard from "../components/LabCard";
-import { labs } from "../utils/api";
+import { labsAPI } from "../utils/api";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
 
 export default function MyLabs() {
@@ -25,7 +25,7 @@ export default function MyLabs() {
         console.log('MyLabsPage: Fetching labs for current user:', user);
         
         // Use the dedicated API endpoint for user's labs
-        const response = await labs.getMyLabs();
+        const response = await labsAPI.getMyLabs();
         console.log('MyLabsPage: My labs response:', response);
         
         const userLabs = response.labs || response || [];
