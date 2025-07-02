@@ -71,10 +71,10 @@ jobs:
 
       - name: Build and push images
         run: |
-          docker-compose -f docker-compose.yml build
+          docker compose -f docker-compose.yml build
           
           # Tag and push each service image
-          for service in $(docker-compose -f docker-compose.yml config --services); do
+          for service in $(docker compose -f docker-compose.yml config --services); do
             # Use the directory name as the image name prefix to avoid conflicts
             # and ensure it matches the auto-generated image names by compose
             project_name=$(basename $PWD)
@@ -107,7 +107,7 @@ jobs:
           
           # Pull the latest versions of images from Docker Hub
           # We only pull images that are defined with a `build` instruction in docker-compose.yml
-          for service in $(docker-compose -f docker-compose.yml config --services); do
+          for service in $(docker compose -f docker-compose.yml config --services); do
             project_name="open-labs-share-1"
             image_name="${project_name}-${service}"
             
@@ -120,7 +120,7 @@ jobs:
 
           # Before starting, ensure docker-compose uses the pulled images from Docker Hub.
           # We will modify the docker-compose file in place.
-          for service in $(docker-compose -f docker-compose.yml config --services); do
+          for service in $(docker compose -f docker-compose.yml config --services); do
             project_name="open-labs-share-1"
             image_name="${project_name}-${service}"
             hub_image="${{ secrets.DOCKER_HUB_USERNAME }}/${image_name}:latest"
@@ -131,7 +131,7 @@ jobs:
           done
           
           # Restart the services with the new images
-          docker-compose -f docker-compose.yml up -d
+          docker compose -f docker-compose.yml up -d
           
           # Clean up old, dangling images
           docker image prune -f
