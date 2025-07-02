@@ -94,6 +94,9 @@ jobs:
     needs: build-and-push
     runs-on: self-hosted
     steps:
+      - name: Clean the working directory
+        run: sudo rm -rf ./*
+
       - name: Checkout code
         uses: actions/checkout@v4
 
