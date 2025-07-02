@@ -54,17 +54,23 @@ def GetLabs(stub, page_number, page_size):
 
     logger.info(f"Obtained response:\n{response}")
 
+    return response
 
-def UpdateLab(stub, lab_id, title, abstract):
+
+def UpdateLab(stub, lab_id, title=None, abstract=None):
     logger.info(f"Updating lab with ID: {lab_id}, title={title}, abstract={abstract}")
+    update_lab_request = labs_service_cf.UpdateLabRequest(lab_id=lab_id)
 
-    response = stub.UpdateLab(labs_service_cf.UpdateLabRequest(
-        lab_id=lab_id,
-        title=title,
-        abstract=abstract
-    ))
+    if title is not None and type(title) is str:
+        update_lab_request.title = title
+    if abstract is not None and type(abstract) is str:
+        update_lab_request.abstract = abstract
+
+    response = stub.UpdateLab(update_lab_request)
 
     logger.info(f"Obtained response:\n{response}")
+
+    return response
 
 
 def DeleteLab(stub, lab_id):
@@ -73,6 +79,8 @@ def DeleteLab(stub, lab_id):
     response = stub.DeleteLab(labs_service_cf.DeleteLabRequest(lab_id=lab_id))
 
     logger.info(f"Obtained response:\n{response}")
+
+    return response
 
 
 def UploadLabAsset(stub, lab_id, filename):
@@ -97,6 +105,8 @@ def UploadLabAsset(stub, lab_id, filename):
 
     logger.info(f"Obtained response:\n{response}")
 
+    return response
+
 
 def UpdateLabAsset(stub, asset_id, filename):
     logger.info(f"Updating asset with ID: {asset_id}, filename: {filename}, filesize: {os.path.getsize(filename)}")
@@ -119,6 +129,8 @@ def UpdateLabAsset(stub, asset_id, filename):
     response = stub.UpdateAsset(generate_requests())
 
     logger.info(f"Obtained response:\n{response}")
+
+    return response
 
 
 def DownloadLabAsset(stub, asset_id):
@@ -152,6 +164,8 @@ def DownloadLabAsset(stub, asset_id):
 
     logger.info("Donwload completed successfully.")
 
+    return response
+
 
 def DeleteLabAsset(stub, asset_id):
     logger.info(f"Deleting asset with ID: {asset_id}")
@@ -159,6 +173,8 @@ def DeleteLabAsset(stub, asset_id):
     response = stub.DeleteAsset(labs_service_cf.DeleteAssetRequest(asset_id=asset_id))
 
     logger.info(f"Obtained response:\n{response}")
+
+    return response
 
 
 def ListLabAssets(stub, lab_id):
@@ -168,6 +184,8 @@ def ListLabAssets(stub, lab_id):
 
     for asset in response.assets:
         logger.info(f"Asset ID: {asset.asset_id}, Filename: {asset.filename}, Filesize: {asset.filesize}, Upload Date: {asset.upload_date}")
+
+    return response
 
 
 def CreateSubmission(stub, number, lab_id):
@@ -181,6 +199,8 @@ def CreateSubmission(stub, number, lab_id):
 
     logger.info(f"Obtained response:\n{response}")
 
+    return response
+
 
 def GetSubmission(stub, submission_id):
     logger.info(f"Fetching submission with ID: {submission_id}")
@@ -188,6 +208,8 @@ def GetSubmission(stub, submission_id):
     response = stub.GetSubmission(submissions_service_cf.GetSubmissionRequest(submission_id=submission_id))
 
     logger.info(f"Obtained response:\n{response}")
+
+    return response
 
 
 def GetSubmissions(stub, lab_id, page_number, page_size):
@@ -200,6 +222,8 @@ def GetSubmissions(stub, lab_id, page_number, page_size):
     ))
 
     logger.info(f"Obtained response:\n{response}")
+
+    return response
 
 
 def UpdateSubmission(stub, submission_id, status=None, text=None):
@@ -216,6 +240,8 @@ def UpdateSubmission(stub, submission_id, status=None, text=None):
 
     logger.info(f"Obtained response:\n{response}")
 
+    return response
+
 
 def DeleteSubmission(stub, submission_id):
     logger.info(f"Deleting submission with ID: {submission_id}")
@@ -223,6 +249,8 @@ def DeleteSubmission(stub, submission_id):
     response = stub.DeleteSubmission(submissions_service_cf.DeleteSubmissionRequest(submission_id=submission_id))
 
     logger.info(f"Obtained response:\n{response}")
+
+    return response
 
 
 def UploadSubmissionAsset(stub, submission_id, filename):
@@ -247,6 +275,8 @@ def UploadSubmissionAsset(stub, submission_id, filename):
 
     logger.info(f"Obtained response:\n{response}")
 
+    return response
+
 
 def UpdateSubmissionAsset(stub, asset_id, filename):
     logger.info(f"Updating asset with ID: {asset_id}, filename: {filename}, filesize: {os.path.getsize(filename)}")
@@ -269,6 +299,8 @@ def UpdateSubmissionAsset(stub, asset_id, filename):
     response = stub.UpdateAsset(generate_requests())
 
     logger.info(f"Obtained response:\n{response}")
+
+    return response
 
 
 def DownloadSubmissionAsset(stub, asset_id):
@@ -302,6 +334,8 @@ def DownloadSubmissionAsset(stub, asset_id):
 
     logger.info("Download completed successfully.")
 
+    return response
+
 
 def DeleteSubmissionAsset(stub, asset_id):
     logger.info(f"Deleting asset with ID: {asset_id}")
@@ -310,6 +344,8 @@ def DeleteSubmissionAsset(stub, asset_id):
 
     logger.info(f"Obtained response:\n{response}")
 
+    return response
+
 
 def ListSubmissionAssets(stub, submission_id):
     logger.info(f"Listing assets for submission ID: {submission_id}")
@@ -317,6 +353,8 @@ def ListSubmissionAssets(stub, submission_id):
 
     for asset in response.assets:
         logger.info(f"Asset ID: {asset.asset_id}, Filename: {asset.filename}, Filesize: {asset.filesize}, Upload Date: {asset.upload_date}")
+
+    return response
 
 
 def main(server_address: str):
