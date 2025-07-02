@@ -1,235 +1,95 @@
-# name: CI/CD Pipeline
-
-# on:
-#   push:
-#     branches: [ main, dev ]
-#   pull_request:
-#     branches: [ main, dev ]
-
-# env:
-#   DOCKER_BUILDKIT: 1
-#   COMPOSE_DOCKER_CLI_BUILD: 1
-
-# jobs:
-#   test:
-#     runs-on: self-hosted
-#     name: Run Tests
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v4
-
-#       - name: Set up Docker Buildx
-#         uses: docker/setup-buildx-action@v3
-
-#       - name: Build test images
-#         run: |
-#           echo "Building test images..."
-#           docker-compose -f docker-compose.yml build --no-cache
-
-#       - name: Run basic health checks
-#         run: |
-#           echo "Running basic health checks..."
-#           # Start services in background
-#           docker-compose up -d
-          
-#           # Wait for services to be ready
-#           sleep 60
-          
-#           # Check if main services are running
-#           docker-compose ps
-          
-#           # Basic connectivity tests
-#           curl -f http://localhost:5173 || echo "Frontend not ready yet"
-#           curl -f http://localhost:8080/actuator/health || echo "API Gateway not ready yet"
-          
-#           # Cleanup
-#           docker-compose down --volumes --remove-orphans
-
-#   deploy:
-#     runs-on: self-hosted
-#     name: Deploy to Self-Hosted
-#     needs: test
-#     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || (github.event_name == 'pull_request' && (github.base_ref == 'dev' || github.base_ref == 'main'))
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v4
-
-#       - name: Set up environment variables
-#         run: |
-#           echo "Setting up environment variables..."
-#           # Create .env file if it doesn't exist
-#           if [ ! -f .env ]; then
-#             cat > .env << EOF
-#           # Application Environment
-#           NODE_ENV=production
-#           SPRING_PROFILES_ACTIVE=docker
-          
-#           # Database Configuration
-#           POSTGRES_USERS_DB=users_service
-#           POSTGRES_USERS_USER=users_user
-#           POSTGRES_USERS_PASSWORD=${{ secrets.POSTGRES_USERS_PASSWORD || 'users_password_prod' }}
-          
-#           POSTGRES_ARTICLES_DB=articles_db
-#           POSTGRES_ARTICLES_USER=articles_user
-#           POSTGRES_ARTICLES_PASSWORD=${{ secrets.POSTGRES_ARTICLES_PASSWORD || 'articles_password_prod' }}
-          
-#           POSTGRES_LABS_DB=labs_db
-#           POSTGRES_LABS_USER=labs_user
-#           POSTGRES_LABS_PASSWORD=${{ secrets.POSTGRES_LABS_PASSWORD || 'labs_password_prod' }}
-          
-#           POSTGRES_FEEDBACK_DB=feedback_db
-#           POSTGRES_FEEDBACK_USER=feedback_user
-#           POSTGRES_FEEDBACK_PASSWORD=${{ secrets.POSTGRES_FEEDBACK_PASSWORD || 'feedback_password_prod' }}
-          
-#           # MinIO Configuration
-#           MINIO_ROOT_USER=${{ secrets.MINIO_ROOT_USER || 'minioadmin' }}
-#           MINIO_ROOT_PASSWORD=${{ secrets.MINIO_ROOT_PASSWORD || 'minioadmin123' }}
-          
-#           # Auth Service Configuration
-#           JWT_SIGNING_KEY=${{ secrets.JWT_SIGNING_KEY || 'defaultSigningKey12345678901234567890123412341234123412341234123412341234' }}
-#           ACCESS_TOKEN_EXPIRATION=144000000
-#           REFRESH_TOKEN_EXPIRATION=1008000000
-#           EOF
-#           fi
-
-#       - name: Clean up old containers and images
-#         run: |
-#           echo "Cleaning up old containers and images..."
-#           # Stop and remove old containers
-#           docker-compose down --volumes --remove-orphans || true
-          
-#           # Remove old images to save space (keep latest)
-#           docker image prune -f || true
-          
-#           # Remove unused volumes
-#           docker volume prune -f || true
-
-#       - name: Build production images
-#         run: |
-#           echo "Building production images..."
-#           docker-compose build --no-cache
-
-#       - name: Deploy services
-#         run: |
-#           echo "Deploying services..."
-#           # Start all services
-#           docker-compose up -d
-          
-#           # Wait for services to be ready (Java services take longer)
-#           echo "Waiting for services to start..."
-#           sleep 120
-
-#       - name: Verify deployment
-#         run: |
-#           echo "Verifying deployment..."
-          
-#           # Check service status
-#           docker-compose ps
-          
-#           # Check service health with retries
-#           echo "Checking service health..."
-          
-#           # Function to check service with retries
-#           check_service() {
-#             local name=$1
-#             local url=$2
-#             local max_attempts=10
-#             local attempt=1
-            
-#             while [ $attempt -le $max_attempts ]; do
-#               if curl -f -s "$url" > /dev/null; then
-#                 echo "✅ $name is healthy"
-#                 return 0
-#               fi
-#               echo "⏳ $name not ready yet (attempt $attempt/$max_attempts)"
-#               sleep 10
-#               attempt=$((attempt + 1))
-#             done
-#             echo "❌ $name is not responding after $max_attempts attempts"
-#             return 1
-#           }
-          
-#           # Check services
-#           check_service "Frontend" "http://localhost:5173"
-#           check_service "API Gateway" "http://localhost:8080/actuator/health"
-#           check_service "Auth Service" "http://localhost:8081/actuator/health"
-#           check_service "MinIO" "http://localhost:9000/minio/health/live"
-          
-#           # Show running containers
-#           echo "Running containers:"
-#           docker-compose ps
-          
-#           # Show logs for any failed services
-#           echo "Checking for any failed services..."
-#           for service in $(docker-compose ps --services); do
-#             if [ "$(docker-compose ps -q $service)" ]; then
-#               status=$(docker inspect --format='{{.State.Status}}' $(docker-compose ps -q $service))
-#               if [ "$status" != "running" ]; then
-#                 echo "❌ Service $service is not running (status: $status)"
-#                 echo "Logs for $service:"
-#                 docker-compose logs --tail=50 $service
-#               fi
-#             fi
-#           done
-
-#       - name: Setup log rotation
-#         run: |
-#           echo "Setting up log rotation..."
-#           # Note: Log rotation would typically be configured by system administrator
-#           # For now, we'll implement basic log cleanup via docker
-#           echo "Log rotation configuration would be handled by system administrator"
-#           echo "Current docker disk usage:"
-#           docker system df
-
-#       - name: Create backup
-#         run: |
-#           echo "Creating backup of current deployment..."
-#           # Create backup directory with timestamp in user home
-#           BACKUP_DIR="$HOME/backups/open-labs-share/$(date +%Y%m%d_%H%M%S)"
-#           mkdir -p "$BACKUP_DIR"
-          
-#           # Export docker volumes (without sudo)
-#           for volume in $(docker volume ls -q | grep -E "(postgres|minio|frontend)"); do
-#             echo "Backing up volume: $volume"
-#             docker run --rm -v "$volume:/source:ro" -v "$BACKUP_DIR:/backup" alpine tar czf "/backup/${volume}.tar.gz" -C /source .
-#           done
-          
-#           # Copy compose file and environment
-#           cp docker-compose.yml "$BACKUP_DIR/"
-#           cp .env "$BACKUP_DIR/" 2>/dev/null || true
-          
-#           echo "Backup created at: $BACKUP_DIR"
-          
-#           # Keep only last 5 backups
-#           find "$HOME/backups/open-labs-share" -type d -name "20*" 2>/dev/null | sort -r | tail -n +6 | xargs rm -rf 2>/dev/null || true
-
-#   cleanup:
-#     runs-on: self-hosted
-#     name: Cleanup
-#     needs: [test, deploy]
-#     if: always()
-#     steps:
-#       - name: Clean up build artifacts
-#         run: |
-#           echo "Cleaning up build artifacts..."
-#           # Remove dangling images
-#           docker image prune -f || true
-          
-#           # Remove build cache older than 24h
-#           docker builder prune -f --filter "until=24h" || true
-
-# This is a placeholder CI/CD workflow file
-name: Placeholder Workflow
+name: Deploy to Production
 
 on:
   push:
-    branches: [ main, dev ]
-  pull_request:
-    branches: [ main, dev ]
+    branches:
+      - "*" # TODO: Change to main after testing
 
 jobs:
-  placeholder:
-    runs-on: self-hosted
+  build-and-push:
+    runs-on: ubuntu-latest
     steps:
-      - name: Placeholder step
-        run: echo "This is a placeholder workflow. Deploying to self-hosted server." 
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push images
+        run: |
+          docker-compose -f docker-compose.yml build
+          
+          # Tag and push each service image
+          for service in $(docker-compose -f docker-compose.yml config --services); do
+            # Use the directory name as the image name prefix to avoid conflicts
+            # and ensure it matches the auto-generated image names by compose
+            project_name=$(basename $PWD)
+            image_name="${project_name}-${service}"
+            
+            # Check if the image exists locally before tagging and pushing
+            if [[ "$(docker images -q ${image_name} 2> /dev/null)" != "" ]]; then
+              echo "Tagging and pushing image for $service"
+              docker tag ${image_name} ${{ secrets.DOCKER_HUB_USERNAME }}/${image_name}:latest
+              docker push ${{ secrets.DOCKER_HUB_USERNAME }}/${image_name}:latest
+            else
+              echo "Skipping push for ${service}, no local image found. It might be a base image like postgres."
+            fi
+          done
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.REG_RU_HOST }}
+          username: ${{ secrets.REG_RU_USERNAME }}
+          key: ${{ secrets.REG_RU_SSH_KEY }}
+          script: |
+            # Navigate to the project directory
+            cd ~/open-labs-share-1
+            
+            # Log in to Docker Hub
+            echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
+            
+            # Pull the latest versions of the images from Docker Hub
+            # This requires your docker-compose.yml to reference the Docker Hub images
+            # e.g., image: yourdockerhubusername/open-labs-share-1-frontend:latest
+            # Since it's not set up that way, we will pull each image manually
+            for service in $(docker-compose -f docker-compose.yml config --services); do
+              project_name="open-labs-share-1"
+              image_name="${project_name}-${service}"
+              # Check if the image is one that is built from source
+              if grep -q "build:" docker-compose.yml; then
+                  # This is a simplistic check. A better way would be to inspect the docker-compose config
+                  # For now, we assume if a build context exists, we should try to pull it.
+                  echo "Pulling image for service: $service"
+                  docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/${image_name}:latest || echo "Could not pull ${image_name}. It might not be a custom-built image."
+              fi
+            done
+
+            # Update the image references in the docker-compose file before starting
+            # This is a critical step. We will use sed to update the image tags.
+            # This assumes services that are built have a `build:` section and will be given an `image:` tag.
+            for service in $(docker-compose -f docker-compose.yml config --services); do
+              project_name="open-labs-share-1"
+              image_name="${project_name}-${service}"
+              hub_image="${{ secrets.DOCKER_HUB_USERNAME }}/${image_name}:latest"
+              # Use yq to be safer than sed
+              if command -v yq &> /dev/null && yq ".services.${service} | .build" docker-compose.yml | grep -q "."; then
+                  yq e ".services.${service}.image = \"${hub_image}\"" -i docker-compose.yml
+              fi
+            done
+            
+            # Start the services
+            docker-compose -f docker-compose.yml up -d
+            
+            # Clean up dangling images
+            docker image prune -f
