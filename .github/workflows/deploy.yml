@@ -4,9 +4,17 @@ on:
   push:
     branches:
       - "*" # TODO: Change to main after testing
+  workflow_dispatch:
+    inputs:
+      skip_build:
+        description: 'Skip build and push to deploy already existing images'
+        required: true
+        type: boolean
+        default: false
 
 jobs:
   test:
+    if: github.event_name == 'push' || github.event.inputs.skip_build == false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -55,6 +63,7 @@ jobs:
           
   build-and-push:
     needs: test
+    if: github.event_name == 'push' || github.event.inputs.skip_build == false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -91,14 +100,14 @@ jobs:
           done
 
   deploy:
-    needs: build-and-push
+    needs: [test, build-and-push]
+    if: always() && ((needs.test.result == 'success' && needs.build-and-push.result == 'success') || (github.event.inputs.skip_build == true && needs.test.result == 'skipped' && needs.build-and-push.result == 'skipped'))
     runs-on: self-hosted
     steps:
-      - name: Clean the working directory
-        run: sudo rm -rf ./*
-
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          clean: true
 
       - name: Log in to Docker Hub
         run: echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
