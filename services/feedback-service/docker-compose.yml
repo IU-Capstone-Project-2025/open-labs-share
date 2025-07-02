@@ -7,11 +7,11 @@ services:
       - "9090:9090"
     environment:
       GRPC_PORT: 9090
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: feedback_user
-      DB_PASSWORD: feedback_password
-      DB_NAME: feedback_db
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: feedback_user
+      POSTGRES_PASSWORD: feedback_password
+      POSTGRES_NAME: feedback_db
       MONGODB_URI: mongodb://mongodb:27017
       MONGODB_DATABASE: feedback
       MONGODB_COLLECTION: comments
