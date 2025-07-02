@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package feedback;
+package comment;
 
 option go_package = "github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/api";
 import "google/protobuf/timestamp.proto";
