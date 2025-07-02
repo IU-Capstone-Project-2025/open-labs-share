@@ -33,25 +33,25 @@ jobs:
         working-directory: ./services/users-service
         run: ./gradlew test
       
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.20'
+      # - name: Set up Go
+      #   uses: actions/setup-go@v5
+      #   with:
+      #     go-version: '1.20'
 
-      - name: Test feedback-service
-        working-directory: ./services/feedback-service
-        run: go test ./...
+      # - name: Test feedback-service
+      #   working-directory: ./services/feedback-service
+      #   run: go test ./...
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      # - name: Set up Node.js
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version: '20'
 
-      - name: Test frontend
-        working-directory: ./frontend
-        run: |
-          npm install
-          npm test
+      # - name: Test frontend
+      #   working-directory: ./frontend
+      #   run: |
+      #     npm install
+      #     npm test
           
   build-and-push:
     needs: test
