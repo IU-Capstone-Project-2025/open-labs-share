@@ -272,13 +272,6 @@ services:
     volumes:
       - ./ml:/app/ml
       - ml-models:/app/models
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     restart: unless-stopped
     depends_on:
       postgres-ml:

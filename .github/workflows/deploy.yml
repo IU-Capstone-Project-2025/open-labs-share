@@ -133,5 +133,39 @@ jobs:
           # Restart the services with the new images
           docker compose -f docker-compose.yml up -d
           
-          # Clean up old, dangling images
-          docker image prune -f
+      - name: Wait for services to stabilize
+        run: |
+          echo "Waiting for 60 seconds for services to stabilize..."
+          sleep 60
+
+      - name: Check container statuses
+        id: check_statuses
+        run: |
+          echo "Checking container statuses..."
+          FAILING_SERVICES=$(docker compose -f docker-compose.yml ps | grep -E "restarting|unhealthy|exited" || true)
+          
+          if [ -n "$FAILING_SERVICES" ]; then
+            echo "Failing services found."
+            # Using a heredoc to pass multiline strings to outputs
+            echo "failing_services<<EOF" >> $GITHUB_OUTPUT
+            echo "$FAILING_SERVICES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "has_failures=true" >> $GITHUB_OUTPUT
+            echo "::error::The following services are not stable:"
+            echo "$FAILING_SERVICES"
+          else
+            echo "All services are running."
+            echo "has_failures=false" >> $GITHUB_OUTPUT
+          fi
+          echo "Full service list:"
+          docker compose -f docker-compose.yml ps
+
+      - name: Stop services on failure
+        if: steps.check_statuses.outputs.has_failures == 'true'
+        run: |
+          echo "One or more services are unstable. Stopping all services."
+          docker compose -f docker-compose.yml down --remove-orphans
+          exit 1
+          
+      - name: Clean up old, dangling images
+        run: docker image prune -f
