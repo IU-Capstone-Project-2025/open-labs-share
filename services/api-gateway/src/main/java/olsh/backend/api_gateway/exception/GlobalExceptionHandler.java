@@ -118,4 +118,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleGeneralException(Exception ex) {
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.", ex.getMessage());
     }
+
+    @ExceptionHandler(FeedbackNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleFeedbackNotFoundException(FeedbackNotFoundException e) {
+        return buildResponse(HttpStatus.NOT_FOUND, e.getMessage(), "The requested feedback was not found");
+    }
 }
