@@ -1,11 +1,10 @@
 package olsh.backend.usersservice.service;
 
-import olsh.backend.usersservice.config.PointsConfig;
-import olsh.backend.usersservice.entity.Role;
-import olsh.backend.usersservice.entity.User;
-import olsh.backend.usersservice.exception.InsufficientBalanceException;
-import olsh.backend.usersservice.exception.NotFoundException;
-import olsh.backend.usersservice.repository.UserRepository;
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -14,17 +13,23 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import static org.mockito.ArgumentMatchers.any;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import olsh.backend.usersservice.config.PointsConfig;
+import olsh.backend.usersservice.entity.Role;
+import olsh.backend.usersservice.entity.User;
+import olsh.backend.usersservice.exception.InsufficientBalanceException;
+import olsh.backend.usersservice.exception.NotFoundException;
+import olsh.backend.usersservice.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UserStatsService Tests")
@@ -87,7 +92,6 @@ class UserStatsServiceTest {
         @ParameterizedTest
         @CsvSource({
             "0, 1, false", // Exactly zero balance, cost 1
-            "0, 1, false", // Insufficient by 1 (same as zero for cost 1)
             "1, 1, true",  // Exactly sufficient
             "5, 1, true", // More than sufficient
             "100, 10, true" // Much more than sufficient
@@ -99,7 +103,10 @@ class UserStatsServiceTest {
             testUser.setBalance(initialBalance);
             when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
             when(pointsConfig.getBaseCost()).thenReturn(baseCost);
-            when(userRepository.save(any(User.class))).thenReturn(testUser);
+            
+            if (shouldSucceed) {
+                when(userRepository.save(any(User.class))).thenReturn(testUser);
+            }
 
             if (shouldSucceed) {
                 // When
