@@ -6,7 +6,52 @@ on:
       - "*" # TODO: Change to main after testing
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Test api-gateway
+        working-directory: ./services/api-gateway
+        run: ./gradlew test
+
+      - name: Test auth-service
+        working-directory: ./services/auth-service
+        run: ./gradlew test
+
+      - name: Test users-service
+        working-directory: ./services/users-service
+        run: ./gradlew test
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.20'
+
+      - name: Test feedback-service
+        working-directory: ./services/feedback-service
+        run: go test ./...
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Test frontend
+        working-directory: ./frontend
+        run: |
+          npm install
+          npm test
+          
   build-and-push:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -44,52 +89,46 @@ jobs:
 
   deploy:
     needs: build-and-push
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
-      - name: Deploy to Server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.REG_RU_HOST }}
-          username: ${{ secrets.REG_RU_USERNAME }}
-          key: ${{ secrets.REG_RU_SSH_KEY }}
-          script: |
-            # Navigate to the project directory
-            cd ~/open-labs-share-1
-            
-            # Log in to Docker Hub
-            echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
-            
-            # Pull the latest versions of the images from Docker Hub
-            # This requires your docker-compose.yml to reference the Docker Hub images
-            # e.g., image: yourdockerhubusername/open-labs-share-1-frontend:latest
-            # Since it's not set up that way, we will pull each image manually
-            for service in $(docker-compose -f docker-compose.yml config --services); do
-              project_name="open-labs-share-1"
-              image_name="${project_name}-${service}"
-              # Check if the image is one that is built from source
-              if grep -q "build:" docker-compose.yml; then
-                  # This is a simplistic check. A better way would be to inspect the docker-compose config
-                  # For now, we assume if a build context exists, we should try to pull it.
-                  echo "Pulling image for service: $service"
-                  docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/${image_name}:latest || echo "Could not pull ${image_name}. It might not be a custom-built image."
-              fi
-            done
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            # Update the image references in the docker-compose file before starting
-            # This is a critical step. We will use sed to update the image tags.
-            # This assumes services that are built have a `build:` section and will be given an `image:` tag.
-            for service in $(docker-compose -f docker-compose.yml config --services); do
-              project_name="open-labs-share-1"
-              image_name="${project_name}-${service}"
-              hub_image="${{ secrets.DOCKER_HUB_USERNAME }}/${image_name}:latest"
-              # Use yq to be safer than sed
-              if command -v yq &> /dev/null && yq ".services.${service} | .build" docker-compose.yml | grep -q "."; then
-                  yq e ".services.${service}.image = \"${hub_image}\"" -i docker-compose.yml
-              fi
-            done
+      - name: Log in to Docker Hub
+        run: echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
+
+      - name: Deploy services
+        run: |
+          # This script requires 'yq' (the Go version) to be installed on your server.
+          # On Debian/Ubuntu, you can install it with: sudo apt update && sudo apt install yq
+          
+          # Pull the latest versions of images from Docker Hub
+          # We only pull images that are defined with a `build` instruction in docker-compose.yml
+          for service in $(docker-compose -f docker-compose.yml config --services); do
+            project_name="open-labs-share-1"
+            image_name="${project_name}-${service}"
             
-            # Start the services
-            docker-compose -f docker-compose.yml up -d
+            # The 'yq' command here checks if a service has a 'build' section.
+            if yq e ".services.${service} | has(\"build\")" docker-compose.yml | grep -q "true"; then
+              echo "Pulling image for service: $service"
+              docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/${image_name}:latest || echo "Could not pull ${image_name}. It might not be a custom-built image."
+            fi
+          done
+
+          # Before starting, ensure docker-compose uses the pulled images from Docker Hub.
+          # We will modify the docker-compose file in place.
+          for service in $(docker-compose -f docker-compose.yml config --services); do
+            project_name="open-labs-share-1"
+            image_name="${project_name}-${service}"
+            hub_image="${{ secrets.DOCKER_HUB_USERNAME }}/${image_name}:latest"
             
-            # Clean up dangling images
-            docker image prune -f
+            if yq e ".services.${service} | has(\"build\")" docker-compose.yml | grep -q "true"; then
+                yq e ".services.${service}.image = \"${hub_image}\"" -i docker-compose.yml
+            fi
+          done
+          
+          # Restart the services with the new images
+          docker-compose -f docker-compose.yml up -d
+          
+          # Clean up old, dangling images
+          docker image prune -f
