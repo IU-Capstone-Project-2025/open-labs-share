@@ -13,6 +13,7 @@ service FeedbackService {
 
   rpc GetStudentFeedback(GetStudentFeedbackRequest) returns (Feedback);
   rpc ListStudentFeedbacks(ListStudentFeedbacksRequest) returns (ListStudentFeedbacksResponse);
+  rpc GetFeedbackById(GetFeedbackByIdRequest) returns (Feedback);
 
   rpc UploadAttachment(stream UploadAttachmentRequest) returns (UploadAttachmentResponse);
   rpc DeleteAttachment(DeleteAttachmentRequest) returns (DeleteAttachmentResponse);
@@ -86,6 +87,11 @@ message ListStudentFeedbacksResponse {
   repeated Feedback feedbacks = 1;
   int32 total_count = 2; // total number of feedbacks (for pagination)
 }
+
+message GetFeedbackByIdRequest {
+  string id = 1;
+}
+
 
 message UploadAttachmentRequest {
   oneof data {

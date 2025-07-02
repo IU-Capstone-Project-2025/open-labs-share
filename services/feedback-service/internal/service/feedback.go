@@ -292,3 +292,17 @@ func (s *FeedbackService) DeleteAttachment(ctx context.Context, feedbackID uuid.
 
 	return nil
 }
+
+// GetFeedbackByID retrieves feedback by its ID
+func (s *FeedbackService) GetFeedbackByID(ctx context.Context, id uuid.UUID) (*models.Feedback, error) {
+	if id == uuid.Nil {
+		return nil, fmt.Errorf("invalid feedback ID")
+	}
+
+	feedback, err := s.feedbackRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get feedback: %w", err)
+	}
+
+	return feedback, nil
+}

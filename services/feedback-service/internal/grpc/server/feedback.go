@@ -204,6 +204,29 @@ func (s *FeedbackServer) ListStudentFeedbacks(ctx context.Context, req *pb.ListS
 	}, nil
 }
 
+// GetFeedbackById retrieves feedback by its ID
+func (s *FeedbackServer) GetFeedbackById(ctx context.Context, req *pb.GetFeedbackByIdRequest) (*pb.Feedback, error) {
+	if req.Id == "" {
+		return nil, status.Error(codes.InvalidArgument, "feedback id is required")
+	}
+
+	feedbackID, err := uuid.Parse(req.Id)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid feedback ID format")
+	}
+
+	feedback, err := s.feedbackService.GetFeedbackByID(ctx, feedbackID)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get feedback: %v", err))
+	}
+
+	if feedback == nil {
+		return nil, status.Error(codes.NotFound, "feedback not found")
+	}
+
+	return convertToProtoFeedback(feedback), nil
+}
+
 // Attachment Operations
 
 // UploadAttachment uploads an attachment to a feedback (reviewer only)
