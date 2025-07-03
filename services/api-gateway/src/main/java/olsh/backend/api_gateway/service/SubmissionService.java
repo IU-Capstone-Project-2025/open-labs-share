@@ -7,6 +7,7 @@ import olsh.backend.api_gateway.dto.response.*;
 import olsh.backend.api_gateway.exception.ForbiddenAccessException;
 import olsh.backend.api_gateway.grpc.client.SubmissionServiceClient;
 import olsh.backend.api_gateway.grpc.proto.SubmissionProto;
+import org.apache.catalina.User;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.ArrayList;
@@ -23,20 +24,20 @@ public class SubmissionService {
 
     public CreateSubmissionResponse createSubmission(CreateSubmissionRequest request, Long ownerId) {
         log.debug("Creating submission for lab ID: {} by owner: {}", request.getLabId(), ownerId);
-
         if (request.getFiles() != null) {
             for (MultipartFile file : request.getFiles()) {
                 validateSubmissionFile(file);
             }
         }
-
         SubmissionResponse submission = registerSubmission(request, ownerId);
         List<SubmissionAssetResponse> assets = uploadAssetsForSubmission(
                 submission.getSubmissionId(),
                 request.getFiles()
         );
         submission.setAssets(assets);
-
+        // Increment labs solved for the user
+        UserResponse user = userService.incrementLabsSolved(ownerId);
+        submission.setOwner(user);
         return CreateSubmissionResponse.builder()
                 .success(true)
                 .message("Submission created successfully")
@@ -172,10 +173,7 @@ public class SubmissionService {
         return SubmissionResponse.builder()
                 .submissionId(submission.getSubmissionId())
                 .labId(submission.getLabId())
-                .ownerId(submission.getOwnerId())
-                .username(owner.getUsername())
-                .ownerName(owner.getName())
-                .ownerSurname(owner.getSurname())
+                .owner(owner)
                 .text(submission.getText())
                 .createdAt(submission.getCreatedAt().toString())
                 .updatedAt(submission.getUpdatedAt().toString())

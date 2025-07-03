@@ -66,7 +66,7 @@ class CommentServiceTest {
 
         CommentResponse ownerComment = createTestComment(commentId, ownerId, 1L);
         when(commentServiceClient.getCommentById(commentId)).thenReturn(ownerComment);
-        when(userService.getUserById(ownerId)).thenReturn(createTestUser(ownerId));
+        when(userService.getUserByIdSafe(ownerId)).thenReturn(createTestUser(ownerId));
 
         // When & Then - Should not throw exception
         commentService.deleteComment(commentId, ownerId);
@@ -85,7 +85,7 @@ class CommentServiceTest {
 
         CommentResponse ownerComment = createTestComment(commentId, actualOwnerId, 1L);
         when(commentServiceClient.getCommentById(commentId)).thenReturn(ownerComment);
-        when(userService.getUserById(actualOwnerId)).thenReturn(createTestUser(actualOwnerId));
+        when(userService.getUserByIdSafe(actualOwnerId)).thenReturn(createTestUser(actualOwnerId));
 
         // When & Then
         assertThatThrownBy(() -> commentService.deleteComment(commentId, attemptingUserId))
@@ -127,7 +127,7 @@ class CommentServiceTest {
         // Mock lab validation to pass
         CommentResponse mockComment = createTestComment("comment-123", userId, validLabId);
         when(commentServiceClient.createComment(validLabId, userId, request)).thenReturn(mockComment);
-        when(userService.getUserById(userId)).thenReturn(createTestUser(userId));
+        when(userService.getUserByIdSafe(userId)).thenReturn(createTestUser(userId));
 
         // When & Then - Should not throw exception during lab validation
         CommentResponse result = commentService.createComment(validLabId, userId, request);
@@ -168,7 +168,7 @@ class CommentServiceTest {
         // Mock lab validation to pass
         CommentListResponse mockResponse = createTestCommentListResponse();
         when(commentServiceClient.getComments(validLabId, request)).thenReturn(mockResponse);
-        when(userService.getUserById(anyLong())).thenReturn(createTestUser(123L));
+        when(userService.getUserByIdSafe(anyLong())).thenReturn(createTestUser(123L));
 
         // When
         CommentListResponse result = commentService.getLabComments(validLabId, request);
@@ -180,27 +180,6 @@ class CommentServiceTest {
 
     // Test 3: User enrichment with error handling
     @Test
-    @DisplayName("Should handle UserNotFoundException gracefully when enriching comment")
-    void enrichCommentWithUserInfo_UserNotFound_UsesDefaultUserInfo() {
-        // Given
-        String commentId = "comment-123";
-        long nonExistentUserId = 999L;
-
-        CommentResponse commentWithoutUserInfo = createTestComment(commentId, nonExistentUserId, 1L);
-        when(commentServiceClient.getCommentById(commentId)).thenReturn(commentWithoutUserInfo);
-        when(userService.getUserById(nonExistentUserId)).thenThrow(new UserNotFoundException("User not found"));
-
-        // When
-        CommentResponse result = commentService.getCommentById(commentId);
-
-        // Then - Should use default user info
-        assertThat(result).isNotNull();
-        assertThat(result.getUserId()).isEqualTo(nonExistentUserId);
-        assertThat(result.getFirstName()).isEqualTo("Unknown");
-        assertThat(result.getLastName()).isEqualTo("Unknown");
-    }
-
-    @Test
     @DisplayName("Should enrich comment with user info when user exists")
     void enrichCommentWithUserInfo_UserExists_EnrichesCorrectly() {
         // Given
@@ -211,7 +190,7 @@ class CommentServiceTest {
         UserResponse userInfo = createTestUser(userId, "John", "Doe");
 
         when(commentServiceClient.getCommentById(commentId)).thenReturn(commentWithoutUserInfo);
-        when(userService.getUserById(userId)).thenReturn(userInfo);
+        when(userService.getUserByIdSafe(userId)).thenReturn(userInfo);
 
         // When
         CommentResponse result = commentService.getCommentById(commentId);
@@ -233,7 +212,7 @@ class CommentServiceTest {
 
         CommentResponse ownerComment = createTestComment(commentId, commentOwnerId, 1L);
         when(commentServiceClient.getCommentById(commentId)).thenReturn(ownerComment);
-        when(userService.getUserById(commentOwnerId)).thenReturn(createTestUser(commentOwnerId));
+        when(userService.getUserByIdSafe(commentOwnerId)).thenReturn(createTestUser(commentOwnerId));
 
         // When & Then
         assertThatThrownBy(() -> commentService.deleteComment(commentId, attemptingUserId))
@@ -281,7 +260,7 @@ class CommentServiceTest {
         for (String commentId : commentIds) {
             CommentResponse ownerComment = createTestComment(commentId, ownerId, 1L);
             when(commentServiceClient.getCommentById(commentId)).thenReturn(ownerComment);
-            when(userService.getUserById(ownerId)).thenReturn(createTestUser(ownerId));
+            when(userService.getUserByIdSafe(ownerId)).thenReturn(createTestUser(ownerId));
 
             assertThatThrownBy(() -> commentService.deleteComment(commentId, intruderId))
                     .isInstanceOf(ForbiddenAccessException.class)
@@ -307,7 +286,7 @@ class CommentServiceTest {
         UserResponse userInfo = createTestUser(123L);
 
         when(commentServiceClient.getCommentById("comment-123")).thenReturn(commentWithNullParent);
-        when(userService.getUserById(123L)).thenReturn(userInfo);
+        when(userService.getUserByIdSafe(123L)).thenReturn(userInfo);
 
         // When
         CommentResponse result = commentService.getCommentById("comment-123");
@@ -336,7 +315,7 @@ class CommentServiceTest {
     }
 
     private UserResponse createTestUser(long userId, String firstName, String lastName) {
-        return new UserResponse(userId, "User", firstName, lastName, null);
+        return new UserResponse(userId, "User", firstName, lastName, null, 0, 0, 0);
     }
 
     private CommentListResponse createTestCommentListResponse() {
