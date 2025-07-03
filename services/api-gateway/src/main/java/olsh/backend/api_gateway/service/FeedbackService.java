@@ -31,24 +31,17 @@ public class FeedbackService {
      * Creates a new feedback with optional file attachments.
      */
     public FeedbackResponse createFeedback(CreateFeedbackRequest request, Long reviewerId) {
-        log.info("Creating feedback for submission {} by reviewer {}", 
-                request.getSubmissionId(), reviewerId);
-        log.debug("Feedback creation request: {}", request);
-
+        log.info("Creating feedback for submission {} by reviewer {}", request.getSubmissionId(), reviewerId);
         List<MultipartFile> files = new ArrayList<>(List.of(request.getFiles()));
-
         validateFiles(files);
-
         FeedbackProto.CreateFeedbackRequest protoRequest = FeedbackProto.CreateFeedbackRequest.newBuilder()
                 .setReviewerId(reviewerId)
                 .setStudentId(request.getStudentId())
                 .setSubmissionId(request.getSubmissionId())
                 .setContent(request.getContent())
                 .build();
-
         FeedbackProto.Feedback feedback = feedbackClient.createFeedback(protoRequest);
         log.debug("Feedback created with ID: {}", feedback.getId());
-
         // Upload files if present
         if (files != null && !files.isEmpty()) {
             log.info("Uploading {} attachment(s) for feedback {}", files.size(), feedback.getId());
@@ -57,16 +50,17 @@ public class FeedbackService {
                 feedbackClient.uploadAttachment(reviewerId, feedback.getId(), file);
             }
         }
-
         FeedbackResponse response = buildFeedbackResponse(feedback);
         log.info("Successfully created feedback {} for submission {}", response.getId(), response.getSubmissionId());
+        // Increment labs reviewed for the reviewer
+        UserResponse user = userService.incrementLabsReviewed(reviewerId);
         return response;
     }
 
-    public FeedbackResponse getFeedback(String feedbackId){
-        try{
+    public FeedbackResponse getFeedback(String feedbackId) {
+        try {
             UUID.fromString(feedbackId);
-        }catch (IllegalArgumentException e){
+        } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Feedback ID should be of UUID format");
         }
         FeedbackProto.Feedback feedback = feedbackClient.getFeedbackById(feedbackId);
@@ -80,10 +74,10 @@ public class FeedbackService {
      */
     public FeedbackResponse getStudentFeedback(Long studentId, Long submissionId) {
         log.info("Retrieving feedback for student {} and submission {}", studentId, submissionId);
-        
+
         FeedbackProto.Feedback feedback = feedbackClient.getStudentFeedback(studentId, submissionId);
         FeedbackResponse response = buildFeedbackResponse(feedback);
-        
+
         log.debug("Retrieved feedback {} created by reviewer {}", response.getId(), response.getReviewer().getId());
         return response;
     }
@@ -97,8 +91,9 @@ public class FeedbackService {
             log.debug("Filtering by submission ID: {}", submissionId);
         }
 
-        FeedbackProto.ListStudentFeedbacksResponse response = feedbackClient.listStudentFeedbacks(studentId, submissionId, page, limit);
-        
+        FeedbackProto.ListStudentFeedbacksResponse response = feedbackClient.listStudentFeedbacks(studentId,
+                submissionId, page, limit);
+
         List<FeedbackResponse> feedbacks = response.getFeedbacksList().stream()
                 .map(this::buildFeedbackResponse)
                 .collect(Collectors.toList());
@@ -119,8 +114,9 @@ public class FeedbackService {
             log.debug("Filtering by submission ID: {}", submissionId);
         }
 
-        FeedbackProto.ListReviewerFeedbacksResponse response = feedbackClient.listReviewerFeedbacks(reviewerId, submissionId, page, limit);
-        
+        FeedbackProto.ListReviewerFeedbacksResponse response = feedbackClient.listReviewerFeedbacks(reviewerId,
+                submissionId, page, limit);
+
         List<FeedbackResponse> feedbacks = response.getFeedbacksList().stream()
                 .map(this::buildFeedbackResponse)
                 .collect(Collectors.toList());
@@ -146,11 +142,6 @@ public class FeedbackService {
             throw new ForbiddenAccessException("Only the reviewer who created the feedback can delete it");
         }
 
-        FeedbackProto.DeleteFeedbackRequest request = FeedbackProto.DeleteFeedbackRequest.newBuilder()
-                .setId(feedbackId)
-                .setReviewerId(reviewerId)
-                .build();
-
         boolean response = feedbackClient.deleteFeedback(feedbackId, reviewerId);
         if (!response) {
             log.error("Failed to delete feedback {}", feedbackId);
@@ -166,7 +157,7 @@ public class FeedbackService {
      */
     public byte[] downloadAttachment(String feedbackId, String filename) {
         log.info("Downloading attachment {} from feedback {}", filename, feedbackId);
-        
+
         FeedbackProto.DownloadAttachmentRequest request = FeedbackProto.DownloadAttachmentRequest.newBuilder()
                 .setFeedbackId(feedbackId)
                 .setFilename(filename)
@@ -174,7 +165,7 @@ public class FeedbackService {
 
         byte[] fileContent = feedbackClient.downloadAttachment(feedbackId, filename);
         log.debug("Successfully downloaded file {} (size: {} bytes)", filename, fileContent.length);
-        
+
         return fileContent;
     }
 
@@ -202,13 +193,13 @@ public class FeedbackService {
      * Only the reviewer who created the feedback can delete its attachments.
      */
     public void deleteAttachment(Long reviewerId, String feedbackId, String filename) {
-        log.info("Attempting to delete attachment {} from feedback {} by reviewer {}", 
+        log.info("Attempting to delete attachment {} from feedback {} by reviewer {}",
                 filename, feedbackId, reviewerId);
 
         // Verify the reviewer owns this feedback
         FeedbackProto.Feedback feedback = getFeedbackById(feedbackId);
         if (feedback.getReviewerId() != reviewerId) {
-            log.warn("Unauthorized attempt to delete attachment from feedback {} by reviewer {}", 
+            log.warn("Unauthorized attempt to delete attachment from feedback {} by reviewer {}",
                     feedbackId, reviewerId);
             throw new ForbiddenAccessException("Only the reviewer who created the feedback can delete its attachments");
         }
@@ -239,12 +230,12 @@ public class FeedbackService {
         for (MultipartFile file : files) {
             // Check file size
             if (file.getSize() > uploadConfig.getMaxFileSize()) {
-                log.warn("File {} exceeds size limit of {} bytes (actual size: {})", 
+                log.warn("File {} exceeds size limit of {} bytes (actual size: {})",
                         file.getOriginalFilename(), uploadConfig.getMaxFileSize(), file.getSize());
                 throw new AssetUploadException(String.format(
-                    "File %s exceeds maximum size limit of %d bytes", 
-                    file.getOriginalFilename(), 
-                    uploadConfig.getMaxFileSize()
+                        "File %s exceeds maximum size limit of %d bytes",
+                        file.getOriginalFilename(),
+                        uploadConfig.getMaxFileSize()
                 ));
             }
 

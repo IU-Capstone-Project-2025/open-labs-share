@@ -1,6 +1,7 @@
 # API Gateway Documentation
 
 This document represents documentation for Frontend requests via REST. Each endpoint has its path, request and response body, types of errors.
+Please, consider it as a quick reference but not the exact API documentation. Some endpoints may not be implemented yet or may change in the future. Some models may not be fully described here or contain inconsistencies.
 
 **Base URL:** `address.com/api/v1`
 
@@ -42,8 +43,12 @@ All endpoints require JWT authentication unless specified otherwise.
 {
   "id": number,
   "username": "string",
+  "name": "string",
   "surname": "string",
-  "email": "string"
+  "email": "string",
+  "labs_solved": "number",
+  "labs_reviewed": "number",
+  "balance": "number"
 }
 ```  
 
@@ -466,25 +471,35 @@ assets: file[] (required) - Submission files
 - **Body:**
 ```json
 {
-  "submissionId": number,
-  "labId": number,
-  "ownerId": number,
-  "username": "string",
-  "ownerName": "string",
-  "ownerSurname": "string",
-  "text": "string",
-  "createdAt": "string (ISO 8601)",
-  "updatedAt": "string (ISO 8601)",
-  "status": "string",
-  "assets": [
-    {
-      "assetId": number,
-      "submissionId": number,
-      "filename": "string",
-      "totalSize": number,
-      "uploadDate": "string (ISO 8601)"
-    }
-  ]
+  "success": "boolean",
+  "message": "string",
+  "submissionMetadata": {
+    "submissionId": "number",
+    "labId": "number",
+    "owner": {
+      "id": "number",
+      "username": "string",
+      "name": "string",
+      "surname": "string",
+      "email": "string",
+      "labs_solved": "number",
+      "labs_reviewed": "number",
+      "balance": "number"
+    },
+    "text": "string",
+    "createdAt": "string (ISO 8601)",
+    "updatedAt": "string (ISO 8601)",
+    "status": "string",
+    "assets": [
+      {
+        "assetId": "number",
+        "submissionId": "number",
+        "filename": "string",
+        "totalSize": "number",
+        "uploadDate": "string (ISO 8601)"
+      }
+    ]
+  }
 }
 ```
 
@@ -507,22 +522,28 @@ assets: file[] (required) - Submission files
 - **Body:**
 ```json  
 {
-  "submissionId": number,
-  "labId": number,
-  "ownerId": number,
-  "username": "string",
-  "ownerName": "string",
-  "ownerSurname": "string",
+  "submissionId": "number",
+  "labId": "number",
+  "owner": {
+    "id": "number",
+    "username": "string",
+    "name": "string",
+    "surname": "string",
+    "email": "string",
+    "labs_solved": "number",
+    "labs_reviewed": "number",
+    "balance": "number"
+  },
   "text": "string",
   "createdAt": "string (ISO 8601)",
   "updatedAt": "string (ISO 8601)",
   "status": "string",
   "assets": [
     {
-      "assetId": number,
-      "submissionId": number,
+      "assetId": "number",
+      "submissionId": "number",
       "filename": "string",
-      "totalSize": number,
+      "totalSize": "number",
       "uploadDate": "string (ISO 8601)"
     }
   ]
@@ -875,7 +896,8 @@ All error responses follow this format:
     "error": {     
        "message": "string",      
        "details": "string (optional)"  
-    }}  
+    }
+}
 ```
 
 ## Feedback Service
@@ -918,20 +940,34 @@ All error responses follow this format:
   "content": "string",
   "student": {
     "id": "number",
+    "username": "string",
+    "name": "string",
+    "surname": "string",
     "email": "string",
-    "firstName": "string",
-    "lastName": "string",
-    "role": "string"
+    "labs_solved": "number",
+    "labs_reviewed": "number",
+    "balance": "number"
   },
   "reviewer": {
     "id": "number",
+    "username": "string",
+    "name": "string",
+    "surname": "string",
     "email": "string",
-    "firstName": "string",
-    "lastName": "string",
-    "role": "string"
+    "labs_solved": "number",
+    "labs_reviewed": "number",
+    "balance": "number"
   },
   "createdAt": "string (ISO 8601)",
-  "updatedAt": "string (ISO 8601)"
+  "updatedAt": "string (ISO 8601)",
+  "attachments": [
+    {
+      "feedback_id": "string (UUID)",
+      "filename": "string",
+      "content_type": "string",
+      "total_size": "number"
+    }
+  ]
 }
 ```
 
@@ -986,20 +1022,34 @@ All error responses follow this format:
   "content": "string",
   "student": {
     "id": "number",
+    "username": "string",
+    "name": "string",
+    "surname": "string",
     "email": "string",
-    "firstName": "string",
-    "lastName": "string",
-    "role": "string"
+    "labs_solved": "number",
+    "labs_reviewed": "number",
+    "balance": "number"
   },
   "reviewer": {
     "id": "number",
+    "username": "string",
+    "name": "string",
+    "surname": "string",
     "email": "string",
-    "firstName": "string",
-    "lastName": "string",
-    "role": "string"
+    "labs_solved": "number",
+    "labs_reviewed": "number",
+    "balance": "number"
   },
   "createdAt": "string (ISO 8601)",
-  "updatedAt": "string (ISO 8601)"
+  "updatedAt": "string (ISO 8601)",
+  "attachments": [
+    {
+      "feedback_id": "string (UUID)",
+      "filename": "string",
+      "content_type": "string",
+      "total_size": "number"
+    }
+  ]
 }
 ```
 
@@ -1030,20 +1080,34 @@ All error responses follow this format:
       "content": "string",
       "student": {
         "id": "number",
+        "username": "string",
+        "name": "string",
+        "surname": "string",
         "email": "string",
-        "firstName": "string",
-        "lastName": "string",
-        "role": "string"
+        "labs_solved": "number",
+        "labs_reviewed": "number",
+        "balance": "number"
       },
       "reviewer": {
         "id": "number",
+        "username": "string",
+        "name": "string",
+        "surname": "string",
         "email": "string",
-        "firstName": "string",
-        "lastName": "string",
-        "role": "string"
+        "labs_solved": "number",
+        "labs_reviewed": "number",
+        "balance": "number"
       },
       "createdAt": "string (ISO 8601)",
-      "updatedAt": "string (ISO 8601)"
+      "updatedAt": "string (ISO 8601)",
+      "attachments": [
+        {
+          "feedback_id": "string (UUID)",
+          "filename": "string",
+          "content_type": "string",
+          "total_size": "number"
+        }
+      ]
     }
   ],
   "totalCount": "number"
@@ -1073,20 +1137,34 @@ All error responses follow this format:
   "content": "string",
   "student": {
     "id": "number",
+    "username": "string",
+    "name": "string",
+    "surname": "string",
     "email": "string",
-    "firstName": "string",
-    "lastName": "string",
-    "role": "string"
+    "labs_solved": "number",
+    "labs_reviewed": "number",
+    "balance": "number"
   },
   "reviewer": {
     "id": "number",
+    "username": "string",
+    "name": "string",
+    "surname": "string",
     "email": "string",
-    "firstName": "string",
-    "lastName": "string",
-    "role": "string"
+    "labs_solved": "number",
+    "labs_reviewed": "number",
+    "balance": "number"
   },
   "createdAt": "string (ISO 8601)",
-  "updatedAt": "string (ISO 8601)"
+  "updatedAt": "string (ISO 8601)",
+  "attachments": [
+    {
+      "feedback_id": "string (UUID)",
+      "filename": "string",
+      "content_type": "string",
+      "total_size": "number"
+    }
+  ]
 }
 ```
 
@@ -1121,20 +1199,34 @@ All error responses follow this format:
       "content": "string",
       "student": {
         "id": "number",
+        "username": "string",
+        "name": "string",
+        "surname": "string",
         "email": "string",
-        "firstName": "string",
-        "lastName": "string",
-        "role": "string"
+        "labs_solved": "number",
+        "labs_reviewed": "number",
+        "balance": "number"
       },
       "reviewer": {
         "id": "number",
+        "username": "string",
+        "name": "string",
+        "surname": "string",
         "email": "string",
-        "firstName": "string",
-        "lastName": "string",
-        "role": "string"
+        "labs_solved": "number",
+        "labs_reviewed": "number",
+        "balance": "number"
       },
       "createdAt": "string (ISO 8601)",
-      "updatedAt": "string (ISO 8601)"
+      "updatedAt": "string (ISO 8601)",
+      "attachments": [
+        {
+          "feedback_id": "string (UUID)",
+          "filename": "string",
+          "content_type": "string",
+          "total_size": "number"
+        }
+      ]
     }
   ],
   "totalCount": "number"
@@ -1169,20 +1261,34 @@ All error responses follow this format:
       "content": "string",
       "student": {
         "id": "number",
+        "username": "string",
+        "name": "string",
+        "surname": "string",
         "email": "string",
-        "firstName": "string",
-        "lastName": "string",
-        "role": "string"
+        "labs_solved": "number",
+        "labs_reviewed": "number",
+        "balance": "number"
       },
       "reviewer": {
         "id": "number",
+        "username": "string",
+        "name": "string",
+        "surname": "string",
         "email": "string",
-        "firstName": "string",
-        "lastName": "string",
-        "role": "string"
+        "labs_solved": "number",
+        "labs_reviewed": "number",
+        "balance": "number"
       },
       "createdAt": "string (ISO 8601)",
-      "updatedAt": "string (ISO 8601)"
+      "updatedAt": "string (ISO 8601)",
+      "attachments": [
+        {
+          "feedback_id": "string (UUID)",
+          "filename": "string",
+          "content_type": "string",
+          "total_size": "number"
+        }
+      ]
     }
   ],
   "totalCount": "number"

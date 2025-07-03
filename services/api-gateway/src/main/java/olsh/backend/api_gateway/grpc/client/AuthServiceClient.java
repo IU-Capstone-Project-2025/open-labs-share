@@ -46,7 +46,11 @@ public class AuthServiceClient {
                     grpcUserInfo.getUsername(),
                     grpcUserInfo.getFirstName(),
                     grpcUserInfo.getLastName(),
-                    grpcUserInfo.getRole()
+                    grpcUserInfo.getRole(),
+                    grpcUserInfo.getEmail(),
+                    grpcUserInfo.getLabsSolved(),
+                    grpcUserInfo.getLabsReviewed(),
+                    grpcUserInfo.getBalance()
             );
         }
 

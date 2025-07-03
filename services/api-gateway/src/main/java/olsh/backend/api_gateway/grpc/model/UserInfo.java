@@ -13,4 +13,8 @@ public class UserInfo {
     private String firstName;
     private String lastName;
     private String role;
+    private String email;
+    private Integer labs_solved;
+    private Integer labs_reviewed;
+    private Integer balance;
 }

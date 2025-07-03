@@ -4,7 +4,7 @@ package olsh.backend.api_gateway.service;
 import olsh.backend.api_gateway.dto.response.UserResponse;
 import olsh.backend.api_gateway.exception.UserNotFoundException;
 import olsh.backend.api_gateway.grpc.client.UserServiceClient;
-import olsh.backend.api_gateway.grpc.model.UserData;
+import olsh.backend.api_gateway.grpc.proto.UsersServiceProto;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -50,8 +50,10 @@ class UserServiceTest {
     void getUserById_UserExists_ReturnsCorrectUserResponse() {
         // Given
         Long userId = 123L;
-        UserData mockUserData = createFoundUserData(userId, "johndoe", "John", "Doe", "john.doe@example.com");
-        when(userServiceClient.getUser(userId)).thenReturn(mockUserData);
+        UsersServiceProto.UserInfo mockUser = createFoundUser(
+                userId, "johndoe", "John", "Doe", "john.doe@example.com"
+        );
+        when(userServiceClient.getUser(userId)).thenReturn(mockUser);
 
         // When
         UserResponse result = userService.getUserById(userId);
@@ -77,7 +79,7 @@ class UserServiceTest {
         String surname = "Doe";
         String email = "jane.doe@company.org";
 
-        UserData mockUserData = createFoundUserData(userId, username, name, surname, email);
+        UsersServiceProto.UserInfo mockUserData = createFoundUser(userId, username, name, surname, email);
         when(userServiceClient.getUser(userId)).thenReturn(mockUserData);
 
         // When
@@ -97,8 +99,7 @@ class UserServiceTest {
     void getUserById_UserNotFound_ThrowsUserNotFoundException() {
         // Given
         Long nonExistentUserId = 999L;
-        UserData mockUserData = createNotFoundUserData();
-        when(userServiceClient.getUser(nonExistentUserId)).thenReturn(mockUserData);
+        when(userServiceClient.getUser(nonExistentUserId)).thenThrow(new UserNotFoundException("User not found with id: " + nonExistentUserId));
 
         // When & Then
         assertThatThrownBy(() -> userService.getUserById(nonExistentUserId))
@@ -113,13 +114,12 @@ class UserServiceTest {
     void getUserById_UserNotFound_IncludesCorrectUserIdInMessage() {
         // Given
         Long userId = 42L;
-        UserData mockUserData = createNotFoundUserData();
-        when(userServiceClient.getUser(userId)).thenReturn(mockUserData);
+        when(userServiceClient.getUser(userId)).thenThrow(new UserNotFoundException("User not found with id: " + userId));
 
         // When & Then
         assertThatThrownBy(() -> userService.getUserById(userId))
                 .isInstanceOf(UserNotFoundException.class)
-                .hasMessage("User not found with id: 42");
+                .hasMessage("User not found with id: " + userId);
     }
 
     // Test 3: Parameterized tests for various user IDs
@@ -128,7 +128,8 @@ class UserServiceTest {
     @DisplayName("User retrieval with various valid user IDs")
     void getUserById_VariousValidUserIds_ReturnsUserResponse(Long userId) {
         // Given
-        UserData mockUserData = createFoundUserData(userId, "user" + userId, "Name", "Surname", "user" + userId + "@test.com");
+        UsersServiceProto.UserInfo mockUserData = createFoundUser(userId, "user" + userId, "Name", "Surname", "user" + userId + "@test" +
+                ".com");
         when(userServiceClient.getUser(userId)).thenReturn(mockUserData);
 
         // When
@@ -147,8 +148,7 @@ class UserServiceTest {
     @DisplayName("User not found scenarios with various user IDs")
     void getUserById_VariousNonExistentUserIds_ThrowsUserNotFoundException(Long userId) {
         // Given
-        UserData mockUserData = createNotFoundUserData();
-        when(userServiceClient.getUser(userId)).thenReturn(mockUserData);
+        when(userServiceClient.getUser(userId)).thenThrow(new UserNotFoundException("User not found with id: " + userId));
 
         // When & Then
         assertThatThrownBy(() -> userService.getUserById(userId))
@@ -162,7 +162,7 @@ class UserServiceTest {
     @DisplayName("User data mapping with various field values")
     void getUserById_VariousUserDataFields_MapsCorrectly(UserDataTestCase testCase) {
         // Given
-        UserData mockUserData = createFoundUserData(
+        UsersServiceProto.UserInfo mockUserData = createFoundUser(
                 testCase.userId,
                 testCase.username,
                 testCase.name,
@@ -190,9 +190,11 @@ class UserServiceTest {
                 new UserDataTestCase(3L, "user123", "María", "García", "maria.garcia@email.es"),
                 new UserDataTestCase(4L, "admin", "Admin", "User", "admin@system.local"),
                 new UserDataTestCase(5L, "test.user", "Test", "User", "test.user+tag@domain.co.uk"),
-                new UserDataTestCase(6L, "user_with_long_name", "Very Long First Name", "Very Long Last Name", "verylongemail@verylongdomain.example.com"),
+                new UserDataTestCase(6L, "user_with_long_name", "Very Long First Name", "Very Long Last Name",
+                        "verylongemail@verylongdomain.example.com"),
                 new UserDataTestCase(7L, "u", "A", "B", "a@b.c"), // Minimal values
-                new UserDataTestCase(8L, "user.with.dots", "Name With Spaces", "Surname-With-Dashes", "email+with+plus@domain.org")
+                new UserDataTestCase(8L, "user.with.dots", "Name With Spaces", "Surname-With-Dashes", "email+with" +
+                        "+plus@domain.org")
         );
     }
 
@@ -225,8 +227,7 @@ class UserServiceTest {
     void getUserById_UserNotFound_ThrowsCorrectExceptionType() {
         // Given
         Long userId = 123L;
-        UserData mockUserData = createNotFoundUserData();
-        when(userServiceClient.getUser(userId)).thenReturn(mockUserData);
+        when(userServiceClient.getUser(userId)).thenThrow(new UserNotFoundException("User not found with id: " + userId));
 
         // When & Then
         assertThatThrownBy(() -> userService.getUserById(userId))
@@ -239,11 +240,10 @@ class UserServiceTest {
     void getUserById_MultipleUserNotFoundScenarios_ConsistentErrorMessages() {
         // Given
         Long[] nonExistentUserIds = {100L, 200L, 300L};
-        UserData mockUserData = createNotFoundUserData();
 
         // When & Then
         for (Long userId : nonExistentUserIds) {
-            when(userServiceClient.getUser(userId)).thenReturn(mockUserData);
+            when(userServiceClient.getUser(userId)).thenThrow(new UserNotFoundException("User not found with id: " + userId));
 
             assertThatThrownBy(() -> userService.getUserById(userId))
                     .isInstanceOf(UserNotFoundException.class)
@@ -257,7 +257,7 @@ class UserServiceTest {
     void getUserById_ValidRequest_CallsGrpcClientOnce() {
         // Given
         Long userId = 123L;
-        UserData mockUserData = createFoundUserData(userId, "test", "Test", "User", "test@example.com");
+        UsersServiceProto.UserInfo mockUserData = createFoundUser(userId, "test", "Test", "User", "test@example.com");
         when(userServiceClient.getUser(userId)).thenReturn(mockUserData);
 
         // When
@@ -273,7 +273,7 @@ class UserServiceTest {
     void getUserById_MultipleCallsSameUser_CallsGrpcClientEachTime() {
         // Given
         Long userId = 123L;
-        UserData mockUserData = createFoundUserData(userId, "test", "Test", "User", "test@example.com");
+        UsersServiceProto.UserInfo mockUserData = createFoundUser(userId, "test", "Test", "User", "test@example.com");
         when(userServiceClient.getUser(userId)).thenReturn(mockUserData);
 
         // When
@@ -308,8 +308,7 @@ class UserServiceTest {
     void getUserById_NullUserId_PassesToGrpcClient() {
         // Given
         Long nullUserId = null;
-        UserData mockUserData = createNotFoundUserData();
-        when(userServiceClient.getUser(nullUserId)).thenReturn(mockUserData);
+        when(userServiceClient.getUser(nullUserId)).thenThrow(new UserNotFoundException("User not found with id: null"));
 
         // When & Then
         assertThatThrownBy(() -> userService.getUserById(nullUserId))
@@ -325,7 +324,7 @@ class UserServiceTest {
     void getUserById_MultipleCalls_CreatesNewResponseInstances() {
         // Given
         Long userId = 123L;
-        UserData mockUserData = createFoundUserData(userId, "test", "Test", "User", "test@example.com");
+        UsersServiceProto.UserInfo mockUserData = createFoundUser(userId, "test", "Test", "User", "test@example.com");
         when(userServiceClient.getUser(userId)).thenReturn(mockUserData);
 
         // When
@@ -339,20 +338,27 @@ class UserServiceTest {
     }
 
     // Helper methods to create test data
-    private UserData createFoundUserData(Long id, String username, String name, String surname, String email) {
-        UserData userData = mock(UserData.class);
-        when(userData.isFound()).thenReturn(true);
-        when(userData.getId()).thenReturn(id);
-        when(userData.getUsername()).thenReturn(username);
-        when(userData.getName()).thenReturn(name);
-        when(userData.getSurname()).thenReturn(surname);
-        when(userData.getEmail()).thenReturn(email);
-        return userData;
+    private UsersServiceProto.UserInfo createFoundUser(Long id, String username, String name, String surname,
+                                                      String email) {
+        return createFoundUser(id, username, name, surname, email, 0, 0, 0);
     }
 
-    private UserData createNotFoundUserData() {
-        UserData userData = mock(UserData.class);
-        when(userData.isFound()).thenReturn(false);
-        return userData;
+    private UsersServiceProto.UserInfo createFoundUser(Long id, String username, String name, String surname,
+                                                      String email, Integer labsSolved, Integer labsReviewed,
+                                                      Integer balance) {
+        return UsersServiceProto.UserInfo.newBuilder()
+                .setUserId(id)
+                .setUsername(username)
+                .setFirstName(name)
+                .setLastName(surname)
+                .setEmail(email)
+                .setLabsSolved(labsSolved)
+                .setLabsReviewed(labsReviewed)
+                .setBalance(balance)
+                .build();
+    }
+
+    private UsersServiceProto.UserInfo createNotFoundUserData() {
+        throw new UserNotFoundException("User not found");
     }
 }
