@@ -47,9 +47,14 @@ export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
       return;
     }
 
+    const formData = new FormData();
+    formData.append('title', articleData.title);
+    formData.append('short_desc', articleData.short_desc);
+    formData.append('pdf_file', articleData.pdf_file);
+
     try {
       setUploading(true);
-      const result = await articlesAPI.createArticle(articleData);
+      const result = await articlesAPI.createArticle(formData);
       onSuccess && onSuccess(result);
     } catch (err) {
       console.error('Error creating article:', err);

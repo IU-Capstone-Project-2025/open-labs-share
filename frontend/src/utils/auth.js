@@ -79,7 +79,7 @@ export const isAuthenticated = () => {
 export const signIn = async (emailOrUsername, password) => {
   try {
     const response = await authAPI.login({
-      usernameOrEmail: emailOrUsername,
+        usernameOrEmail: emailOrUsername,
       password: password,
     });
     return handleAuthSuccess(response);
@@ -94,11 +94,11 @@ export const signUp = async (userData) => {
   try {
     const { firstName, lastName, username, email, password } = userData;
     const response = await authAPI.register({
-      firstName,
-      lastName,
-      username,
-      email,
-      password,
+        firstName,
+        lastName,
+        username,
+        email,
+        password,
       role: 'ROLE_USER', // Default role
     });
     return handleAuthSuccess(response);
@@ -111,7 +111,7 @@ export const signUp = async (userData) => {
 // Sign out
 export const signOut = async () => {
   try {
-    // Call logout endpoint to invalidate token on server
+      // Call logout endpoint to invalidate token on server
     await authAPI.logout();
   } catch (error) {
     console.error('Logout API call failed, proceeding with local cleanup:', error);
@@ -132,7 +132,7 @@ export const refreshToken = async () => {
   try {
     const refreshTokenValue = localStorage.getItem('refreshToken');
     if (!refreshTokenValue) throw new Error('No refresh token available');
-
+    
     const response = await authAPI.refreshToken({ refreshToken: refreshTokenValue });
     
     // After a successful refresh, the API returns new tokens and user info

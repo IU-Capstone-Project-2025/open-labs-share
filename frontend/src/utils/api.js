@@ -16,7 +16,7 @@ const apiCall = async (path, options = {}) => {
 
   const headers = {
     ...options.headers,
-  };
+};
 
   // Add auth token if it exists
   if (token) {
@@ -30,7 +30,7 @@ const apiCall = async (path, options = {}) => {
   if (!isFormData && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
   }
-
+  
   try {
     const response = await fetch(url, { ...options, headers });
 
@@ -74,7 +74,7 @@ const authApiCall = async (path, options = {}) => {
     try {
         const response = await fetch(url, { ...options, headers });
 
-        if (!response.ok) {
+    if (!response.ok) {
             const errorData = await response.json().catch(() => ({
                 message: `Auth API call failed with status ${response.status}`,
             }));
@@ -86,10 +86,10 @@ const authApiCall = async (path, options = {}) => {
             return response.json();
         }
         return response;
-    } catch (error) {
+  } catch (error) {
         console.error(`Auth API call to "${url}" failed:`, error);
-        throw error;
-    }
+    throw error;
+  }
 };
 
 // --- Auth API ---
@@ -123,7 +123,7 @@ export const authAPI = {
       body: JSON.stringify(profileData),
   }),
 };
-
+    
 // --- Users API ---
 export const usersAPI = {
   getUserById: (userId) => apiCall(`/users/${userId}`),
@@ -142,18 +142,18 @@ export const labsAPI = {
   }),
   getLabById: (labId) => apiCall(`/labs/${labId}`),
   createLab: (formData) => apiCall('/labs', {
-    method: 'POST',
+      method: 'POST',
     body: formData, // FormData for multipart/form-data uploads
   }),
   updateLab: (labId, labData) => apiCall(`/labs/${labId}`, {
-    method: 'PUT',
-    body: JSON.stringify(labData),
+      method: 'PUT',
+      body: JSON.stringify(labData),
   }),
   deleteLab: (labId) => apiCall(`/labs/${labId}`, { method: 'DELETE' }),
   getLabAssets: (labId) => apiCall(`/labs/${labId}/assets`),
   uploadLabAsset: (labId, formData) => apiCall(`/labs/${labId}/assets/upload`, {
-    method: 'POST',
-    body: formData,
+      method: 'POST',
+      body: formData,
   }),
   downloadLabAsset: (labId, assetId) => apiCall(`/labs/${labId}/assets/${assetId}/download`),
 };
@@ -164,8 +164,8 @@ export const articlesAPI = {
   getMyArticles: (page = 1, limit = 20) => apiCall('/articles/my'),
   getArticleById: (articleId) => apiCall(`/articles/${articleId}`),
   createArticle: (formData) => apiCall('/articles', {
-    method: 'POST',
-    body: formData,
+      method: 'POST',
+      body: formData,
   }),
   deleteArticle: (articleId) => apiCall(`/articles/${articleId}`, { method: 'DELETE' }),
 };
@@ -176,12 +176,12 @@ export const submissionsAPI = {
   getLabSubmissions: (labId, page = 1, limit = 20) => apiCall(`/labs/${labId}/submissions?page=${page}&limit=${limit}`),
   getSubmissionById: (submissionId) => apiCall(`/submissions/${submissionId}`),
   createSubmission: (submissionData) => apiCall('/submissions', {
-    method: 'POST',
-    body: JSON.stringify(submissionData),
+      method: 'POST',
+      body: JSON.stringify(submissionData),
   }),
   updateSubmission: (submissionId, submissionData) => apiCall(`/submissions/${submissionId}`, {
-    method: 'PUT',
-    body: JSON.stringify(submissionData),
+      method: 'PUT',
+      body: JSON.stringify(submissionData),
   }),
   deleteSubmission: (submissionId) => apiCall(`/submissions/${submissionId}`, { method: 'DELETE' }),
   uploadSubmissionAsset: (submissionId, formData) => apiCall(`/submissions/${submissionId}/assets/upload`, {
@@ -208,7 +208,7 @@ export const mlAPI = {
   // ML service is also not on the gateway, it's called directly.
   getChatHistory: (uuid, assignment_id) => apiCall(`/ml/get_chat_history?uuid=${uuid}&assignment_id=${assignment_id}`),
   askAgent: (uuid, assignment_id, content) => apiCall('/ml/ask', {
-    method: 'POST',
-    body: JSON.stringify({ uuid, assignment_id, content }),
+      method: 'POST',
+      body: JSON.stringify({ uuid, assignment_id, content }),
   }),
 };
