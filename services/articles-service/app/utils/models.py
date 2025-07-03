@@ -29,8 +29,8 @@ class Article(Base, SerializerMixin):
             "article_id": self.id,
             "owner_id": self.owner_id,
             "title": self.title.encode('utf-8').decode('utf-8'),
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
             "abstract": self.abstract.encode('utf-8').decode('utf-8'),
             "views": self.views,
             "stars": self.stars,
@@ -58,5 +58,5 @@ class ArticleAsset(Base, SerializerMixin):
             "article_id": self.article_id,
             "filename": self.filename.encode('utf-8').decode('utf-8'),
             "filesize": self.filesize,
-            "upload_date": self.upload_date.isoformat()
+            "upload_date": self.upload_date
         }

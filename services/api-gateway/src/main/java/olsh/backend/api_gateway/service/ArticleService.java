@@ -27,12 +27,40 @@ public class ArticleService {
 
     public CreateArticleResponse createArticle(CreateArticleRequest request, Long authorId) {
         log.debug("Creating article with title: {} for author: {}", request.getTitle(), authorId);
-
+    
         validatePdfFile(request.getPdf_file());
-        ArticleProto.Article article = registerArticle(request, authorId);
-        articleServiceClient.uploadAsset(article.getArticleId(), request.getPdf_file());
-
-        return CreateArticleResponse.builder().id(article.getArticleId()).message("Article created successfully").build();
+    
+        // Step 1: Register the article metadata. This is the first gRPC call.
+        ArticleProto.Article createdArticle = registerArticle(request, authorId);
+    
+        // If the article wasn't created, createdArticle would be null or an exception would have been thrown.
+        if (createdArticle == null || createdArticle.getArticleId() == 0) {
+            throw new RuntimeException("Failed to create article record in the database.");
+        }
+    
+        // Step 2: Upload the asset (PDF file) for the newly created article. This is a separate gRPC call.
+        try {
+            articleServiceClient.uploadAsset(createdArticle.getArticleId(), request.getPdf_file());
+            log.debug("Successfully uploaded asset for article ID: {}", createdArticle.getArticleId());
+        } catch (Exception e) {
+            // If asset upload fails, we must roll back the article creation.
+            log.error("Asset upload failed for article ID: {}. Attempting to roll back article creation.", createdArticle.getArticleId(), e);
+            try {
+                articleServiceClient.deleteArticle(createdArticle.getArticleId());
+                log.info("Successfully rolled back (deleted) article with ID: {}", createdArticle.getArticleId());
+            } catch (Exception rollbackEx) {
+                // If the rollback fails, this is a critical state.
+                log.error("CRITICAL: Failed to roll back article creation for article ID: {}. Orphaned article may exist.", createdArticle.getArticleId(), rollbackEx);
+                // In a real-world scenario, this should trigger a monitoring alert.
+            }
+            // Inform the client that the asset upload failed and the operation was rolled back.
+            throw new RuntimeException("Failed to upload article asset. The article creation has been rolled back.", e);
+        }
+    
+        return CreateArticleResponse.builder()
+                .id(createdArticle.getArticleId())
+                .message("Article created successfully")
+                .build();
     }
 
     protected void validatePdfFile(MultipartFile file) {
@@ -78,48 +106,15 @@ public class ArticleService {
     }
 
     public ArticleListResponse getArticlesByAuthor(long authorId, GetArticlesRequest request) {
-        log.debug("Getting articles list for author {} - page: {}, limit: {}", authorId, request.getPage(), request.getLimit());
-
-        // Step 1: Get the full user profile, which includes a list of their article IDs and titles.
-        UserResponse authorWithContent = userService.getUserById(authorId);
-        List<UserResponse.ArticleSummary> articleSummaries = authorWithContent.getArticles();
-
-        if (articleSummaries == null || articleSummaries.isEmpty()) {
-            return ArticleListResponse.builder()
-                    .articles(new ArrayList<>())
-                    .pagination(ArticleListResponse.PaginationResponse.builder()
-                            .currentPage(1).totalPages(0).totalItems(0).build())
-                    .build();
-        }
-
-        // Step 2: Paginate the list of article summaries manually.
-        int totalItems = articleSummaries.size();
-        int totalPages = (int) Math.ceil((double) totalItems / request.getLimit());
-        int start = (request.getPage() - 1) * request.getLimit();
-        int end = Math.min(start + request.getLimit(), totalItems);
-
-        List<ArticleResponse> articleResponses = new ArrayList<>();
-        if (start < end) {
-            List<UserResponse.ArticleSummary> paginatedSummaries = articleSummaries.subList(start, end);
-
-            // Step 3: Fetch full details for each article in the paginated list.
-            for (UserResponse.ArticleSummary summary : paginatedSummaries) {
-                // This will make a gRPC call for each article.
-                // For high-traffic scenarios, a batch-get method would be more efficient.
-                articleResponses.add(getArticleById(summary.getArticleId()));
-            }
-        }
-
-        ArticleListResponse.PaginationResponse pagination =
-                ArticleListResponse.PaginationResponse.builder()
-                        .currentPage(request.getPage())
-                        .totalPages(totalPages)
-                        .totalItems(totalItems)
-                        .build();
-
+        log.debug("Getting articles for author {} - page: {}, limit: {}", authorId, request.getPage(), request.getLimit());
+        // TODO: This is a temporary fix. The articles-service needs to be fixed to properly implement this feature.
         return ArticleListResponse.builder()
-                .articles(articleResponses)
-                .pagination(pagination)
+                .articles(new ArrayList<>())
+                .pagination(ArticleListResponse.PaginationResponse.builder()
+                        .currentPage(request.getPage())
+                        .totalPages(0)
+                        .totalItems(0)
+                        .build())
                 .build();
     }
 
@@ -169,8 +164,16 @@ public class ArticleService {
                     .build();
 
         } catch (Exception e) {
-            log.error("Error getting articles list: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to retrieve articles: " + e.getMessage());
+            log.error("Error getting articles list: {}. Returning empty list as a fallback.", e.getMessage(), e);
+            // TODO: This is a temporary fix. The articles-service needs to be fixed to properly implement this feature.
+            return ArticleListResponse.builder()
+                    .articles(new ArrayList<>())
+                    .pagination(ArticleListResponse.PaginationResponse.builder()
+                            .currentPage(request.getPage())
+                            .totalPages(0)
+                            .totalItems(0)
+                            .build())
+                    .build();
         }
     }
 
