@@ -1,15 +1,18 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Document, Page } from "react-pdf";
-import { pdfjs } from "react-pdf";
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.js",
-  import.meta.url
-).toString();
+import { Viewer, Worker } from '@react-pdf-viewer/core';
+import { defaultLayoutPlugin } from '@react-pdf-viewer/default-layout';
+import { toolbarPlugin } from '@react-pdf-viewer/toolbar';
+
+// Import the styles
+import '@react-pdf-viewer/core/lib/styles/index.css';
+import '@react-pdf-viewer/default-layout/lib/styles/index.css';
+import '@react-pdf-viewer/toolbar/lib/styles/index.css';
+
+import { articlesAPI } from "../utils/api";
 
 export default function ArticlePage() {
   const { id } = useParams();
-  const [numPages, setNumPages] = useState(null);
   const [article, setArticle] = useState(null);
   const [pdfFile, setPdfFile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -18,6 +21,10 @@ export default function ArticlePage() {
   const fileInputRef = useRef(null);
   const dropzoneRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Create plugins for react-pdf-viewer
+  const defaultLayoutPluginInstance = defaultLayoutPlugin();
+  const toolbarPluginInstance = toolbarPlugin();
 
   const scrollToSubmit = () => {
     const submitSection = document.getElementById("submit-section");
@@ -40,46 +47,27 @@ export default function ArticlePage() {
     setIsDragging(true);
   };
 
-  const handleSubmit = async () => {
-    if (!file) return;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!file) {
+      alert('Please select a PDF file for your review.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('review_file', file);
 
     try {
-      console.log("Uploading file:", file.name);
-      
-      // TODO: Implement proper article submission when Articles Service is connected
-      // For now, show a message that this feature is not yet available
-      alert(`Article submission is not yet implemented. Articles Service needs to be connected first.\nFile selected: "${file.name}"`);
+      // TODO: Replace with actual review submission API
+      console.log('Submitting review...', file.name);
+      alert('Review submitted successfully! (This is a placeholder)');
       setFile(null);
-      
-      /* When Articles Service is connected, use this instead:
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}/articles/upload`, {
-        method: "POST",
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Upload failed: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      alert(`File "${file.name}" uploaded successfully`);
-      setFile(null);
-      */
-    } catch (err) {
-      console.error("Upload error:", err);
-      alert("Upload failed: " + err.message);
+      fileInputRef.current.value = '';
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      alert('Failed to submit review. Please try again.');
     }
-  };
-
-  const onDocumentLoadSuccess = ({ numPages }) => {
-    setNumPages(numPages);
   };
 
   useEffect(() => {
@@ -90,27 +78,37 @@ export default function ArticlePage() {
         setLoading(true);
         setError(null);
 
-        // Fetch article metadata
+        // Step 1: Fetch article metadata (remains the same)
         const articleData = await articlesAPI.getArticleById(id);
         setArticle(articleData);
 
-        // TODO: Implement asset download from Minio via backend
-        // For now, continue using the sample PDF
-        const response = await fetch(`/articles_sample/${id}.pdf`, {
+        // Step 2: Construct direct URL to Minio and fetch the PDF.
+        // This requires the VITE_MINIO_ENDPOINT to be set in the frontend's .env file.
+        const minioEndpoint = import.meta.env.VITE_MINIO_ENDPOINT || 'http://localhost:9000';
+        
+        // The filename 'article.pdf' is assumed based on backend documentation.
+        const pdfUrl = `${minioEndpoint}/articles/${id}/article.pdf`;
+
+        const pdfResponse = await fetch(pdfUrl, {
           signal: controller.signal,
         });
 
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        if (
-          !response.headers.get("content-type")?.includes("application/pdf")
-        ) {
-          throw new Error("Not a PDF file");
+        if (!pdfResponse.ok) {
+          throw new Error(`Failed to fetch PDF from Minio: HTTP status ${pdfResponse.status}`);
         }
 
-        const blob = await response.blob();
-        if (blob.size === 0) throw new Error("Empty PDF");
+        const contentType = pdfResponse.headers.get("content-type");
+        if (!contentType || (!contentType.includes("application/pdf") && !contentType.includes("application/octet-stream"))) {
+          throw new Error(`Invalid content type for PDF: ${contentType}`);
+        }
 
-        setPdfFile(URL.createObjectURL(blob));
+        const blob = await pdfResponse.blob();
+        if (blob.size === 0) {
+          throw new Error("Empty PDF file received from Minio.");
+        }
+
+        const blobUrl = URL.createObjectURL(blob);
+        setPdfFile(blobUrl);
       } catch (err) {
         if (err.name !== "AbortError") {
           console.error("Article or PDF load error:", err);
@@ -129,8 +127,6 @@ export default function ArticlePage() {
     };
   }, [id]);
 
-
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen dark:bg-gray-900">
@@ -141,104 +137,101 @@ export default function ArticlePage() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-screen dark:bg-gray-900">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-md">
-          <h2 className="text-xl font-bold text-red-500 mb-4">Error</h2>
-          <p className="text-gray-700 dark:text-gray-300 mb-4">{error}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            File path: /articles_sample/{id}.pdf
-          </p>
+      <div className="container mx-auto px-4 py-8 dark:bg-gray-900 min-h-screen">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
+              Error Loading Article
+            </h2>
+            <p className="text-red-600 dark:text-red-300">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!article) {
+    return (
+      <div className="container mx-auto px-4 py-8 dark:bg-gray-900 min-h-screen">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+              Article Not Found
+            </h2>
+            <p className="text-yellow-600 dark:text-yellow-300">
+              The requested article could not be found.
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex dark:bg-gray-900 min-h-screen">
-      <div className="max-w-6xl mx-auto flex w-full">
-        <div className="flex-1 p-8 overflow-y-auto">
-          {/* Article Content Section */}
-          <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
-            <div className="flex items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-600">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center mr-3">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                  {article ? article.title : "Research Article"}
-                </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {article ? `By ${article.authorName} ${article.authorSurname}` : "Read and review the academic paper"}
-                </p>
-              </div>
+    <div className="container mx-auto px-4 py-8 dark:bg-gray-900 min-h-screen">
+      <div className="max-w-6xl mx-auto">
+        {/* Article Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+            {article.title}
+          </h1>
+          <div className="flex items-center justify-between flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex items-center space-x-4">
+              <span>
+                By {article.author_name} {article.author_surname}
+              </span>
+              <span>•</span>
+              <span>{new Date(article.created_at).toLocaleDateString()}</span>
+              <span>•</span>
+              <span>{article.views} views</span>
             </div>
-            
-            <div className="bg-gray-50 dark:bg-gray-750 rounded-lg p-4">
-              {pdfFile && (
-                <Document
-                  file={pdfFile}
-                  onLoadSuccess={onDocumentLoadSuccess}
-                  onLoadError={(error) =>
-                    setError(`Render error: ${error.message}`)
-                  }
-                  loading={<div className="text-center py-8">Loading PDF...</div>}
-                >
-                  {Array.from({ length: numPages }, (_, i) => (
-                    <Page
-                      key={`page_${i + 1}`}
-                      pageNumber={i + 1}
-                      width={800}
-                      className="mb-4 border border-gray-200 dark:border-gray-700"
-                      loading={
-                        <div className="h-[800px] bg-gray-100 flex items-center justify-center">
-                          Loading page {i + 1}...
-                        </div>
-                      }
-                    />
-                  ))}
-                </Document>
-              )}
-            </div>
-          </section>
+            <button
+              onClick={scrollToSubmit}
+              className="bg-msc hover:bg-msc-hover text-white px-4 py-2 rounded-md transition-colors"
+            >
+              Submit Review
+            </button>
+          </div>
+          <p className="mt-4 text-gray-700 dark:text-gray-300 leading-relaxed">
+            {article.short_desc}
+          </p>
+        </div>
 
-          {/* Review Submission Section */}
-          <section id="submit-section" className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-8">
-            <div className="flex items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-600">
-              <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center mr-3">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+        {/* PDF Viewer Section */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
+            Article PDF
+          </h2>
+          <div className="bg-gray-50 dark:bg-gray-750 rounded-lg p-4">
+            {pdfFile && (
+              <div style={{ height: '750px' }}>
+                <Worker workerUrl="https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.worker.min.js">
+                  <Viewer
+                    fileUrl={pdfFile}
+                    plugins={[defaultLayoutPluginInstance]}
                   />
-                </svg>
+                </Worker>
               </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Peer Review Submission</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Submit your review and feedback on this article</p>
-              </div>
-            </div>
+            )}
+          </div>
+        </section>
 
+        {/* Review Submission Section */}
+        <section id="submit-section" className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
+            Submit Your Review
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Upload your peer review document for this article. Please ensure your review is in PDF format.
+          </p>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div
               ref={dropzoneRef}
               onDrop={handleDrop}
@@ -287,56 +280,38 @@ export default function ArticlePage() {
                 </div>
               ) : (
                 <div className="text-center">
-                  <p className="text-lg font-medium text-msc dark:text-white">
-                    {isDragging ? "Drop file" : "Select or put file"}
+                  <p className="font-medium text-gray-700 dark:text-gray-300">
+                    Drag and drop your review PDF here
                   </p>
                   <p className="text-sm text-light-blue dark:text-gray-400 mt-1">
-                    PDF
+                    or click to browse files
                   </p>
                 </div>
               )}
             </div>
 
-            <div className="mt-6 flex justify-center">
+            <div className="flex justify-end space-x-4">
               <button
-                onClick={handleSubmit}
+                type="button"
+                onClick={() => {
+                  setFile(null);
+                  fileInputRef.current.value = '';
+                }}
+                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
                 disabled={!file}
-                className={`px-16 py-3 rounded-md font-medium ${
-                  file
-                    ? "bg-msc text-white hover:bg-msc-hover"
-                    : "bg-light-blue-hover dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                } transition-colors`}
               >
-                Submit review
+                Clear
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2 bg-msc hover:bg-msc-hover text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                disabled={!file}
+              >
+                Submit Review
               </button>
             </div>
-          </section>
-
-
-        </div>
-
-        <aside className="w-64 p-4 border-l border-gray-200 dark:border-gray-700 overflow-y-auto sticky top-0 h-screen">
-          <button
-            onClick={scrollToSubmit}
-            className="w-full py-2 px-4 bg-msc text-white rounded-md hover:bg-msc-dark transition-colors flex items-center justify-center"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 mr-2"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 14l-7 7m0 0l-7-7m7 7V3"
-              />
-            </svg>
-            To Submit review
-          </button>
-        </aside>
+          </form>
+        </section>
       </div>
     </div>
   );
