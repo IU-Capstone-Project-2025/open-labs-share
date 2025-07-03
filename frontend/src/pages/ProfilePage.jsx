@@ -1,8 +1,8 @@
 import ArticleCard from "../components/ArticleCard";
 import LabCard from "../components/LabCard";
 import { useState, useEffect } from "react";
-import { getCurrentUser, isAuthenticated, getUserProfile, notifyUserDataUpdate } from "../utils/auth";
-import { usersAPI, labsAPI } from "../utils/api";
+import { getCurrentUser, isAuthenticated, getUserProfile, notifyUserDataUpdate, updateProfile } from "../utils/auth";
+import { usersAPI, labsAPI, articlesAPI } from "../utils/api";
 import { BeakerIcon, EyeIcon } from "@heroicons/react/24/outline";
 import GemIcon from "../components/GemIcon";
 
@@ -78,12 +78,12 @@ export default function ProfilePage() {
             console.log('ProfilePage: My labs:', myLabs);
             
             // For articles - try to fetch real articles if available, otherwise use empty array
-            // TODO: Replace with real articles API when articles service is implemented
-            const mockArticles = [];
+            const articlesResponse = await articlesAPI.getMyArticles();
+            const myArticles = articlesResponse.articles || [];
             
             // Add type field to distinguish between labs and articles
             const labsWithType = myLabs.map(lab => ({ ...lab, type: "lab" }));
-            const articlesWithType = mockArticles.map(article => ({ ...article, type: "article" }));
+            const articlesWithType = myArticles.map(article => ({ ...article, type: "article" }));
             
             console.log('ProfilePage: Labs with type:', labsWithType);
             console.log('ProfilePage: Articles with type:', articlesWithType);
@@ -164,7 +164,7 @@ export default function ProfilePage() {
       }
       
       if (user && user.id) {
-        const response = await usersAPI.updateUser(user.id, updateData);
+        const response = await updateProfile(updateData);
         
         // After successful update, fetch fresh data from auth service
         try {
@@ -188,7 +188,7 @@ export default function ProfilePage() {
         } catch (err) {
           console.warn("Could not fetch fresh profile data after update:", err);
           // Fallback to response data
-          const updatedUser = response.userInfo || response;
+          const updatedUser = response.user;
           setUser(updatedUser);
           
           // Store updated user data in localStorage and notify

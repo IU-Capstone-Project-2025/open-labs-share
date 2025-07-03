@@ -11,10 +11,13 @@ RUN npm install
 COPY . .
 
 # Accept the API Gateway URL as a build argument
-ARG VITE_API_GATEWAY_URL
+ARG VITE_API_GATEWAY_ENDPOINT
+ARG VITE_AUTH_API_ENDPOINT
 
 # Create the .env.production file. `npm run build` uses this file by default.
-RUN echo "VITE_API_GATEWAY_URL=${VITE_API_GATEWAY_URL}" > .env.production
+RUN echo "VITE_API_GATEWAY_ENDPOINT=${VITE_API_GATEWAY_ENDPOINT}" > .env.production
+RUN echo "VITE_AUTH_API_ENDPOINT=${VITE_AUTH_API_ENDPOINT}" >> .env.production
+
 
 # --- DEBUGGING STEP ---
 # Print the contents of the .env file to the build logs for verification
