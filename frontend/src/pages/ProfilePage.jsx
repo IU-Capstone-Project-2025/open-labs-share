@@ -1,8 +1,10 @@
 import ArticleCard from "../components/ArticleCard";
 import LabCard from "../components/LabCard";
 import { useState, useEffect } from "react";
-import { getCurrentUser, isAuthenticated, getUserProfile } from "../utils/auth";
+import { getCurrentUser, isAuthenticated, getUserProfile, notifyUserDataUpdate } from "../utils/auth";
 import { usersAPI, labsAPI } from "../utils/api";
+import { BeakerIcon, EyeIcon } from "@heroicons/react/24/outline";
+import GemIcon from "../components/GemIcon";
 
 export default function ProfilePage() {
   const [editMode, setEditMode] = useState(false);
@@ -169,6 +171,9 @@ export default function ProfilePage() {
           const freshUserData = await getUserProfile();
           setUser(freshUserData);
           
+          // Notify all components about the user data update
+          notifyUserDataUpdate();
+          
           const refreshedProfileData = {
             firstName: freshUserData.firstName || "",
             lastName: freshUserData.lastName || "",
@@ -185,6 +190,11 @@ export default function ProfilePage() {
           // Fallback to response data
           const updatedUser = response.userInfo || response;
           setUser(updatedUser);
+          
+          // Store updated user data in localStorage and notify
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          notifyUserDataUpdate();
+          
           setOriginalData({ ...formData, password: "", confirmPassword: "" });
           setFormData(prev => ({ ...prev, password: "", confirmPassword: "" }));
         }
@@ -305,6 +315,74 @@ export default function ProfilePage() {
           <h1 className="text-3xl font-bold text-msc dark:text-white mb-6">
             Profile
           </h1>
+        </div>
+
+        {/* Points System Stats */}
+        <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-8 shadow-lg mb-6">
+          <h2 className="text-xl font-bold text-msc dark:text-white mb-6">
+            Your Activity & Balance
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Balance */}
+            <div className="bg-gradient-to-br from-msc/10 to-blue-blue/10 p-6 rounded-lg border border-msc/20">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-msc/10 rounded-full">
+                  <GemIcon className="h-8 w-8" color="#101e5a" />
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-msc dark:text-white">
+                    {user?.balance || 0}
+                  </p>
+                  <p className="text-sm text-msc/70 dark:text-gray-400">
+                    Points Balance
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-msc/60 dark:text-gray-500">
+                Spend points to solve labs, earn points by reviewing others' solutions
+              </p>
+            </div>
+
+            {/* Labs Solved */}
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-700 p-6 rounded-lg border border-green-100 dark:border-gray-600">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-green-500/10 rounded-full">
+                  <BeakerIcon className="h-8 w-8 text-green-500" />
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-msc dark:text-white">
+                    {user?.labsSolved || 0}
+                  </p>
+                  <p className="text-sm text-green-600 dark:text-green-400">
+                    Labs Solved
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-green-600/60 dark:text-green-400/60">
+                Total number of labs you've successfully completed
+              </p>
+            </div>
+
+            {/* Labs Reviewed */}
+            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 p-6 rounded-lg border border-purple-100 dark:border-gray-600">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-purple-500/10 rounded-full">
+                  <EyeIcon className="h-8 w-8 text-purple-500" />
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-msc dark:text-white">
+                    {user?.labsReviewed || 0}
+                  </p>
+                  <p className="text-sm text-purple-600 dark:text-purple-400">
+                    Labs Reviewed
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-purple-600/60 dark:text-purple-400/60">
+                Total number of lab solutions you've reviewed for others
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-8 shadow-lg mb-6">

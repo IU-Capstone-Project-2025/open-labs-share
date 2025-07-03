@@ -8,7 +8,8 @@ import {
   Navigate,
 } from "react-router-dom";
 import { Bars3Icon } from "@heroicons/react/24/outline";
-import { getCurrentUser, isAuthenticated, startTokenRefresh, stopTokenRefresh } from "./utils/auth";
+import GemIcon from "./components/GemIcon";
+import { getCurrentUser, isAuthenticated, getUserProfile, startTokenRefresh, stopTokenRefresh } from "./utils/auth";
 import Sidebar from "./components/Sidebar";
 import Home from "./pages/HomePage";
 import LandingPage from "./pages/LandingPage";
@@ -88,11 +89,67 @@ function AppContent() {
     document.documentElement.classList.toggle("dark", savedTheme === "dark");
   }, []);
 
+  // Initialize user state with fresh data from server
   useEffect(() => {
-    // Update user state when location changes (e.g., after login/logout)
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
+    const initializeUser = async () => {
+      if (isAuthenticated()) {
+        try {
+          // Get fresh user data from server to ensure balance is up-to-date
+          const freshUserData = await getUserProfile();
+          setUser(freshUserData);
+        } catch (error) {
+          console.error('Failed to fetch fresh user data on app load:', error);
+          // Fallback to cached data if server request fails
+          const cachedUser = getCurrentUser();
+          setUser(cachedUser);
+        }
+      } else {
+        setUser(null);
+      }
+    };
+
+    initializeUser();
+  }, []);
+
+  // Update user state when location changes (e.g., after login/logout)
+  useEffect(() => {
+    const handleLocationChange = async () => {
+      if (isAuthenticated()) {
+        try {
+          // Try to get fresh data, but don't wait too long
+          const freshUserData = await getUserProfile();
+          setUser(freshUserData);
+        } catch (error) {
+          console.error('Failed to fetch user data on location change:', error);
+          // Fallback to cached data
+          const currentUser = getCurrentUser();
+          setUser(currentUser);
+        }
+      } else {
+        setUser(null);
+      }
+    };
+
+    handleLocationChange();
   }, [location]);
+
+  // Listen for user data updates from other components
+  useEffect(() => {
+    const handleUserDataUpdate = () => {
+      if (isAuthenticated()) {
+        const updatedUser = getCurrentUser();
+        setUser(updatedUser);
+      } else {
+        setUser(null);
+      }
+    };
+
+    window.addEventListener('userDataUpdated', handleUserDataUpdate);
+    
+    return () => {
+      window.removeEventListener('userDataUpdated', handleUserDataUpdate);
+    };
+  }, []);
 
   // Start automatic token refresh when app loads
   useEffect(() => {
@@ -168,9 +225,15 @@ function AppContent() {
 
             <div className="flex items-center space-x-3">
               {user && (
-                <span className="text-sm text-gray-600 dark:text-gray-300 hidden sm:block">
-                  Welcome, {user.firstName || user.username}!
-                </span>
+                <div className="text-right hidden sm:block">
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
+                    Welcome, {user.firstName || user.username}!
+                  </div>
+                  <div className="flex items-center justify-end space-x-1 text-xs text-msc dark:text-gray-400">
+                    <GemIcon className="h-4 w-4" color="#101e5a" />
+                    <span>{user.balance || 0} points</span>
+                  </div>
+                </div>
               )}
               <Link to="/profile" className="flex items-center">
                 <div className="w-10 h-10 rounded-full bg-msc flex items-center justify-center text-white text-sm cursor-pointer hover:bg-msc-hover transition-colors">

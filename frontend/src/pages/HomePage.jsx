@@ -15,11 +15,12 @@ import ArticleCard from "../components/ArticleCard";
 import LabCard from "../components/LabCard";
 import { labsAPI, usersAPI, submissionsAPI } from "../utils/api";
 import { isAuthenticated, getCurrentUser } from "../utils/auth";
+import { useUser } from "../hooks/useUser";
 
 export default function Home() {
   // Check authentication - if not authenticated, redirect will be handled by ProtectedRoute
   // This component should only render for authenticated users
-  const user = getCurrentUser();
+  const user = useUser();
   const navigate = useNavigate();
   
   const [stats, setStats] = useState({

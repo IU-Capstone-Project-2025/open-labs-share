@@ -6,208 +6,167 @@ option go_package = "github.com/IU-Capstone-Project-2025/open-labs-share/service
 import "google/protobuf/timestamp.proto";
 
 service FeedbackService {
-  rpc CreateFeedback(stream CreateFeedbackRequest) returns (FeedbackFile);
-  rpc GetFeedback(GetFeedbackRequest) returns (stream GetFeedbackResponse);
-  rpc UpdateFeedback(stream UpdateFeedbackRequest) returns (FeedbackFile);
+  rpc CreateFeedback(CreateFeedbackRequest) returns (Feedback);
+  rpc UpdateFeedback(UpdateFeedbackRequest) returns (Feedback);
   rpc DeleteFeedback(DeleteFeedbackRequest) returns (DeleteFeedbackResponse);
-  rpc ListUserFeedbacks(ListUserFeedbacksRequest) returns (ListUserFeedbacksResponse);
+  rpc ListReviewerFeedbacks(ListReviewerFeedbacksRequest) returns (ListReviewerFeedbacksResponse);
+
+  rpc GetStudentFeedback(GetStudentFeedbackRequest) returns (Feedback);
   rpc ListStudentFeedbacks(ListStudentFeedbacksRequest) returns (ListStudentFeedbacksResponse);
+  rpc GetFeedbackById(GetFeedbackByIdRequest) returns (Feedback);
 
-  rpc UploadAsset(stream UploadAssetRequest) returns (UploadAssetResponse);
-  rpc DownloadAsset(DownloadAssetRequest) returns (stream DownloadAssetResponse);
-  rpc ListAssets(ListAssetsRequest) returns (ListAssetsResponse);
-
-  rpc CreateComment(CreateCommentRequest) returns (LabComment);
-  rpc GetComment(GetCommentRequest) returns (LabComment);
-  rpc UpdateComment(UpdateCommentRequest) returns (LabComment);
-  rpc DeleteComment(DeleteCommentRequest) returns (DeleteCommentResponse);
-  rpc ListLabComments(ListLabCommentsRequest) returns (ListLabCommentsResponse);
-  rpc GetCommentReplies(GetCommentRepliesRequest) returns (GetCommentRepliesResponse);
+  rpc UploadAttachment(stream UploadAttachmentRequest) returns (UploadAttachmentResponse);
+  rpc DeleteAttachment(DeleteAttachmentRequest) returns (DeleteAttachmentResponse);
+  rpc DownloadAttachment(DownloadAttachmentRequest) returns (stream DownloadAttachmentResponse);
+  rpc ListAttachments(ListAttachmentsRequest) returns (ListAttachmentsResponse);
+  rpc GetAttachmentLocation(GetAttachmentLocationRequest) returns (GetAttachmentLocationResponse);
 }
 
 // string id - UUID format!
 
-message FeedbackFile {
-  string id = 1;
-  int64 user_id = 2; // reviewer who created feedback (lab author)
+message Feedback {
+  string id = 1; // UUID
+  int64 reviewer_id = 2; // reviewer who created feedback
   int64 student_id = 3; // student whose solution is being reviewed
-  int64 lab_id = 4;
+  int64 submission_id = 4;
   string title = 5;
-  google.protobuf.Timestamp created_at = 6;
-  google.protobuf.Timestamp updated_at = 7;
+  string content = 6; // Markdown content
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
 }
 
 message CreateFeedbackRequest {
-  oneof data {
-    FeedbackMetadata metadata = 1; // first chunk: feedback info and file size
-    bytes chunk = 2; // following chunks: actual file content
-  }
-}
-
-message FeedbackMetadata {
-  int64 user_id = 1; // reviewer creating feedback
+  int64 reviewer_id = 1; // reviewer creating feedback
   int64 student_id = 2; // student whose solution is reviewed
-  int64 lab_id = 3;
+  int64 submission_id = 3;
   string title = 4;
-  int64 total_size = 5; // size of the file content in bytes
-}
-
-message GetFeedbackRequest {
-  string id = 1;
-}
-
-message GetFeedbackResponse {
-  oneof data {
-    FeedbackFile info = 1; // first chunk: feedback metadata
-    bytes chunk = 2; // following chunks: file content
-  }
+  string content = 5; // Markdown content
 }
 
 message UpdateFeedbackRequest {
-  oneof data {
-    UpdateFeedbackMetadata metadata = 1; // first chunk: what to update
-    bytes chunk = 2; // following chunks: new file content (if updating file)
-  }
-}
-
-message UpdateFeedbackMetadata {
-  string id = 1;
-  optional string title = 2; // new title (if changing)
-  optional int64 total_size = 3; // new file size (if updating file content)
+  int64 reviewer_id = 1;
+  string id = 2;
+  optional string title = 3; // new title (if changing)
+  optional string content = 4; // new markdown content (if changing)
 }
 
 message DeleteFeedbackRequest {
-  string id = 1;
+  int64 reviewer_id = 1;
+  string id = 2;
 }
 
 message DeleteFeedbackResponse {
   bool success = 1;
 }
 
-message ListUserFeedbacksRequest {
-  int64 user_id = 1; // reviewer who created feedbacks
-  optional int64 lab_id = 2; // filter by specific lab (optional)
+message ListReviewerFeedbacksRequest {
+  int64 reviewer_id = 1; // reviewer who created feedbacks
+  optional int64 submission_id = 2; // filter by specific submission (optional)
   int32 page = 3; // pagination: page number
   int32 limit = 4; // pagination: items per page
 }
 
-message ListUserFeedbacksResponse {
-  repeated FeedbackFile feedbacks = 1;
+message ListReviewerFeedbacksResponse {
+  repeated Feedback feedbacks = 1;
   int32 total_count = 2; // total number of feedbacks (for pagination)
+}
+
+message GetStudentFeedbackRequest {
+  int64 student_id = 1; // student requesting feedback
+  int64 submission_id = 2; // specific submission
 }
 
 message ListStudentFeedbacksRequest {
   int64 student_id = 1; // student whose feedbacks to get
-  optional int64 lab_id = 2; // filter by specific lab (optional)
+  optional int64 submission_id = 2; // filter by specific submission (optional)
   int32 page = 3; // pagination: page number
   int32 limit = 4; // pagination: items per page
 }
 
 message ListStudentFeedbacksResponse {
-  repeated FeedbackFile feedbacks = 1;
+  repeated Feedback feedbacks = 1;
   int32 total_count = 2; // total number of feedbacks (for pagination)
 }
 
-message UploadAssetRequest {
+message GetFeedbackByIdRequest {
+  string id = 1;
+}
+
+
+message UploadAttachmentRequest {
   oneof data {
-    AssetMetadata metadata = 1; // first chunk: file info
-    bytes chunk = 2; // following chunks: file content
+    AttachmentMetadata metadata = 1;
+    bytes chunk = 2;
   }
 }
 
-message AssetMetadata {
-  string feedback_id = 1;
-  string filename = 2;
-  string content_type = 3; // MIME type
-  int64 total_size = 4; // file size in bytes
+message AttachmentMetadata {
+  int64 reviewer_id = 1;
+  string feedback_id = 2;
+  string filename = 3;
+  string content_type = 4;
+  int64 total_size = 5;
 }
 
-message UploadAssetResponse {
+message UploadAttachmentResponse {
   string filename = 1;
   int64 size = 2;
   bool success = 3;
 }
 
-message DownloadAssetRequest {
+message DownloadAttachmentRequest {
   string feedback_id = 1;
   string filename = 2;
 }
 
-message DownloadAssetResponse {
+message DownloadAttachmentResponse {
   oneof data {
-    AssetInfo info = 1; // first chunk: file metadata
-    bytes chunk = 2; // following chunks: file content
+    AttachmentInfo info = 1;
+    bytes chunk = 2;
   }
 }
 
-message ListAssetsRequest {
+message ListAttachmentsRequest {
   string feedback_id = 1;
 }
 
-message ListAssetsResponse {
-  repeated AssetInfo assets = 1;
+message ListAttachmentsResponse {
+  repeated AttachmentInfo attachments = 1;
 }
 
-message AssetInfo {
+message DeleteAttachmentRequest {
+  int64 reviewer_id = 1;
+  string feedback_id = 2;
+  string filename = 3;
+}
+
+message DeleteAttachmentResponse {
+  bool success = 1;
+}
+
+message AttachmentInfo {
   string filename = 1;
   int64 size = 2;
   string content_type = 3;
   google.protobuf.Timestamp uploaded_at = 4;
 }
 
-message LabComment {
-  string id = 1;
-  int64 lab_id = 2;
-  int64 user_id = 3;
-  optional string parent_id = 4;
-  string content = 5;
-  google.protobuf.Timestamp created_at = 6;
-  google.protobuf.Timestamp updated_at = 7;
+message GetAttachmentLocationRequest {
+  string feedback_id = 1;
+  optional string filename = 2; // if not provided, return all attachments location info
 }
 
-message CreateCommentRequest {
-  int64 lab_id = 1;
-  int64 user_id = 2;
-  optional string parent_id = 3;
-  string content = 4;
+message GetAttachmentLocationResponse {
+  repeated AttachmentLocationInfo attachments = 1;
 }
 
-message GetCommentRequest {
-  string id = 1;
-}
-
-message UpdateCommentRequest {
-  string id = 1;
-  string content = 2;
-}
-
-message DeleteCommentRequest {
-  string id = 1;
-}
-
-message DeleteCommentResponse {
-  bool success = 1;
-}
-
-message ListLabCommentsRequest {
-  int64 lab_id = 1;
-  optional string parent_id = 2; // filter by parent comment (for replies)
-  int32 page = 3;
-  int32 limit = 4;
-}
-
-message ListLabCommentsResponse {
-  repeated LabComment comments = 1;
-  int32 total_count = 2; // total number of comments matching filter
-}
-
-message GetCommentRepliesRequest {
-  string comment_id = 1; // get replies to this comment
-  int32 page = 2;
-  int32 limit = 3;
-}
-
-message GetCommentRepliesResponse {
-  repeated LabComment comments = 1; // list of replies to the comment
-  int32 total_count = 2; // total number of replies
+message AttachmentLocationInfo {
+  string filename = 1;
+  int64 size = 2;
+  string content_type = 3;
+  google.protobuf.Timestamp uploaded_at = 4;
+  string minio_bucket = 5;
+  string minio_object_path = 6;
+  string minio_endpoint = 7;
+  bool use_ssl = 8;
 }

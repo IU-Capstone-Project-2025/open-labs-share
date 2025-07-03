@@ -17,6 +17,7 @@ All endpoints require JWT authentication unless specified otherwise.
 6. [Common Response Codes](#common-response-codes)
 7. [Authentication Headers](#authentication-headers)
 8. [Error Response Format](#error-response-format)
+9. [Feedback Service](#feedback-service)
 
 ---  
 
@@ -876,3 +877,318 @@ All error responses follow this format:
        "details": "string (optional)"  
     }}  
 ```
+
+## Feedback Service
+
+| Endpoint                                                      | Type   | Description                                               |
+| ------------------------------------------------------------- | ------ | --------------------------------------------------------- |
+| [`POST /api/v1/feedback`](#create-feedback)                    | POST   | Create new feedback for a submission                      |
+| [`DELETE /api/v1/feedback/{feedbackId}`](#delete-feedback)     | DELETE | Delete a specific feedback                                |
+| [`GET /api/v1/feedback/my/{submissionId}`](#get-my-feedback)   | GET    | Get my feedback for a specific submission                 |
+| [`GET /api/v1/feedback/my`](#list-my-feedbacks)               | GET    | List all my feedbacks (as a student)                      |
+| [`GET /api/v1/feedback/{feedbackId}`](#get-feedback-by-id)    | GET    | Get a specific feedback by ID                             |
+| [`GET /api/v1/feedback/student/{studentId}`](#list-student-feedbacks) | GET | List all feedbacks for a specific student              |
+| [`GET /api/v1/feedback/reviewer`](#list-reviewer-feedbacks)    | GET    | List all feedbacks created by the reviewer                |
+
+### Create Feedback
+
+**Create new feedback for a submission**
+- **Endpoint:** `POST /api/v1/feedback`
+- **Authentication:** Required
+- **Content-Type:** `multipart/form-data`
+- **Description:** Creates a new feedback for a submission with optional file attachments
+
+**Request Body (Form Data):**
+```json
+{
+  "studentId": "number (required) - ID of the student receiving feedback",
+  "submissionId": "number (required) - ID of the submission",
+  "content": "string (required) - Feedback content",
+  "files": "file[] (optional) - Attached files"
+}
+```
+
+**Response:**
+- **Status:** `201 Created`
+- **Body:**
+```json
+{
+  "id": "string (UUID)",
+  "submissionId": "number",
+  "content": "string",
+  "student": {
+    "id": "number",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string",
+    "role": "string"
+  },
+  "reviewer": {
+    "id": "number",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string",
+    "role": "string"
+  },
+  "createdAt": "string (ISO 8601)",
+  "updatedAt": "string (ISO 8601)"
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid request data
+- `401 Unauthorized` - Authentication required
+- `403 Forbidden` - Not authorized to create feedback
+
+### Delete Feedback
+
+**Delete a specific feedback**
+- **Endpoint:** `DELETE /api/v1/feedback/{feedbackId}`
+- **Authentication:** Required
+- **Description:** Deletes a feedback (only available to the reviewer who created it)
+
+**Path Parameters:**
+- `feedbackId` (string, required) - UUID of the feedback to delete
+
+**Response:**
+- **Status:** `200 OK`
+- **Body:**
+```json
+{
+  "success": "boolean",
+  "message": "string"
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid feedback ID format
+- `401 Unauthorized` - Authentication required
+- `403 Forbidden` - Not authorized to delete this feedback
+- `404 Not Found` - Feedback not found
+
+### Get My Feedback
+
+**Get my feedback for a submission**
+- **Endpoint:** `GET /api/v1/feedback/my/{submissionId}`
+- **Authentication:** Required
+- **Description:** Retrieves feedback for the authenticated student's submission
+
+**Path Parameters:**
+- `submissionId` (number, required) - ID of the submission
+
+**Response:**
+- **Status:** `200 OK`
+- **Body:**
+```json
+{
+  "id": "string (UUID)",
+  "submissionId": "number",
+  "content": "string",
+  "student": {
+    "id": "number",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string",
+    "role": "string"
+  },
+  "reviewer": {
+    "id": "number",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string",
+    "role": "string"
+  },
+  "createdAt": "string (ISO 8601)",
+  "updatedAt": "string (ISO 8601)"
+}
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Authentication required
+- `404 Not Found` - Feedback not found
+
+### List My Feedbacks
+
+**List all feedbacks for authenticated student**
+- **Endpoint:** `GET /api/v1/feedback/my`
+- **Authentication:** Required
+- **Description:** Lists all feedbacks received by the authenticated student
+
+**Query Parameters:**
+- `page` (integer, optional) - Page number (default: 1)
+- `limit` (integer, optional) - Items per page (default: 20)
+
+**Response:**
+- **Status:** `200 OK`
+- **Body:**
+```json
+{
+  "feedbacks": [
+    {
+      "id": "string (UUID)",
+      "submissionId": "number",
+      "content": "string",
+      "student": {
+        "id": "number",
+        "email": "string",
+        "firstName": "string",
+        "lastName": "string",
+        "role": "string"
+      },
+      "reviewer": {
+        "id": "number",
+        "email": "string",
+        "firstName": "string",
+        "lastName": "string",
+        "role": "string"
+      },
+      "createdAt": "string (ISO 8601)",
+      "updatedAt": "string (ISO 8601)"
+    }
+  ],
+  "totalCount": "number"
+}
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Authentication required
+
+### Get Feedback by ID
+
+**Get a specific feedback**
+- **Endpoint:** `GET /api/v1/feedback/{feedbackId}`
+- **Authentication:** Required
+- **Description:** Retrieves a specific feedback by its ID
+
+**Path Parameters:**
+- `feedbackId` (string, required) - UUID of the feedback
+
+**Response:**
+- **Status:** `200 OK`
+- **Body:**
+```json
+{
+  "id": "string (UUID)",
+  "submissionId": "number",
+  "content": "string",
+  "student": {
+    "id": "number",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string",
+    "role": "string"
+  },
+  "reviewer": {
+    "id": "number",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string",
+    "role": "string"
+  },
+  "createdAt": "string (ISO 8601)",
+  "updatedAt": "string (ISO 8601)"
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid feedback ID format
+- `401 Unauthorized` - Authentication required
+- `404 Not Found` - Feedback not found
+
+### List Student Feedbacks
+
+**List all feedbacks for a student**
+- **Endpoint:** `GET /api/v1/feedback/student/{studentId}`
+- **Authentication:** Required
+- **Description:** Lists all feedbacks for a specific student
+
+**Path Parameters:**
+- `studentId` (number, required) - ID of the student
+
+**Query Parameters:**
+- `page` (integer, optional) - Page number (default: 1)
+- `limit` (integer, optional) - Items per page (default: 20)
+
+**Response:**
+- **Status:** `200 OK`
+- **Body:**
+```json
+{
+  "feedbacks": [
+    {
+      "id": "string (UUID)",
+      "submissionId": "number",
+      "content": "string",
+      "student": {
+        "id": "number",
+        "email": "string",
+        "firstName": "string",
+        "lastName": "string",
+        "role": "string"
+      },
+      "reviewer": {
+        "id": "number",
+        "email": "string",
+        "firstName": "string",
+        "lastName": "string",
+        "role": "string"
+      },
+      "createdAt": "string (ISO 8601)",
+      "updatedAt": "string (ISO 8601)"
+    }
+  ],
+  "totalCount": "number"
+}
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Authentication required
+- `403 Forbidden` - Not authorized to view student's feedbacks
+
+### List Reviewer Feedbacks
+
+**List all feedbacks created by reviewer**
+- **Endpoint:** `GET /api/v1/feedback/reviewer`
+- **Authentication:** Required
+- **Description:** Lists all feedbacks created by the authenticated reviewer
+
+**Query Parameters:**
+- `page` (integer, optional) - Page number (default: 1)
+- `limit` (integer, optional) - Items per page (default: 20)
+- `submissionId` (number, optional) - Filter by submission ID
+
+**Response:**
+- **Status:** `200 OK`
+- **Body:**
+```json
+{
+  "feedbacks": [
+    {
+      "id": "string (UUID)",
+      "submissionId": "number",
+      "content": "string",
+      "student": {
+        "id": "number",
+        "email": "string",
+        "firstName": "string",
+        "lastName": "string",
+        "role": "string"
+      },
+      "reviewer": {
+        "id": "number",
+        "email": "string",
+        "firstName": "string",
+        "lastName": "string",
+        "role": "string"
+      },
+      "createdAt": "string (ISO 8601)",
+      "updatedAt": "string (ISO 8601)"
+    }
+  ],
+  "totalCount": "number"
+}
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Authentication required
+- `403 Forbidden` - Not authorized to view reviewer feedbacks
