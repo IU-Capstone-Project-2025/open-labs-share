@@ -3,6 +3,7 @@ package olsh.backend.api_gateway.dto.response;
 import lombok.Builder;
 import lombok.Data;
 import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 
 @Data
@@ -16,17 +17,8 @@ public class SubmissionResponse {
     @Schema(description = "ID of the lab this submission belongs to", example = "1")
     private Long labId;
 
-    @Schema(description = "ID of the submission owner", example = "123")
-    private Long ownerId;
-
-    @Schema(description = "Owner's username", example = "CoolJo")
-    private String username;
-
-    @Schema(description = "Owner's first name", example = "John")
-    private String ownerName;
-
-    @Schema(description = "Owner's last name", example = "Doe")
-    private String ownerSurname;
+    @Schema(description = "Owner of the submission", implementation = UserResponse.class)
+    private UserResponse owner;
 
     @Schema(description = "Text comment of the submission", example = "Here is my solution for the lab work")
     private String text;
