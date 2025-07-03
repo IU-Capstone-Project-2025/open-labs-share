@@ -1,12 +1,6 @@
 package olsh.backend.usersservice.grpc;
 
-import com.olsh.users.proto.*;
-import io.grpc.Status;
-import io.grpc.StatusException;
-import io.grpc.stub.StreamObserver;
-import olsh.backend.usersservice.exception.AuthenticationException;
-import olsh.backend.usersservice.exception.NotFoundException;
-import olsh.backend.usersservice.service.UserService;
+import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,12 +8,43 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import static org.mockito.ArgumentMatchers.any;
 import org.mockito.Mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import com.olsh.users.proto.AuthenticateUserRequest;
+import com.olsh.users.proto.CreateUserRequest;
+import com.olsh.users.proto.DeleteUserRequest;
+import com.olsh.users.proto.DeleteUserResponse;
+import com.olsh.users.proto.ExistsResponse;
+import com.olsh.users.proto.FindUserByEmailRequest;
+import com.olsh.users.proto.FindUserByUsernameRequest;
+import com.olsh.users.proto.GetUserInfoRequest;
+import com.olsh.users.proto.GetUserProfileRequest;
+import com.olsh.users.proto.HealthCheckRequest;
+import com.olsh.users.proto.HealthCheckResponse;
+import com.olsh.users.proto.SearchUsersRequest;
+import com.olsh.users.proto.SearchUsersResponse;
+import com.olsh.users.proto.UpdatePasswordRequest;
+import com.olsh.users.proto.UpdatePasswordResponse;
+import com.olsh.users.proto.UpdateUserLastLoginRequest;
+import com.olsh.users.proto.UpdateUserLastLoginResponse;
+import com.olsh.users.proto.UpdateUserProfileRequest;
+import com.olsh.users.proto.UserInfo;
+import com.olsh.users.proto.UserInfoResponse;
+import com.olsh.users.proto.UserProfileResponse;
+
+import io.grpc.Status;
+import io.grpc.StatusException;
+import io.grpc.stub.StreamObserver;
+import olsh.backend.usersservice.exception.AuthenticationException;
+import olsh.backend.usersservice.exception.NotFoundException;
+import olsh.backend.usersservice.service.UserService;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UsersServiceGrpcImpl Tests")
@@ -732,7 +757,7 @@ class UsersServiceGrpcImplTest {
         
         DeleteUserResponse response = responseCaptor.getValue();
         assertThat(response.getSuccess()).isFalse();
-        assertThat(response.getMessage()).isEqualTo("User deletion failed or user not found");
+        assertThat(response.getMessage()).isEqualTo("Failed to delete user");
     }
 
     @Test
@@ -755,7 +780,7 @@ class UsersServiceGrpcImplTest {
         
         StatusException exception = exceptionCaptor.getValue();
         assertThat(exception.getStatus().getCode()).isEqualTo(Status.Code.INTERNAL);
-        assertThat(exception.getStatus().getDescription()).contains("Internal error deleting user");
+        assertThat(exception.getStatus().getDescription()).contains("Internal server error");
     }
 
     // =============== Generic Error Handling Tests ===============

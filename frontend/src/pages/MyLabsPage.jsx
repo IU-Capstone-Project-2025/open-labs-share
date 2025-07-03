@@ -1,16 +1,22 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import LabCard from "../components/LabCard";
-import { labs } from "../utils/api";
+import { labsAPI } from "../utils/api";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
-import { useUser } from "../hooks/useUser";
 
 export default function MyLabs() {
   const [myLabs, setMyLabs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const user = useUser();
+  const [user, setUser] = useState(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated()) {
+      const currentUser = getCurrentUser();
+      setUser(currentUser);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchMyLabs = async () => {
@@ -19,7 +25,7 @@ export default function MyLabs() {
         console.log('MyLabsPage: Fetching labs for current user:', user);
         
         // Use the dedicated API endpoint for user's labs
-        const response = await labs.getMyLabs();
+        const response = await labsAPI.getMyLabs();
         console.log('MyLabsPage: My labs response:', response);
         
         const userLabs = response.labs || response || [];

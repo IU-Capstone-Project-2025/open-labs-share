@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { labs } from '../utils/api';
+import { labsAPI } from '../utils/api';
 import { getCurrentUser } from '../utils/auth';
 
 export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
@@ -90,9 +90,20 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
       return;
     }
 
+    setUploading(true);
     try {
-      setUploading(true);
-      const result = await labs.createLab(labData);
+      const formData = new FormData();
+      formData.append('title', labData.title);
+      formData.append('short_desc', labData.short_desc);
+      formData.append('md_file', labData.md_file);
+      
+      if (labData.assets && labData.assets.length > 0) {
+        for (const asset of labData.assets) {
+          formData.append('assets', asset);
+        }
+      }
+      
+      const result = await labsAPI.createLab(formData);
       onSuccess && onSuccess(result);
     } catch (err) {
       console.error('Error creating lab:', err);

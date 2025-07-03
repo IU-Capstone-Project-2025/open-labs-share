@@ -1,460 +1,214 @@
-// API configuration and endpoints for Open Labs Share
-// This connects to the API Gateway which proxies requests to various microservices
+// In production, all API calls are sent to the same origin, and Nginx proxies them.
+// In development, we explicitly target the API gateway's exposed port.
+const API_BASE_URL = import.meta.env.PROD ? '' : 'http://localhost:8080';
+const AUTH_SERVICE_BASE_URL = import.meta.env.PROD ? '' : 'http://localhost:8081';
 
-export const API_CONFIG = {
-  API_GATEWAY_URL: import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080',
-  API_GATEWAY_ENDPOINT: `${import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080'}/api/v1`,
-  // Direct Auth service connection for profile updates
-  AUTH_SERVICE_URL: import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8081',
-  AUTH_SERVICE_ENDPOINT: `${import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8081'}/api/v1/auth`,
-  // Direct ML service connection (bypasses API Gateway as per requirements)
-  ML_SERVICE_URL: import.meta.env.VITE_ML_SERVICE_URL || 'http://localhost:8083',
-  ENDPOINTS: {
-    // User endpoints (through API Gateway to Users Service)
-    USERS: '/users',
-    USER_BY_ID: (userId) => `/users/${userId}`,
-    
-    // Auth service endpoints (direct connection)
-    AUTH_PROFILE: '/profile',
-    
-    // Lab endpoints (through API Gateway to Labs Service)
-    LABS: '/labs',
-    LAB_BY_ID: (labId) => `/labs/${labId}`,
-    LAB_ASSETS: (labId) => `/labs/${labId}/assets`,
-    LAB_ASSET_DOWNLOAD: (labId, assetId) => `/labs/${labId}/assets/${assetId}/download`,
-    LAB_ASSET_UPLOAD: (labId) => `/labs/${labId}/assets/upload`,
-    
-    // Submission endpoints (through API Gateway to Labs Service)
-    SUBMISSIONS: '/submissions',
-    LAB_SUBMISSIONS: (labId) => `/labs/${labId}/submissions`,
-    SUBMISSION_BY_ID: (submissionId) => `/submissions/${submissionId}`,
-    SUBMISSION_ASSETS: (submissionId) => `/submissions/${submissionId}/assets`,
-    SUBMISSION_ASSET_DOWNLOAD: (submissionId, assetId) => `/submissions/${submissionId}/assets/${assetId}/download`,
-    SUBMISSION_ASSET_UPLOAD: (submissionId) => `/submissions/${submissionId}/assets/upload`,
-    
-    // ML Service endpoints (direct connection)
-    ML_ASK: '/ask',
-    ML_CHAT_HISTORY: '/get_chat_history',
-    
-    // Article endpoints (currently not connected as per requirements)
-    ARTICLES: '/articles',
-    ARTICLE_BY_ID: (articleId) => `/articles/${articleId}`,
-    
-    // Comments/Feedback endpoints (when feedback controller is implemented)
-    // COMMENTS: '/feedback/comments',
-    // LAB_COMMENTS: (labId) => `/feedback/comments/lab/${labId}`,
-    // ARTICLE_COMMENTS: (articleId) => `/feedback/comments/article/${articleId}`,
-  }
-};
-
-// Helper function to get authorization headers
-export const getAuthHeaders = () => {
+/**
+ * A unified function for making API calls to the backend gateway.
+ * It automatically handles authentication headers, content types, and error formatting.
+ * @param {string} path - The API endpoint path, e.g., '/users/1'.
+ * @param {object} options - Configuration for the fetch call (method, body, etc.).
+ * @returns {Promise<any>} - The JSON response from the API.
+ */
+const apiCall = async (path, options = {}) => {
+  const url = `${API_BASE_URL}/api/v1${path}`;
   const token = localStorage.getItem('authToken');
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
+
+  const headers = {
+    ...options.headers,
   };
-};
 
-// API call wrapper with error handling
-export const apiCall = async (endpoint, options = {}) => {
-  const url = `${API_CONFIG.API_GATEWAY_ENDPOINT}${endpoint}`;
+  // Add auth token if it exists
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
   
+  const isFormData = options.body instanceof FormData;
+
+  // Don't set Content-Type for FormData, the browser does it best.
+  // For other requests, default to application/json.
+  if (!isFormData && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   try {
-    const response = await fetch(url, {
-      headers: getAuthHeaders(),
-      ...options,
-    });
+    const response = await fetch(url, { ...options, headers });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('API error data:', errorData);
-      throw new Error(errorData.message || `API call failed: ${response.status} ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({
+        message: `API call failed with status ${response.status}`,
+      }));
+      throw new Error(errorData.message || `API error: ${response.statusText}`);
     }
 
-    return await response.json();
-  } catch (error) {
-    console.error('API call error:', error);
-    throw error;
-  }
-};
-
-// Auth service API call wrapper
-export const authApiCall = async (endpoint, options = {}) => {
-  const url = `${API_CONFIG.AUTH_SERVICE_ENDPOINT}${endpoint}`;
-  
-  try {
-    const response = await fetch(url, {
-      headers: getAuthHeaders(),
-      ...options,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Auth API error data:', errorData);
-      throw new Error(errorData.message || `Auth API call failed: ${response.status} ${response.statusText}`);
+    // Handle responses that might not have a JSON body
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
     }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Auth API call error:', error);
-    throw error;
-  }
-};
-
-// ML service API call wrapper
-export const mlApiCall = async (endpoint, options = {}) => {
-  const url = `${API_CONFIG.ML_SERVICE_URL}${endpoint}`;
-  
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      ...options,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('ML API error data:', errorData);
-      throw new Error(errorData.message || `ML API call failed: ${response.status} ${response.statusText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('ML API call error:', error);
-    throw error;
-  }
-};
-
-// User API functions
-export const usersAPI = {
-  // Get user by ID
-  getUserById: async (userId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.USER_BY_ID(userId));
-  },
-
-  // Get all users with pagination
-  getAllUsers: async (page = 1, limit = 20) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.USERS}?page=${page}&limit=${limit}`);
-  },
-
-  // Update user profile - calls auth service directly
-  updateUser: async (userId, userData) => {
-    const response = await authApiCall(API_CONFIG.ENDPOINTS.AUTH_PROFILE, {
-      method: 'PUT',
-      body: JSON.stringify(userData),
-    });
-    
-    // Update tokens only if they were provided (username was changed)
-    if (response.usernameChanged && response.accessToken && response.refreshToken) {
-      localStorage.setItem('authToken', response.accessToken);
-      localStorage.setItem('refreshToken', response.refreshToken);
-      console.log('Username changed - tokens updated');
-    } else if (!response.usernameChanged) {
-      console.log('Username not changed - keeping existing tokens');
-    }
-    
-    // Update local user data
-    if (response.userInfo) {
-      localStorage.setItem('user', JSON.stringify(response.userInfo));
-    }
-    
+    // For file downloads or other non-json responses
     return response;
-  },
-
-  // Delete user
-  deleteUser: async (userId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.USER_BY_ID(userId), {
-      method: 'DELETE',
-    });
-  },
-
-  // Get current user's labs
-  getUserLabs: async (userId, page = 1, limit = 20) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.USERS}/${userId}/labs?page=${page}&limit=${limit}`);
-  },
-
-  // Get current user's articles (when articles service is connected)
-  getUserArticles: async (userId, page = 1, limit = 20) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.USERS}/${userId}/articles?page=${page}&limit=${limit}`);
-  },
-
-  // Get submission assets
-  getSubmissionAssets: async (submissionId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_ASSETS(submissionId));
-  },
-
-  // Download submission asset
-  downloadSubmissionAsset: async (submissionId, assetId) => {
-    // ... (implementation details as needed)
-  },
+  } catch (error) {
+    console.error(`API call to "${url}" failed:`, error);
+    throw error;
+  }
 };
 
-// Labs API functions
-export const labsAPI = {
-  // Get all labs with pagination
-  getLabs: async (page = 1, limit = 20) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.LABS}?page=${page}&limit=${limit}`);
-  },
-
-  // Get current user's labs
-  getMyLabs: async (page = 1, limit = 20) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.LABS}/my?page=${page}&limit=${limit}`);
-  },
-
-  // Get lab by ID
-  getLabById: async (labId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.LAB_BY_ID(labId));
-  },
-
-  // Create a new lab with file upload
-  createLab: async (labData) => {
-    const formData = new FormData();
-    formData.append('title', labData.title);
-    formData.append('short_desc', labData.short_desc);
-    formData.append('md_file', labData.md_file);
-    
-    // Add optional asset files
-    if (labData.assets && labData.assets.length > 0) {
-      for (const asset of labData.assets) {
-        formData.append('assets', asset);
-      }
-    }
-    
+/**
+ * A dedicated function for making API calls directly to the Auth service.
+ * This is necessary because the Auth service is not exposed via the API Gateway.
+ */
+const authApiCall = async (path, options = {}) => {
+    const url = `${AUTH_SERVICE_BASE_URL}/api/v1/auth${path}`;
     const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.LABS}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Lab creation failed: ${response.status} ${response.statusText}`);
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+    };
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
     }
 
-    return await response.json();
-  },
-
-  // Update lab
-  updateLab: async (labId, labData) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.LAB_BY_ID(labId), {
-      method: 'PUT',
-      body: JSON.stringify(labData),
-    });
-  },
-
-  // Delete lab
-  deleteLab: async (labId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.LAB_BY_ID(labId), {
-      method: 'DELETE',
-    });
-  },
-
-  // Get lab assets
-  getLabAssets: async (labId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.LAB_ASSETS(labId));
-  },
-
-  // Upload lab asset
-  uploadLabAsset: async (labId, file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.LAB_ASSET_UPLOAD(labId)}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Upload failed: ${response.status} ${response.statusText}`);
-    }
-
-    return await response.json();
-  },
-
-  // Download lab asset
-  downloadLabAsset: async (labId, assetId) => {
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.LAB_ASSET_DOWNLOAD(labId, assetId)}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Download failed: ${response.status} ${response.statusText}`);
-    }
-
-    return response.blob();
-  },
-};
-
-// Articles API functions
-export const articlesAPI = {
-  // Get all articles with pagination
-  getArticles: async (page = 1, limit = 20) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.ARTICLES}?page=${page}&limit=${limit}`);
-  },
-
-  // Get current user's articles
-  getMyArticles: async (page = 1, limit = 20) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.ARTICLES}/my?page=${page}&limit=${limit}`);
-  },
-
-  // Get article by ID
-  getArticleById: async (articleId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.ARTICLE_BY_ID(articleId));
-  },
-
-  // Create a new article with file upload
-  createArticle: async (articleData) => {
-    const formData = new FormData();
-    formData.append('title', articleData.title);
-    formData.append('short_desc', articleData.short_desc);
-    formData.append('pdf_file', articleData.pdf_file);
-    
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.ARTICLES}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Article creation failed: ${response.status} ${response.statusText}`);
-    }
-
-    return await response.json();
-  },
-
-  // Delete article
-  deleteArticle: async (articleId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.ARTICLE_BY_ID(articleId), {
-      method: 'DELETE',
-    });
-  },
-};
-
-// Submissions API functions
-export const submissionsAPI = {
-  // Get all submissions with pagination
-  getAllSubmissions: async (page = 1, limit = 100) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.SUBMISSIONS}?page=${page}&limit=${limit}`);
-  },
-
-  // Get submissions for a lab
-  getLabSubmissions: async (labId, page = 1, limit = 20) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.LAB_SUBMISSIONS(labId)}?page=${page}&limit=${limit}`);
-  },
-
-  // Get submission by ID
-  getSubmissionById: async (submissionId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_BY_ID(submissionId));
-  },
-
-  // Create a new submission
-  createSubmission: async (submissionData) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSIONS, {
-      method: 'POST',
-      body: JSON.stringify(submissionData),
-    });
-  },
-
-  // Update submission
-  updateSubmission: async (submissionId, submissionData) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_BY_ID(submissionId), {
-      method: 'PUT',
-      body: JSON.stringify(submissionData),
-    });
-  },
-
-  // Delete submission
-  deleteSubmission: async (submissionId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_BY_ID(submissionId), {
-      method: 'DELETE',
-    });
-  },
-
-  // Upload submission asset
-  uploadSubmissionAsset: async (submissionId, file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.SUBMISSION_ASSET_UPLOAD(submissionId)}`, {
-        method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Upload failed: ${response.status} ${response.statusText}`);
-    }
-
-    return await response.json();
-  },
-
-  // Submit a file for a lab (creates submission and uploads file)
-  submitLabFile: async (labId, userId, file) => {
     try {
-      // First create a submission
-      const submissionData = {
-        lab_id: parseInt(labId),
-        owner_id: userId,
-        status: 'submitted'
-      };
-      
-      const submissionResponse = await submissionsAPI.createSubmission(submissionData);
-      const submissionId = submissionResponse.id || submissionResponse.data?.id;
-      
-      if (!submissionId) {
-        throw new Error('Failed to create submission');
-      }
+        const response = await fetch(url, { ...options, headers });
 
-      // Then upload the file as an asset to the submission
-      const uploadResponse = await submissionsAPI.uploadSubmissionAsset(submissionId, file);
-      
-      return {
-        submission: submissionResponse,
-        upload: uploadResponse
-      };
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({
+                message: `Auth API call failed with status ${response.status}`,
+            }));
+            throw new Error(errorData.message || `Auth API error: ${response.statusText}`);
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        }
+        return response;
     } catch (error) {
-      console.error('Error in submitLabFile:', error);
-      throw error;
+        console.error(`Auth API call to "${url}" failed:`, error);
+        throw error;
     }
-  },
 };
 
-// ML API functions
-export const mlAPI = {
-  // Get chat history for a lab
-  getChatHistory: async (uuid, assignment_id) => {
-    return await mlApiCall(`${API_CONFIG.ENDPOINTS.ML_CHAT_HISTORY}?uuid=${uuid}&assignment_id=${assignment_id}`);
-  },
-
-  // Ask the ML agent a question
-  askAgent: async (uuid, assignment_id, content) => {
-    return await mlApiCall(API_CONFIG.ENDPOINTS.ML_ASK, {
+// --- Auth API ---
+export const authAPI = {
+  login: (credentials) => authApiCall('/login', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  }),
+  register: (userData) => {
+    // Only send the fields that the backend SignUpRequest DTO expects
+    const { firstName, lastName, username, email, password } = userData;
+    return authApiCall('/register', {
       method: 'POST',
-      body: JSON.stringify({ uuid, assignment_id, content }),
+      body: JSON.stringify({
+        firstName,
+        lastName,
+        username,
+        email,
+        password
+      }),
     });
   },
+  logout: () => authApiCall('/logout', { method: 'POST' }),
+  refreshToken: (tokenData) => authApiCall('/refresh', {
+    method: 'POST',
+    body: JSON.stringify(tokenData),
+  }),
+  getProfile: () => authApiCall('/profile'),
+  updateProfile: (profileData) => authApiCall('/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+  }),
 };
 
-// Export the main APIs (clean backend-only APIs)
-export { usersAPI as users, labsAPI as labs, submissionsAPI as submissions }; 
+// --- Users API ---
+export const usersAPI = {
+  getUserById: (userId) => apiCall(`/users/${userId}`),
+  getAllUsers: (page = 1, limit = 20) => apiCall(`/users?page=${page}&limit=${limit}`),
+  deleteUser: (userId) => apiCall(`/users/${userId}`, { method: 'DELETE' }),
+  getUserLabs: (userId, page = 1, limit = 20) => apiCall(`/users/${userId}/labs?page=${page}&limit=${limit}`),
+  getUserArticles: (userId, page = 1, limit = 20) => apiCall(`/users/${userId}/articles?page=${page}&limit=${limit}`),
+};
+
+// --- Labs API ---
+export const labsAPI = {
+  getLabs: (page = 1, limit = 20) => apiCall(`/labs?page=${page}&limit=${limit}`),
+  getMyLabs: (page = 1, limit = 20) => apiCall('/labs/my', {
+    // Add a cache-busting parameter to ensure fresh data
+    params: { _: new Date().getTime() },
+  }),
+  getLabById: (labId) => apiCall(`/labs/${labId}`),
+  createLab: (formData) => apiCall('/labs', {
+    method: 'POST',
+    body: formData, // FormData for multipart/form-data uploads
+  }),
+  updateLab: (labId, labData) => apiCall(`/labs/${labId}`, {
+    method: 'PUT',
+    body: JSON.stringify(labData),
+  }),
+  deleteLab: (labId) => apiCall(`/labs/${labId}`, { method: 'DELETE' }),
+  getLabAssets: (labId) => apiCall(`/labs/${labId}/assets`),
+  uploadLabAsset: (labId, formData) => apiCall(`/labs/${labId}/assets/upload`, {
+    method: 'POST',
+    body: formData,
+  }),
+  downloadLabAsset: (labId, assetId) => apiCall(`/labs/${labId}/assets/${assetId}/download`),
+};
+
+// --- Articles API ---
+export const articlesAPI = {
+  getArticles: (page = 1, limit = 20) => apiCall(`/articles?page=${page}&limit=${limit}`),
+  getMyArticles: (page = 1, limit = 20) => apiCall('/articles/my'),
+  getArticleById: (articleId) => apiCall(`/articles/${articleId}`),
+  createArticle: (formData) => apiCall('/articles', {
+    method: 'POST',
+    body: formData,
+  }),
+  deleteArticle: (articleId) => apiCall(`/articles/${articleId}`, { method: 'DELETE' }),
+};
+
+// --- Submissions API ---
+export const submissionsAPI = {
+  getAllSubmissions: (page = 1, limit = 100) => apiCall(`/submissions?page=${page}&limit=${limit}`),
+  getLabSubmissions: (labId, page = 1, limit = 20) => apiCall(`/labs/${labId}/submissions?page=${page}&limit=${limit}`),
+  getSubmissionById: (submissionId) => apiCall(`/submissions/${submissionId}`),
+  createSubmission: (submissionData) => apiCall('/submissions', {
+    method: 'POST',
+    body: JSON.stringify(submissionData),
+  }),
+  updateSubmission: (submissionId, submissionData) => apiCall(`/submissions/${submissionId}`, {
+    method: 'PUT',
+    body: JSON.stringify(submissionData),
+  }),
+  deleteSubmission: (submissionId) => apiCall(`/submissions/${submissionId}`, { method: 'DELETE' }),
+  uploadSubmissionAsset: (submissionId, formData) => apiCall(`/submissions/${submissionId}/assets/upload`, {
+    method: 'POST',
+    body: formData,
+  }),
+  submitLabFile: async (labId, userId, file) => {
+    const submissionData = { lab_id: parseInt(labId), owner_id: userId, status: 'submitted' };
+    const submissionResponse = await submissionsAPI.createSubmission(submissionData);
+    const submissionId = submissionResponse.id || submissionResponse.data?.id;
+
+    if (!submissionId) throw new Error('Failed to create submission record.');
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const uploadResponse = await submissionsAPI.uploadSubmissionAsset(submissionId, formData);
+    return { submission: submissionResponse, upload: uploadResponse };
+  },
+};
+
+// --- ML API ---
+export const mlAPI = {
+  // ML service is also not on the gateway, it's called directly.
+  getChatHistory: (uuid, assignment_id) => apiCall(`/ml/get_chat_history?uuid=${uuid}&assignment_id=${assignment_id}`),
+  askAgent: (uuid, assignment_id, content) => apiCall('/ml/ask', {
+    method: 'POST',
+    body: JSON.stringify({ uuid, assignment_id, content }),
+  }),
+};

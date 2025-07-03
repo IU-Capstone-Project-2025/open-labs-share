@@ -1,11 +1,11 @@
 package olsh.backend.usersservice.service;
 
-import com.olsh.users.proto.*;
-import olsh.backend.usersservice.entity.Role;
-import olsh.backend.usersservice.entity.User;
-import olsh.backend.usersservice.exception.AuthenticationException;
-import olsh.backend.usersservice.exception.NotFoundException;
-import olsh.backend.usersservice.repository.UserRepository;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,22 +13,46 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
+import com.olsh.users.proto.AuthenticateUserRequest;
+import com.olsh.users.proto.CreateUserRequest;
+import com.olsh.users.proto.FindUserByEmailRequest;
+import com.olsh.users.proto.FindUserByUsernameRequest;
+import com.olsh.users.proto.GetUserInfoRequest;
+import com.olsh.users.proto.GetUserProfileRequest;
+import com.olsh.users.proto.SearchUsersRequest;
+import com.olsh.users.proto.SearchUsersResponse;
+import com.olsh.users.proto.UpdatePasswordRequest;
+import com.olsh.users.proto.UpdatePasswordResponse;
+import com.olsh.users.proto.UpdateUserLastLoginRequest;
+import com.olsh.users.proto.UpdateUserLastLoginResponse;
+import com.olsh.users.proto.UpdateUserProfileRequest;
+import com.olsh.users.proto.UserInfoResponse;
+import com.olsh.users.proto.UserProfileResponse;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import olsh.backend.usersservice.config.PointsConfig;
+import olsh.backend.usersservice.entity.Role;
+import olsh.backend.usersservice.entity.User;
+import olsh.backend.usersservice.exception.AuthenticationException;
+import olsh.backend.usersservice.exception.NotFoundException;
+import olsh.backend.usersservice.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UserService Tests")
@@ -40,12 +64,17 @@ class UserServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private PointsConfig pointsConfig;
+
+    @Mock
+    private UserStatsService userStatsService;
+
     @InjectMocks
     private UserService userService;
 
     private User testUser;
-    private CreateUserRequest createUserRequest;
-    private UpdateUserProfileRequest updateProfileRequest;
+
 
     @BeforeEach
     void setUp() {
@@ -120,6 +149,7 @@ class UserServiceTest {
         when(userRepository.findByUsername("newuser")).thenReturn(Optional.empty());
         when(userRepository.findByEmail("newuser@example.com")).thenReturn(Optional.empty());
         when(passwordEncoder.encode("plainPassword")).thenReturn("encodedPassword");
+        when(pointsConfig.getInitialBalance()).thenReturn(10);
         when(userRepository.save(any(User.class))).thenReturn(newUser);
 
         // When
@@ -134,6 +164,7 @@ class UserServiceTest {
         verify(userRepository).findByUsername("newuser");
         verify(userRepository).findByEmail("newuser@example.com");
         verify(passwordEncoder).encode("plainPassword");
+        verify(pointsConfig, atLeastOnce()).getInitialBalance();
         verify(userRepository).save(any(User.class));
     }
 

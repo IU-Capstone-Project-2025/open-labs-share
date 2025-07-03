@@ -1,17 +1,15 @@
 package olsh.backend.usersservice.entity;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-
 import java.time.LocalDateTime;
 import java.util.Collection;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.springframework.security.core.GrantedAuthority;
 
 @DisplayName("User Entity Tests")
 class UserEntityTest {
@@ -241,7 +239,7 @@ class UserEntityTest {
 
         // When
         User user = new User(1L, "testuser", "test@example.com", "password", 
-                           "John", "Doe", Role.ROLE_USER, now, now);
+                           "John", "Doe", Role.ROLE_USER, now, now, 0, 0, 0);
 
         // Then
         assertThat(user.getId()).isEqualTo(1L);

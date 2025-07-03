@@ -1,0 +1,56 @@
+# Stage 1: Build the environment
+FROM pytorch/pytorch:2.7.1-cpu AS builder
+
+WORKDIR /app
+
+# Install build-time system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    dos2unix \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install Python dependencies
+COPY ml/rag_backend/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+
+# Stage 2: Create the production image
+FROM pytorch/pytorch:2.7.1-cpu AS final
+
+WORKDIR /app
+
+# Create a non-root user
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+
+# Copy installed Python packages and necessary system libs from the builder stage
+COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
+COPY --from=builder /usr/bin/dos2unix /usr/bin/dos2unix
+COPY --from=builder /usr/bin/curl /usr/bin/curl
+
+# Copy the application code and models
+# Note: For large models, it's better to download them in a startup script
+# or mount them as a volume rather than including them in the image.
+COPY ml/ /app/ml/
+
+# Copy and prepare startup script
+COPY ml/startup.sh /app/startup.sh
+RUN dos2unix /app/startup.sh && chmod +x /app/startup.sh
+
+# Create directories and set permissions
+RUN mkdir -p /app/models && chown -R appuser:appgroup /app
+WORKDIR /app/ml
+
+# Switch to the non-root user
+USER appuser
+
+ENV PYTHONPATH=/app/ml
+# Set device to cpu for production
+ENV DEVICE=cpu
+
+EXPOSE 8081
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8081/docs || exit 1
+
+CMD ["/app/startup.sh"] 

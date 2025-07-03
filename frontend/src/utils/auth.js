@@ -1,9 +1,7 @@
 // Authentication utility for Open Labs Share
 // This connects to the real auth service API
 
-// API Configuration
-const AUTH_API_BASE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8081';
-const AUTH_API_ENDPOINT = `${AUTH_API_BASE_URL}/api/v1/auth`;
+import { authAPI } from './api';
 
 // Helper function to make API calls
 const makeAuthRequest = async (endpoint, options = {}) => {
@@ -31,6 +29,26 @@ const makeAuthRequest = async (endpoint, options = {}) => {
     console.error('Auth API request failed:', error);
     throw error;
   }
+};
+
+// Helper to process and store successful auth responses
+const handleAuthSuccess = (response) => {
+  const { accessToken, refreshToken, userInfo } = response;
+  
+  const userData = {
+    id: userInfo.userId,
+    firstName: userInfo.firstName,
+    lastName: userInfo.lastName,
+    username: userInfo.username,
+    email: userInfo.email,
+    role: userInfo.role,
+  };
+
+  localStorage.setItem('authToken', accessToken);
+  localStorage.setItem('refreshToken', refreshToken);
+  localStorage.setItem('user', JSON.stringify(userData));
+
+  return { user: userData, token: accessToken };
 };
 
 // Get current user from localStorage or return null
@@ -77,18 +95,12 @@ export const signIn = async (emailOrUsername, password) => {
       lastName: userInfo.lastName,
       username: userInfo.username,
       email: userInfo.email,
-      role: userInfo.role,
-      balance: userInfo.balance,
-      labsSolved: userInfo.labsSolved,
-      labsReviewed: userInfo.labsReviewed
+      role: userInfo.role
     };
     
     localStorage.setItem('authToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('user', JSON.stringify(userData));
-    
-    // Notify all components about the update
-    notifyUserDataUpdate();
     
     return { user: userData, token: accessToken };
   } catch (error) {
@@ -128,18 +140,12 @@ export const signUp = async (userData) => {
       lastName: userInfo.lastName,
       username: userInfo.username,
       email: userInfo.email,
-      role: userInfo.role,
-      balance: userInfo.balance,
-      labsSolved: userInfo.labsSolved,
-      labsReviewed: userInfo.labsReviewed
+      role: userInfo.role
     };
     
     localStorage.setItem('authToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('user', JSON.stringify(userDataToStore));
-    
-    // Notify all components about the update
-    notifyUserDataUpdate();
     
     return { user: userDataToStore, token: accessToken };
   } catch (error) {
@@ -164,7 +170,7 @@ export const signOut = async () => {
       });
     }
   } catch (error) {
-    console.error('Logout API call failed:', error);
+    console.error('Logout API call failed, proceeding with local cleanup:', error);
     // Continue with local logout even if API call fails
   } finally {
     // Stop token refresh
@@ -203,27 +209,21 @@ export const refreshToken = async () => {
     
     // Update user info if provided
     if (userInfo) {
-            const userData = {
-      id: userInfo.userId,
-      firstName: userInfo.firstName,
-      lastName: userInfo.lastName,
-      username: userInfo.username,
-      email: userInfo.email,
-      role: userInfo.role,
-      balance: userInfo.balance,
-      labsSolved: userInfo.labsSolved,
-      labsReviewed: userInfo.labsReviewed
-    };
-    localStorage.setItem('user', JSON.stringify(userData));
-    
-      // Notify all components about the update
-      notifyUserDataUpdate();
+      const userData = {
+        id: userInfo.userId,
+        firstName: userInfo.firstName,
+        lastName: userInfo.lastName,
+        username: userInfo.username,
+        email: userInfo.email,
+        role: userInfo.role
+      };
+      localStorage.setItem('user', JSON.stringify(userData));
     }
     
     return accessToken;
   } catch (error) {
     console.error('Token refresh failed:', error);
-    // Clear invalid tokens
+    // Clear invalid tokens if refresh fails
     signOut();
     throw error;
   }
@@ -232,31 +232,19 @@ export const refreshToken = async () => {
 // Update user profile
 export const updateProfile = async (updatedData) => {
   try {
-    const authToken = localStorage.getItem('authToken');
+    const response = await authAPI.updateProfile(updatedData);
+
+    // After a successful update, the API might return new tokens or user info
+    if (response.accessToken) {
+        return handleAuthSuccess(response);
+    } 
     
-    if (!authToken) {
-      throw new Error('No authentication token available');
-    }
-    
-    // Get current profile first
-    const profileResponse = await makeAuthRequest('/profile', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json',
-      }
-    });
-    
-    // Update user data locally (profile update via users service would be through API Gateway)
+    // If no new tokens, just update local user data from response
     const currentUser = getCurrentUser();
-    const updatedUser = { ...currentUser, ...updatedData };
-    
+    const updatedUser = { ...currentUser, ...response.userInfo };
     localStorage.setItem('user', JSON.stringify(updatedUser));
     
-    // Notify all components about the update
-    notifyUserDataUpdate();
-    
-    return updatedUser;
+    return { user: updatedUser };
   } catch (error) {
     console.error('Update profile error:', error);
     throw error;
@@ -266,25 +254,9 @@ export const updateProfile = async (updatedData) => {
 // Change password
 export const changePassword = async (currentPassword, newPassword) => {
   try {
-    const authToken = localStorage.getItem('authToken');
-    
-    if (!authToken) {
-      throw new Error('No authentication token available');
-    }
-    
-    await makeAuthRequest('/change-password', {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        currentPassword,
-        newPassword
-      })
-    });
-    
-    return { success: true, message: 'Password changed successfully' };
+    // This function needs a corresponding endpoint in the auth service.
+    // Assuming the endpoint is /auth/change-password
+    await authAPI.changePassword({ currentPassword, newPassword });
   } catch (error) {
     console.error('Change password error:', error);
     throw error;
@@ -294,35 +266,10 @@ export const changePassword = async (currentPassword, newPassword) => {
 // Get user profile from auth service
 export const getUserProfile = async () => {
   try {
-    const response = await makeAuthRequest('/profile', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-        'Content-Type': 'application/json',
-      }
-    });
-    
-    const userData = {
-      id: response.userInfo.userId,
-      firstName: response.userInfo.firstName,
-      lastName: response.userInfo.lastName,
-      username: response.userInfo.username,
-      email: response.userInfo.email,
-      role: response.userInfo.role,
-      balance: response.userInfo.balance,
-      labsSolved: response.userInfo.labsSolved,
-      labsReviewed: response.userInfo.labsReviewed
-    };
-    
-    // Update localStorage with fresh data
-    localStorage.setItem('user', JSON.stringify(userData));
-    
-    // Notify all components about the update
-    notifyUserDataUpdate();
-    
-    return userData;
+    const response = await authAPI.getProfile();
+    return response;
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    console.error('Get user profile error:', error);
     throw error;
   }
 };
@@ -387,9 +334,4 @@ export const stopTokenRefresh = () => {
     clearInterval(refreshInterval);
     refreshInterval = null;
   }
-};
-
-// Function to notify all components about user data updates
-export const notifyUserDataUpdate = () => {
-  window.dispatchEvent(new CustomEvent('userDataUpdated'));
 }; 
