@@ -1,6 +1,6 @@
 # Import downloaded modules
 import grpc
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, func
 from sqlalchemy.orm import Session
 import minio
 
@@ -84,10 +84,33 @@ class ArticleService(service.ArticleServiceServicer):
         }
 
         with Session(self.engine) as session:
-            stmt = select(Article).offset((data["page_number"] - 1) * data["page_size"]).limit(data["page_size"])
+            total_count_stmt = select(func.count(Article.id))
+            total_count = session.execute(total_count_stmt).scalar()
+
+            stmt = select(Article).order_by(Article.created_at.desc()).offset((data["page_number"] - 1) * data["page_size"]).limit(data["page_size"])
             articles = session.execute(stmt).scalars().all()
 
-            article_list = stub.ArticleList(total_count=len(articles))
+            article_list = stub.ArticleList(total_count=total_count)
+            for article in articles:
+                article_list.articles.append(stub.Article(**article.get_attrs()))
+
+            return article_list
+
+    def GetArticlesByAuthorId(self, request, context) -> stub.ArticleList:
+        data: dict = {
+            "author_id": request.author_id,
+            "page_number": request.page_number,
+            "page_size": request.page_size
+        }
+
+        with Session(self.engine) as session:
+            total_count_stmt = select(func.count(Article.id)).where(Article.owner_id == data["author_id"])
+            total_count = session.execute(total_count_stmt).scalar()
+
+            stmt = select(Article).where(Article.owner_id == data["author_id"]).order_by(Article.created_at.desc()).offset((data["page_number"] - 1) * data["page_size"]).limit(data["page_size"])
+            articles = session.execute(stmt).scalars().all()
+
+            article_list = stub.ArticleList(total_count=total_count)
             for article in articles:
                 article_list.articles.append(stub.Article(**article.get_attrs()))
 

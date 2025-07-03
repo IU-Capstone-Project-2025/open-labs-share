@@ -77,6 +77,52 @@ public class ArticleService {
         return buildArticleResponse(article, author);
     }
 
+    public ArticleListResponse getArticlesByAuthor(long authorId, GetArticlesRequest request) {
+        log.debug("Getting articles list for author {} - page: {}, limit: {}", authorId, request.getPage(), request.getLimit());
+
+        // Step 1: Get the full user profile, which includes a list of their article IDs and titles.
+        UserResponse authorWithContent = userService.getUserById(authorId);
+        List<UserResponse.ArticleSummary> articleSummaries = authorWithContent.getArticles();
+
+        if (articleSummaries == null || articleSummaries.isEmpty()) {
+            return ArticleListResponse.builder()
+                    .articles(new ArrayList<>())
+                    .pagination(ArticleListResponse.PaginationResponse.builder()
+                            .currentPage(1).totalPages(0).totalItems(0).build())
+                    .build();
+        }
+
+        // Step 2: Paginate the list of article summaries manually.
+        int totalItems = articleSummaries.size();
+        int totalPages = (int) Math.ceil((double) totalItems / request.getLimit());
+        int start = (request.getPage() - 1) * request.getLimit();
+        int end = Math.min(start + request.getLimit(), totalItems);
+
+        List<ArticleResponse> articleResponses = new ArrayList<>();
+        if (start < end) {
+            List<UserResponse.ArticleSummary> paginatedSummaries = articleSummaries.subList(start, end);
+
+            // Step 3: Fetch full details for each article in the paginated list.
+            for (UserResponse.ArticleSummary summary : paginatedSummaries) {
+                // This will make a gRPC call for each article.
+                // For high-traffic scenarios, a batch-get method would be more efficient.
+                articleResponses.add(getArticleById(summary.getArticleId()));
+            }
+        }
+
+        ArticleListResponse.PaginationResponse pagination =
+                ArticleListResponse.PaginationResponse.builder()
+                        .currentPage(request.getPage())
+                        .totalPages(totalPages)
+                        .totalItems(totalItems)
+                        .build();
+
+        return ArticleListResponse.builder()
+                .articles(articleResponses)
+                .pagination(pagination)
+                .build();
+    }
+
     public ArticleListResponse getArticles(GetArticlesRequest request) {
         log.debug("Getting articles list - page: {}, limit: {}", request.getPage(), request.getLimit());
 
@@ -94,7 +140,7 @@ public class ArticleService {
                 // TODO: Implement batch loading with caching for better performance
                 UserResponse author;
                 if (authorCache.containsKey(article.getOwnerId())) {
-                    author = authorCache.get(article.getArticleId());
+                    author = authorCache.get(article.getOwnerId());
                 } else {
                     author = userService.getUserById(article.getOwnerId());
                     authorCache.put(article.getOwnerId(), author);
@@ -105,8 +151,7 @@ public class ArticleService {
 
             // Calculate pagination
             int totalItems = (int) grpcResponse.getTotalCount();
-            // TODO: put data about the number of available pages in database
-            int totalPages = 1;
+            int totalPages = (int) Math.ceil((double) totalItems / request.getLimit());
 
             ArticleListResponse.PaginationResponse pagination =
                     ArticleListResponse.PaginationResponse.builder()
@@ -137,7 +182,7 @@ public class ArticleService {
 
         // TODO: Send to article-service also the id of user request. The service itself should handle this.
         // Check if the requesting user is the owner
-        if (article.getOwnerId() == articleId) {
+        if (article.getOwnerId() != requestingUserId) {
             log.warn("User {} attempted to delete article {} owned by user {}",
                     requestingUserId, articleId, article.getOwnerId());
             throw new ForbiddenAccessException("You have no access to delete this article");

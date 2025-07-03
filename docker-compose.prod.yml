@@ -5,6 +5,9 @@ services:
     build:
       context: ./frontend
       dockerfile: ../docker/Dockerfile.frontend.prod
+      args:
+        VITE_API_GATEWAY_ENDPOINT: /api/v1
+        VITE_AUTH_API_ENDPOINT: /api/v1/auth
     ports:
       - "80:80"
     restart: always

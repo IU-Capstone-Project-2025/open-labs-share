@@ -3,6 +3,8 @@
 
 import { authAPI } from './api';
 
+const AUTH_API_ENDPOINT = import.meta.env.VITE_AUTH_API_ENDPOINT;
+
 // Helper function to make API calls
 const makeAuthRequest = async (endpoint, options = {}) => {
   const url = `${AUTH_API_ENDPOINT}${endpoint}`;
@@ -183,6 +185,31 @@ export const signOut = async () => {
   }
 };
 
+// ---
+// Event-based mechanism for components to listen for user data changes
+// ---
+
+// Function to dispatch a custom event when user data is updated
+export const notifyUserDataUpdate = () => {
+  const event = new Event('userDataUpdated');
+  window.dispatchEvent(event);
+};
+
+// Helper for components to subscribe to user data updates
+export const setupAuthEventListeners = (callback) => {
+  const handleUpdate = () => {
+    const user = getCurrentUser();
+    callback(user);
+  };
+
+  window.addEventListener('userDataUpdated', handleUpdate);
+
+  // Return a cleanup function
+  return () => {
+    window.removeEventListener('userDataUpdated', handleUpdate);
+  };
+};
+
 // Refresh token
 export const refreshToken = async () => {
   try {
@@ -218,6 +245,9 @@ export const refreshToken = async () => {
         role: userInfo.role
       };
       localStorage.setItem('user', JSON.stringify(userData));
+      
+      // Notify all parts of the app about the update
+      notifyUserDataUpdate();
     }
     
     return accessToken;
@@ -236,13 +266,16 @@ export const updateProfile = async (updatedData) => {
 
     // After a successful update, the API might return new tokens or user info
     if (response.accessToken) {
-        return handleAuthSuccess(response);
+      const result = handleAuthSuccess(response);
+      notifyUserDataUpdate();
+      return result;
     } 
     
     // If no new tokens, just update local user data from response
     const currentUser = getCurrentUser();
     const updatedUser = { ...currentUser, ...response.userInfo };
     localStorage.setItem('user', JSON.stringify(updatedUser));
+    notifyUserDataUpdate();
     
     return { user: updatedUser };
   } catch (error) {
