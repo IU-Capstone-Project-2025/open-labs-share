@@ -90,7 +90,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
       return;
     }
 
-      setUploading(true);
+    setUploading(true);
     try {
       const formData = new FormData();
       formData.append('title', labData.title);

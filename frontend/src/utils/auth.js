@@ -78,11 +78,31 @@ export const isAuthenticated = () => {
 // Sign in with email/username and password
 export const signIn = async (emailOrUsername, password) => {
   try {
-    const response = await authAPI.login({
+    const response = await makeAuthRequest('/login', {
+      method: 'POST',
+      body: JSON.stringify({
         usernameOrEmail: emailOrUsername,
-      password: password,
+        password: password
+      })
     });
-    return handleAuthSuccess(response);
+    
+    // Store user data and token from auth service response
+    const { accessToken, refreshToken, userInfo } = response;
+    
+    const userData = {
+      id: userInfo.userId,
+      firstName: userInfo.firstName,
+      lastName: userInfo.lastName,
+      username: userInfo.username,
+      email: userInfo.email,
+      role: userInfo.role
+    };
+    
+    localStorage.setItem('authToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+    localStorage.setItem('user', JSON.stringify(userData));
+    
+    return { user: userData, token: accessToken };
   } catch (error) {
     console.error('Sign in error:', error);
     throw error;
@@ -93,15 +113,41 @@ export const signIn = async (emailOrUsername, password) => {
 export const signUp = async (userData) => {
   try {
     const { firstName, lastName, username, email, password } = userData;
-    const response = await authAPI.register({
+    
+    // Validate required fields
+    if (!firstName || !lastName || !username || !email || !password) {
+      throw new Error('All fields are required');
+    }
+    
+    const response = await makeAuthRequest('/register', {
+      method: 'POST',
+      body: JSON.stringify({
         firstName,
         lastName,
         username,
         email,
         password,
-      role: 'ROLE_USER', // Default role
+        role: 'ROLE_USER' // Default role
+      })
     });
-    return handleAuthSuccess(response);
+    
+    // Store user data and token from auth service response
+    const { accessToken, refreshToken, userInfo } = response;
+    
+    const userDataToStore = {
+      id: userInfo.userId,
+      firstName: userInfo.firstName,
+      lastName: userInfo.lastName,
+      username: userInfo.username,
+      email: userInfo.email,
+      role: userInfo.role
+    };
+    
+    localStorage.setItem('authToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+    localStorage.setItem('user', JSON.stringify(userDataToStore));
+    
+    return { user: userDataToStore, token: accessToken };
   } catch (error) {
     console.error('Sign up error:', error);
     throw error;
@@ -111,8 +157,18 @@ export const signUp = async (userData) => {
 // Sign out
 export const signOut = async () => {
   try {
+    const authToken = localStorage.getItem('authToken');
+    
+    if (authToken) {
       // Call logout endpoint to invalidate token on server
-    await authAPI.logout();
+      await makeAuthRequest('/logout', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        }
+      });
+    }
   } catch (error) {
     console.error('Logout API call failed, proceeding with local cleanup:', error);
     // Continue with local logout even if API call fails
@@ -131,13 +187,40 @@ export const signOut = async () => {
 export const refreshToken = async () => {
   try {
     const refreshTokenValue = localStorage.getItem('refreshToken');
-    if (!refreshTokenValue) throw new Error('No refresh token available');
     
-    const response = await authAPI.refreshToken({ refreshToken: refreshTokenValue });
+    if (!refreshTokenValue) {
+      throw new Error('No refresh token available');
+    }
     
-    // After a successful refresh, the API returns new tokens and user info
-    return handleAuthSuccess(response);
-
+    const response = await makeAuthRequest('/refresh', {
+      method: 'POST',
+      body: JSON.stringify({
+        refreshToken: refreshTokenValue
+      })
+    });
+    
+    const { accessToken, refreshToken: newRefreshToken, userInfo } = response;
+    
+    // Update stored tokens
+    localStorage.setItem('authToken', accessToken);
+    if (newRefreshToken) {
+      localStorage.setItem('refreshToken', newRefreshToken);
+    }
+    
+    // Update user info if provided
+    if (userInfo) {
+      const userData = {
+        id: userInfo.userId,
+        firstName: userInfo.firstName,
+        lastName: userInfo.lastName,
+        username: userInfo.username,
+        email: userInfo.email,
+        role: userInfo.role
+      };
+      localStorage.setItem('user', JSON.stringify(userData));
+    }
+    
+    return accessToken;
   } catch (error) {
     console.error('Token refresh failed:', error);
     // Clear invalid tokens if refresh fails
