@@ -66,7 +66,7 @@ export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
 
   const content = (
     <div className="max-w-2xl mx-auto">
-      <h2 className="text-2xl font-bold text-msc dark:text-white mb-6">
+      <h2 className="text-3xl font-bold font-display text-gray-900 dark:text-white mb-6">
         Create New Article
       </h2>
       

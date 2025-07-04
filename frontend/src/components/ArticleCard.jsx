@@ -12,16 +12,16 @@ export default function ArticleCard({ article }) {
         </h3>
 
         <p className="text-msc dark:text-gray-300 text-sm line-clamp-2">
-          {article.description}
+          {article.shortDesc}
         </p>
 
         <div className="flex items-center pt-2">
           <div className="w-6 h-6 rounded-full bg-msc flex items-center justify-center text-white text-xs font-medium mr-2">
-            {article.author?.firstName?.[0]}
-            {article.author?.lastName?.[0]}
+            {article.authorName?.[0]}
+            {article.authorSurname?.[0]}
           </div>
           <span className="text-base text-msc font-semibold dark:text-gray-300">
-            {article.author?.firstName} {article.author?.lastName}
+            {article.authorName} {article.authorSurname}
           </span>
         </div>
       </div>
