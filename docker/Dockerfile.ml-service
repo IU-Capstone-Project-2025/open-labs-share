@@ -34,9 +34,5 @@ EXPOSE 8081
 ENV PYTHONPATH=/app/ml
 ENV DEVICE=cpu
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8081/docs || exit 1
-
 # Run the startup script
 CMD ["/app/startup.sh"] 
