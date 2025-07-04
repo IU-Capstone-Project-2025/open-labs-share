@@ -319,7 +319,7 @@ export const getUserProfile = async () => {
       localStorage.setItem('user', JSON.stringify(userData));
 
       // Notify all parts of the app that user data has been updated
-      notifyUserDataUpdate();
+      // notifyUserDataUpdate();
       
       return userData;
     }

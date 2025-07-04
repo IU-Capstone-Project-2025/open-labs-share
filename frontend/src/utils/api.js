@@ -35,9 +35,17 @@ const apiCall = async (path, options = {}) => {
     const response = await fetch(url, { ...options, headers });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({
-        message: `API call failed with status ${response.status}`,
-      }));
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        const textResponse = await response.text();
+        // Give up on providing a detailed error message if the response is too long
+        const shortText = textResponse.length > 500 ? textResponse.substring(0, 500) + '...' : textResponse;
+        errorData = { 
+          message: `API call failed with status ${response.status}. Server response: ${shortText}` 
+        };
+      }
       throw new Error(errorData.message || `API error: ${response.statusText}`);
     }
 
@@ -188,18 +196,30 @@ export const submissionsAPI = {
     method: 'POST',
     body: formData,
   }),
-  submitLabFile: async (labId, userId, file) => {
-    const submissionData = { lab_id: parseInt(labId), owner_id: userId, status: 'submitted' };
+  submitLabSolution: async (labId, userId, solutionText, files) => {
+    // 1. Create submission record
+    const submissionData = {
+      lab_id: parseInt(labId),
+      owner_id: userId,
+      status: 'submitted',
+      text: solutionText, // Assuming the backend can handle a 'text' field for the solution comment
+    };
     const submissionResponse = await submissionsAPI.createSubmission(submissionData);
     const submissionId = submissionResponse.id || submissionResponse.data?.id;
-
     if (!submissionId) throw new Error('Failed to create submission record.');
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const uploadResponse = await submissionsAPI.uploadSubmissionAsset(submissionId, formData);
-    return { submission: submissionResponse, upload: uploadResponse };
+
+    // 2. Upload all files associated with the submission
+    if (files && files.length > 0) {
+      const uploadPromises = files.map(file => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return submissionsAPI.uploadSubmissionAsset(submissionId, formData);
+      });
+      const uploads = await Promise.all(uploadPromises);
+      return { submission: submissionResponse, uploads };
+    }
+
+    return { submission: submissionResponse };
   },
 };
 
