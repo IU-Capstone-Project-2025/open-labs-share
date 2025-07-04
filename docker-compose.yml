@@ -87,8 +87,7 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
     restart: unless-stopped
     depends_on:
-      postgres-users:
-        condition: service_healthy
+      - postgres-users
     networks:
       - app-network
 
@@ -116,12 +115,9 @@ services:
       - MONGODB_NAME=labs_mongo_db
     restart: unless-stopped
     depends_on:
-      postgres-labs:
-        condition: service_healthy
-      mongodb-labs:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+      - postgres-labs
+      - mongodb-labs
+      - minio
     networks:
       - app-network
 
@@ -144,10 +140,8 @@ services:
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
     restart: unless-stopped
     depends_on:
-      postgres-articles:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+      - postgres-articles
+      - minio
     networks:
       - app-network
 
@@ -171,10 +165,8 @@ services:
       - MINIO_USE_SSL=false
     restart: unless-stopped
     depends_on:
-      postgres-feedback:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+      - postgres-feedback
+      - minio
     networks:
       - app-network
 
@@ -186,12 +178,6 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_USERS_PASSWORD}
     volumes:
       - postgres-users-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U users_user -d users_service"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
     restart: unless-stopped
     networks:
       - app-network
@@ -204,12 +190,6 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD}
     volumes:
       - postgres-feedback-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U feedback_user -d feedback_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
     restart: unless-stopped
     networks:
       - app-network
@@ -222,12 +202,6 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_LABS_PASSWORD}
     volumes:
       - postgres-labs-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U labs_user -d labs_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
     restart: unless-stopped
     networks:
       - app-network
@@ -240,12 +214,6 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_ARTICLES_PASSWORD}
     volumes:
       - postgres-articles-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U articles_user -d articles_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
     restart: unless-stopped
     networks:
       - app-network
@@ -274,8 +242,7 @@ services:
       - ml-models:/app/models
     restart: unless-stopped
     depends_on:
-      postgres-ml:
-        condition: service_healthy
+      - postgres-ml
     networks:
       - app-network
 
@@ -287,12 +254,6 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD}
     volumes:
       - postgres-ml-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ml_user -d chat_history_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
     restart: unless-stopped
     networks:
       - app-network
@@ -308,11 +269,6 @@ services:
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
     volumes:
       - minio-data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
     restart: unless-stopped
     networks:
       - app-network
@@ -325,11 +281,6 @@ services:
       - MONGO_INITDB_DATABASE=labs_mongo_db
     volumes:
       - mongodb-labs-data:/data/db
-    healthcheck:
-      test: ["CMD-SHELL", "echo 'db.runCommand(\"ping\").ok' | mongosh localhost:27017/labs_mongo_db --quiet"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     restart: unless-stopped
     networks:
       - app-network
