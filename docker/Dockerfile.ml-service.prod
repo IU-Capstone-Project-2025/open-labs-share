@@ -50,7 +50,4 @@ ENV DEVICE=cpu
 
 EXPOSE 8081
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8081/docs || exit 1
-
 CMD ["/app/startup.sh"] 

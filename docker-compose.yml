@@ -186,6 +186,11 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_USERS_PASSWORD}
     volumes:
       - postgres-users-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U users_user -d users_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
     networks:
       - app-network
@@ -199,7 +204,7 @@ services:
     volumes:
       - postgres-feedback-data:/var/lib/postgresql/data
     healthcheck:
-      test: pg_isready -U feedback_user -d feedback_db
+      test: ["CMD-SHELL", "pg_isready -U feedback_user -d feedback_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -216,7 +221,7 @@ services:
     volumes:
       - postgres-labs-data:/var/lib/postgresql/data
     healthcheck:
-      test: pg_isready -U labs_user -d labs_db
+      test: ["CMD-SHELL", "pg_isready -U labs_user -d labs_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -233,7 +238,7 @@ services:
     volumes:
       - postgres-articles-data:/var/lib/postgresql/data
     healthcheck:
-      test: pg_isready -U articles_user -d articles_db
+      test: ["CMD-SHELL", "pg_isready -U articles_user -d articles_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -279,7 +284,7 @@ services:
     volumes:
       - postgres-ml-data:/var/lib/postgresql/data
     healthcheck:
-      test: pg_isready -U ml_user -d chat_history_db
+      test: ["CMD-SHELL", "pg_isready -U ml_user -d chat_history_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -316,7 +321,7 @@ services:
     volumes:
       - mongodb-labs-data:/data/db
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/labs_mongo_db --quiet
+      test: ["CMD-SHELL", "echo 'db.runCommand(\"ping\").ok' | mongosh localhost:27017/labs_mongo_db --quiet"]
       interval: 10s
       timeout: 5s
       retries: 5
