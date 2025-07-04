@@ -263,47 +263,75 @@ export const refreshToken = async () => {
 export const updateProfile = async (updatedData) => {
   try {
     const response = await authAPI.updateProfile(updatedData);
-
-    // After a successful update, the API might return new tokens or user info
-    if (response.accessToken) {
-      const result = handleAuthSuccess(response);
-      notifyUserDataUpdate();
-      return result;
-    } 
     
-    // If no new tokens, just update local user data from response
-    const currentUser = getCurrentUser();
-    const updatedUser = { ...currentUser, ...response.userInfo };
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    notifyUserDataUpdate();
+    // Assuming the API returns the full updated user object
+    const { userInfo } = response;
     
-    return { user: updatedUser };
+    if (userInfo) {
+      const updatedUser = {
+        id: userInfo.userId,
+        firstName: userInfo.firstName,
+        lastName: userInfo.lastName,
+        username: userInfo.username,
+        email: userInfo.email,
+        role: userInfo.role,
+      };
+      
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      notifyUserDataUpdate(); // Notify components of the change
+    }
+    
+    return response;
   } catch (error) {
     console.error('Update profile error:', error);
     throw error;
   }
 };
 
-// Change password
+// Change user password
 export const changePassword = async (currentPassword, newPassword) => {
   try {
-    // This function needs a corresponding endpoint in the auth service.
-    // Assuming the endpoint is /auth/change-password
-    await authAPI.changePassword({ currentPassword, newPassword });
+    const response = await authAPI.changePassword({ currentPassword, newPassword });
+    return response;
   } catch (error) {
     console.error('Change password error:', error);
     throw error;
   }
 };
 
-// Get user profile from auth service
+// Fetch user profile from the server and update local storage
 export const getUserProfile = async () => {
   try {
     const response = await authAPI.getProfile();
-    return response;
+    const { userInfo } = response;
+
+    if (userInfo) {
+      const userData = {
+        id: userInfo.userId,
+        firstName: userInfo.firstName,
+        lastName: userInfo.lastName,
+        username: userInfo.username,
+        email: userInfo.email,
+        role: userInfo.role,
+      };
+
+      // Update local storage
+      localStorage.setItem('user', JSON.stringify(userData));
+
+      // Notify all parts of the app that user data has been updated
+      notifyUserDataUpdate();
+      
+      return userData;
+    }
+    return null;
   } catch (error) {
     console.error('Get user profile error:', error);
-    throw error;
+    // If token is expired or invalid, sign out the user
+    if (error.message.includes('401') || error.message.includes('403')) {
+      await signOut();
+      window.location.href = '/login'; // Redirect to login
+    }
+    return null;
   }
 };
 
@@ -368,3 +396,13 @@ export const stopTokenRefresh = () => {
     refreshInterval = null;
   }
 }; 
+
+// Helper function to handle user data updates across tabs
+function handleCrossTabUpdate(event) {
+  if (event.key === 'user' || event.key === 'isAuthenticated') {
+    window.dispatchEvent(new CustomEvent('userDataUpdated'));
+  }
+}
+
+// Listen for storage changes in other tabs
+window.addEventListener('storage', handleCrossTabUpdate); 
