@@ -39,7 +39,8 @@ export default function LabPage() {
   const [activeId, setActiveId] = useState("");
   const observer = useRef();
   const contentRef = useRef();
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
+  const [submissionText, setSubmissionText] = useState("");
   const fileInputRef = useRef(null);
   const dropzoneRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -58,19 +59,23 @@ export default function LabPage() {
   }, []);
 
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
+    const selectedFiles = Array.from(e.target.files);
+    if (selectedFiles.length > 0) {
+      setFiles((prevFiles) => [...prevFiles, ...selectedFiles]);
     }
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) {
-      setFile(droppedFile);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length > 0) {
+      setFiles((prevFiles) => [...prevFiles, ...droppedFiles]);
     }
+  };
+
+  const removeFile = (fileToRemove) => {
+    setFiles((prevFiles) => prevFiles.filter((file) => file !== fileToRemove));
   };
 
   const handleDragOver = (e) => {
@@ -87,23 +92,24 @@ export default function LabPage() {
   };
 
   const handleSubmit = async () => {
-    if (!file || !user || user.balance < 1) return;
+    if ((files.length === 0 && !submissionText.trim()) || !user || user.balance < 1) return;
 
     try {
       setUploading(true);
-      await submissionsAPI.submitLabFile(id, user.id, file);
-      
+      await submissionsAPI.submitLabSolution(id, user.id, submissionText, files);
+
       // Update user's balance locally after successful submission
       const updatedUser = { ...user, balance: user.balance - 1 };
-      
+
       // Store updated user data in localStorage
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+
       // Notify all components about the user data update (including this component)
       notifyUserDataUpdate();
-      
-      alert(`The file "${file.name}" uploaded successfully!`);
-      setFile(null);
+
+      alert(`Your solution was uploaded successfully!`);
+      setFiles([]);
+      setSubmissionText("");
     } catch (err) {
       console.error("Upload error:", err);
       alert("Upload failed: " + err.message);
@@ -437,71 +443,105 @@ Lab content delivery is currently being developed. The markdown content for this
             </div>
           </div>
 
-          <div
-            ref={dropzoneRef}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onClick={handleUploadClick}
-            className={`border-2 ${
-              isDragging ? "border-msc" : "border-dashed border-blue-blue"
-            } rounded-lg p-8 text-center cursor-pointer transition-colors ${
-              isDragging
-                ? "bg-blue-50 dark:bg-gray-800"
-                : "bg-gray-50 dark:bg-gray-750"
-            }`}
-          >
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              className="hidden"
-            />
-            <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center bg-light-blue-hover dark:bg-gray-700 rounded-full">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-light-blue"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                />
-              </svg>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="solution_text" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Your Solution/Comment
+              </label>
+              <textarea
+                id="solution_text"
+                name="solution_text"
+                rows="4"
+                className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                value={submissionText}
+                onChange={(e) => setSubmissionText(e.target.value)}
+                placeholder="Enter any comments or text-based solution here..."
+              ></textarea>
             </div>
-            {file ? (
-              <div className="text-center">
-                <p className="font-medium text-msc dark:text-white">
-                  The file is selected: {file.name}
-                </p>
-                <p className="text-sm text-light-blue dark:text-gray-400 mt-1">
-                  Click to select another file
-                </p>
+          </div>
+          
+          <div className="mt-6">
+            <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Upload Files
+            </p>
+            <div
+              ref={dropzoneRef}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onClick={handleUploadClick}
+              className={`border-2 ${
+                isDragging ? "border-msc" : "border-dashed border-blue-blue"
+              } rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                isDragging
+                  ? "bg-blue-50 dark:bg-gray-800"
+                  : "bg-gray-50 dark:bg-gray-750"
+              }`}
+            >
+              <input
+                type="file"
+                multiple
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center bg-light-blue-hover dark:bg-gray-700 rounded-full">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6 text-light-blue"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                  />
+                </svg>
               </div>
-            ) : (
               <div className="text-center">
                 <p className="text-lg font-medium text-msc dark:text-white">
                   {isDragging
-                    ? "Put the file here"
-                    : "Select the file or put it here"}
+                    ? "Drop files here"
+                    : "Select files or drop them here"}
                 </p>
                 <p className="text-sm text-light-blue dark:text-gray-400 mt-1">
-                  Supported file formats: PDF
+                  You can upload multiple files
                 </p>
               </div>
-            )}
+            </div>
           </div>
+
+          {files.length > 0 && (
+            <div className="mt-4">
+              <h4 className="font-medium dark:text-white">Selected files:</h4>
+              <ul className="mt-2 space-y-2">
+                {files.map((file, index) => (
+                  <li key={index} className="flex items-center justify-between bg-gray-100 dark:bg-gray-700 p-2 rounded-md">
+                    <span className="text-sm text-gray-800 dark:text-gray-300 truncate">{file.name}</span>
+                    <button
+                      onClick={() => removeFile(file)}
+                      className="text-red-500 hover:text-red-700"
+                      title="Remove file"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className="mt-6 flex flex-col items-center">
             <button
               onClick={handleSubmit}
-              disabled={!file || uploading || !user || (user && user.balance < 1)}
+              disabled={(!submissionText.trim() && files.length === 0) || uploading || !user || (user && user.balance < 1)}
               className={`px-16 py-3 rounded-md font-medium ${
-                file && !uploading && user && user.balance >= 1
+                (submissionText.trim() || files.length > 0) && !uploading && user && user.balance >= 1
                   ? "bg-msc text-white hover:bg-msc-dark"
                   : "bg-light-blue-hover dark:bg-gray-600 text-gray-500 font-inter dark:text-gray-400 cursor-not-allowed"
               } transition-colors`}
