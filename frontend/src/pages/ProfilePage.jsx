@@ -48,8 +48,8 @@ export default function ProfilePage() {
             // Set user stats
             setUserStats({
               pointsBalance: userData.balance || 0,
-              labsSolved: 0, // Placeholder
-              labsReviewed: 0, // Placeholder
+              labsSolved: userData.labsSolved || 0,
+              labsReviewed: userData.labsReviewed || 0,
             });
             
             const profileData = {
@@ -72,8 +72,8 @@ export default function ProfilePage() {
             // Set user stats from cached data
             setUserStats({
               pointsBalance: currentUser.balance || 0,
-              labsSolved: 0, // Placeholder
-              labsReviewed: 0, // Placeholder
+              labsSolved: currentUser.labsSolved || 0,
+              labsReviewed: currentUser.labsReviewed || 0,
             });
             
             const profileData = {
