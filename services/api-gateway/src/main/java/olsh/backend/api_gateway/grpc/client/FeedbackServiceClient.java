@@ -86,154 +86,114 @@ public class FeedbackServiceClient {
         }
     }
 
-    /**
-     * Retrieves feedback for a specific student's submission.
-     *
-     * @param studentId    ID of the student
-     * @param submissionId ID of the submission
-     * @return The feedback for the specified submission
-     * @throws FeedbackNotFoundException if no feedback exists for the submission
-     * @throws RuntimeException          if the gRPC call fails
-     */
-    public Feedback getStudentFeedback(Long studentId, Long submissionId) {
-        log.debug("Calling gRPC GetStudentFeedback for student ID: {}, submission ID: {}", studentId, submissionId);
-        try {
-            GetStudentFeedbackRequest request = GetStudentFeedbackRequest.newBuilder()
-                    .setStudentId(studentId)
-                    .setSubmissionId(submissionId)
-                    .build();
-            Feedback response = blockingStub.getStudentFeedback(request);
-            log.debug("Successfully retrieved feedback via gRPC with ID: {}", response.getId());
-            return response;
-        } catch (Exception e) {
-            log.error("Error calling GetStudentFeedback gRPC: {}", e.getMessage(), e);
-            if (e.getMessage().contains("NOT_FOUND")) {
-                throw new FeedbackNotFoundException("Feedback not found for the specified submission");
-            }
-            throw new RuntimeException("Failed to get student feedback via gRPC", e);
+/**
+ * Retrieves feedback for a specific student's submission.
+ *
+ * @param request gRPC request containing studentId and submissionId
+ * @return The feedback for the specified submission
+ * @throws FeedbackNotFoundException if no feedback exists for the submission
+ * @throws RuntimeException if the gRPC call fails
+ */
+public Feedback getStudentFeedback(GetStudentFeedbackRequest request) {
+    log.debug("Calling gRPC GetStudentFeedback for student ID: {}, submission ID: {}", request.getStudentId(), request.getSubmissionId());
+    try {
+        Feedback response = blockingStub.getStudentFeedback(request);
+        log.debug("Successfully retrieved feedback via gRPC with ID: {}", response.getId());
+        return response;
+    } catch (Exception e) {
+        log.error("Error calling GetStudentFeedback gRPC: {}", e.getMessage(), e);
+        if (e.getMessage().contains("NOT_FOUND")) {
+            throw new FeedbackNotFoundException("Feedback not found for the specified submission");
         }
+        throw new RuntimeException("Failed to get student feedback via gRPC", e);
     }
+}
 
     /**
      * Lists feedbacks for a student with pagination.
      * Optionally filters by submission ID.
      *
-     * @param studentId    ID of the student
-     * @param submissionId Optional submission ID to filter by
-     * @param page         Page number (1-based)
-     * @param limit        Number of items per page
+     * @param request gRPC request containing student ID, optional submission ID, page number, and limit
      * @return Paginated list of feedbacks with total count
      * @throws RuntimeException if the gRPC call fails
      */
-    public ListStudentFeedbacksResponse listStudentFeedbacks(Long studentId, Long submissionId, Integer page,
-                                                             Integer limit) {
+    public ListStudentFeedbacksResponse listStudentFeedbacks(ListStudentFeedbacksRequest request) {
         log.debug("Calling gRPC ListStudentFeedbacks for student ID: {}, submission ID: {}, page: {}, limit: {}",
-                studentId, submissionId, page, limit);
+                request.getStudentId(), request.getSubmissionId(), request.getPage(), request.getLimit());
         try {
-            ListStudentFeedbacksRequest.Builder requestBuilder = ListStudentFeedbacksRequest.newBuilder()
-                    .setStudentId(studentId)
-                    .setPage(page)
-                    .setLimit(limit);
-
-            if (submissionId != null) {
-                requestBuilder.setSubmissionId(submissionId);
-            }
-
-            ListStudentFeedbacksResponse response = blockingStub.listStudentFeedbacks(requestBuilder.build());
-            log.debug("Successfully retrieved {} feedbacks via gRPC (total: {})",
+            ListStudentFeedbacksResponse response = blockingStub.listStudentFeedbacks(request);
+            log.debug("Successfully retrieved {} feedbacks for student via gRPC (total: {})",
                     response.getFeedbacksCount(), response.getTotalCount());
             return response;
         } catch (Exception e) {
-            log.error("Error calling ListStudentFeedbacks gRPC for student ID {}: {}", studentId, e.getMessage(), e);
+            log.error("Error calling ListStudentFeedbacks gRPC for student ID {}: {}", request.getStudentId(),
+                    e.getMessage(), e);
             throw new RuntimeException("Failed to list student feedbacks via gRPC", e);
         }
     }
-
     /**
      * Lists feedbacks created by a reviewer with pagination.
      * Optionally filters by submission ID.
      *
-     * @param reviewerId   ID of the reviewer
-     * @param submissionId Optional submission ID to filter by
-     * @param page         Page number (1-based)
-     * @param limit        Number of items per page
+     * @param request   gRPC request containing reviewer ID, optional submission ID, page number, and limit
      * @return Paginated list of feedbacks with total count
      * @throws RuntimeException if the gRPC call fails
      */
-    public ListReviewerFeedbacksResponse listReviewerFeedbacks(Long reviewerId, Long submissionId, Integer page,
-                                                               Integer limit) {
-        log.debug("Calling gRPC ListReviewerFeedbacks for reviewer ID: {}, submission ID: {}, page: {}, limit: {}",
-                reviewerId, submissionId, page, limit);
-        try {
-            ListReviewerFeedbacksRequest.Builder requestBuilder = ListReviewerFeedbacksRequest.newBuilder()
-                    .setReviewerId(reviewerId)
-                    .setPage(page)
-                    .setLimit(limit);
-
-            if (submissionId != null) {
-                requestBuilder.setSubmissionId(submissionId);
-            }
-
-            ListReviewerFeedbacksResponse response = blockingStub.listReviewerFeedbacks(requestBuilder.build());
-            log.debug("Successfully retrieved {} feedbacks via gRPC (total: {})",
-                    response.getFeedbacksCount(), response.getTotalCount());
-            return response;
-        } catch (Exception e) {
-            log.error("Error calling ListReviewerFeedbacks gRPC for reviewer ID {}: {}", reviewerId, e.getMessage(), e);
-            throw new RuntimeException("Failed to list reviewer feedbacks via gRPC", e);
-        }
-    }
+   public ListReviewerFeedbacksResponse listReviewerFeedbacks(ListReviewerFeedbacksRequest request) {
+       log.debug("Calling gRPC ListReviewerFeedbacks for reviewer ID: {}, submission ID: {}, page: {}, limit: {}",
+               request.getReviewerId(), request.getSubmissionId(), request.getPage(), request.getLimit());
+       try {
+           ListReviewerFeedbacksResponse response = blockingStub.listReviewerFeedbacks(request);
+           log.debug("Successfully retrieved {} feedbacks for reviewer via gRPC (total: {})",
+                   response.getFeedbacksCount(), response.getTotalCount());
+           return response;
+       } catch (Exception e) {
+           log.error("Error calling ListReviewerFeedbacks gRPC for reviewer ID {}: {}", request.getReviewerId(), e.getMessage(), e);
+           throw new RuntimeException("Failed to list reviewer feedbacks via gRPC", e);
+       }
+   }
 
     /**
      * Deletes a feedback. Only the reviewer who created the feedback can delete it.
      *
-     * @param feedbackId ID of the feedback to delete
-     * @param reviewerId ID of the reviewer attempting to delete
+     * @param request gRPC request containing feedback ID and reviewer ID
      * @return true if deletion was successful, false otherwise
      * @throws FeedbackNotFoundException if the feedback doesn't exist
      * @throws RuntimeException          if the gRPC call fails
      */
-    public boolean deleteFeedback(String feedbackId, Long reviewerId) {
-        log.debug("Calling gRPC DeleteFeedback for feedback ID: {}, reviewer ID: {}", feedbackId, reviewerId);
+    public boolean deleteFeedback(DeleteFeedbackRequest request) {
+        log.debug("Calling gRPC DeleteFeedback for feedback ID: {}, reviewer ID: {}", request.getId(), request.getReviewerId());
         try {
-            DeleteFeedbackRequest request = DeleteFeedbackRequest.newBuilder()
-                    .setId(feedbackId)
-                    .setReviewerId(reviewerId)
-                    .build();
             DeleteFeedbackResponse response = blockingStub.deleteFeedback(request);
             log.debug("DeleteFeedback gRPC call completed with success: {}", response.getSuccess());
             return response.getSuccess();
         } catch (Exception e) {
             if (e.getMessage().contains("NOT_FOUND")) {
-                throw new FeedbackNotFoundException(String.format("Feedback with id=%s not found", feedbackId));
+                throw new FeedbackNotFoundException(String.format("Feedback with id=%s not found", request.getId()));
             }
-            log.error("Error calling DeleteFeedback gRPC for ID {}: {}", feedbackId, e.getMessage(), e);
+            log.error("Error calling DeleteFeedback gRPC for ID {}: {}", request.getId(), e.getMessage(), e);
             throw new RuntimeException("Failed to delete feedback via gRPC", e);
         }
     }
 
     /**
-     * Gets a specific feedback by its ID.
-     * 
-     * @param feedbackId ID of the feedback to retrieve
+     * Retrieves a specific feedback by its ID.
+     *
+     * @param request gRPC request containing the feedback ID
      * @return The feedback if found
-     * @throws FeedbackNotFoundException if the feedback doesn't exist
+     * @throws FeedbackNotFoundException if the feedback does not exist
      * @throws RuntimeException if the gRPC call fails
      */
-    public Feedback getFeedbackById(String feedbackId) {
-        log.debug("Calling gRPC GetFeedbackById for feedback ID: {}", feedbackId);
+    public Feedback getFeedbackById(GetFeedbackByIdRequest request) {
+        log.debug("Calling gRPC GetFeedbackById for feedback ID: {}", request.getId());
         try {
-            GetFeedbackByIdRequest request = GetFeedbackByIdRequest.newBuilder()
-                    .setId(feedbackId)
-                    .build();
-
             Feedback response = blockingStub.getFeedbackById(request);
             log.debug("Successfully retrieved feedback via gRPC with ID: {}", response.getId());
             return response;
         } catch (Exception e) {
             log.error("Error calling GetFeedbackById gRPC: {}", e.getMessage(), e);
             if (e.getMessage().contains("NOT_FOUND")) {
-                throw new FeedbackNotFoundException(String.format("Feedback with id=%s not found", feedbackId));
+                throw new FeedbackNotFoundException(String.format("Feedback with id=%s not found", request.getId()));
             }
             throw new RuntimeException("Failed to get feedback via gRPC", e);
         }

@@ -13,9 +13,7 @@ import olsh.backend.api_gateway.grpc.proto.FeedbackProto;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -32,8 +30,22 @@ public class FeedbackService {
      */
     public FeedbackResponse createFeedback(CreateFeedbackRequest request, Long reviewerId) {
         log.info("Creating feedback for submission {} by reviewer {}", request.getSubmissionId(), reviewerId);
-        List<MultipartFile> files = new ArrayList<>(List.of(request.getFiles()));
+        List<MultipartFile> files = request.getFiles() != null ? new ArrayList<>(List.of(request.getFiles())) :
+                new ArrayList<>();
         validateFiles(files);
+        FeedbackProto.Feedback feedback = registerFeedback(request, reviewerId);
+        uploadAssetsForFeedback(reviewerId, feedback.getId(), files);
+        FeedbackResponse response = mapToFeedbackResponse(feedback);
+        log.info("Successfully created feedback {} for submission {}", response.getId(), response.getSubmissionId());
+        // Increment labs reviewed for the reviewer
+        userService.incrementLabsReviewed(reviewerId);
+        return response;
+    }
+
+    /**
+     * Registers feedback in the system (without attachments).
+     */
+    private FeedbackProto.Feedback registerFeedback(CreateFeedbackRequest request, Long reviewerId) {
         FeedbackProto.CreateFeedbackRequest protoRequest = FeedbackProto.CreateFeedbackRequest.newBuilder()
                 .setReviewerId(reviewerId)
                 .setStudentId(request.getStudentId())
@@ -42,19 +54,21 @@ public class FeedbackService {
                 .build();
         FeedbackProto.Feedback feedback = feedbackClient.createFeedback(protoRequest);
         log.debug("Feedback created with ID: {}", feedback.getId());
-        // Upload files if present
-        if (files != null && !files.isEmpty()) {
-            log.info("Uploading {} attachment(s) for feedback {}", files.size(), feedback.getId());
-            for (MultipartFile file : request.getFiles()) {
-                log.debug("Uploading file: {} (size: {} bytes)", file.getOriginalFilename(), file.getSize());
-                feedbackClient.uploadAttachment(reviewerId, feedback.getId(), file);
-            }
+        return feedback;
+    }
+
+    /**
+     * Uploads attachments for a feedback if present.
+     */
+    private void uploadAssetsForFeedback(Long reviewerId, String feedbackId, List<MultipartFile> files) {
+        if (files == null || files.isEmpty()) {
+            return;
         }
-        FeedbackResponse response = buildFeedbackResponse(feedback);
-        log.info("Successfully created feedback {} for submission {}", response.getId(), response.getSubmissionId());
-        // Increment labs reviewed for the reviewer
-        UserResponse user = userService.incrementLabsReviewed(reviewerId);
-        return response;
+        log.info("Uploading {} attachment(s) for feedback {}", files.size(), feedbackId);
+        for (MultipartFile file : files) {
+            log.debug("Uploading file: {} (size: {} bytes)", file.getOriginalFilename(), file.getSize());
+            feedbackClient.uploadAttachment(reviewerId, feedbackId, file);
+        }
     }
 
     public FeedbackResponse getFeedback(String feedbackId) {
@@ -63,21 +77,31 @@ public class FeedbackService {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Feedback ID should be of UUID format");
         }
-        FeedbackProto.Feedback feedback = feedbackClient.getFeedbackById(feedbackId);
-        FeedbackResponse response = buildFeedbackResponse(feedback);
+        log.info("Retrieving feedback with ID {}", feedbackId);
+        FeedbackProto.GetFeedbackByIdRequest grpcRequest = FeedbackProto.GetFeedbackByIdRequest.newBuilder()
+                .setId(feedbackId)
+                .build();
+        FeedbackProto.Feedback feedback = feedbackClient.getFeedbackById(grpcRequest);
+        FeedbackResponse response = mapToFeedbackResponse(feedback);
         log.debug("Successfully retrieved feedback with id {}", feedbackId);
         return response;
     }
 
     /**
-     * Gets feedback for a specific student's submission.
+     * Gets feedback for a specific student's submission. Use if you do not know the feedback ID.
      */
     public FeedbackResponse getStudentFeedback(Long studentId, Long submissionId) {
         log.info("Retrieving feedback for student {} and submission {}", studentId, submissionId);
-
-        FeedbackProto.Feedback feedback = feedbackClient.getStudentFeedback(studentId, submissionId);
-        FeedbackResponse response = buildFeedbackResponse(feedback);
-
+        if (submissionId <= 0) {
+            log.error("Submission ID must be positive");
+            throw new IllegalArgumentException("Submission ID must be positive");
+        }
+        FeedbackProto.GetStudentFeedbackRequest grpcRequest = FeedbackProto.GetStudentFeedbackRequest.newBuilder()
+                .setStudentId(studentId)
+                .setSubmissionId(submissionId)
+                .build();
+        FeedbackProto.Feedback feedback = feedbackClient.getStudentFeedback(grpcRequest);
+        FeedbackResponse response = mapToFeedbackResponse(feedback);
         log.debug("Retrieved feedback {} created by reviewer {}", response.getId(), response.getReviewer().getId());
         return response;
     }
@@ -90,14 +114,14 @@ public class FeedbackService {
         if (submissionId != null) {
             log.debug("Filtering by submission ID: {}", submissionId);
         }
-
-        FeedbackProto.ListStudentFeedbacksResponse response = feedbackClient.listStudentFeedbacks(studentId,
-                submissionId, page, limit);
-
-        List<FeedbackResponse> feedbacks = response.getFeedbacksList().stream()
-                .map(this::buildFeedbackResponse)
-                .collect(Collectors.toList());
-
+        FeedbackProto.ListStudentFeedbacksRequest grpcRequest = FeedbackProto.ListStudentFeedbacksRequest.newBuilder()
+                .setStudentId(studentId)
+                .setSubmissionId(submissionId != null ? submissionId : 0L) // Use 0 for no filter
+                .setPage(page)
+                .setLimit(limit)
+                .build();
+        FeedbackProto.ListStudentFeedbacksResponse response = feedbackClient.listStudentFeedbacks(grpcRequest);
+        List<FeedbackResponse> feedbacks = mapToFeedbackResponses(response.getFeedbacksList());
         log.debug("Retrieved {} feedbacks (total count: {})", feedbacks.size(), response.getTotalCount());
         return FeedbackListResponse.builder()
                 .feedbacks(feedbacks)
@@ -113,14 +137,14 @@ public class FeedbackService {
         if (submissionId != null) {
             log.debug("Filtering by submission ID: {}", submissionId);
         }
-
-        FeedbackProto.ListReviewerFeedbacksResponse response = feedbackClient.listReviewerFeedbacks(reviewerId,
-                submissionId, page, limit);
-
-        List<FeedbackResponse> feedbacks = response.getFeedbacksList().stream()
-                .map(this::buildFeedbackResponse)
-                .collect(Collectors.toList());
-
+        FeedbackProto.ListReviewerFeedbacksRequest grpcRequest = FeedbackProto.ListReviewerFeedbacksRequest.newBuilder()
+                .setReviewerId(reviewerId)
+                .setSubmissionId(submissionId != null ? submissionId : 0L) // Use 0 for no filter
+                .setPage(page)
+                .setLimit(limit)
+                .build();
+        FeedbackProto.ListReviewerFeedbacksResponse response = feedbackClient.listReviewerFeedbacks(grpcRequest);
+        List<FeedbackResponse> feedbacks = mapToFeedbackResponses(response.getFeedbacksList());
         log.debug("Retrieved {} feedbacks (total count: {})", feedbacks.size(), response.getTotalCount());
         return FeedbackListResponse.builder()
                 .feedbacks(feedbacks)
@@ -134,20 +158,21 @@ public class FeedbackService {
      */
     public DeleteFeedbackResponse deleteFeedback(String feedbackId, Long reviewerId) {
         log.info("Attempting to delete feedback {} by reviewer {}", feedbackId, reviewerId);
-
         // Verify the reviewer owns this feedback
         FeedbackProto.Feedback feedback = getFeedbackById(feedbackId);
         if (feedback.getReviewerId() != reviewerId) {
             log.warn("Unauthorized attempt to delete feedback {} by reviewer {}", feedbackId, reviewerId);
             throw new ForbiddenAccessException("Only the reviewer who created the feedback can delete it");
         }
-
-        boolean response = feedbackClient.deleteFeedback(feedbackId, reviewerId);
+        FeedbackProto.DeleteFeedbackRequest grpcRequest = FeedbackProto.DeleteFeedbackRequest.newBuilder()
+                .setId(feedbackId)
+                .setReviewerId(reviewerId)
+                .build();
+        boolean response = feedbackClient.deleteFeedback(grpcRequest);
         if (!response) {
             log.error("Failed to delete feedback {}", feedbackId);
             return new DeleteFeedbackResponse(false, "Failed to delete feedback");
         }
-
         log.info("Successfully deleted feedback {}", feedbackId);
         return new DeleteFeedbackResponse(true, "Feedback deleted successfully.");
     }
@@ -243,13 +268,31 @@ public class FeedbackService {
         }
     }
 
-    private FeedbackResponse buildFeedbackResponse(FeedbackProto.Feedback feedback) {
+    private List<FeedbackResponse> mapToFeedbackResponses(List<FeedbackProto.Feedback> feedbackList) {
+        Map<Long, UserResponse> userCache = new HashMap<>();
+        List<FeedbackResponse> responses = new ArrayList<>();
+        for (FeedbackProto.Feedback feedback : feedbackList) {
+            UserResponse student = userCache.computeIfAbsent(feedback.getStudentId(), userService::getUserByIdSafe);
+            UserResponse reviewer = userCache.computeIfAbsent(feedback.getReviewerId(), userService::getUserByIdSafe);
+            FeedbackResponse response = FeedbackResponse.builder()
+                    .id(feedback.getId())
+                    .submissionId(feedback.getSubmissionId())
+                    .content(feedback.getContent())
+                    .student(student)
+                    .reviewer(reviewer)
+                    .createdAt(TimestampConverter.convertTimestampToIso(feedback.getCreatedAt()))
+                    .updatedAt(TimestampConverter.convertTimestampToIso(feedback.getUpdatedAt()))
+                    .build();
+            responses.add(response);
+        }
+        return responses;
+    }
+
+    private FeedbackResponse mapToFeedbackResponse(FeedbackProto.Feedback feedback) {
         log.debug("Building feedback response for feedback {}", feedback.getId());
-
         // Get user data for student and reviewer
-        UserResponse student = userService.getUserById(feedback.getStudentId());
-        UserResponse reviewer = userService.getUserById(feedback.getReviewerId());
-
+        UserResponse student = userService.getUserByIdSafe(feedback.getStudentId());
+        UserResponse reviewer = userService.getUserByIdSafe(feedback.getReviewerId());
         return FeedbackResponse.builder()
                 .id(feedback.getId())
                 .submissionId(feedback.getSubmissionId())
@@ -273,10 +316,15 @@ public class FeedbackService {
     private FeedbackProto.Feedback getFeedbackById(String feedbackId) {
         log.debug("Retrieving feedback by ID: {}", feedbackId);
         try {
-            return feedbackClient.getFeedbackById(feedbackId);
+            UUID.fromString(feedbackId); // Validate UUID format
+            log.info("Fetching feedback with ID {}", feedbackId);
+            FeedbackProto.GetFeedbackByIdRequest grpcRequest = FeedbackProto.GetFeedbackByIdRequest.newBuilder()
+                    .setId(feedbackId)
+                    .build();
+            return feedbackClient.getFeedbackById(grpcRequest);
         } catch (Exception e) {
             log.error("Failed to retrieve feedback {}: {}", feedbackId, e.getMessage());
             throw new FeedbackNotFoundException("Feedback not found with ID: " + feedbackId);
         }
     }
-} 
+}

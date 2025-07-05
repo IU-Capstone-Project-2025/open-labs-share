@@ -69,7 +69,8 @@ public class FeedbackController {
     @RequireAuth
     public ResponseEntity<DeleteFeedbackResponse> deleteFeedback(
             @PathVariable String feedbackId,
-            @RequestAttribute Long userId) {
+            HttpServletRequest httpRequest) {
+        Long userId = attributesProvider.extractUserIdFromRequest(httpRequest);
         DeleteFeedbackResponse response = feedbackService.deleteFeedback(feedbackId, userId);
         return ResponseEntity.ok(response);
     }
@@ -86,7 +87,8 @@ public class FeedbackController {
     @RequireAuth
     public ResponseEntity<FeedbackResponse> getMyFeedback(
             @PathVariable Long submissionId,
-            @RequestAttribute Long userId) {
+            HttpServletRequest httpRequest) {
+        Long userId = attributesProvider.extractUserIdFromRequest(httpRequest);
         FeedbackResponse response = feedbackService.getStudentFeedback(submissionId, userId);
         return ResponseEntity.ok(response);
     }
@@ -154,14 +156,14 @@ public class FeedbackController {
             @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema =
             @Schema(implementation = ErrorResponse.class)))
     })
-    @GetMapping("/reviewer")
+    @GetMapping("/reviewer/{reviewerId}")
     @RequireAuth
     public ResponseEntity<FeedbackListResponse> listReviewerFeedbacks(
+            @PathVariable Long reviewerId,
             @Parameter(description = "Page number (1-based)", example = "1") @RequestParam(defaultValue = "1") Integer page,
             @Parameter(description = "Items per page", example = "20") @RequestParam(defaultValue = "20") Integer limit,
-            @Parameter(description = "Optional submission ID filter") @RequestParam(required = false) Long submissionId,
-            @RequestAttribute Long userId) {
-        FeedbackListResponse response = feedbackService.listReviewerFeedbacks(userId, submissionId, page, limit);
+            @Parameter(description = "Optional submission ID filter") @RequestParam(required = false) Long submissionId) {
+        FeedbackListResponse response = feedbackService.listReviewerFeedbacks(reviewerId, submissionId, page, limit);
         return ResponseEntity.ok(response);
     }
 } 
