@@ -23,8 +23,9 @@ export default function Sidebar({
 
   const navItems = [
     { path: "/home", name: "Home" },
-    { path: "/all-labs", name: "All Labs" },
-    { path: "/all-articles", name: "All Articles" },
+    { path: "/labs/all", name: "All Labs" },
+    { path: "/articles/all", name: "All Articles" },
+    { path: "/submissions/review", name: "Review Submissions"},
     {
       name: "Create",
       dropdown: [
@@ -38,6 +39,7 @@ export default function Sidebar({
     { path: "/profile", name: "Change Info" },
     { path: "/my-labs", name: "My Labs" },
     { path: "/my-articles", name: "My Articles" },
+    { path: "/submissions/my", name: "My Submissions" },
   ];
 
   const isProfileActive = profileDropdownItems.some(item => item.path === activePath);

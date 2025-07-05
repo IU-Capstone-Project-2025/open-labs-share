@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { BeakerIcon, EyeIcon } from "@heroicons/react/24/outline";
 import GemIcon from "./GemIcon";
 
@@ -64,27 +65,33 @@ export default function ActivityBalance({ stats }) {
         Your Activity & Balance
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard
-          icon={<GemIcon className="w-6 h-6 text-blue-600 dark:text-blue-300" />}
-          value={pointsBalance}
-          title="Points Balance"
-          description="Spend points to solve labs, earn points by reviewing others' solutions."
-          color="blue"
-        />
-        <StatCard
-          icon={<BeakerIcon className="w-6 h-6 text-green-600 dark:text-green-300" />}
-          value={labsSolved}
-          title="Labs Solved"
-          description="Total number of labs you've successfully completed."
-          color="green"
-        />
-        <StatCard
-          icon={<EyeIcon className="w-6 h-6 text-purple-600 dark:text-purple-300" />}
-          value={labsReviewed}
-          title="Labs Reviewed"
-          description="Total number of lab solutions you've reviewed for others."
-          color="purple"
-        />
+        <Link to="/labs/all" className="block hover:scale-105 transform transition-transform duration-300">
+          <StatCard
+            icon={<GemIcon className="w-6 h-6 text-blue-600 dark:text-blue-300" />}
+            value={pointsBalance}
+            title="Points Balance"
+            description="Spend points to solve labs, earn points by reviewing others' solutions. Click here to browse labs."
+            color="blue"
+          />
+        </Link>
+        <Link to="/submissions/my" className="block hover:scale-105 transform transition-transform duration-300">
+          <StatCard
+            icon={<BeakerIcon className="w-6 h-6 text-green-600 dark:text-green-300" />}
+            value={labsSolved}
+            title="Labs Solved"
+            description="Total number of labs you've successfully completed. Click here to view your submissions."
+            color="green"
+          />
+        </Link>
+        <Link to="/submissions/review" className="block hover:scale-105 transform transition-transform duration-300">
+          <StatCard
+            icon={<EyeIcon className="w-6 h-6 text-purple-600 dark:text-purple-300" />}
+            value={labsReviewed}
+            title="Labs Reviewed"
+            description="Total number of lab solutions you've reviewed for others. Click here to review more."
+            color="purple"
+          />
+        </Link>
       </div>
     </div>
   );

@@ -242,7 +242,10 @@ export const refreshToken = async () => {
         lastName: userInfo.lastName,
         username: userInfo.username,
         email: userInfo.email,
-        role: userInfo.role
+        role: userInfo.role,
+        balance: userInfo.balance,
+        labsSolved: userInfo.labsSolved,
+        labsReviewed: userInfo.labsReviewed,
       };
       localStorage.setItem('user', JSON.stringify(userData));
       
@@ -313,6 +316,9 @@ export const getUserProfile = async () => {
         username: userInfo.username,
         email: userInfo.email,
         role: userInfo.role,
+        balance: userInfo.balance,
+        labsSolved: userInfo.labsSolved,
+        labsReviewed: userInfo.labsReviewed,
       };
 
       // Update local storage
