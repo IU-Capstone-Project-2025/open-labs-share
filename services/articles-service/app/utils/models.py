@@ -28,10 +28,10 @@ class Article(Base, SerializerMixin):
         return {
             "article_id": self.id,
             "owner_id": self.owner_id,
-            "title": self.title.encode('utf-8').decode('utf-8'),
+            "title": self.title,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
-            "abstract": self.abstract.encode('utf-8').decode('utf-8'),
+            "abstract": self.abstract,
             "views": self.views,
             "stars": self.stars,
             "people_rated": self.people_rated
@@ -56,7 +56,7 @@ class ArticleAsset(Base, SerializerMixin):
         return {
             "asset_id": self.id,
             "article_id": self.article_id,
-            "filename": self.filename.encode('utf-8').decode('utf-8'),
+            "filename": self.filename,
             "filesize": self.filesize,
             "upload_date": self.upload_date
         }

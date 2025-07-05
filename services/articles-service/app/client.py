@@ -1,10 +1,18 @@
+# Import downloaded modules
 import grpc
-import proto.articles_pb2 as cf
-import proto.articles_pb2_grpc as cf_grpc
 
-from config import Config
+# Import built-in modules
+import sys
 import os
+import logging
 
+# Fixes import path for proto files
+sys.path.append(os.path.join(os.path.dirname(__file__), "proto"))
+
+# Import project files
+from config import Config
+import proto.articles_service_pb2 as cf
+import proto.articles_service_pb2_grpc as cf_grpc
 
 def CreateArticle(stub, number):
     response = stub.CreateArticle(cf.CreateArticleRequest(
@@ -30,12 +38,17 @@ def GetArticles(stub, page_number, page_size):
     print(response)
 
 
-def UpdateArticle(stub, article_id, title, abstract):
-    response = stub.UpdateArticle(cf.UpdateArticleRequest(
-        article_id=article_id,
-        title=title,
-        abstract=abstract
-    ))
+def UpdateArticle(stub, article_id, title=None, abstract=None):
+    update_article = cf.UpdateArticleRequest(article_id=article_id)
+
+    if title:
+        update_article.title = title
+
+    if abstract:
+        update_article.abstract = abstract
+
+    response = stub.UpdateArticle(update_article)
+
     print(response)
 
 
@@ -136,25 +149,25 @@ def main(server_address: str):
     with grpc.insecure_channel(server_address) as channel:
         stub = cf_grpc.ArticleServiceStub(channel)
 
-        # CreateArticle(stub, number=2)
+        # CreateArticle(stub, number=1)
 
-        # GetArticle(stub, article_id=1)
+        # GetArticle(stub, article_id=2)
 
         # GetArticles(stub, page_number=1, page_size=1000)
 
-        # UpdateArticle(stub, article_id=1, title='Updated Article', abstract='Updated Abstract')
+        # UpdateArticle(stub, article_id=2, title='Updated Article', abstract='Updated Abstract')
 
-        # DeleteArticle(stub, article_id=1)
+        # DeleteArticle(stub, article_id=2)
 
-        # UploadAsset(stub, article_id=2, filename='output.png')
+        # UploadAsset(stub, article_id=1, filename='OLS_BM_PDF.pdf')
 
-        # UpdateAsset(stub, asset_id=1, filename='logo.png')
+        # UpdateAsset(stub, asset_id=1, filename='Open Share Labs.pdf')
 
         # DownloadAsset(stub, asset_id=1)
 
         # DeleteAsset(stub, asset_id=1)
 
-        # ListAssets(stub, article_id=2)
+        # ListAssets(stub, article_id=1)
 
 
 if __name__ == "__main__":
