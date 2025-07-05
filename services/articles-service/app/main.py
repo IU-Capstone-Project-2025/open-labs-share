@@ -29,11 +29,11 @@ class ArticleService(service.ArticleServiceServicer):
     def __init__(self):
         self.logger = logging.getLogger(self.__class__.__name__)
 
-        user = Config.DB_USER
-        password = Config.DB_PASSWORD
-        host = Config.DB_HOST
-        port = Config.DB_PORT
-        db_name = Config.DB_NAME
+        user = Config.POSTGRES_USER
+        password = Config.POSTGRES_PASSWORD
+        host = Config.POSTGRES_HOST
+        port = Config.POSTGRES_PORT
+        db_name = Config.POSTGRES_NAME
         url = f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
 
         self.logger.info(f"Connecting to PostgreSQL at {url}")
@@ -508,7 +508,7 @@ class ArticleService(service.ArticleServiceServicer):
                     response.close()
                     response.release_conn()
 
-        self.logger.info(f"Downloaded asset with ID {asset.id} for article with ID {asset.article_id}")
+                self.logger.info(f"Downloaded asset with ID {asset.id} for article with ID {asset.article_id}")
 
         return response_messages()
 
