@@ -11,7 +11,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file
-COPY services/labs-service/requirements.txt ./
+COPY services/labs-service/app/requirements.txt ./
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
@@ -28,17 +28,6 @@ RUN touch proto/__init__.py utils/__init__.py
 
 # Generate protobuf files for all proto files
 RUN python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto proto/*.proto
-
-# List generated files for debugging
-RUN ls -la proto/
-
-# Fix import statements in all generated files
-RUN for file in proto/*_pb2_grpc.py; do \
-        if [ -f "$file" ]; then \
-            base=$(basename "$file" _grpc.py); \
-            sed -i "s/import ${base}/from . import ${base}/" "$file"; \
-        fi \
-    done
 
 # Create files directory for temporary storage
 RUN mkdir -p /app/files
