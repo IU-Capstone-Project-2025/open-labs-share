@@ -1,14 +1,14 @@
 version: '3.8'
 name: 'article-service'
 services:
-  minio:
+  articles-minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     env_file: .env
     container_name: ${CONTAINER_MINIO}
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
     volumes:
         - minio_data:/data
     networks:
@@ -21,17 +21,17 @@ services:
   articles-db:
     image: postgres:latest
     env_file: .env
-    container_name: ${CONTAINER_DB}
+    container_name: ${CONTAINER_POSTGRES}
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_NAME}
     volumes:
       - postgres_data_articles:/var/lib/postgresql/data
     networks:
       - grpc-network
     ports:
-      - "${DB_PORT}:5432"
+      - "${POSTGRES_PORT}:5432"
 
   article-service:
     build:
@@ -39,9 +39,20 @@ services:
       dockerfile: Dockerfile
     container_name: article-service
     env_file: .env
+    environment:
+      - SERVICE_HOST=${SERVICE_HOST}
+      - SERVICE_PORT=${SERVICE_PORT}
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_NAME=${POSTGRES_NAME}
     depends_on:
-      - db
-      - minio
+      - articles-db
+      - articles-minio
     volumes:
       - ./files:/app/files
     networks:
@@ -56,4 +67,3 @@ volumes:
 
 networks:
     grpc-network:
-      external: true
