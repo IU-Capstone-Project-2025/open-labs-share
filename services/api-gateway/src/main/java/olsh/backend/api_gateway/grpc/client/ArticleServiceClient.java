@@ -48,7 +48,7 @@ public class ArticleServiceClient {
         }
     }
 
-    public void uploadAsset(Long articleId, MultipartFile file) {
+    public Asset uploadAsset(Long articleId, MultipartFile file) {
         log.debug("Starting asset upload for article ID: {}, filename: {}, size: {} bytes",
                 articleId, file.getOriginalFilename(), file.getSize());
 
@@ -64,7 +64,7 @@ public class ArticleServiceClient {
 
             log.info("Successfully uploaded asset: ID={}, filename={}, size={} bytes",
                     result.getAssetId(), file.getOriginalFilename(), totalSent);
-
+            return result;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new AssetUploadException(e.getMessage());
@@ -207,6 +207,22 @@ public class ArticleServiceClient {
             }
             log.error("Error calling DeleteArticle gRPC for ID {}: {}", articleId, e.getMessage(), e);
             throw new RuntimeException("Failed to delete article via gRPC", e);
+        }
+    }
+
+    public Asset getAssetByArticleId(Long articleId) {
+        log.debug("Calling gRPC GetAssetByArticleId for article ID: {}", articleId);
+        try {
+            ListAssetsRequest request = ListAssetsRequest.newBuilder()
+                    .setArticleId(articleId)
+                    .build();
+            AssetList response = blockingStub.listAssets(request);
+            Asset asset = response.getAssetsList().getFirst();
+            log.debug("Successfully retrieved asset for article ID: {}", articleId);
+            return asset;
+        } catch (Exception e) {
+            log.error("Error calling GetAssetByArticleId gRPC for article ID {}: {}", articleId, e.getMessage(), e);
+            throw new RuntimeException("Failed to get asset by article ID via gRPC", e);
         }
     }
 

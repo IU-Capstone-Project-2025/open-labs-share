@@ -104,7 +104,6 @@ All endpoints require JWT authentication unless specified otherwise.
 | [`POST /articles`](#create-article)                | POST   | Creation of new article in PDF format |
 | [`GET /articles`](#get-articles-list)              | GET    | Get list of articles                  |
 | [`GET /articles/{article_id}`](#get-article-by-id)  | GET    | Get specified article by ID           |
-| [`POST /articles/{article_id}/update`](#update-article) | POST   | Update the article by its ID          |
 | [`DELETE /articles/{article_id}`](#delete-article) | DELETE | Delete specific article by its ID     |
 
 ### Create Article
@@ -117,26 +116,43 @@ All endpoints require JWT authentication unless specified otherwise.
 
 **Request Body (Form Data):**
 ```json  
-title: string (required) - Article title  
-short_desc: string (required) - Article description  
-pdf_file: file (required) - PDF document file  
-```  
+title: string (required) - Article title
+short_desc: string (required) - Article description
+pdf_file: file (required) - PDF document file
+```
 
 **Response:**
 - **Status:** `201 Created`
 - **Body:**
-```json  
-{  
-  "id": number,
-  "message": "Article created successfully"  
-}  
-```  
+```json
+{
+  "id": 1,
+  "message": "Article created successfully",
+  "article": {
+    "id": 1,
+    "title": "Introduction to Machine Learning",
+    "shortDesc": "A comprehensive guide to machine learning basics",
+    "createdAt": "2024-03-15T14:30:00Z",
+    "views": 42,
+    "authorId": 123,
+    "authorName": "John",
+    "authorSurname": "Doe",
+    "asset": {
+      "assetId": 10,
+      "articleId": 1,
+      "filename": "ml-guide.pdf",
+      "filesize": 1048576,
+      "uploadDate": "2024-03-15T14:31:00Z"
+    }
+  }
+}
+```
 
 **Error Responses:**
 - `400 Bad Request` - Invalid request data
 - `401 Unauthorized` - Authentication required
-  
----  
+
+---
 
 ### Get Articles List
 
@@ -152,7 +168,7 @@ pdf_file: file (required) - PDF document file
 **Response:**
 - **Status:** `200 OK`
 - **Body:**
-```json  
+```json
 {
   "articles": [
     {
@@ -163,21 +179,29 @@ pdf_file: file (required) - PDF document file
       "views": "number",
       "author_id": "number",
       "author_name": "string",
-      "author_surname": "string"
+      "author_surname": "string",
+      "asset": {
+        "assetId": 10,
+        "articleId": 1,
+        "filename": "ml-guide.pdf",
+        "filesize": 1048576,
+        "uploadDate": "2024-03-15T14:31:00Z"
+      }
     }
   ],
-  "pagination": {
-    "current_page": "integer",
-    "total_pages": "integer",
-    "total_items": "integer"
-  }
+  "pagination":
+    {
+      "current_page": "integer",
+      "total_pages": "integer",
+      "total_items": "integer"
+    }
 }
-```  
+```
 
 **Error Responses:**
 - `401 Unauthorized` - Authentication required
-  
----  
+
+---
 
 ### Get Article by ID
 
@@ -189,7 +213,7 @@ pdf_file: file (required) - PDF document file
 **Response:**
 - **Status:** `200 OK`
 - **Body:**
-```json  
+```json
 {
   "id": "number",
   "title": "string",
@@ -198,45 +222,18 @@ pdf_file: file (required) - PDF document file
   "views": "number",
   "author_id": "number",
   "author_name": "string",
-  "author_surname": "string"
+  "author_surname": "string",
+  "asset": {
+    "articleId": 1,
+    "filename": "ml-guide.pdf",
+    "filesize": 1048576,
+    "uploadDate": "2024-03-15T14:31:00Z"
+  }
 }
-```  
+```
 
 **Error Responses:**
 - `401 Unauthorized` - Authentication required
-- `404 Not Found` - Article not found
-
----  
-
-### Update Article
-
-**Update the article by its ID**
-- **Endpoint:** `POST /articles/{article_id}/update`
-- **Authentication:** Required
-- **Content-Type:** `multipart/form-data`
-- **Description:** Update article with new content
-
-**Request Body (Form Data):**
-```json  
-title: string (required) - Article title  
-short_desc: string (required) - Article description  
-pdf_file: file (required) - PDF document file  
-```  
-
-**Response:**
-- **Status:** `200 OK`
-- **Body:**
-```json  
-{  
-  "id": number,
-  "message": "Article updated successfully"
-}
-```  
-
-**Error Responses:**
-- `400 Bad Request` - Invalid request data
-- `401 Unauthorized` - Authentication required
-- `403 Forbidden` - You have no access to update the article
 - `404 Not Found` - Article not found
 
 ---
@@ -263,7 +260,6 @@ pdf_file: file (required) - PDF document file
 - `404 Not Found` - Article not found
 
 ---
-
 ## Labs Service
 
 | Endpoint                                             | Type   | Description                           |
@@ -1189,6 +1185,7 @@ All authenticated endpoints require: `Authorization: Bearer <jwt_token>`
 
 All error responses follow this format:
 ```json  
+
 {     
     "error": {     
        "message": "string",      
@@ -1196,4 +1193,3 @@ All error responses follow this format:
     }
 }
 ```
-
