@@ -50,7 +50,7 @@ class Tools:
 
     def get_mongo_client(self) -> MongoClient:
         if self._mongo_client is None:
-            url = f"mongodb://{Config.MONGODB_HOST}:{Config.MONGODB_PORT}/"
+            url = f"mongodb://{Config.MONGODB_USER}:{Config.MONGODB_PASSWORD}@{Config.MONGODB_HOST}"
 
             self.logger.info(f"Connecting to MongoDB at {url}")
             self._mongo_client = MongoClient(url)
