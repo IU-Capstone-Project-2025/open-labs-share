@@ -1,6 +1,7 @@
 ### Python ###
 .env
 __pycache__
+ml/groq_keys.txt
 
 
 HELP.md
