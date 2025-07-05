@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 
 # Import built-in modules
 import os
+import logging
 
 # Check if there's .env file
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -35,3 +36,15 @@ class Config:
     MONGODB_HOST = os.getenv("MONGODB_HOST", "mongodb")
     MONGODB_PORT = os.getenv("MONGODB_PORT", "27017")
     MONGODB_NAME = os.getenv("MONGODB_NAME", "mongodb")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+logger = logging.getLogger(__name__)
+
+for key, value in Config.__dict__.items():
+    if key.startswith("__"):
+        continue
+    logger.info(f"{key}: {value}")

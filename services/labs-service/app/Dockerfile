@@ -11,17 +11,13 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file
-COPY services/labs-service/app/requirements.txt ./
+COPY ./requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY services/labs-service/app/ /app/
-
-# Copy wait script
-COPY services/labs-service/scripts/wait-for-postgres.sh /usr/local/bin/wait-for-postgres.sh
-RUN dos2unix /usr/local/bin/wait-for-postgres.sh && chmod +x /usr/local/bin/wait-for-postgres.sh
+COPY . /app/
 
 # Create __init__.py files to make directories Python packages
 RUN touch proto/__init__.py utils/__init__.py
@@ -36,5 +32,4 @@ RUN mkdir -p /app/files
 EXPOSE 9091
 
 # Run the application
-ENTRYPOINT ["wait-for-postgres.sh", "postgres-labs", "python", "main.py"]
-CMD [] 
+ENTRYPOINT ["python", "-u", "main.py"]
