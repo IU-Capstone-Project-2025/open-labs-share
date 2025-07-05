@@ -1,8 +1,8 @@
-# Import downloaded modules
+# Import built-in modules
 from datetime import datetime
 from typing import List, Optional
 
-# Import built-in modules
+# Import downloaded modules
 from sqlalchemy import BigInteger, ForeignKey, String, Text, Integer, DateTime, TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
