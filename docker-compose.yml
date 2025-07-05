@@ -35,8 +35,8 @@ services:
       - LAB_SERVICE_PORT=9091
       - ARTICLE_SERVICE_HOST=articles-service
       - ARTICLE_SERVICE_PORT=50051
-      - ML_SERVICE_HOST=ml-service
-      - ML_SERVICE_PORT=8082
+      # - ML_SERVICE_HOST=ml-service
+      # - ML_SERVICE_PORT=8082
       - SPRING_PROFILES_ACTIVE=docker
     restart: unless-stopped
     depends_on:
@@ -44,7 +44,7 @@ services:
       - users-service
       - labs-service
       - articles-service
-      - ml-service
+      # - ml-service
     networks:
       - app-network
 
@@ -60,7 +60,7 @@ services:
       - GRPC_PORT=9092
       - USERS_SERVICE_HOST=users-service
       - USERS_SERVICE_PORT=9093
-      - JWT_SIGNING_KEY=${JWT_SIGNING_KEY}
+      - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:-adminadmin}
       - ACCESS_TOKEN_EXPIRATION=144000000
       - REFRESH_TOKEN_EXPIRATION=1008000000
       - SPRING_PROFILES_ACTIVE=docker
@@ -80,7 +80,7 @@ services:
       - GRPC_PORT=9093
       - DB_URL=jdbc:postgresql://postgres-users:5432/users_service
       - DB_USERNAME=users_user
-      - DB_PASSWORD=${POSTGRES_USERS_PASSWORD}
+      - DB_PASSWORD=${POSTGRES_USERS_PASSWORD:-postgres}
       - HIBERNATE_DDL_AUTO=update
       - SHOW_SQL=false
       - LOG_LEVEL=INFO
@@ -103,15 +103,17 @@ services:
       - POSTGRESQL_HOST=postgres-labs
       - POSTGRESQL_PORT=5432
       - POSTGRESQL_USER=labs_user
-      - POSTGRESQL_PASSWORD=${POSTGRES_LABS_PASSWORD}
+      - POSTGRESQL_PASSWORD=${POSTGRES_LABS_PASSWORD:-postgres}
       - POSTGRESQL_NAME=labs_db
       - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
       - MONGODB_HOST=mongodb-labs
       - MONGODB_PORT=27017
-      - MONGODB_USER=${MONGO_ROOT_USER}
-      - MONGODB_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGODB_USER=${MONGO_ROOT_USER:-mongo}
+      - MONGODB_PASSWORD=${MONGO_ROOT_PASSWORD:-mongo}
       - MONGODB_NAME=labs_mongo_db
     restart: unless-stopped
     depends_on:
@@ -133,11 +135,11 @@ services:
       - POSTGRES_HOST=postgres-articles
       - POSTGRES_PORT=5432
       - POSTGRES_USER=articles_user
-      - POSTGRES_PASSWORD=${POSTGRES_ARTICLES_PASSWORD}
+      - POSTGRES_PASSWORD=${POSTGRES_ARTICLES_PASSWORD:-password}
       - POSTGRES_NAME=articles_db
       - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
     restart: unless-stopped
     depends_on:
       - postgres-articles
@@ -156,11 +158,11 @@ services:
       - DB_HOST=postgres-feedback
       - DB_PORT=5432
       - DB_USER=feedback_user
-      - DB_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD}
+      - DB_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD:-feedback_password}
       - DB_NAME=feedback_db
       - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
       - MINIO_BUCKET_NAME=feedback
       - MINIO_USE_SSL=false
     restart: unless-stopped
@@ -175,7 +177,7 @@ services:
     environment:
       - POSTGRES_DB=users_service
       - POSTGRES_USER=users_user
-      - POSTGRES_PASSWORD=${POSTGRES_USERS_PASSWORD}
+      - POSTGRES_PASSWORD=${POSTGRES_USERS_PASSWORD:-postgres}
     volumes:
       - postgres-users-data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -187,7 +189,7 @@ services:
     environment:
       - POSTGRES_DB=feedback_db
       - POSTGRES_USER=feedback_user
-      - POSTGRES_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD}
+      - POSTGRES_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD:-feedback_password}
     volumes:
       - postgres-feedback-data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -199,7 +201,7 @@ services:
     environment:
       - POSTGRES_DB=labs_db
       - POSTGRES_USER=labs_user
-      - POSTGRES_PASSWORD=${POSTGRES_LABS_PASSWORD}
+      - POSTGRES_PASSWORD=${POSTGRES_LABS_PASSWORD:-postgres}
     volumes:
       - postgres-labs-data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -211,52 +213,52 @@ services:
     environment:
       - POSTGRES_DB=articles_db
       - POSTGRES_USER=articles_user
-      - POSTGRES_PASSWORD=${POSTGRES_ARTICLES_PASSWORD}
+      - POSTGRES_PASSWORD=${POSTGRES_ARTICLES_PASSWORD:-password}
     volumes:
       - postgres-articles-data:/var/lib/postgresql/data
     restart: unless-stopped
     networks:
       - app-network
 
-  ml-service:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.ml-service
-    ports:
-      - "8083:8081"
-    environment:
-      - DEVICE=cuda
-      - RAG_DB_PATH=/app/ml/faiss
-      - SCORE_THRESHOLD=1.0
-      - EMBEDDING_MODEL_NAME=BAAI/bge-small-en-v1.5
-      - LLM_MODEL_NAME=Qwen/Qwen2.5-Coder-1.5B-Instruct
-      - PDF_DIR=/app/ml/data/predator-pray-22/pdfs
-      - CODE_DIR=/app/ml/data/predator-pray-22/code
-      - POSTGRES_USER=ml_user
-      - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD}
-      - POSTGRES_HOST=postgres-ml
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=chat_history_db
-    volumes:
-      - ./ml:/app/ml
-      - ml-models:/app/models
-    restart: unless-stopped
-    depends_on:
-      - postgres-ml
-    networks:
-      - app-network
+  # ml-service:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/Dockerfile.ml-service
+  #   ports:
+  #     - "8083:8081"
+  #   environment:
+  #     - DEVICE=cuda
+  #     - RAG_DB_PATH=/app/ml/faiss
+  #     - SCORE_THRESHOLD=1.0
+  #     - EMBEDDING_MODEL_NAME=BAAI/bge-small-en-v1.5
+  #     - LLM_MODEL_NAME=Qwen/Qwen2.5-Coder-1.5B-Instruct
+  #     - PDF_DIR=/app/ml/data/predator-pray-22/pdfs
+  #     - CODE_DIR=/app/ml/data/predator-pray-22/code
+  #     - POSTGRES_USER=ml_user
+  #     - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD}
+  #     - POSTGRES_HOST=postgres-ml
+  #     - POSTGRES_PORT=5432
+  #     - POSTGRES_DB=chat_history_db
+  #   volumes:
+  #     - ./ml:/app/ml
+  #     - ml-models:/app/models
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - postgres-ml
+  #   networks:
+  #     - app-network
 
-  postgres-ml:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=chat_history_db
-      - POSTGRES_USER=ml_user
-      - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD}
-    volumes:
-      - postgres-ml-data:/var/lib/postgresql/data
-    restart: unless-stopped
-    networks:
-      - app-network
+  # postgres-ml:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     - POSTGRES_DB=chat_history_db
+  #     - POSTGRES_USER=ml_user
+  #     - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD}
+  #   volumes:
+  #     - postgres-ml-data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+  #   networks:
+  #     - app-network
 
   minio:
     image: minio/minio:latest
@@ -265,8 +267,8 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-adminadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-adminadmin}
     volumes:
       - minio-data:/data
     restart: unless-stopped
@@ -276,8 +278,8 @@ services:
   mongodb-labs:
     image: mongo:latest
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER:-adminadmin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-adminadmin}
       - MONGO_INITDB_DATABASE=labs_mongo_db
     volumes:
       - mongodb-labs-data:/data/db
@@ -295,7 +297,7 @@ volumes:
   postgres-feedback-data:
   postgres-labs-data:
   postgres-articles-data:
-  postgres-ml-data:
-  ml-models:
+  # postgres-ml-data:
+  # ml-models:
   minio-data:
   mongodb-labs-data:
