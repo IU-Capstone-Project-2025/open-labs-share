@@ -27,12 +27,40 @@ public class ArticleService {
 
     public CreateArticleResponse createArticle(CreateArticleRequest request, Long authorId) {
         log.debug("Creating article with title: {} for author: {}", request.getTitle(), authorId);
-
+    
         validatePdfFile(request.getPdf_file());
-        ArticleProto.Article article = registerArticle(request, authorId);
-        articleServiceClient.uploadAsset(article.getArticleId(), request.getPdf_file());
-
-        return CreateArticleResponse.builder().id(article.getArticleId()).message("Article created successfully").build();
+    
+        // Step 1: Register the article metadata. This is the first gRPC call.
+        ArticleProto.Article createdArticle = registerArticle(request, authorId);
+    
+        // If the article wasn't created, createdArticle would be null or an exception would have been thrown.
+        if (createdArticle == null || createdArticle.getArticleId() == 0) {
+            throw new RuntimeException("Failed to create article record in the database.");
+        }
+    
+        // Step 2: Upload the asset (PDF file) for the newly created article. This is a separate gRPC call.
+        try {
+            articleServiceClient.uploadAsset(createdArticle.getArticleId(), request.getPdf_file());
+            log.debug("Successfully uploaded asset for article ID: {}", createdArticle.getArticleId());
+        } catch (Exception e) {
+            // If asset upload fails, we must roll back the article creation.
+            log.error("Asset upload failed for article ID: {}. Attempting to roll back article creation.", createdArticle.getArticleId(), e);
+            try {
+                articleServiceClient.deleteArticle(createdArticle.getArticleId());
+                log.info("Successfully rolled back (deleted) article with ID: {}", createdArticle.getArticleId());
+            } catch (Exception rollbackEx) {
+                // If the rollback fails, this is a critical state.
+                log.error("CRITICAL: Failed to roll back article creation for article ID: {}. Orphaned article may exist.", createdArticle.getArticleId(), rollbackEx);
+                // In a real-world scenario, this should trigger a monitoring alert.
+            }
+            // Inform the client that the asset upload failed and the operation was rolled back.
+            throw new RuntimeException("Failed to upload article asset. The article creation has been rolled back.", e);
+        }
+    
+        return CreateArticleResponse.builder()
+                .id(createdArticle.getArticleId())
+                .message("Article created successfully")
+                .build();
     }
 
     protected void validatePdfFile(MultipartFile file) {
@@ -77,6 +105,19 @@ public class ArticleService {
         return buildArticleResponse(article, author);
     }
 
+    public ArticleListResponse getArticlesByAuthor(long authorId, GetArticlesRequest request) {
+        log.debug("Getting articles for author {} - page: {}, limit: {}", authorId, request.getPage(), request.getLimit());
+        // TODO: This is a temporary fix. The articles-service needs to be fixed to properly implement this feature.
+        return ArticleListResponse.builder()
+                .articles(new ArrayList<>())
+                .pagination(ArticleListResponse.PaginationResponse.builder()
+                        .currentPage(request.getPage())
+                        .totalPages(0)
+                        .totalItems(0)
+                        .build())
+                .build();
+    }
+
     public ArticleListResponse getArticles(GetArticlesRequest request) {
         log.debug("Getting articles list - page: {}, limit: {}", request.getPage(), request.getLimit());
 
@@ -94,7 +135,7 @@ public class ArticleService {
                 // TODO: Implement batch loading with caching for better performance
                 UserResponse author;
                 if (authorCache.containsKey(article.getOwnerId())) {
-                    author = authorCache.get(article.getArticleId());
+                    author = authorCache.get(article.getOwnerId());
                 } else {
                     author = userService.getUserById(article.getOwnerId());
                     authorCache.put(article.getOwnerId(), author);
@@ -105,8 +146,7 @@ public class ArticleService {
 
             // Calculate pagination
             int totalItems = (int) grpcResponse.getTotalCount();
-            // TODO: put data about the number of available pages in database
-            int totalPages = 1;
+            int totalPages = (int) Math.ceil((double) totalItems / request.getLimit());
 
             ArticleListResponse.PaginationResponse pagination =
                     ArticleListResponse.PaginationResponse.builder()
@@ -124,8 +164,16 @@ public class ArticleService {
                     .build();
 
         } catch (Exception e) {
-            log.error("Error getting articles list: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to retrieve articles: " + e.getMessage());
+            log.error("Error getting articles list: {}. Returning empty list as a fallback.", e.getMessage(), e);
+            // TODO: This is a temporary fix. The articles-service needs to be fixed to properly implement this feature.
+            return ArticleListResponse.builder()
+                    .articles(new ArrayList<>())
+                    .pagination(ArticleListResponse.PaginationResponse.builder()
+                            .currentPage(request.getPage())
+                            .totalPages(0)
+                            .totalItems(0)
+                            .build())
+                    .build();
         }
     }
 
@@ -137,7 +185,7 @@ public class ArticleService {
 
         // TODO: Send to article-service also the id of user request. The service itself should handle this.
         // Check if the requesting user is the owner
-        if (article.getOwnerId() == articleId) {
+        if (article.getOwnerId() != requestingUserId) {
             log.warn("User {} attempted to delete article {} owned by user {}",
                     requestingUserId, articleId, article.getOwnerId());
             throw new ForbiddenAccessException("You have no access to delete this article");

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { labs } from '../utils/api';
+import { labsAPI } from '../utils/api';
 import { getCurrentUser } from '../utils/auth';
 
 export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
@@ -90,9 +90,20 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
       return;
     }
 
+    setUploading(true);
     try {
-      setUploading(true);
-      const result = await labs.createLab(labData);
+      const formData = new FormData();
+      formData.append('title', labData.title);
+      formData.append('short_desc', labData.short_desc);
+      formData.append('md_file', labData.md_file);
+      
+      if (labData.assets && labData.assets.length > 0) {
+        for (const asset of labData.assets) {
+          formData.append('assets', asset);
+        }
+      }
+      
+      const result = await labsAPI.createLab(formData);
       onSuccess && onSuccess(result);
     } catch (err) {
       console.error('Error creating lab:', err);
@@ -104,7 +115,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
 
   const content = (
     <div className="max-w-2xl mx-auto">
-      <h2 className="text-2xl font-bold text-msc dark:text-white mb-6">
+      <h2 className="text-3xl font-bold font-display text-gray-900 dark:text-white mb-6">
         Create New Lab
       </h2>
       

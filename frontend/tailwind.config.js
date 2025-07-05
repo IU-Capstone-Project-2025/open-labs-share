@@ -14,7 +14,8 @@ module.exports = {
         "my-white": "##f7f8f9",
       },
       fontFamily: {
-        inter: ["Inter", "sans-serif"],
+        sans: ["Inter", "sans-serif"],
+        display: ["Inter", "sans-serif"],
       },
     },
   },

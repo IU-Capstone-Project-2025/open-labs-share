@@ -1,20 +1,21 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { MoonIcon, SunIcon, ChevronDownIcon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
+import GemIcon from "./GemIcon";
 import { signOut } from "../utils/auth";
+import { useUser } from '../hooks/useUser';
 
 export default function Sidebar({
   isOpen,
   toggleSidebar,
   currentTheme,
   toggleTheme,
-  user,
-  onUserUpdate
 }) {
   const [activePath, setActivePath] = useState("");
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isCreateDropdownOpen, setIsCreateDropdownOpen] = useState(false);
   const navigate = useNavigate();
+  const user = useUser();
 
   useEffect(() => {
     setActivePath(window.location.pathname);
@@ -58,13 +59,12 @@ export default function Sidebar({
   const handleLogout = async () => {
     try {
       await signOut();
-      onUserUpdate(null);
+      // The user state will be updated automatically by the App component's listener
       toggleSidebar();
       navigate("/", { replace: true }); // Redirect to landing page
     } catch (error) {
       console.error('Logout error:', error);
       // Still clear local state and redirect even if server logout fails
-      onUserUpdate(null);
       toggleSidebar();
       navigate("/", { replace: true });
     }
@@ -73,7 +73,16 @@ export default function Sidebar({
   // Get user display name
   const getUserDisplayName = () => {
     if (!user) return "User";
-    return `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username || "User";
+    const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+    return fullName || user.username || "User";
+  };
+  
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (!user) return "?";
+    const firstInitial = user.firstName?.charAt(0)?.toUpperCase() || "";
+    const lastInitial = user.lastName?.charAt(0)?.toUpperCase() || "";
+    return firstInitial && lastInitial ? `${firstInitial}${lastInitial}` : (user.username?.charAt(0)?.toUpperCase() || "?");
   };
 
   return (
@@ -93,19 +102,22 @@ export default function Sidebar({
         {/* User Info Section */}
         {user && (
           <div className="mb-6 p-4 bg-white bg-opacity-10 rounded-lg">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-white bg-opacity-20 flex items-center justify-center text-white text-sm font-medium">
-                {user.firstName?.charAt(0)?.toUpperCase() || user.username?.charAt(0)?.toUpperCase() || "?"}
-                {user.lastName?.charAt(0)?.toUpperCase() || ""}
+                {getUserInitials()}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-white font-medium text-sm truncate">
                   {getUserDisplayName()}
                 </p>
                 <p className="text-white text-opacity-70 text-xs truncate">
-                  @{user.username}
+                  @{user.username || 'user'}
                 </p>
               </div>
+            </div>
+            <div className="flex items-center space-x-2 text-white text-opacity-90">
+              <GemIcon className="h-4 w-4" color="rgba(255, 255, 255, 0.9)" />
+              <span className="text-xs font-medium">{user.balance || 0} points</span>
             </div>
           </div>
         )}

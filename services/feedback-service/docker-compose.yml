@@ -1,51 +1,112 @@
+version: "3.9"
+
 services:
   feedback-service:
     build: .
     ports:
-      - "9090:9090"  # gRPC server
+      - "9090:9090"
     environment:
-      - GRPC_PORT=9090
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=feedback_user
-      - DB_PASSWORD=feedback_password
-      - DB_NAME=feedback_db
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - MINIO_BUCKET_NAME=feedback
-      - MINIO_USE_SSL=false
+      GRPC_PORT: 9090
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: feedback_user
+      POSTGRES_PASSWORD: feedback_password
+      POSTGRES_NAME: feedback_db
+      MONGODB_URI: mongodb://mongodb:27017
+      MONGODB_DATABASE: feedback
+      MONGODB_COLLECTION: comments
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET_NAME: feedback
+      MINIO_USE_SSL: "false"
     depends_on:
       postgres:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
       minio:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - backend
 
   postgres:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_DB=feedback_db
-      - POSTGRES_USER=feedback_user
-      - POSTGRES_PASSWORD=feedback_password
+      POSTGRES_DB: feedback_db
+      POSTGRES_USER: feedback_user
+      POSTGRES_PASSWORD: feedback_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: pg_isready -U feedback_user -d feedback_db
+      test: ["CMD-SHELL", "pg_isready -U feedback_user -d feedback_db"]
       interval: 5s
       timeout: 5s
       retries: 5
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
+    networks:
+      - backend
+
+  mongodb:
+    image: mongo:7-jammy
+    command: ["mongod", "--quiet"]
+    environment:
+      MONGO_INITDB_DATABASE: feedback
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - backend
 
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"  # MinIO API
+      - "9001:9001"  # MinIO Console UI
     environment:
-      - MINIO_ROOT_USER=minioadmin
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
     volumes:
       - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
     restart: unless-stopped
+    networks:
+      - backend
+
+  mongo-express:
+    image: mongo-express:latest
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin123
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - backend
 
 volumes:
   postgres-data:
+  mongodb-data:
   minio-data:
+
+networks:
+  backend:
+    driver: bridge

@@ -53,6 +53,11 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(SubmissionNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleSubmissionNotFoundException(SubmissionNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), "The requested submission was not found");
+    }
+
     @ExceptionHandler(LabNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleLabNotFoundException(LabNotFoundException ex) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), "The requested lab was not found");
@@ -112,5 +117,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneralException(Exception ex) {
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.", ex.getMessage());
+    }
+
+    @ExceptionHandler(FeedbackNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleFeedbackNotFoundException(FeedbackNotFoundException e) {
+        return buildResponse(HttpStatus.NOT_FOUND, e.getMessage(), "The requested feedback was not found");
     }
 }

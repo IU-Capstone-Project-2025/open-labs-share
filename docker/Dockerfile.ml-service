@@ -2,9 +2,8 @@ FROM pytorch/pytorch:2.7.1-cuda12.6-cudnn9-runtime
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     dos2unix \
     curl \
     && rm -rf /var/lib/apt/lists/*
@@ -34,10 +33,6 @@ EXPOSE 8081
 # Set environment variables
 ENV PYTHONPATH=/app/ml
 ENV DEVICE=cpu
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8081/docs || exit 1
 
 # Run the startup script
 CMD ["/app/startup.sh"] 

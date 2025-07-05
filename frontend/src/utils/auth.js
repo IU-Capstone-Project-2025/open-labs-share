@@ -1,9 +1,9 @@
 // Authentication utility for Open Labs Share
 // This connects to the real auth service API
 
-// API Configuration
-const AUTH_API_BASE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8081';
-const AUTH_API_ENDPOINT = `${AUTH_API_BASE_URL}/api/v1/auth`;
+import { authAPI } from './api';
+
+const AUTH_API_ENDPOINT = import.meta.env.VITE_AUTH_API_ENDPOINT;
 
 // Helper function to make API calls
 const makeAuthRequest = async (endpoint, options = {}) => {
@@ -31,6 +31,26 @@ const makeAuthRequest = async (endpoint, options = {}) => {
     console.error('Auth API request failed:', error);
     throw error;
   }
+};
+
+// Helper to process and store successful auth responses
+const handleAuthSuccess = (response) => {
+  const { accessToken, refreshToken, userInfo } = response;
+  
+  const userData = {
+    id: userInfo.userId,
+    firstName: userInfo.firstName,
+    lastName: userInfo.lastName,
+    username: userInfo.username,
+    email: userInfo.email,
+    role: userInfo.role,
+  };
+
+  localStorage.setItem('authToken', accessToken);
+  localStorage.setItem('refreshToken', refreshToken);
+  localStorage.setItem('user', JSON.stringify(userData));
+
+  return { user: userData, token: accessToken };
 };
 
 // Get current user from localStorage or return null
@@ -152,7 +172,7 @@ export const signOut = async () => {
       });
     }
   } catch (error) {
-    console.error('Logout API call failed:', error);
+    console.error('Logout API call failed, proceeding with local cleanup:', error);
     // Continue with local logout even if API call fails
   } finally {
     // Stop token refresh
@@ -163,6 +183,31 @@ export const signOut = async () => {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
   }
+};
+
+// ---
+// Event-based mechanism for components to listen for user data changes
+// ---
+
+// Function to dispatch a custom event when user data is updated
+export const notifyUserDataUpdate = () => {
+  const event = new Event('userDataUpdated');
+  window.dispatchEvent(event);
+};
+
+// Helper for components to subscribe to user data updates
+export const setupAuthEventListeners = (callback) => {
+  const handleUpdate = () => {
+    const user = getCurrentUser();
+    callback(user);
+  };
+
+  window.addEventListener('userDataUpdated', handleUpdate);
+
+  // Return a cleanup function
+  return () => {
+    window.removeEventListener('userDataUpdated', handleUpdate);
+  };
 };
 
 // Refresh token
@@ -200,12 +245,15 @@ export const refreshToken = async () => {
         role: userInfo.role
       };
       localStorage.setItem('user', JSON.stringify(userData));
+      
+      // Notify all parts of the app about the update
+      notifyUserDataUpdate();
     }
     
     return accessToken;
   } catch (error) {
     console.error('Token refresh failed:', error);
-    // Clear invalid tokens
+    // Clear invalid tokens if refresh fails
     signOut();
     throw error;
   }
@@ -214,95 +262,76 @@ export const refreshToken = async () => {
 // Update user profile
 export const updateProfile = async (updatedData) => {
   try {
-    const authToken = localStorage.getItem('authToken');
+    const response = await authAPI.updateProfile(updatedData);
     
-    if (!authToken) {
-      throw new Error('No authentication token available');
+    // Assuming the API returns the full updated user object
+    const { userInfo } = response;
+    
+    if (userInfo) {
+      const updatedUser = {
+        id: userInfo.userId,
+        firstName: userInfo.firstName,
+        lastName: userInfo.lastName,
+        username: userInfo.username,
+        email: userInfo.email,
+        role: userInfo.role,
+      };
+      
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      notifyUserDataUpdate(); // Notify components of the change
     }
     
-    // Get current profile first
-    const profileResponse = await makeAuthRequest('/profile', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json',
-      }
-    });
-    
-    // Update user data locally (profile update via users service would be through API Gateway)
-    const currentUser = getCurrentUser();
-    const updatedUser = { ...currentUser, ...updatedData };
-    
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    
-    return updatedUser;
+    return response;
   } catch (error) {
     console.error('Update profile error:', error);
     throw error;
   }
 };
 
-// Change password
+// Change user password
 export const changePassword = async (currentPassword, newPassword) => {
   try {
-    const authToken = localStorage.getItem('authToken');
-    
-    if (!authToken) {
-      throw new Error('No authentication token available');
-    }
-    
-    await makeAuthRequest('/change-password', {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        currentPassword,
-        newPassword
-      })
-    });
-    
-    return { success: true, message: 'Password changed successfully' };
+    const response = await authAPI.changePassword({ currentPassword, newPassword });
+    return response;
   } catch (error) {
     console.error('Change password error:', error);
     throw error;
   }
 };
 
-// Get user profile from auth service
+// Fetch user profile from the server and update local storage
 export const getUserProfile = async () => {
   try {
-    const authToken = localStorage.getItem('authToken');
-    
-    if (!authToken) {
-      throw new Error('No authentication token available');
+    const response = await authAPI.getProfile();
+    const { userInfo } = response;
+
+    if (userInfo) {
+      const userData = {
+        id: userInfo.userId,
+        firstName: userInfo.firstName,
+        lastName: userInfo.lastName,
+        username: userInfo.username,
+        email: userInfo.email,
+        role: userInfo.role,
+      };
+
+      // Update local storage
+      localStorage.setItem('user', JSON.stringify(userData));
+
+      // Notify all parts of the app that user data has been updated
+      // notifyUserDataUpdate();
+      
+      return userData;
     }
-    
-    const response = await makeAuthRequest('/profile', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json',
-      }
-    });
-    
-    const userData = {
-      id: response.userInfo.userId,
-      firstName: response.userInfo.firstName,
-      lastName: response.userInfo.lastName,
-      username: response.userInfo.username,
-      email: response.userInfo.email,
-      role: response.userInfo.role
-    };
-    
-    // Update local storage with fresh data
-    localStorage.setItem('user', JSON.stringify(userData));
-    
-    return userData;
+    return null;
   } catch (error) {
-    console.error('Get profile error:', error);
-    throw error;
+    console.error('Get user profile error:', error);
+    // If token is expired or invalid, sign out the user
+    if (error.message.includes('401') || error.message.includes('403')) {
+      await signOut();
+      window.location.href = '/login'; // Redirect to login
+    }
+    return null;
   }
 };
 
@@ -367,3 +396,13 @@ export const stopTokenRefresh = () => {
     refreshInterval = null;
   }
 }; 
+
+// Helper function to handle user data updates across tabs
+function handleCrossTabUpdate(event) {
+  if (event.key === 'user' || event.key === 'isAuthenticated') {
+    window.dispatchEvent(new CustomEvent('userDataUpdated'));
+  }
+}
+
+// Listen for storage changes in other tabs
+window.addEventListener('storage', handleCrossTabUpdate); 

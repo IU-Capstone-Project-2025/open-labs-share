@@ -26,16 +26,19 @@ RUN dos2unix /usr/local/bin/wait-for-postgres.sh && chmod +x /usr/local/bin/wait
 # Create __init__.py files to make directories Python packages
 RUN touch proto/__init__.py utils/__init__.py
 
-# Generate protobuf files
-RUN python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto proto/labs_service.proto
+# Generate protobuf files for all proto files
+RUN python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto proto/*.proto
 
 # List generated files for debugging
 RUN ls -la proto/
 
-# Fix import statements if files exist
-RUN if [ -f "proto/labs_service_pb2_grpc.py" ]; then \
-        sed -i 's/import labs_service_pb2/from . import labs_service_pb2/' proto/labs_service_pb2_grpc.py; \
-    fi
+# Fix import statements in all generated files
+RUN for file in proto/*_pb2_grpc.py; do \
+        if [ -f "$file" ]; then \
+            base=$(basename "$file" _grpc.py); \
+            sed -i "s/import ${base}/from . import ${base}/" "$file"; \
+        fi \
+    done
 
 # Create files directory for temporary storage
 RUN mkdir -p /app/files

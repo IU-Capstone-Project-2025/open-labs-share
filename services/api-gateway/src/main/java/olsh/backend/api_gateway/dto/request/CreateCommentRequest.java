@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Schema(description = "Request object for creating a new comment")
 public class CreateCommentRequest {
 
-    @Schema(description = "The content of the comment", required = true)
+    @Schema(description = "The content of the comment", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "Content cannot be blank")
     private String content;
 

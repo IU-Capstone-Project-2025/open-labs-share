@@ -7,7 +7,6 @@ import olsh.backend.api_gateway.dto.response.CommentResponse;
 import olsh.backend.api_gateway.dto.response.UserResponse;
 import olsh.backend.api_gateway.exception.ForbiddenAccessException;
 import olsh.backend.api_gateway.exception.LabNotFoundException;
-import olsh.backend.api_gateway.exception.UserNotFoundException;
 import olsh.backend.api_gateway.grpc.client.CommentServiceClient;
 import olsh.backend.api_gateway.dto.request.CreateCommentRequest;
 import org.springframework.stereotype.Service;
@@ -39,7 +38,7 @@ public class CommentService {
 
     public CommentListResponse getLabComments(long labId, GetCommentsRequest request) {
         validateLabExists(labId);
-        CommentListResponse response = commentServiceClient.getLabComments(labId, request);
+        CommentListResponse response = commentServiceClient.getComments(labId, request);
         return enrichCommentsWithUserInfo(response);
     }
 
@@ -50,7 +49,7 @@ public class CommentService {
 
     public CommentResponse updateComment(String commentId, long userId, UpdateCommentRequest request) {
         CommentResponse oldComment = getCommentById(commentId);
-        if (userId != oldComment.getUserId()){
+        if (userId != oldComment.getUserId()) {
             log.warn("User {} attempted to update comment {} owned by user {}",
                     userId, commentId, oldComment.getUserId());
             throw new ForbiddenAccessException("Only author can update the comment");
@@ -61,10 +60,10 @@ public class CommentService {
 
     public void deleteComment(String commentId, long userId) {
         log.debug("Attempting to delete comment ID: {} by user ID: {}", commentId, userId);
-        
+
         CommentResponse comment = getCommentById(commentId);
         if (comment.getUserId() != userId) {
-            log.warn("User {} attempted to delete comment {} owned by user {}", 
+            log.warn("User {} attempted to delete comment {} owned by user {}",
                     userId, commentId, comment.getUserId());
             throw new ForbiddenAccessException("You can only delete your own comments");
         }
@@ -84,22 +83,7 @@ public class CommentService {
     }
 
     private CommentResponse enrichCommentWithUserInfo(CommentResponse comment) {
-        UserResponse user;
-        try {
-            user = userService.getUserById(comment.getUserId());
-        } catch (UserNotFoundException e) {
-            log.warn("User not found for comment ID: {}, user ID: {}. Using empty user info.", 
-                    comment.getId(), comment.getUserId());
-            // If user is not found, we still return the comment but with empty user info
-            user = new UserResponse(
-                    comment.getUserId(),
-                    "User",
-                    "Unknown",
-                    "Unknown",
-                    null
-            );
-        }
-
+        UserResponse user = userService.getUserByIdSafe(comment.getUserId());
         return CommentResponse.builder()
                 .id(comment.getId())
                 .labId(comment.getLabId())
@@ -114,27 +98,10 @@ public class CommentService {
     }
 
     private CommentListResponse enrichCommentsWithUserInfo(CommentListResponse response) {
-        // Create a cache for user responses to avoid multiple calls for the same user
-        HashMap<Long, UserResponse> userCache = new HashMap<>();
-
+        HashMap<Long, UserResponse> cache = new HashMap<>();
         var enrichedComments = response.getComments().stream()
                 .map(comment -> {
-                    UserResponse user = userCache.computeIfAbsent(comment.getUserId(), userId -> {
-                        try {
-                            return userService.getUserById(userId);
-                        } catch (UserNotFoundException e) {
-                            log.warn("User not found for comment ID: {}, user ID: {}. Using empty user info.", 
-                                    comment.getId(), userId);
-                            return new UserResponse(
-                                    userId,
-                                    "unknown",
-                                    "Unknown",
-                                    "User",
-                                    null
-                            );
-                        }
-                    });
-                    
+                    UserResponse user = cache.computeIfAbsent(comment.getUserId(), userService::getUserByIdSafe);
                     return CommentResponse.builder()
                             .id(comment.getId())
                             .labId(comment.getLabId())
@@ -148,7 +115,6 @@ public class CommentService {
                             .build();
                 })
                 .toList();
-
         return CommentListResponse.builder()
                 .comments(enrichedComments)
                 .pagination(response.getPagination())

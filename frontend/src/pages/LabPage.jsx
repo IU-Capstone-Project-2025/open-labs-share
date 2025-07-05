@@ -4,10 +4,12 @@ import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import "highlight.js/styles/github-dark.css";
+import GemIcon from "../components/GemIcon";
 import CommentsSection from "../components/CommentsSection";
 import ChatWindow from "../components/ChatWindow";
-import { getCurrentUser, isAuthenticated } from "../utils/auth";
+import { getCurrentUser, isAuthenticated, notifyUserDataUpdate } from "../utils/auth";
 import { labsAPI, submissionsAPI } from "../utils/api";
+import { useUser } from "../hooks/useUser";
 
 const flattenText = (children) => {
   if (typeof children === "string") return children;
@@ -37,22 +39,17 @@ export default function LabPage() {
   const [activeId, setActiveId] = useState("");
   const observer = useRef();
   const contentRef = useRef();
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
+  const [submissionText, setSubmissionText] = useState("");
   const fileInputRef = useRef(null);
   const dropzoneRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [user, setUser] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMode, setChatMode] = useState('floating'); // 'floating' or 'sidebar'
-
-  // Initialize user state
-  useEffect(() => {
-    if (isAuthenticated()) {
-      const currentUser = getCurrentUser();
-      setUser(currentUser);
-    }
-  }, []);
+  
+  // Use the custom hook for user state management
+  const user = useUser();
 
   const scrollToSubmit = useCallback(() => {
     const submitSection = document.getElementById("submit-section");
@@ -62,19 +59,23 @@ export default function LabPage() {
   }, []);
 
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
+    const selectedFiles = Array.from(e.target.files);
+    if (selectedFiles.length > 0) {
+      setFiles((prevFiles) => [...prevFiles, ...selectedFiles]);
     }
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) {
-      setFile(droppedFile);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length > 0) {
+      setFiles((prevFiles) => [...prevFiles, ...droppedFiles]);
     }
+  };
+
+  const removeFile = (fileToRemove) => {
+    setFiles((prevFiles) => prevFiles.filter((file) => file !== fileToRemove));
   };
 
   const handleDragOver = (e) => {
@@ -91,13 +92,24 @@ export default function LabPage() {
   };
 
   const handleSubmit = async () => {
-    if (!file || !user) return;
+    if ((files.length === 0 && !submissionText.trim()) || !user || user.balance < 1) return;
 
     try {
       setUploading(true);
-      await submissionsAPI.submitLabFile(id, user.id, file);
-      alert(`The file "${file.name}" uploaded successfully`);
-      setFile(null);
+      await submissionsAPI.submitLabSolution(id, user.id, submissionText, files);
+
+      // Update user's balance locally after successful submission
+      const updatedUser = { ...user, balance: user.balance - 1 };
+
+      // Store updated user data in localStorage
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+
+      // Notify all components about the user data update (including this component)
+      notifyUserDataUpdate();
+
+      alert(`Your solution was uploaded successfully!`);
+      setFiles([]);
+      setSubmissionText("");
     } catch (err) {
       console.error("Upload error:", err);
       alert("Upload failed: " + err.message);
@@ -372,58 +384,22 @@ Lab content delivery is currently being developed. The markdown content for this
         {lab && (
           <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-8">
             <div className="border-b border-gray-200 dark:border-gray-600 pb-6 mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+              <h1 className="text-4xl font-bold font-display text-gray-900 dark:text-white">
                 {lab.title}
               </h1>
               
               {lab.shortDesc && (
-                <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">
+                <p className="mt-2 text-lg text-gray-500 dark:text-gray-400">
                   {lab.shortDesc}
                 </p>
               )}
               
-              <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                <div className="flex items-center mr-6">
-                  <div className="w-8 h-8 rounded-full bg-msc flex items-center justify-center text-white text-sm font-medium mr-3">
-                    {lab.authorName?.[0] || 'U'}
-                    {lab.authorSurname?.[0] || ''}
-                  </div>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {lab.authorName && lab.authorSurname 
-                      ? `${lab.authorName} ${lab.authorSurname}`
-                      : 'Unknown Author'
-                    }
-                  </span>
-                </div>
-                
-                {lab.createdAt && (
-                  <div className="flex items-center mr-6">
-                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
-                    </svg>
-                    Created: {new Date(lab.createdAt).toLocaleDateString()}
-                  </div>
-                )}
-                
-                <div className="flex items-center space-x-4">
-                  {lab.views !== undefined && (
-                    <span className="flex items-center">
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                        <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
-                      </svg>
-                      {lab.views} views
-                    </span>
-                  )}
-                  {lab.submissions !== undefined && (
-                    <span className="flex items-center">
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h12a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1V8z" clipRule="evenodd"/>
-                      </svg>
-                      {lab.submissions} submissions
-                    </span>
-                  )}
-                </div>
+              <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-500 dark:text-gray-400">
+                <span>By {lab.authorName} {lab.authorSurname}</span>
+                <span>•</span>
+                <span>{new Date(lab.createdAt).toLocaleDateString()}</span>
+                <span>•</span>
+                <span>{lab.views} views</span>
               </div>
             </div>
           </section>
@@ -467,77 +443,146 @@ Lab content delivery is currently being developed. The markdown content for this
             </div>
           </div>
 
-          <div
-            ref={dropzoneRef}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onClick={handleUploadClick}
-            className={`border-2 ${
-              isDragging ? "border-msc" : "border-dashed border-blue-blue"
-            } rounded-lg p-8 text-center cursor-pointer transition-colors ${
-              isDragging
-                ? "bg-blue-50 dark:bg-gray-800"
-                : "bg-gray-50 dark:bg-gray-750"
-            }`}
-          >
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              className="hidden"
-            />
-            <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center bg-light-blue-hover dark:bg-gray-700 rounded-full">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-light-blue"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                />
-              </svg>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="solution_text" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Your Solution/Comment
+              </label>
+              <textarea
+                id="solution_text"
+                name="solution_text"
+                rows="4"
+                className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                value={submissionText}
+                onChange={(e) => setSubmissionText(e.target.value)}
+                placeholder="Enter any comments or text-based solution here..."
+              ></textarea>
             </div>
-            {file ? (
-              <div className="text-center">
-                <p className="font-medium text-msc dark:text-white">
-                  The file is selected: {file.name}
-                </p>
-                <p className="text-sm text-light-blue dark:text-gray-400 mt-1">
-                  Click to select another file
-                </p>
+          </div>
+          
+          <div className="mt-6">
+            <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Upload Files
+            </p>
+            <div
+              ref={dropzoneRef}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onClick={handleUploadClick}
+              className={`border-2 ${
+                isDragging ? "border-msc" : "border-dashed border-blue-blue"
+              } rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                isDragging
+                  ? "bg-blue-50 dark:bg-gray-800"
+                  : "bg-gray-50 dark:bg-gray-750"
+              }`}
+            >
+              <input
+                type="file"
+                multiple
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center bg-light-blue-hover dark:bg-gray-700 rounded-full">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6 text-light-blue"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                  />
+                </svg>
               </div>
-            ) : (
               <div className="text-center">
                 <p className="text-lg font-medium text-msc dark:text-white">
                   {isDragging
-                    ? "Put the file here"
-                    : "Select the file or put it here"}
+                    ? "Drop files here"
+                    : "Select files or drop them here"}
                 </p>
                 <p className="text-sm text-light-blue dark:text-gray-400 mt-1">
-                  Supported file formats: PDF
+                  You can upload multiple files
                 </p>
               </div>
-            )}
+            </div>
           </div>
 
-          <div className="mt-6 flex justify-center">
+          {files.length > 0 && (
+            <div className="mt-4">
+              <h4 className="font-medium dark:text-white">Selected files:</h4>
+              <ul className="mt-2 space-y-2">
+                {files.map((file, index) => (
+                  <li key={index} className="flex items-center justify-between bg-gray-100 dark:bg-gray-700 p-2 rounded-md">
+                    <span className="text-sm text-gray-800 dark:text-gray-300 truncate">{file.name}</span>
+                    <button
+                      onClick={() => removeFile(file)}
+                      className="text-red-500 hover:text-red-700"
+                      title="Remove file"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="mt-6 flex flex-col items-center">
             <button
               onClick={handleSubmit}
-              disabled={!file || uploading || !user}
+              disabled={(!submissionText.trim() && files.length === 0) || uploading || !user || (user && user.balance < 1)}
               className={`px-16 py-3 rounded-md font-medium ${
-                file && !uploading && user
+                (submissionText.trim() || files.length > 0) && !uploading && user && user.balance >= 1
                   ? "bg-msc text-white hover:bg-msc-dark"
                   : "bg-light-blue-hover dark:bg-gray-600 text-gray-500 font-inter dark:text-gray-400 cursor-not-allowed"
               } transition-colors`}
             >
               {uploading ? "Uploading..." : "Submit homework"}
             </button>
+            
+            {/* Points requirement message */}
+            {user && user.balance < 1 && (
+              <div className="mt-3 text-sm text-red-600 dark:text-red-400 text-center">
+                <div className="flex items-center justify-center">
+                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <span className="flex items-center">
+                    Insufficient balance. You need at least 1
+                    <GemIcon className="h-4 w-4 mx-1" color="#dc2626" />
+                    to submit homework.
+                  </span>
+                </div>
+                <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
+                  <span className="flex items-center justify-center">
+                    Review other students' submissions to earn
+                    <GemIcon className="h-3 w-3 mx-1" color="#6b7280" />.
+                  </span>
+                </p>
+              </div>
+            )}
+            
+            {/* General submission info */}
+            {user && user.balance >= 1 && (
+              <p className="mt-3 text-sm text-gray-600 dark:text-gray-400 text-center">
+                <span className="flex items-center justify-center">
+                  <svg className="w-4 h-4 mr-1 text-accent" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  This submission will cost 1
+                  <GemIcon className="h-4 w-4 mx-1" color="#101e5a" />
+                </span>
+              </p>
+            )}
           </div>
         </section>
 

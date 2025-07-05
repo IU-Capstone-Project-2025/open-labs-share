@@ -6,20 +6,33 @@ import (
 	"strconv"
 )
 
+// Constants for attachment limits
+const (
+	MaxAttachmentsPerFeedback = 5
+)
+
 // Config represents the application configuration
 type Config struct {
 	GRPCPort string
 	Database DatabaseConfig
+	MongoDB  MongoDBConfig
 	MinIO    MinIOConfig
 }
 
-// DatabaseConfig represents database configuration
+// DatabaseConfig represents PostgreSQL database configuration (for feedback metadata)
 type DatabaseConfig struct {
 	Host     string
 	Port     string
 	User     string
 	Password string
 	DBName   string
+}
+
+// MongoDBConfig represents MongoDB configuration (for comments and feedback content)
+type MongoDBConfig struct {
+	URI        string
+	Database   string
+	Collection string
 }
 
 // MinIOConfig represents MinIO configuration
@@ -42,6 +55,11 @@ func Load() (*Config, error) {
 			User:     getEnv("DB_USER", "feedback_user"),
 			Password: getEnv("DB_PASSWORD", "feedback_password"),
 			DBName:   getEnv("DB_NAME", "feedback_db"),
+		},
+		MongoDB: MongoDBConfig{
+			URI:        getEnv("MONGODB_URI", "mongodb://localhost:27017"),
+			Database:   getEnv("MONGODB_DATABASE", "feedback"),
+			Collection: getEnv("MONGODB_COLLECTION", "comments"),
 		},
 		MinIO: MinIOConfig{
 			Endpoint:     getEnv("MINIO_ENDPOINT", "localhost:9000"),
@@ -76,6 +94,12 @@ func (c *Config) validate() error {
 	}
 	if c.Database.DBName == "" {
 		return fmt.Errorf("DB_NAME is required")
+	}
+	if c.MongoDB.URI == "" {
+		return fmt.Errorf("MONGODB_URI is required")
+	}
+	if c.MongoDB.Database == "" {
+		return fmt.Errorf("MONGODB_DATABASE is required")
 	}
 	if c.MinIO.Endpoint == "" {
 		return fmt.Errorf("MINIO_ENDPOINT is required")

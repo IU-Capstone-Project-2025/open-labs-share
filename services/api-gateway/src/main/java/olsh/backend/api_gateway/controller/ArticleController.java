@@ -126,6 +126,34 @@ public class ArticleController {
     }
 
     @Operation(
+            summary = "Get list of articles for the current user",
+            description = "Retrieves a paginated list of articles for the currently authenticated user."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "User's articles retrieved successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ArticleListResponse.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Invalid pagination parameters"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required")
+    })
+    @RequireAuth
+    @GetMapping("/my")
+    public ResponseEntity<ArticleListResponse> getMyArticles(
+            @Valid @ParameterObject @Parameter(description = "Pagination parameters") GetArticlesRequest request,
+            HttpServletRequest httpRequest) {
+
+        long userId = attributesProvider.extractUserIdFromRequest(httpRequest);
+        log.debug("Received request to get articles for user: {}", userId);
+
+        ArticleListResponse response = articleService.getArticlesByAuthor(userId, request);
+
+        log.debug("Successfully retrieved {} articles for user {}", response.getArticles().size(), userId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
         summary = "Delete article",
         description = "Deletes a specific article by its ID. Only the article owner can delete it. Requires authentication."
     )

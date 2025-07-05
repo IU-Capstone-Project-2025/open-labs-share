@@ -1,0 +1,80 @@
+name: Docker Build and Test CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - "*"
+
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install yq
+        run: |
+          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
+      
+      - name: Create CI docker-compose file
+        run: |
+          yq eval 'del(.services.ml-service) | .services.api-gateway.depends_on -= ["ml-service"] | del(.services.postgres-ml) | del(.volumes.postgres-ml-data) | del(.volumes.ml-models)' docker-compose.yml > docker-compose.ci.yml
+          echo "Generated docker-compose.ci.yml:"
+          cat docker-compose.ci.yml
+
+      - name: Build and run services
+        run: docker compose -f docker-compose.ci.yml up --build -d
+
+      - name: Wait for services to stabilize
+        run: |
+          echo "Waiting for 60 seconds for services to stabilize..."
+          sleep 60
+
+      - name: Check container statuses
+        id: check_statuses
+        run: |
+          echo "Checking container statuses..."
+          FAILING_SERVICES=$(docker compose -f docker-compose.ci.yml ps | grep -E "restarting|exited" || true)
+          
+          if [ -n "$FAILING_SERVICES" ]; then
+            echo "Failing services found."
+            # Using a heredoc to pass multiline strings to outputs
+            echo "failing_services<<EOF" >> $GITHUB_OUTPUT
+            echo "$FAILING_SERVICES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "has_failures=true" >> $GITHUB_OUTPUT
+            echo "::warning::The following services are not stable:"
+            echo "$FAILING_SERVICES"
+          else
+            echo "All services are running."
+            echo "has_failures=false" >> $GITHUB_OUTPUT
+          fi
+          echo "Full service list:"
+          docker compose -f docker-compose.ci.yml ps
+
+      - name: Post comment on PR
+        if: steps.check_statuses.outputs.has_failures == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const failingServices = `${{ steps.check_statuses.outputs.failing_services }}`;
+            const commentBody = `🚨 **Docker Build and Test CI Failed** 🚨\n\nThe following Docker services are not stable:\n\`\`\`\n${failingServices}\n\`\`\``;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody
+            });
+      
+      - name: Fail workflow if services are unstable
+        if: steps.check_statuses.outputs.has_failures == 'true'
+        run: |
+          echo "One or more services are unstable. Failing the workflow."
+          exit 1 

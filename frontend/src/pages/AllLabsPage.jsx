@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import LabCard from "../components/LabCard";
-import { labs } from "../utils/api";
+import { labsAPI } from "../utils/api";
 
 export default function AllLabsPage() {
   const [labsData, setLabsData] = useState([]);
@@ -14,7 +14,7 @@ export default function AllLabsPage() {
       try {
         setLoading(true);
         console.log('AllLabsPage: Fetching labs from backend API...');
-        const response = await labs.getLabs();
+        const response = await labsAPI.getLabs();
         console.log('AllLabsPage: Received response:', response);
         console.log('AllLabsPage: Response type:', typeof response);
         console.log('AllLabsPage: Response.labs:', response.labs);
@@ -63,7 +63,7 @@ export default function AllLabsPage() {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">All Labs</h1>
+            <h1 className="text-4xl font-extrabold font-display text-gray-900 dark:text-white tracking-tight mb-8">All Labs</h1>
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 max-w-md mx-auto">
               <h2 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">Error Loading Labs</h2>
               <p className="text-red-600 dark:text-red-300 mb-4">{error}</p>
@@ -84,7 +84,9 @@ export default function AllLabsPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">All Labs</h1>
+          <h1 className="text-4xl font-bold font-display text-gray-900 dark:text-white">
+            All Labs
+          </h1>
           <button
             onClick={handleCreateLab}
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"

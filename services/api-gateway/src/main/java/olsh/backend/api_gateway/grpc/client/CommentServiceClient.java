@@ -5,8 +5,8 @@ import io.grpc.Channel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import olsh.backend.api_gateway.exception.CommentNotFoundException;
-import olsh.backend.api_gateway.grpc.proto.FeedbackServiceGrpc;
-import olsh.backend.api_gateway.grpc.proto.FeedbackProto;
+import olsh.backend.api_gateway.grpc.proto.CommentServiceGrpc;
+import olsh.backend.api_gateway.grpc.proto.CommentProto;
 import org.springframework.grpc.client.GrpcChannelFactory;
 import org.springframework.stereotype.Service;
 
@@ -24,23 +24,23 @@ import java.util.Optional;
 @Service
 public class CommentServiceClient {
 
-    private final FeedbackServiceGrpc.FeedbackServiceBlockingStub feedbackServiceStub;
+    private final CommentServiceGrpc.CommentServiceBlockingStub commentBlockingStub;
 
     public CommentServiceClient(GrpcChannelFactory channelFactory) {
         Channel channel = channelFactory.createChannel("feedback-service");
-        this.feedbackServiceStub = FeedbackServiceGrpc.newBlockingStub(channel);
+        this.commentBlockingStub = CommentServiceGrpc.newBlockingStub(channel);
     }
 
     public CommentResponse createComment(long labId, long userId, CreateCommentRequest request) {
-        FeedbackProto.CreateCommentRequest.Builder grpcRequestBuilder = FeedbackProto.CreateCommentRequest.newBuilder()
-                .setLabId(labId)
+        CommentProto.CreateCommentRequest.Builder grpcRequestBuilder = CommentProto.CreateCommentRequest.newBuilder()
+                .setContentId(labId)
                 .setUserId(userId)
                 .setContent(request.getContent());
 
         Optional.ofNullable(request.getParentId()).ifPresent(grpcRequestBuilder::setParentId);
-        FeedbackProto.LabComment grpcResponse;
+        CommentProto.Comment grpcResponse;
         try {
-            grpcResponse = feedbackServiceStub.createComment(grpcRequestBuilder.build());
+            grpcResponse = commentBlockingStub.createComment(grpcRequestBuilder.build());
         } catch (StatusRuntimeException e) {
             if (e.getStatus().getCode() == Status.Code.INVALID_ARGUMENT) {
                 // Translate to a 400 Bad Request. You might create a custom exception for this.
@@ -52,17 +52,17 @@ public class CommentServiceClient {
             }
         }
 
-        return mapLabCommentToResponse(grpcResponse);
+        return mapCommentToResponse(grpcResponse);
     }
 
     public CommentResponse getCommentById(String commentId) {
-        FeedbackProto.GetCommentRequest request = FeedbackProto.GetCommentRequest.newBuilder()
+        CommentProto.GetCommentRequest request = CommentProto.GetCommentRequest.newBuilder()
                 .setId(commentId)
                 .build();
         
-        FeedbackProto.LabComment grpcResponse;
+        CommentProto.Comment grpcResponse;
         try {
-            grpcResponse = feedbackServiceStub.getComment(request);
+            grpcResponse = commentBlockingStub.getComment(request);
         } catch (StatusRuntimeException e) {
             if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
                 throw new CommentNotFoundException("Comment with id " + commentId + " not found");
@@ -72,19 +72,19 @@ public class CommentServiceClient {
             }
         }
 
-        return mapLabCommentToResponse(grpcResponse);
+        return mapCommentToResponse(grpcResponse);
     }
 
-    public CommentListResponse getLabComments(long labId, GetCommentsRequest request) {
-        FeedbackProto.ListLabCommentsRequest grpcRequest = FeedbackProto.ListLabCommentsRequest.newBuilder()
-                .setLabId(labId)
+    public CommentListResponse getComments(long labId, GetCommentsRequest request) {
+        CommentProto.ListCommentsRequest grpcRequest = CommentProto.ListCommentsRequest.newBuilder()
+                .setContentId(labId)
                 .setPage(request.getPage())
                 .setLimit(request.getLimit())
                 .build();
 
-        FeedbackProto.ListLabCommentsResponse grpcResponse;
+        CommentProto.ListCommentsResponse grpcResponse;
         try {
-            grpcResponse = feedbackServiceStub.listLabComments(grpcRequest);
+            grpcResponse = commentBlockingStub.listComments(grpcRequest);
         } catch (StatusRuntimeException e) {
             // For UNAVAILABLE, INTERNAL, or other unexpected errors
             throw new RuntimeException("gRPC call to feedback-service failed while listing lab comments", e);
@@ -92,7 +92,7 @@ public class CommentServiceClient {
 
         return CommentListResponse.builder()
                 .comments(grpcResponse.getCommentsList().stream()
-                        .map(this::mapLabCommentToResponse)
+                        .map(this::mapCommentToResponse)
                         .toList())
                 .pagination(
                         CommentListResponse.PaginationResponse.builder()
@@ -105,15 +105,15 @@ public class CommentServiceClient {
     }
 
     public CommentListResponse getCommentReplies(String commentId, GetCommentsRequest request) {
-        FeedbackProto.GetCommentRepliesRequest grpcRequest = FeedbackProto.GetCommentRepliesRequest.newBuilder()
+        CommentProto.GetCommentRepliesRequest grpcRequest = CommentProto.GetCommentRepliesRequest.newBuilder()
                 .setCommentId(commentId)
                 .setPage(request.getPage())
                 .setLimit(request.getLimit())
                 .build();
 
-        FeedbackProto.GetCommentRepliesResponse grpcResponse;
+        CommentProto.GetCommentRepliesResponse grpcResponse;
         try {
-            grpcResponse = feedbackServiceStub.getCommentReplies(grpcRequest);
+            grpcResponse = commentBlockingStub.getCommentReplies(grpcRequest);
         } catch (StatusRuntimeException e) {
             if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
                 throw new CommentNotFoundException("Parent comment with id " + commentId + " not found");
@@ -125,7 +125,7 @@ public class CommentServiceClient {
 
         return CommentListResponse.builder()
                 .comments(grpcResponse.getCommentsList().stream()
-                        .map(this::mapLabCommentToResponse)
+                        .map(this::mapCommentToResponse)
                         .toList())
                 .pagination(
                         CommentListResponse.PaginationResponse.builder()
@@ -138,14 +138,14 @@ public class CommentServiceClient {
     }
 
     public CommentResponse updateComment(String commentId, UpdateCommentRequest request) {
-        FeedbackProto.UpdateCommentRequest grpcRequest = FeedbackProto.UpdateCommentRequest.newBuilder()
+        CommentProto.UpdateCommentRequest grpcRequest = CommentProto.UpdateCommentRequest.newBuilder()
                 .setId(commentId)
                 .setContent(request.getContent())
                 .build();
 
-        FeedbackProto.LabComment grpcResponse;
+        CommentProto.Comment grpcResponse;
         try {
-            grpcResponse = feedbackServiceStub.updateComment(grpcRequest);
+            grpcResponse = commentBlockingStub.updateComment(grpcRequest);
         } catch (StatusRuntimeException e) {
             if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
                 throw new CommentNotFoundException("Comment with id " + commentId + " not found");
@@ -156,16 +156,16 @@ public class CommentServiceClient {
                 throw new RuntimeException("gRPC call to feedback-service failed while updating comment", e);
             }
         }
-        return mapLabCommentToResponse(grpcResponse);
+        return mapCommentToResponse(grpcResponse);
     }
 
     public void deleteComment(String commentId) {
-        FeedbackProto.DeleteCommentRequest grpcRequest = FeedbackProto.DeleteCommentRequest.newBuilder()
+        CommentProto.DeleteCommentRequest grpcRequest = CommentProto.DeleteCommentRequest.newBuilder()
                 .setId(commentId)
                 .build();
 
         try {
-            feedbackServiceStub.deleteComment(grpcRequest);
+            commentBlockingStub.deleteComment(grpcRequest);
         } catch (StatusRuntimeException e) {
             if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
                 throw new CommentNotFoundException("Comment with id " + commentId + " not found");
@@ -176,15 +176,15 @@ public class CommentServiceClient {
         }
     }
 
-    private CommentResponse mapLabCommentToResponse(FeedbackProto.LabComment labComment) {
+    private CommentResponse mapCommentToResponse(CommentProto.Comment Comment) {
         return CommentResponse.builder()
-                .id(labComment.getId())
-                .labId(labComment.getLabId())
-                .userId(labComment.getUserId())
-                .parentId(labComment.hasParentId() ? labComment.getParentId() : null)
-                .content(labComment.getContent())
-                .createdAt(formatTimestamp(labComment.getCreatedAt()))
-                .updatedAt(formatTimestamp(labComment.getUpdatedAt()))
+                .id(Comment.getId())
+                .labId(Comment.getContentId())
+                .userId(Comment.getUserId())
+                .parentId(Comment.hasParentId() ? Comment.getParentId() : null)
+                .content(Comment.getContent())
+                .createdAt(formatTimestamp(Comment.getCreatedAt()))
+                .updatedAt(formatTimestamp(Comment.getUpdatedAt()))
                 .build();
     }
 

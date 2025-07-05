@@ -10,10 +10,14 @@ services:
       - frontend_node_modules:/app/frontend/node_modules
     environment:
       - NODE_ENV=development
+      - VITE_API_GATEWAY_ENDPOINT=http://localhost:8080/api/v1
+      - VITE_AUTH_API_ENDPOINT=http://localhost:8081/api/v1/auth
     restart: unless-stopped
     depends_on:
       - api-gateway
       - auth-service
+    networks:
+      - app-network
 
   api-gateway:
     build:
@@ -56,7 +60,7 @@ services:
       - GRPC_PORT=9092
       - USERS_SERVICE_HOST=users-service
       - USERS_SERVICE_PORT=9093
-      - JWT_SIGNING_KEY=defaultSigningKey12345678901234567890123412341234123412341234123412341234
+      - JWT_SIGNING_KEY=${JWT_SIGNING_KEY}
       - ACCESS_TOKEN_EXPIRATION=144000000
       - REFRESH_TOKEN_EXPIRATION=1008000000
       - SPRING_PROFILES_ACTIVE=docker
@@ -76,15 +80,14 @@ services:
       - GRPC_PORT=9093
       - DB_URL=jdbc:postgresql://postgres-users:5432/users_service
       - DB_USERNAME=users_user
-      - DB_PASSWORD=users_password
+      - DB_PASSWORD=${POSTGRES_USERS_PASSWORD}
       - HIBERNATE_DDL_AUTO=update
       - SHOW_SQL=false
       - LOG_LEVEL=INFO
       - SPRING_PROFILES_ACTIVE=docker
     restart: unless-stopped
     depends_on:
-      postgres-users:
-        condition: service_healthy
+      - postgres-users
     networks:
       - app-network
 
@@ -97,20 +100,24 @@ services:
     environment:
       - SERVICE_HOST=0.0.0.0
       - SERVICE_PORT=9091
-      - DB_HOST=postgres-labs
-      - DB_PORT=5432
-      - DB_USER=labs_user
-      - DB_PASSWORD=labs_password
-      - DB_NAME=labs_db
+      - POSTGRESQL_HOST=postgres-labs
+      - POSTGRESQL_PORT=5432
+      - POSTGRESQL_USER=labs_user
+      - POSTGRESQL_PASSWORD=${POSTGRES_LABS_PASSWORD}
+      - POSTGRESQL_NAME=labs_db
       - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - MONGODB_HOST=mongodb-labs
+      - MONGODB_PORT=27017
+      - MONGODB_USER=${MONGO_ROOT_USER}
+      - MONGODB_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGODB_NAME=labs_mongo_db
     restart: unless-stopped
     depends_on:
-      postgres-labs:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+      - postgres-labs
+      - mongodb-labs
+      - minio
     networks:
       - app-network
 
@@ -126,17 +133,15 @@ services:
       - DB_HOST=postgres-articles
       - DB_PORT=5432
       - DB_USER=articles_user
-      - DB_PASSWORD=articles_password
+      - DB_PASSWORD=${POSTGRES_ARTICLES_PASSWORD}
       - DB_NAME=articles_db
       - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
     restart: unless-stopped
     depends_on:
-      postgres-articles:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+      - postgres-articles
+      - minio
     networks:
       - app-network
 
@@ -151,19 +156,17 @@ services:
       - DB_HOST=postgres-feedback
       - DB_PORT=5432
       - DB_USER=feedback_user
-      - DB_PASSWORD=feedback_password
+      - DB_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD}
       - DB_NAME=feedback_db
       - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
       - MINIO_BUCKET_NAME=feedback
       - MINIO_USE_SSL=false
     restart: unless-stopped
     depends_on:
-      postgres-feedback:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+      - postgres-feedback
+      - minio
     networks:
       - app-network
 
@@ -172,16 +175,9 @@ services:
     environment:
       - POSTGRES_DB=users_service
       - POSTGRES_USER=users_user
-      - POSTGRES_PASSWORD=users_password
-    ports:
-      - "5432:5432"
+      - POSTGRES_PASSWORD=${POSTGRES_USERS_PASSWORD}
     volumes:
       - postgres-users-data:/var/lib/postgresql/data
-    healthcheck:
-      test: pg_isready -U users_user -d users_service
-      interval: 5s
-      timeout: 5s
-      retries: 5
     restart: unless-stopped
     networks:
       - app-network
@@ -191,16 +187,9 @@ services:
     environment:
       - POSTGRES_DB=feedback_db
       - POSTGRES_USER=feedback_user
-      - POSTGRES_PASSWORD=feedback_password
-    ports:
-      - "5435:5432"
+      - POSTGRES_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD}
     volumes:
       - postgres-feedback-data:/var/lib/postgresql/data
-    healthcheck:
-      test: pg_isready -U feedback_user -d feedback_db
-      interval: 5s
-      timeout: 5s
-      retries: 5
     restart: unless-stopped
     networks:
       - app-network
@@ -210,16 +199,9 @@ services:
     environment:
       - POSTGRES_DB=labs_db
       - POSTGRES_USER=labs_user
-      - POSTGRES_PASSWORD=labs_password
-    ports:
-      - "5434:5432"
+      - POSTGRES_PASSWORD=${POSTGRES_LABS_PASSWORD}
     volumes:
       - postgres-labs-data:/var/lib/postgresql/data
-    healthcheck:
-      test: pg_isready -U labs_user -d labs_db
-      interval: 5s
-      timeout: 5s
-      retries: 5
     restart: unless-stopped
     networks:
       - app-network
@@ -229,16 +211,9 @@ services:
     environment:
       - POSTGRES_DB=articles_db
       - POSTGRES_USER=articles_user
-      - POSTGRES_PASSWORD=articles_password
-    ports:
-      - "5436:5432"
+      - POSTGRES_PASSWORD=${POSTGRES_ARTICLES_PASSWORD}
     volumes:
       - postgres-articles-data:/var/lib/postgresql/data
-    healthcheck:
-      test: pg_isready -U articles_user -d articles_db
-      interval: 5s
-      timeout: 5s
-      retries: 5
     restart: unless-stopped
     networks:
       - app-network
@@ -258,24 +233,16 @@ services:
       - PDF_DIR=/app/ml/data/predator-pray-22/pdfs
       - CODE_DIR=/app/ml/data/predator-pray-22/code
       - POSTGRES_USER=ml_user
-      - POSTGRES_PASSWORD=ml_password
+      - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD}
       - POSTGRES_HOST=postgres-ml
       - POSTGRES_PORT=5432
       - POSTGRES_DB=chat_history_db
     volumes:
       - ./ml:/app/ml
       - ml-models:/app/models
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     restart: unless-stopped
     depends_on:
-      postgres-ml:
-        condition: service_healthy
+      - postgres-ml
     networks:
       - app-network
 
@@ -284,16 +251,9 @@ services:
     environment:
       - POSTGRES_DB=chat_history_db
       - POSTGRES_USER=ml_user
-      - POSTGRES_PASSWORD=ml_password
-    ports:
-      - "5433:5432"
+      - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD}
     volumes:
       - postgres-ml-data:/var/lib/postgresql/data
-    healthcheck:
-      test: pg_isready -U ml_user -d chat_history_db
-      interval: 5s
-      timeout: 5s
-      retries: 5
     restart: unless-stopped
     networks:
       - app-network
@@ -305,15 +265,22 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
     volumes:
       - minio-data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  mongodb-labs:
+    image: mongo:latest
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=labs_mongo_db
+    volumes:
+      - mongodb-labs-data:/data/db
     restart: unless-stopped
     networks:
       - app-network
@@ -331,3 +298,4 @@ volumes:
   postgres-ml-data:
   ml-models:
   minio-data:
+  mongodb-labs-data:
