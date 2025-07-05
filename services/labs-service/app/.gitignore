@@ -1,0 +1,6 @@
+*.png
+*.jpg
+*.txt
+*.pdf
+proto/labs_service*.py
+proto/submissions_service*.py
