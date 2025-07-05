@@ -57,7 +57,7 @@ public class SubmissionController {
     @RequireAuth
     @PostMapping
     public ResponseEntity<CreateSubmissionResponse> createSubmission(
-            @Valid @ModelAttribute CreateSubmissionRequest request,
+            @Valid @RequestBody CreateSubmissionRequest request,
             HttpServletRequest httpRequest) {
         log.debug("Received request to create submission for lab ID: {}", request.getLabId());
 

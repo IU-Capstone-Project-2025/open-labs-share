@@ -199,10 +199,10 @@ export const submissionsAPI = {
   submitLabSolution: async (labId, userId, solutionText, files) => {
     // 1. Create submission record
     const submissionData = {
-      lab_id: parseInt(labId),
-      owner_id: userId,
+      labId: parseInt(labId),
+      ownerId: userId,
       status: 'submitted',
-      text: solutionText, // Assuming the backend can handle a 'text' field for the solution comment
+      text: solutionText,
     };
     const submissionResponse = await submissionsAPI.createSubmission(submissionData);
     const submissionId = submissionResponse.id || submissionResponse.data?.id;
