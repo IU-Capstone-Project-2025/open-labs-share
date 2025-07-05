@@ -15,11 +15,6 @@ RUN touch proto/__init__.py utils/__init__.py
 # Generate protobuf files
 RUN python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto proto/articles_service.proto
 
-# Fix import statements if files exist
-RUN if [ -f "proto/articles_service_pb2_grpc.py" ]; then \
-        sed -i 's/import articles_service_pb2/from . import articles_service_pb2/' proto/articles_service_pb2_grpc.py; \
-    fi
-
 # Create files directory for tmp files
 RUN mkdir -p /app/files && chmod 777 /app/files
 
