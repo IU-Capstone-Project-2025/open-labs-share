@@ -8,12 +8,14 @@ import olsh.backend.api_gateway.dto.response.UserResponse;
 import olsh.backend.api_gateway.exception.ForbiddenAccessException;
 import olsh.backend.api_gateway.exception.LabNotFoundException;
 import olsh.backend.api_gateway.grpc.client.CommentServiceClient;
+import olsh.backend.api_gateway.grpc.proto.CommentProto;
 import olsh.backend.api_gateway.dto.request.CreateCommentRequest;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -24,27 +26,61 @@ public class CommentService {
     private final LabService labService;
     private final UserService userService;
 
-    public CommentResponse createComment(long labId, long userId, CreateCommentRequest request) {
-        log.debug("Creating comment for lab ID: {} by user ID: {}", labId, userId);
+    public CommentResponse createComment(Long labId, Long userId, CreateCommentRequest request) {
         validateLabExists(labId);
-        CommentResponse comment = commentServiceClient.createComment(labId, userId, request);
-        return enrichCommentWithUserInfo(comment);
+        CommentProto.CreateCommentRequest grpcRequest = CommentProto.CreateCommentRequest.newBuilder()
+                .setContentId(labId)
+                .setUserId(userId)
+                .setContent(request.getContent())
+                .setParentId(request.getParentId())
+                .build();
+        CommentProto.Comment comment = commentServiceClient.createComment(grpcRequest);
+        CommentResponse response = mapCommentToResponse(comment);
+        enrichCommentWithUserInfo(response);
+        log.debug("Comment created successfully for lab ID: {} by user ID: {}", labId, userId);
+        return response;
     }
 
     public CommentResponse getCommentById(String commentId) {
-        CommentResponse comment = commentServiceClient.getCommentById(commentId);
-        return enrichCommentWithUserInfo(comment);
+        CommentProto.GetCommentRequest grpcRequest = CommentProto.GetCommentRequest.newBuilder()
+                .setId(commentId)
+                .build();
+        CommentProto.Comment comment = commentServiceClient.getCommentById(grpcRequest);
+        CommentResponse response = mapCommentToResponse(comment);
+        enrichCommentWithUserInfo(response);
+        log.debug("Fetched comment by ID: {}", commentId);
+        return response;
     }
 
     public CommentListResponse getLabComments(long labId, GetCommentsRequest request) {
         validateLabExists(labId);
-        CommentListResponse response = commentServiceClient.getComments(labId, request);
-        return enrichCommentsWithUserInfo(response);
+        CommentProto.ListCommentsRequest grpcRequest = CommentProto.ListCommentsRequest.newBuilder()
+                .setContentId(labId)
+                .setPage(request.getPage())
+                .setLimit(request.getLimit())
+                .build();
+        CommentProto.ListCommentsResponse grpcResponse = commentServiceClient.getComments(grpcRequest);
+        CommentListResponse response = mapCommentsToResponse(grpcResponse.getCommentsList(),
+                grpcResponse.getTotalCount(), request.getPage());
+        enrichCommentsWithUserInfo(response);
+        log.debug("Fetched comments for lab ID: {} on page: {}, limit: {}", labId, request.getPage(),
+                request.getLimit());
+        return response;
     }
 
     public CommentListResponse getCommentReplies(String commentId, GetCommentsRequest request) {
-        CommentListResponse response = commentServiceClient.getCommentReplies(commentId, request);
-        return enrichCommentsWithUserInfo(response);
+        CommentProto.GetCommentRepliesRequest grpcRequest = CommentProto.GetCommentRepliesRequest.newBuilder()
+                .setCommentId(commentId)
+                .setPage(request.getPage())
+                .setLimit(request.getLimit())
+                .build();
+        CommentProto.GetCommentRepliesResponse grpcResponse = commentServiceClient.getCommentReplies(grpcRequest);
+        CommentListResponse response = mapCommentsToResponse(grpcResponse.getCommentsList(),
+                grpcResponse.getTotalCount(), request.getPage());
+        enrichCommentsWithUserInfo(response);
+        log.debug("Fetched replies for comment ID: {} on page: {}, limit: {}", commentId, request.getPage(),
+                request.getLimit());
+        return response;
     }
 
     public CommentResponse updateComment(String commentId, long userId, UpdateCommentRequest request) {
@@ -54,23 +90,31 @@ public class CommentService {
                     userId, commentId, oldComment.getUserId());
             throw new ForbiddenAccessException("Only author can update the comment");
         }
-        CommentResponse comment = commentServiceClient.updateComment(commentId, request);
-        return enrichCommentWithUserInfo(comment);
+        CommentProto.UpdateCommentRequest grpcRequest = CommentProto.UpdateCommentRequest.newBuilder()
+                .setId(commentId)
+                .setContent(request.getContent())
+                .build();
+        CommentProto.Comment comment = commentServiceClient.updateComment(grpcRequest);
+        CommentResponse response = mapCommentToResponse(comment);
+        enrichCommentWithUserInfo(response);
+        log.debug("Comment ID: {} updated successfully by user ID: {}", commentId, userId);
+        return response;
     }
 
-    public void deleteComment(String commentId, long userId) {
+    public boolean deleteComment(String commentId, long userId) {
         log.debug("Attempting to delete comment ID: {} by user ID: {}", commentId, userId);
-
         CommentResponse comment = getCommentById(commentId);
         if (comment.getUserId() != userId) {
             log.warn("User {} attempted to delete comment {} owned by user {}",
                     userId, commentId, comment.getUserId());
             throw new ForbiddenAccessException("You can only delete your own comments");
         }
-
-        log.debug("Authorization check passed, deleting comment ID: {}", commentId);
-        commentServiceClient.deleteComment(commentId);
-        log.debug("Successfully deleted comment ID: {}", commentId);
+        CommentProto.DeleteCommentRequest grpcRequest = CommentProto.DeleteCommentRequest.newBuilder()
+                .setId(commentId)
+                .build();
+        boolean success = commentServiceClient.deleteComment(grpcRequest);
+        log.debug("Deleted comment ID: {} with success: {}", commentId, success);
+        return success;
     }
 
     private void validateLabExists(long labId) {
@@ -82,42 +126,44 @@ public class CommentService {
         }
     }
 
-    private CommentResponse enrichCommentWithUserInfo(CommentResponse comment) {
-        UserResponse user = userService.getUserByIdSafe(comment.getUserId());
+    private CommentResponse mapCommentToResponse(CommentProto.Comment Comment) {
         return CommentResponse.builder()
-                .id(comment.getId())
-                .labId(comment.getLabId())
-                .userId(comment.getUserId())
-                .firstName(user.getName())
-                .lastName(user.getSurname())
-                .parentId(comment.getParentId())
-                .content(comment.getContent())
-                .createdAt(comment.getCreatedAt())
-                .updatedAt(comment.getUpdatedAt())
+                .id(Comment.getId())
+                .labId(Comment.getContentId())
+                .userId(Comment.getUserId())
+                .parentId(Comment.hasParentId() ? Comment.getParentId() : null)
+                .content(Comment.getContent())
+                .createdAt(TimestampConverter.convertTimestampToIso(Comment.getCreatedAt()))
+                .updatedAt(TimestampConverter.convertTimestampToIso(Comment.getUpdatedAt()))
                 .build();
     }
 
-    private CommentListResponse enrichCommentsWithUserInfo(CommentListResponse response) {
-        HashMap<Long, UserResponse> cache = new HashMap<>();
-        var enrichedComments = response.getComments().stream()
-                .map(comment -> {
-                    UserResponse user = cache.computeIfAbsent(comment.getUserId(), userService::getUserByIdSafe);
-                    return CommentResponse.builder()
-                            .id(comment.getId())
-                            .labId(comment.getLabId())
-                            .userId(comment.getUserId())
-                            .firstName(user.getName())
-                            .lastName(user.getSurname())
-                            .parentId(comment.getParentId())
-                            .content(comment.getContent())
-                            .createdAt(comment.getCreatedAt())
-                            .updatedAt(comment.getUpdatedAt())
-                            .build();
-                })
+    private CommentListResponse mapCommentsToResponse(List<CommentProto.Comment> list, int totalCount, int page) {
+        var comments = list.stream()
+                .map(this::mapCommentToResponse)
                 .toList();
         return CommentListResponse.builder()
-                .comments(enrichedComments)
-                .pagination(response.getPagination())
+                .comments(comments)
+                .pagination(CommentListResponse.PaginationResponse.builder()
+                        .currentPage(page)
+                        .totalItems(totalCount)
+                        .totalPages(0)
+                        .build())
                 .build();
+    }
+
+    private void enrichCommentWithUserInfo(CommentResponse comment) {
+        UserResponse user = userService.getUserByIdSafe(comment.getUserId());
+        comment.setFirstName(user.getName());
+        comment.setLastName(user.getSurname());
+    }
+
+    private void enrichCommentsWithUserInfo(CommentListResponse response) {
+        HashMap<Long, UserResponse> cache = new HashMap<>();
+        response.getComments().forEach(comment -> {
+            UserResponse user = cache.computeIfAbsent(comment.getUserId(), userService::getUserByIdSafe);
+            comment.setFirstName(user.getName());
+            comment.setLastName(user.getSurname());
+        });
     }
 } 
