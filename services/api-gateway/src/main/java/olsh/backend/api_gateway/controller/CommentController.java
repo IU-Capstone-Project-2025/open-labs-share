@@ -97,11 +97,11 @@ public class CommentController {
             @ApiResponse(responseCode = "403", description = "Forbidden - User does not own this comment"),
             @ApiResponse(responseCode = "404", description = "Comment not found")
     })
-    public ResponseEntity<Void> deleteComment(
+    public ResponseEntity<Boolean> deleteComment(
             @Parameter(description = "ID of the comment to delete", required = true) @PathVariable String commentId,
             HttpServletRequest httpRequest) {
         long userId = attributesExtractor.extractUserIdFromRequest(httpRequest);
-        commentService.deleteComment(commentId, userId);
-        return ResponseEntity.noContent().build();
+        boolean success = commentService.deleteComment(commentId, userId);
+        return ResponseEntity.status(success ? HttpStatus.OK : HttpStatus.NOT_FOUND).body(success);
     }
 } 

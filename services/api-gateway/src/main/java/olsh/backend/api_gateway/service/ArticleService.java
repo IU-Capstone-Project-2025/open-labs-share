@@ -27,40 +27,41 @@ public class ArticleService {
 
     public CreateArticleResponse createArticle(CreateArticleRequest request, Long authorId) {
         log.debug("Creating article with title: {} for author: {}", request.getTitle(), authorId);
-    
         validatePdfFile(request.getPdf_file());
-    
-        // Step 1: Register the article metadata. This is the first gRPC call.
-        ArticleProto.Article createdArticle = registerArticle(request, authorId);
-    
-        // If the article wasn't created, createdArticle would be null or an exception would have been thrown.
-        if (createdArticle == null || createdArticle.getArticleId() == 0) {
+        ArticleProto.Article article = registerArticle(request, authorId);
+        if (article == null || article.getArticleId() == 0) {
             throw new RuntimeException("Failed to create article record in the database.");
         }
-    
-        // Step 2: Upload the asset (PDF file) for the newly created article. This is a separate gRPC call.
+        ArticleProto.Asset asset = uploadAssetForArticle(article.getArticleId(), request.getPdf_file());
+        ArticleResponse articleResponse = buildArticleResponse(article, userService.getUserById(authorId), asset);
+        return CreateArticleResponse.builder()
+                .id(article.getArticleId())
+                .message("Article created successfully")
+                .article(articleResponse)
+                .build();
+    }
+
+    private ArticleProto.Asset uploadAssetForArticle(Long articleId, MultipartFile pdfFile) {
         try {
-            articleServiceClient.uploadAsset(createdArticle.getArticleId(), request.getPdf_file());
-            log.debug("Successfully uploaded asset for article ID: {}", createdArticle.getArticleId());
+            ArticleProto.Asset asset = articleServiceClient.uploadAsset(articleId, pdfFile);
+            log.debug("Successfully uploaded asset for article ID: {}", articleId);
+            return  asset;
         } catch (Exception e) {
             // If asset upload fails, we must roll back the article creation.
-            log.error("Asset upload failed for article ID: {}. Attempting to roll back article creation.", createdArticle.getArticleId(), e);
+            log.error("Asset upload failed for article ID: {}. Attempting to roll back article creation.", articleId,
+                    e);
             try {
-                articleServiceClient.deleteArticle(createdArticle.getArticleId());
-                log.info("Successfully rolled back (deleted) article with ID: {}", createdArticle.getArticleId());
+                articleServiceClient.deleteArticle(articleId);
+                log.info("Successfully rolled back (deleted) article with ID: {}", articleId);
             } catch (Exception rollbackEx) {
                 // If the rollback fails, this is a critical state.
-                log.error("CRITICAL: Failed to roll back article creation for article ID: {}. Orphaned article may exist.", createdArticle.getArticleId(), rollbackEx);
+                log.error("CRITICAL: Failed to roll back article creation for article ID: {}. Orphaned article may " +
+                        "exist.", articleId, rollbackEx);
                 // In a real-world scenario, this should trigger a monitoring alert.
             }
             // Inform the client that the asset upload failed and the operation was rolled back.
             throw new RuntimeException("Failed to upload article asset. The article creation has been rolled back.", e);
         }
-    
-        return CreateArticleResponse.builder()
-                .id(createdArticle.getArticleId())
-                .message("Article created successfully")
-                .build();
     }
 
     protected void validatePdfFile(MultipartFile file) {
@@ -95,18 +96,18 @@ public class ArticleService {
             throw new IllegalArgumentException("ArticleId should be provided");
         }
         log.debug("Getting article with ID: {}", articleId);
-
         // Get article and its user from gRPC service
         ArticleProto.Article article = articleServiceClient.getArticle(articleId);
+        ArticleProto.Asset asset = articleServiceClient.getAssetByArticleId(articleId);
         UserResponse author = userService.getUserById(article.getOwnerId());
-
+        ArticleResponse response = buildArticleResponse(article, author, asset);
         log.debug("Successfully retrieved article: {}", article.getTitle());
-
-        return buildArticleResponse(article, author);
+        return response;
     }
 
     public ArticleListResponse getArticlesByAuthor(long authorId, GetArticlesRequest request) {
-        log.debug("Getting articles for author {} - page: {}, limit: {}", authorId, request.getPage(), request.getLimit());
+        log.debug("Getting articles for author {} - page: {}, limit: {}", authorId, request.getPage(),
+                request.getLimit());
         // TODO: This is a temporary fix. The articles-service needs to be fixed to properly implement this feature.
         return ArticleListResponse.builder()
                 .articles(new ArrayList<>())
@@ -120,17 +121,13 @@ public class ArticleService {
 
     public ArticleListResponse getArticles(GetArticlesRequest request) {
         log.debug("Getting articles list - page: {}, limit: {}", request.getPage(), request.getLimit());
-
         try {
             // Get articles from gRPC service
             ArticleProto.ArticleList grpcResponse =
                     articleServiceClient.getArticles(request.getPage(), request.getLimit());
-
             // Convert articles to response DTOs
             List<ArticleResponse> articleResponses = new ArrayList<>();
-
             HashMap<Long, UserResponse> authorCache = new HashMap<>();
-
             for (ArticleProto.Article article : grpcResponse.getArticlesList()) {
                 // TODO: Implement batch loading with caching for better performance
                 UserResponse author;
@@ -140,14 +137,12 @@ public class ArticleService {
                     author = userService.getUserById(article.getOwnerId());
                     authorCache.put(article.getOwnerId(), author);
                 }
-
-                articleResponses.add(buildArticleResponse(article, author));
+                ArticleProto.Asset asset = articleServiceClient.getAssetByArticleId(article.getArticleId());
+                articleResponses.add(buildArticleResponse(article, author, asset));
             }
-
             // Calculate pagination
             int totalItems = (int) grpcResponse.getTotalCount();
             int totalPages = (int) Math.ceil((double) totalItems / request.getLimit());
-
             ArticleListResponse.PaginationResponse pagination =
                     ArticleListResponse.PaginationResponse.builder()
                             .currentPage(request.getPage())
@@ -206,8 +201,19 @@ public class ArticleService {
 
     }
 
+    public ArticleAssetResponse mapToAssetResponse(ArticleProto.Asset asset) {
+        return ArticleAssetResponse.builder()
+                .assetId(asset.getAssetId())
+                .articleId(asset.getArticleId())
+                .filename(asset.getFilename())
+                .filesize(asset.getFilesize())
+                .uploadDate(TimestampConverter.convertTimestampToIso(asset.getUploadDate()))
+                .build();
+    }
 
-    private ArticleResponse buildArticleResponse(ArticleProto.Article article, UserResponse author) {
+    private ArticleResponse buildArticleResponse(ArticleProto.Article article, UserResponse author,
+                                                 ArticleProto.Asset asset) {
+        ArticleAssetResponse assetResponse = mapToAssetResponse(asset);
         return ArticleResponse.builder()
                 .id(article.getArticleId())
                 .title(article.getTitle())
@@ -217,6 +223,7 @@ public class ArticleService {
                 .authorId(article.getOwnerId())
                 .authorName(author.getName())
                 .authorSurname(author.getSurname())
+                .asset(assetResponse)
                 .build();
     }
 }

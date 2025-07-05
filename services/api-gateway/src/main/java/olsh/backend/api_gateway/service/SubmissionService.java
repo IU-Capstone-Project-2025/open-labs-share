@@ -51,15 +51,16 @@ public class SubmissionService {
                 .setOwnerId(ownerId)
                 .setText(request.getTextComment() != null ? request.getTextComment() : "")
                 .build();
-
+        log.debug("Registering submission with lab ID: {} and owner ID: {}", request.getLabId(), ownerId);
         SubmissionProto.Submission submission = submissionServiceClient.createSubmission(protoRequest);
+        log.debug("Successfully registered submission with ID: {}", submission.getSubmissionId());
         UserResponse owner = userService.getUserByIdSafe(ownerId);
         return convertSubmissionToResponse(submission, owner, new ArrayList<>());
     }
 
     private List<SubmissionAssetResponse> uploadAssetsForSubmission(Long submissionId, MultipartFile[] files) {
         List<SubmissionAssetResponse> assetResponses = new ArrayList<>();
-
+        log.debug("Uploading assets for submission ID: {}", submissionId);
         if (files != null) {
             for (MultipartFile file : files) {
                 if (!file.isEmpty()) {
@@ -68,7 +69,7 @@ public class SubmissionService {
                 }
             }
         }
-
+        log.debug("Successfully uploaded {} assets for submission ID: {}", assetResponses.size(), submissionId);
         return assetResponses;
     }
 

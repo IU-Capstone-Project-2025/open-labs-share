@@ -17,5 +17,5 @@ public class CreateCommentRequest {
     private String content;
 
     @Schema(description = "The ID of the parent comment, if this is a reply")
-    private String parentId;
+    private String parentId = "";
 } 
