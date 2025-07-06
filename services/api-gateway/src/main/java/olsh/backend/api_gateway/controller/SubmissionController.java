@@ -111,7 +111,7 @@ public class SubmissionController {
     @GetMapping("/lab/{lab_id}")
     public ResponseEntity<SubmissionListResponse> getSubmissionsByLab(
             @PathVariable("lab_id") Long labId,
-            @RequestParam(defaultValue = "0") @Schema(description = "Номер страницы", example = "0") Integer pageNum,
+            @RequestParam(defaultValue = "1") @Schema(description = "Номер страницы", example = "1") Integer pageNum,
             @RequestParam(defaultValue = "20") @Schema(description = "Размер страницы", example = "20") Integer pageSize,
             HttpServletRequest request) {
 
