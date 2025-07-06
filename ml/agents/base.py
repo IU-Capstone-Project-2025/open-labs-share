@@ -11,6 +11,10 @@ class BaseAgent(ABC):
         pass
 
     @abstractmethod
+    def _load_graph_builder(self) -> None:
+        pass
+
+    @abstractmethod
     async def prompt(self, input_state: AgentState, config: RunnableConfig) -> AIMessage:
         pass
 

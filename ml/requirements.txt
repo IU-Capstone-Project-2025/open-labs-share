@@ -47,7 +47,8 @@ jupyter_client==8.6.3
 jupyter_core==5.8.1
 langchain==0.3.26
 langchain-community==0.3.26
-langchain-core==0.3.66
+langchain-core==0.3.68
+langchain-groq==0.3.5
 langchain-huggingface==0.3.0
 langchain-text-splitters==0.3.8
 langgraph==0.4.10

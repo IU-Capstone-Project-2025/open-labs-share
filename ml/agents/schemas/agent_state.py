@@ -4,5 +4,3 @@ import typing as tp
 class AgentState(BaseModel):
     uuid: str
     assignment_id: str
-    query: str
-    msg_state: dict
