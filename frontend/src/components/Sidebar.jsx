@@ -4,6 +4,7 @@ import { MoonIcon, SunIcon, ChevronDownIcon, ArrowRightOnRectangleIcon } from "@
 import GemIcon from "./GemIcon";
 import { signOut } from "../utils/auth";
 import { useUser } from '../hooks/useUser';
+import { DocumentTextIcon, NewspaperIcon, DocumentCheckIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 
 export default function Sidebar({
   isOpen,
@@ -23,9 +24,9 @@ export default function Sidebar({
 
   const navItems = [
     { path: "/home", name: "Home" },
-    { path: "/labs/all", name: "All Labs" },
-    { path: "/articles/all", name: "All Articles" },
-    { path: "/submissions/review", name: "Review Submissions"},
+    { path: "/all-labs", name: "All Labs" },
+    { path: "/all-articles", name: "All Articles" },
+    { path: "/reviews", name: "Review Queue"},
     {
       name: "Create",
       dropdown: [
