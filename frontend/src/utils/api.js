@@ -216,3 +216,25 @@ export const mlAPI = {
     body: JSON.stringify({ uuid, assignment_id, content }),
   }),
 };
+
+// --- Feedback API ---
+export const feedbackAPI = {
+  createFeedback: (formData) => apiCall('/feedback', {
+    method: 'POST',
+    body: formData, // multipart/form-data
+  }),
+  deleteFeedback: (feedbackId) => apiCall(`/feedback/${feedbackId}`, {
+    method: 'DELETE',
+  }),
+  getMyFeedbackForSubmission: (submissionId) => apiCall(`/feedback/my/${submissionId}`),
+  listMyFeedbacks: (page = 1, limit = 20) => apiCall(`/feedback/my?page=${page}&limit=${limit}`),
+  getFeedbackById: (feedbackId) => apiCall(`/feedback/${feedbackId}`),
+  listStudentFeedbacks: (studentId, page = 1, limit = 20) => apiCall(`/feedback/student/${studentId}?page=${page}&limit=${limit}`),
+  listReviewerFeedbacks: (reviewerId, submissionId = null, page = 1, limit = 20) => {
+    let url = `/feedback/reviewer/${reviewerId}?page=${page}&limit=${limit}`;
+    if (submissionId) {
+      url += `&submissionId=${submissionId}`;
+    }
+    return apiCall(url);
+  },
+};
