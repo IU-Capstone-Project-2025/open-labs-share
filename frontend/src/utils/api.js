@@ -181,46 +181,30 @@ export const articlesAPI = {
 // --- Submissions API ---
 export const submissionsAPI = {
   getAllSubmissions: (page = 1, limit = 100) => apiCall(`/submissions?page=${page}&limit=${limit}`),
-  getLabSubmissions: (labId, page = 1, limit = 20) => apiCall(`/labs/${labId}/submissions?page=${page}&limit=${limit}`),
+  getLabSubmissions: (labId, page = 1, limit = 20) => apiCall(`/submissions/lab/${labId}?page=${page}&limit=${limit}`),
   getSubmissionById: (submissionId) => apiCall(`/submissions/${submissionId}`),
-  createSubmission: (submissionData) => apiCall('/submissions', {
-    method: 'POST',
-    body: JSON.stringify(submissionData),
-  }),
+  getMySubmissions: (page = 1, limit = 20) => apiCall(`/submissions/my?page=${page}&limit=${limit}`),
+  submitLabSolution: async (labId, solutionText, files) => {
+    const formData = new FormData();
+    formData.append('labId', labId);
+    formData.append('textComment', solutionText);
+
+    if (files && files.length > 0) {
+      files.forEach(file => {
+        formData.append('files', file);
+      });
+    }
+
+    return apiCall('/submissions', {
+      method: 'POST',
+      body: formData,
+    });
+  },
   updateSubmission: (submissionId, submissionData) => apiCall(`/submissions/${submissionId}`, {
     method: 'PUT',
     body: JSON.stringify(submissionData),
   }),
   deleteSubmission: (submissionId) => apiCall(`/submissions/${submissionId}`, { method: 'DELETE' }),
-  uploadSubmissionAsset: (submissionId, formData) => apiCall(`/submissions/${submissionId}/assets/upload`, {
-    method: 'POST',
-    body: formData,
-  }),
-  submitLabSolution: async (labId, userId, solutionText, files) => {
-    // 1. Create submission record
-    const submissionData = {
-      labId: parseInt(labId),
-      ownerId: userId,
-      status: 'submitted',
-      text: solutionText,
-    };
-    const submissionResponse = await submissionsAPI.createSubmission(submissionData);
-    const submissionId = submissionResponse.id || submissionResponse.data?.id;
-    if (!submissionId) throw new Error('Failed to create submission record.');
-
-    // 2. Upload all files associated with the submission
-    if (files && files.length > 0) {
-      const uploadPromises = files.map(file => {
-        const formData = new FormData();
-        formData.append('file', file);
-        return submissionsAPI.uploadSubmissionAsset(submissionId, formData);
-      });
-      const uploads = await Promise.all(uploadPromises);
-      return { submission: submissionResponse, uploads };
-    }
-
-    return { submission: submissionResponse };
-  },
 };
 
 // --- ML API ---

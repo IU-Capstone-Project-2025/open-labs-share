@@ -96,7 +96,7 @@ export default function LabPage() {
 
     try {
       setUploading(true);
-      await submissionsAPI.submitLabSolution(id, user.id, submissionText, files);
+      await submissionsAPI.submitLabSolution(id, submissionText, files);
 
       // Update user's balance locally after successful submission
       const updatedUser = { ...user, balance: user.balance - 1 };
