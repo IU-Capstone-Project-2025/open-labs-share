@@ -50,11 +50,11 @@ class Tools:
 
     def get_mongo_client(self) -> MongoClient:
         if self._mongo_client is None:
-            url = f"mongodb://{Config.MONGODB_USER}:{Config.MONGODB_PASSWORD}@{Config.MONGODB_HOST}"
-
+            # Include authentication database in connection string
+            url = f"mongodb://{Config.MONGODB_USER}:{Config.MONGODB_PASSWORD}@{Config.MONGODB_HOST}:{Config.MONGODB_PORT}/{Config.MONGODB_NAME}?authSource=admin"
+            
             self.logger.info(f"Connecting to MongoDB at {url}")
             self._mongo_client = MongoClient(url)
-
         return self._mongo_client
 
     def get_postgresql_engine(self):
