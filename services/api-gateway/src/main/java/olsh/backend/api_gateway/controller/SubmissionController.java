@@ -27,7 +27,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 @RestController
 @RequestMapping("/api/v1/submissions")
 @CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true", maxAge = 3600)
-@Tag(name = "Submissions", description = "Endpoints for managing lab submissions with text comments and file attachments")
+@Tag(name = "Submissions", description = "Endpoints for managing lab submissions with text comments and file " +
+        "attachments")
 @SecurityRequirement(name = "bearerAuth")
 public class SubmissionController {
 
@@ -42,13 +43,15 @@ public class SubmissionController {
 
     @Operation(
             summary = "Create new submission",
-            description = "Creates a new submission with text comment and optional file attachments. Requires authentication."
+            description = "Creates a new submission with text comment and optional file attachments. Requires " +
+                    "authentication."
     )
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "201",
                     description = "Submission created successfully",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = CreateSubmissionResponse.class))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                            CreateSubmissionResponse.class))
             ),
             @ApiResponse(responseCode = "400", description = "Invalid request data"),
             @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
@@ -69,13 +72,15 @@ public class SubmissionController {
 
     @Operation(
             summary = "Get submission by ID",
-            description = "Retrieves detailed information about a specific submission including its assets. Requires authentication."
+            description = "Retrieves detailed information about a specific submission including its assets. Requires " +
+                    "authentication."
     )
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
                     description = "Submission found and returned successfully",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = SubmissionResponse.class))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                            SubmissionResponse.class))
             ),
             @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
             @ApiResponse(responseCode = "404", description = "Submission not found")
@@ -96,13 +101,15 @@ public class SubmissionController {
 
     @Operation(
             summary = "Get submissions by lab ID",
-            description = "Retrieves all submissions for a specific lab including their assets. Requires authentication."
+            description = "Retrieves all submissions for a specific lab including their assets. Requires " +
+                    "authentication."
     )
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
                     description = "Submissions retrieved successfully",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = SubmissionListResponse.class))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                            SubmissionListResponse.class))
             ),
             @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
             @ApiResponse(responseCode = "404", description = "Lab not found")
@@ -126,13 +133,15 @@ public class SubmissionController {
 
     @Operation(
             summary = "Delete submission",
-            description = "Deletes a specific submission by its ID. Only the submission owner can delete it. Requires authentication."
+            description = "Deletes a specific submission by its ID. Only the submission owner can delete it. Requires" +
+                    " authentication."
     )
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
                     description = "Submission deletion response",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = DeleteSubmissionResponse.class))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                            DeleteSubmissionResponse.class))
             ),
             @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
             @ApiResponse(responseCode = "403", description = "Forbidden - No access to delete the submission"),
@@ -152,5 +161,33 @@ public class SubmissionController {
         log.debug("Successfully processed deletion request for submission ID: {}", submissionId);
         return ResponseEntity.ok(response);
     }
+
+
+@Operation(
+        summary = "Get user's own submissions",
+        description = "Returns a paginated list of all submissions made by the authenticated user, including their attachments. Authentication required."
+)
+@ApiResponses(value = {
+        @ApiResponse(
+                responseCode = "200",
+                description = "List of submissions successfully retrieved",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                        SubmissionListResponse.class))
+        ),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - authentication required")
+})
+@RequireAuth
+@GetMapping("/my")
+public ResponseEntity<SubmissionListResponse> getMySubmissions(
+        HttpServletRequest request,
+        @RequestParam(defaultValue = "1") @Parameter(description = "Page number (starts from 1)", example = "1") Integer page,
+        @RequestParam(defaultValue = "20") @Parameter(description = "Page size", example = "20") Integer limit
+) {
+    Long userId = attributesProvider.extractUserIdFromRequest(request);
+    log.debug("Received request to get submissions for user with ID: {} (page: {}, limit: {})", userId, page, limit);
+    SubmissionListResponse response = submissionService.getSubmissionsByUserId(userId, page, limit);
+    log.debug("Successfully retrieved {} submissions for user with ID: {}", response.getSubmissions().size(), userId);
+    return ResponseEntity.ok(response);
+}
 }
 
