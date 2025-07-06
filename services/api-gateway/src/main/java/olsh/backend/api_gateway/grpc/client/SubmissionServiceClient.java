@@ -86,6 +86,21 @@ public class SubmissionServiceClient {
         }
     }
 
+    public SubmissionList getSubmissionsByUser(Long userId, Integer page, Integer limit) {
+        log.debug("Calling gRPC GetSubmissionsByUser for user ID: {}, page: {}, limit: {}", userId, page, limit);
+        try {
+            GetUsersSubmissionsRequest request =
+                    GetUsersSubmissionsRequest.newBuilder().setUserId(userId).setPageNumber(page).setPageSize(limit).build();
+            SubmissionList response = blockingStub.getUsersSubmissions(request);
+            log.debug("Successfully retrieved {} submissions for user ID {} via gRPC (total: {})",
+                    response.getSubmissionsCount(), userId, response.getTotalCount());
+            return response;
+        } catch (Exception e) {
+            log.error("Error calling GetSubmissionsByUser gRPC for user ID {}: {}", userId, e.getMessage(), e);
+            throw new RuntimeException("Failed to get submissions by user via gRPC", e);
+        }
+    }
+
     public Submission updateSubmission(UpdateSubmissionRequest request) {
         log.debug("Calling gRPC UpdateSubmission for submission ID: {}", request.getSubmissionId());
         try {

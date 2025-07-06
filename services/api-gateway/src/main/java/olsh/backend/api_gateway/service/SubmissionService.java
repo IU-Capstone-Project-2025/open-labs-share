@@ -125,6 +125,39 @@ public class SubmissionService {
                 .build();
     }
 
+    public SubmissionListResponse getSubmissionsByUserId(Long userId, Integer pageNum, Integer pageSize) {
+        if (userId == null || userId <= 0) {
+            throw new IllegalArgumentException("User ID should be provided and positive");
+        }
+        if (pageNum < 1) {
+            throw new IllegalArgumentException("Page number should be natural");
+        }
+        if (pageSize <= 0) {
+            throw new IllegalArgumentException("Page size must be positive");
+        }
+
+        log.debug("Getting submissions for user ID: {} (page: {}, size: {})",
+                userId, pageNum, pageSize);
+
+        SubmissionProto.SubmissionList submissionList =
+                submissionServiceClient.getSubmissionsByUser(userId, pageNum, pageSize);
+
+        List<SubmissionResponse> submissions = submissionList.getSubmissionsList().stream()
+                .map(submission -> {
+                    SubmissionProto.AssetList assets = submissionServiceClient.listAssets(submission.getSubmissionId());
+                    List<SubmissionAssetResponse> assetResponses = assets.getAssetsList().stream()
+                            .map(this::convertAssetToResponse)
+                            .toList();
+                    return convertSubmissionToResponse(submission, null, assetResponses);
+                })
+                .toList();
+
+        return SubmissionListResponse.builder()
+                .submissions(submissions)
+                .totalCount(submissionList.getTotalCount())
+                .build();
+    }
+
     public DeleteSubmissionResponse deleteSubmission(Long submissionId, Long userId) {
         log.debug("Deleting submission with ID: {} by user: {}", submissionId, userId);
 
