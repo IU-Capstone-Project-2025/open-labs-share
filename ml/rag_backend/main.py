@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from agent.agent import HelperAgent
+from agents.helper_agent.agent import HelperAgent
 from rag_backend.utils import check_postgres, setup_logging
 from rag_backend.api.routes import router
 import logging

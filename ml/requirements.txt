@@ -15,6 +15,7 @@ comm==0.2.2
 dataclasses-json==0.6.7
 debugpy==1.8.14
 decorator==5.2.1
+distro==1.9.0
 dnspython==2.7.0
 email_validator==2.2.0
 executing==2.2.0
@@ -25,6 +26,7 @@ filelock==3.18.0
 frozenlist==1.7.0
 fsspec==2025.5.1
 greenlet==3.2.3
+groq==0.29.0
 h11==0.16.0
 hf-xet==1.1.5
 httpcore==1.0.9
@@ -79,6 +81,7 @@ nvidia-cusparselt-cu12==0.6.3
 nvidia-nccl-cu12==2.26.2
 nvidia-nvjitlink-cu12==12.6.85
 nvidia-nvtx-cu12==12.6.77
+optimum==1.26.1
 orjson==3.10.18
 ormsgpack==1.10.0
 packaging==24.2
