@@ -4,39 +4,22 @@ import { useUser } from '../hooks/useUser';
 import SubmissionCard from '../components/SubmissionCard';
 import Spinner from '../components/Spinner';
 
-const mockSubmissions = [
-  {
-    id: 1,
-    lab: { title: 'Data Structures Fundamentals !MOCK!' },
-    createdAt: new Date().toISOString(),
-    status: 'reviewed',
-  },
-  {
-    id: 2,
-    lab: { title: 'Advanced Algorithms !MOCK!' },
-    createdAt: new Date().toISOString(),
-    status: 'submitted',
-  },
-];
-
 const MySubmissionsPage = () => {
-  const [submissions, setSubmissions] = useState(mockSubmissions);
-  const [loading, setLoading] = useState(false);
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const user = useUser();
 
-  /*
   useEffect(() => {
     const fetchSubmissions = async () => {
       if (!user) {
-          setLoading(false);
-          return;
+        setLoading(false);
+        return;
       }
       try {
         setLoading(true);
-        // This is inefficient. Ideally, we'd have a /api/v1/submissions/my endpoint
         const response = await submissionsAPI.getAllSubmissions();
-        const allSubmissions = response.submissions || response || [];
+        const allSubmissions = response.submissions || response.data?.submissions || response.data || response || [];
         const mySubmissions = allSubmissions.filter(sub => sub.ownerId === user.id);
         setSubmissions(mySubmissions);
       } catch (err) {
@@ -49,7 +32,19 @@ const MySubmissionsPage = () => {
 
     fetchSubmissions();
   }, [user]);
-  */
+
+  const handleDelete = async (submissionId) => {
+    const originalSubmissions = [...submissions];
+    setSubmissions(submissions.filter(s => s.id !== submissionId));
+
+    try {
+      await submissionsAPI.deleteSubmission(submissionId);
+    } catch (err) {
+      setSubmissions(originalSubmissions);
+      setError('Failed to delete submission. Please try again.');
+      console.error(err);
+    }
+  };
 
   if (loading) {
     return <div className="flex justify-center items-center h-64"><Spinner /></div>;
@@ -65,7 +60,7 @@ const MySubmissionsPage = () => {
       {submissions.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {submissions.map(submission => (
-            <SubmissionCard key={submission.id} submission={submission} />
+            <SubmissionCard key={submission.id} submission={submission} onDelete={() => handleDelete(submission.id)} />
           ))}
         </div>
       ) : (
