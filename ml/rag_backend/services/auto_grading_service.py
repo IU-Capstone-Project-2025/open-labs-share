@@ -80,7 +80,7 @@ class AutoGradingService:
         state, config = await self._preprocess(
             request=request,
             assignment_bytes=assignment_bytes,
-            submission_bytes=submission_bytes[:2]
+            submission_bytes=submission_bytes
         )
 
         try:
