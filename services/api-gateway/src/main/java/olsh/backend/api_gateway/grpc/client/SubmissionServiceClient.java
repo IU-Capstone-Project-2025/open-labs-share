@@ -81,6 +81,10 @@ public class SubmissionServiceClient {
                     response.getTotalCount());
             return response;
         } catch (Exception e) {
+            if (e.getMessage().contains("NOT_FOUND")) {
+                log.warn("No submissions found for lab ID: {}", labId);
+                return null; // No attachments found for this feedback
+            }
             log.error("Error calling GetSubmissions gRPC for lab ID {}: {}", labId, e.getMessage(), e);
             throw new RuntimeException("Failed to get submissions via gRPC", e);
         }
@@ -175,6 +179,10 @@ public class SubmissionServiceClient {
             log.debug("Successfully listed {} assets for submission ID: {}", response.getTotalCount(), submissionId);
             return response;
         } catch (Exception e) {
+            if (e.getMessage().contains("NOT_FOUND")) {
+                log.warn("No assets found for submission ID: {}", submissionId);
+                return AssetList.newBuilder().setTotalCount(0).build(); // No assets found
+            }
             log.error("Failed to list assets for submission ID: {}", submissionId, e);
             throw new RuntimeException("Failed to list assets via gRPC", e);
         }

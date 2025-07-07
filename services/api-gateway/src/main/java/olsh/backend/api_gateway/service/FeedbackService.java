@@ -130,15 +130,17 @@ public class FeedbackService {
      */
     public FeedbackListResponse listStudentFeedbacks(Long studentId, Long submissionId, Integer page, Integer limit) {
         log.info("Listing feedbacks for student {} (page: {}, limit: {})", studentId, page, limit);
-        if (submissionId != null) {
-            log.debug("Filtering by submission ID: {}", submissionId);
-        }
         FeedbackProto.ListStudentFeedbacksRequest grpcRequest = FeedbackProto.ListStudentFeedbacksRequest.newBuilder()
                 .setStudentId(studentId)
-                .setSubmissionId(submissionId != null ? submissionId : 0L) // Use 0 for no filter
                 .setPage(page)
                 .setLimit(limit)
                 .build();
+        if (submissionId!= null){
+            grpcRequest = grpcRequest.toBuilder()
+                    .setSubmissionId(submissionId)
+                    .build();
+            log.debug("Filtering by submission ID: {}", submissionId);
+        }
         FeedbackProto.ListStudentFeedbacksResponse response = feedbackClient.listStudentFeedbacks(grpcRequest);
         List<FeedbackResponse> feedbacks = mapToFeedbackResponses(response.getFeedbacksList());
         log.debug("Retrieved {} feedbacks (total count: {})", feedbacks.size(), response.getTotalCount());
@@ -153,15 +155,17 @@ public class FeedbackService {
      */
     public FeedbackListResponse listReviewerFeedbacks(Long reviewerId, Long submissionId, Integer page, Integer limit) {
         log.info("Listing feedbacks by reviewer {} (page: {}, limit: {})", reviewerId, page, limit);
-        if (submissionId != null) {
-            log.debug("Filtering by submission ID: {}", submissionId);
-        }
         FeedbackProto.ListReviewerFeedbacksRequest grpcRequest = FeedbackProto.ListReviewerFeedbacksRequest.newBuilder()
                 .setReviewerId(reviewerId)
-                .setSubmissionId(submissionId != null ? submissionId : 0L) // Use 0 for no filter
                 .setPage(page)
                 .setLimit(limit)
                 .build();
+        if (submissionId!= null){
+            grpcRequest = grpcRequest.toBuilder()
+                    .setSubmissionId(submissionId)
+                    .build();
+            log.debug("Filtering by submission ID: {}", submissionId);
+        }
         FeedbackProto.ListReviewerFeedbacksResponse response = feedbackClient.listReviewerFeedbacks(grpcRequest);
         List<FeedbackResponse> feedbacks = mapToFeedbackResponses(response.getFeedbacksList());
         log.debug("Retrieved {} feedbacks (total count: {})", feedbacks.size(), response.getTotalCount());

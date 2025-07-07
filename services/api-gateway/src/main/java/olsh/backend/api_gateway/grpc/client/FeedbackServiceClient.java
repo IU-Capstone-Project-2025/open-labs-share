@@ -221,19 +221,27 @@ public Feedback getStudentFeedback(GetStudentFeedbackRequest request) {
             CompletableFuture<UploadAttachmentResponse> future = new CompletableFuture<>();
             StreamObserver<UploadAttachmentRequest> requestObserver = createUploadStream(future);
 
+            // Send metadata first
             sendAttachmentMetadata(requestObserver, reviewerId, feedbackId, file);
-            long totalSent = streamFileContent(requestObserver, file);
+            
+            // Stream file content
+            streamFileContent(requestObserver, file);
+            
+            // Mark the stream as complete
             requestObserver.onCompleted();
-
+            
+            // Wait for the response with timeout
             UploadAttachmentResponse result = future.get(uploadConfig.getTimeoutSeconds(), TimeUnit.SECONDS);
             log.info("Successfully uploaded attachment: filename={}, size={} bytes",
-                    result.getFilename(), totalSent);
+                    result.getFilename(), result.getSize());
             return result;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new AssetUploadException("Upload interrupted: " + e.getMessage());
         } catch (ExecutionException e) {
-            throw new AssetUploadException("Upload execution failed: " + e.getMessage());
+            Throwable cause = e.getCause();
+            log.error("Upload execution failed", cause);
+            throw new AssetUploadException("Upload failed: " + cause.getMessage());
         } catch (TimeoutException e) {
             throw new AssetUploadException("Upload timed out after " + uploadConfig.getTimeoutSeconds() + " seconds");
         } catch (IOException e) {

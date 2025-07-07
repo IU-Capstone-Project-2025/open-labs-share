@@ -14,7 +14,7 @@ spring:
 
   grpc:
     upload:
-      chuck-size: 32768
+      chunk-size: 32768
       timeout-seconds: 120
       max-file-size: 104857600
     client:
