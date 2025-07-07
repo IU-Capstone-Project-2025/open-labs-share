@@ -179,21 +179,24 @@ public Feedback getStudentFeedback(GetStudentFeedbackRequest request) {
     /**
      * Retrieves a specific feedback by its ID.
      *
-     * @param request gRPC request containing the feedback ID
+     * @param feedbackId feedback ID
      * @return The feedback if found
      * @throws FeedbackNotFoundException if the feedback does not exist
      * @throws RuntimeException if the gRPC call fails
      */
-    public Feedback getFeedbackById(GetFeedbackByIdRequest request) {
-        log.debug("Calling gRPC GetFeedbackById for feedback ID: {}", request.getId());
+    public Feedback getFeedbackById(String feedbackId) {
+        log.debug("Calling gRPC GetFeedbackById for feedback ID: {}", feedbackId);
         try {
+            GetFeedbackByIdRequest request = GetFeedbackByIdRequest.newBuilder()
+                    .setId(feedbackId)
+                    .build();
             Feedback response = blockingStub.getFeedbackById(request);
             log.debug("Successfully retrieved feedback via gRPC with ID: {}", response.getId());
             return response;
         } catch (Exception e) {
             log.error("Error calling GetFeedbackById gRPC: {}", e.getMessage(), e);
             if (e.getMessage().contains("NOT_FOUND")) {
-                throw new FeedbackNotFoundException(String.format("Feedback with id=%s not found", request.getId()));
+                throw new FeedbackNotFoundException(String.format("Feedback with id=%s not found", feedbackId));
             }
             throw new RuntimeException("Failed to get feedback via gRPC", e);
         }
@@ -259,6 +262,9 @@ public Feedback getStudentFeedback(GetStudentFeedbackRequest request) {
             return response;
         } catch (Exception e) {
             log.error("Failed to list attachments for feedback ID: {}", feedbackId, e);
+            if (e.getMessage().contains("NOT_FOUND")) {
+                return null; // No attachments found for this feedback
+            }
             throw new RuntimeException("Failed to list attachments via gRPC", e);
         }
     }

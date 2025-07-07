@@ -30,15 +30,24 @@ public class FeedbackService {
      */
     public FeedbackResponse createFeedback(CreateFeedbackRequest request, Long reviewerId) {
         log.info("Creating feedback for submission {} by reviewer {}", request.getSubmissionId(), reviewerId);
-        List<MultipartFile> files = request.getFiles() != null ? new ArrayList<>(List.of(request.getFiles())) :
-                new ArrayList<>();
-        validateFiles(files);
-        FeedbackProto.Feedback feedback = registerFeedback(request, reviewerId);
-        uploadAssetsForFeedback(reviewerId, feedback.getId(), files);
+        List<MultipartFile> files = Arrays.asList(request.getFiles());
+        if (request.getFiles() == null) {
+            files = null;
+        } else if (files.size() == 1 && files.getFirst().isEmpty()) {
+            log.warn("Received empty file (because of presence of 'files' field), skipping validation");
+            files = null;
+        } else {
+            log.debug("Received {} files for feedback", request.getFiles().length);
+            files = Arrays.asList(request.getFiles());
+            validateFiles(files);
+        }
+        String feedbackId = registerFeedback(request, reviewerId).getId();
+        uploadAssetsForFeedback(reviewerId, feedbackId, files);
+        userService.incrementLabsReviewed(reviewerId);
+        // TODO: Implement change of submission status either by calling the submission service or other way
+        FeedbackProto.Feedback feedback = getFeedbackById(feedbackId);
         FeedbackResponse response = mapToFeedbackResponse(feedback);
         log.info("Successfully created feedback {} for submission {}", response.getId(), response.getSubmissionId());
-        // Increment labs reviewed for the reviewer
-        userService.incrementLabsReviewed(reviewerId);
         return response;
     }
 
@@ -50,6 +59,7 @@ public class FeedbackService {
                 .setReviewerId(reviewerId)
                 .setStudentId(request.getStudentId())
                 .setSubmissionId(request.getSubmissionId())
+                .setTitle("Empty Title") // Title is not used in the current implementation
                 .setContent(request.getContent())
                 .build();
         FeedbackProto.Feedback feedback = feedbackClient.createFeedback(protoRequest);
@@ -66,8 +76,13 @@ public class FeedbackService {
         }
         log.info("Uploading {} attachment(s) for feedback {}", files.size(), feedbackId);
         for (MultipartFile file : files) {
+            if (file.getSize() == 0) {
+                log.warn("Skipping empty file: {}", file.getOriginalFilename());
+                continue; // Skip empty files
+            }
             log.debug("Uploading file: {} (size: {} bytes)", file.getOriginalFilename(), file.getSize());
             feedbackClient.uploadAttachment(reviewerId, feedbackId, file);
+            log.info("Successfully uploaded file {} for feedback {}", file.getOriginalFilename(), feedbackId);
         }
     }
 
@@ -78,11 +93,15 @@ public class FeedbackService {
             throw new IllegalArgumentException("Feedback ID should be of UUID format");
         }
         log.info("Retrieving feedback with ID {}", feedbackId);
-        FeedbackProto.GetFeedbackByIdRequest grpcRequest = FeedbackProto.GetFeedbackByIdRequest.newBuilder()
-                .setId(feedbackId)
-                .build();
-        FeedbackProto.Feedback feedback = feedbackClient.getFeedbackById(grpcRequest);
-        FeedbackResponse response = mapToFeedbackResponse(feedback);
+        FeedbackProto.Feedback feedback = feedbackClient.getFeedbackById(feedbackId);
+        FeedbackProto.ListAttachmentsResponse attachmentsResponse = feedbackClient.listAttachments(feedbackId);
+        List<FeedbackProto.AttachmentInfo> attachments;
+        if (attachmentsResponse == null || attachmentsResponse.getAttachmentsCount() == 0) {
+            attachments = null; // No attachments found
+        } else {
+            attachments = attachmentsResponse.getAttachmentsList();
+        }
+        FeedbackResponse response = mapToFeedbackResponse(feedback, attachments);
         log.debug("Successfully retrieved feedback with id {}", feedbackId);
         return response;
     }
@@ -289,6 +308,11 @@ public class FeedbackService {
     }
 
     private FeedbackResponse mapToFeedbackResponse(FeedbackProto.Feedback feedback) {
+        return mapToFeedbackResponse(feedback, null);
+    }
+
+    private FeedbackResponse mapToFeedbackResponse(FeedbackProto.Feedback feedback,
+                                                   List<FeedbackProto.AttachmentInfo> attachments) {
         log.debug("Building feedback response for feedback {}", feedback.getId());
         // Get user data for student and reviewer
         UserResponse student = userService.getUserByIdSafe(feedback.getStudentId());
@@ -299,9 +323,19 @@ public class FeedbackService {
                 .content(feedback.getContent())
                 .student(student)
                 .reviewer(reviewer)
+                .attachments(buildAssetResponse(attachments, feedback.getId()))
                 .createdAt(TimestampConverter.convertTimestampToIso(feedback.getCreatedAt()))
                 .updatedAt(TimestampConverter.convertTimestampToIso(feedback.getUpdatedAt()))
                 .build();
+    }
+
+    private List<FeedbackAssetResponse> buildAssetResponse(List<FeedbackProto.AttachmentInfo> attachments, String feedbackId) {
+        if (attachments == null || attachments.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return attachments.stream()
+                .map(info -> buildAssetResponse(info, feedbackId))
+                .collect(Collectors.toList());
     }
 
     private FeedbackAssetResponse buildAssetResponse(FeedbackProto.AttachmentInfo info, String feedbackId) {
@@ -318,10 +352,7 @@ public class FeedbackService {
         try {
             UUID.fromString(feedbackId); // Validate UUID format
             log.info("Fetching feedback with ID {}", feedbackId);
-            FeedbackProto.GetFeedbackByIdRequest grpcRequest = FeedbackProto.GetFeedbackByIdRequest.newBuilder()
-                    .setId(feedbackId)
-                    .build();
-            return feedbackClient.getFeedbackById(grpcRequest);
+            return feedbackClient.getFeedbackById(feedbackId);
         } catch (Exception e) {
             log.error("Failed to retrieve feedback {}: {}", feedbackId, e.getMessage());
             throw new FeedbackNotFoundException("Feedback not found with ID: " + feedbackId);
