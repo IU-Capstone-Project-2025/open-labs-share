@@ -294,7 +294,9 @@ class LabService(labs_service.LabServiceServicer):
             if data["tags"] is not None:
                 tags_ids = data["tags"].tag_ids
 
-                for lab_tag in lab.tags:
+                exiisting_lab_tags = list(lab.tags)
+
+                for lab_tag in exiisting_lab_tags:
                     stmt = select(Tag).where(Tag.id == lab_tag.tag_id)
                     tag = session.execute(stmt).scalar_one_or_none()
 
@@ -308,8 +310,7 @@ class LabService(labs_service.LabServiceServicer):
                         return labs_stub.Lab()
 
                     tag.labs_count -= 1
-
-                lab.tags.clear()
+                    session.delete(lab_tag)
                 
                 for tag_id in tags_ids:
                     stmt = select(Tag).where(Tag.id == tag_id)
