@@ -9,6 +9,7 @@ service TagService {
   rpc CreateTag (CreateTagRequest) returns (Tag);
   rpc GetTag (GetTagRequest) returns (Tag);
   rpc GetTags (GetTagsRequest) returns (TagList);
+  rpc GetTagsByIds (GetTagsByIdsRequest) returns (TagList);
   rpc UpdateTag (UpdateTagRequest) returns (Tag);
   rpc DeleteTag (DeleteTagRequest) returns (DeleteTagResponse);
 }
@@ -39,6 +40,10 @@ message GetTagRequest {
 message GetTagsRequest {
     int32 page_number = 1;
     int32 page_size = 2;
+}
+
+message GetTagsByIdsRequest {
+    repeated int32 tag_ids = 1;
 }
 
 message UpdateTagRequest {
