@@ -1,5 +1,6 @@
+import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { submissionsAPI } from '../utils/api';
+import { labsAPI, submissionsAPI } from '../utils/api';
 import { useUser } from '../hooks/useUser';
 import SubmissionCard from '../components/SubmissionCard';
 import Spinner from '../components/Spinner';
@@ -16,7 +17,7 @@ const MySubmissionsPage = () => {
   const user = useUser();
 
   useEffect(() => {
-    const fetchMySubmissions = async () => {
+    const fetchSubmissionsWithLabs = async () => {
       if (!user) {
         setLoading(false);
         return;
@@ -25,8 +26,24 @@ const MySubmissionsPage = () => {
       try {
         setLoading(true);
         const response = await submissionsAPI.getMySubmissions(pagination.page, pagination.limit);
+        const submissionsData = response.submissions || [];
         
-        setSubmissions(response.submissions || []);
+        const labIds = [...new Set(submissionsData.map(s => s.labId))];
+        const labsResponse = await Promise.all(
+          labIds.map(id => labsAPI.getLabById(id).catch(() => null))
+        );
+        
+        const labsMap = labsResponse.reduce((acc, lab) => {
+          if (lab) acc[lab.id] = lab;
+          return acc;
+        }, {});
+
+        const enrichedSubmissions = submissionsData.map(sub => ({
+          ...sub,
+          labTitle: labsMap[sub.labId]?.title
+        }));
+
+        setSubmissions(enrichedSubmissions);
         setPagination(prev => ({
           ...prev,
           totalCount: response.totalCount || 0
@@ -39,7 +56,7 @@ const MySubmissionsPage = () => {
       }
     };
 
-    fetchMySubmissions();
+    fetchSubmissionsWithLabs();
   }, [user, pagination.page, pagination.limit]);
 
   const handleDelete = async (submissionId) => {
@@ -89,28 +106,6 @@ const MySubmissionsPage = () => {
                 onDelete={() => handleDelete(submission.submissionId)} 
               />
             ))}
-          </div>
-
-          <div className="flex justify-center items-center space-x-2">
-            <button
-              onClick={() => handlePageChange(pagination.page - 1)}
-              disabled={pagination.page === 1}
-              className="px-4 py-2 rounded-md bg-gray-200 dark:bg-gray-700 disabled:opacity-50"
-            >
-              Previous
-            </button>
-            
-            <span className="px-4 py-2">
-              Page {pagination.page} of {Math.ceil(pagination.totalCount / pagination.limit)}
-            </span>
-            
-            <button
-              onClick={() => handlePageChange(pagination.page + 1)}
-              disabled={pagination.page * pagination.limit >= pagination.totalCount}
-              className="px-4 py-2 rounded-md bg-gray-200 dark:bg-gray-700 disabled:opacity-50"
-            >
-              Next
-            </button>
           </div>
         </>
       ) : (
