@@ -7,6 +7,7 @@ import "highlight.js/styles/github-dark.css";
 import GemIcon from "../components/GemIcon";
 import CommentsSection from "../components/CommentsSection";
 import ChatWindow from "../components/ChatWindow";
+import ToastNotification from "../components/ToastNotification";
 import { getCurrentUser, isAuthenticated, notifyUserDataUpdate } from "../utils/auth";
 import { labsAPI, submissionsAPI } from "../utils/api";
 import { useUser } from "../hooks/useUser";
@@ -47,6 +48,7 @@ export default function LabPage() {
   const [uploading, setUploading] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMode, setChatMode] = useState('floating'); // 'floating' or 'sidebar'
+  const [toast, setToast] = useState({ show: false, message: "" });
   
   // Use the custom hook for user state management
   const user = useUser();
@@ -107,7 +109,7 @@ export default function LabPage() {
       // Notify all components about the user data update (including this component)
       notifyUserDataUpdate();
 
-      alert(`Your solution was uploaded successfully!`);
+      setToast({ show: true, message: "Your solution was uploaded successfully!" });
       setFiles([]);
       setSubmissionText("");
     } catch (err) {
@@ -403,6 +405,13 @@ Lab content delivery is currently being developed. The markdown content for this
               </div>
             </div>
           </section>
+        )}
+
+        {toast.show && (
+          <ToastNotification 
+            message={toast.message} 
+            onClose={() => setToast({ show: false, message: "" })}
+          />
         )}
 
         {/* Lab Content Section */}
