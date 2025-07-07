@@ -2,15 +2,16 @@ from langchain_community.vectorstores import FAISS
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_huggingface.llms import HuggingFacePipeline
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+from agents.base import BaseAgent
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import StateSnapshot
 from langgraph.graph import START, END, StateGraph
-from agent.schemas.rag_state import RAGState
+from agents.helper_agent.schemas.rag_state import RAGState
 from langchain_core.messages import AIMessage
 from functools import partial
-from agent.nodes import retrieve, query_rag_llm, query_llm, route_rag_usage
+from agents.helper_agent.nodes import retrieve, query_rag_llm, query_llm, route_rag_usage
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-from agent.config import \
+from agents.helper_agent.config import \
     RAG_DB_PATH, \
     EMBEDDING_MODEL_NAME, \
     LLM_MODEL_NAME, \
@@ -23,7 +24,7 @@ import torch
 
 logger = logging.getLogger(__name__)
 
-class HelperAgent:
+class HelperAgent(BaseAgent):
     def __init__(self):
         self._load_vector_storage()
         self._load_llm()
@@ -55,7 +56,7 @@ class HelperAgent:
             raise RuntimeError("Vector storage load failed") from e
         
 
-    def _load_llm(self):
+    def _load_llm(self) -> None:
         try:
             self._tokenizer = AutoTokenizer.from_pretrained(
                 LLM_MODEL_NAME,

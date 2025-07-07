@@ -24,6 +24,7 @@ POSTGRES_DB=chat_history_db
 sudo docker run --name chat-postgres --env-file ml/.env -v pgdata:/var/lib/postgresql/data -p 5432:5432 -d postgres
 ```
 - Run `rag_backend/utils/storage_setup` script if it is your first app run
+- Put file `groq_keys.txt` in `/ml`
 - Run fastapi server: `uvicorn rag_backend.main:app --host 0.0.0.0 --port 8081 `
 
 If you want to run container on gpu, install nvidia container toolkit: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
@@ -68,3 +69,29 @@ class ChatHistory(BaseModel):
 ```
 
 [BaseMessage docs](https://python.langchain.com/api_reference/core/messages/langchain_core.messages.base.BaseMessage.html)
+
+## **/auto_grade_submission** `POST` 
+
+`Content-Type: application/json`
+
+Request Model:
+```
+class AutoGradingRequest(BaseModel):
+    uuid: str
+    assignment_id: str
+    submission_id: str
+```
+
+Response Model:
+```
+class AutoGradingResponse(BaseModel):
+    code_elegance_grade: int
+    correctness_grade: int
+    documentation_grade: int
+    readability_grade: int
+
+    code_elegance_feedback: str
+    correctness_feedback: str
+    documentation_feedback: str
+    readability_feedback: str
+```

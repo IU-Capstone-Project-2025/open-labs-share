@@ -1,5 +1,5 @@
 from langchain_core.messages import BaseMessage
-from agent.schemas.prompt_message import PromptMessage
+from agents.schemas import PromptMessage
 from transformers import PreTrainedTokenizerBase
 import typing as tp
 import re
@@ -8,7 +8,7 @@ def format_prompt(
         tokenizer: PreTrainedTokenizerBase,
         user_message: str, 
         chat_history: tp.List[BaseMessage],
-        context: str = None,
+        context: tp.Optional[str] = None,
     ) -> str:
     '''
     Formats prompt for llm
@@ -22,6 +22,8 @@ def format_prompt(
             role = "assistant"
         elif message.type == "system":
             role = "system"
+        else:
+            role = None
 
         history.append(PromptMessage(
             role=role,
@@ -45,12 +47,3 @@ def format_prompt(
         tokenize=False,
         add_generation_prompt=True
     )
-
-
-def format_model_response(response: str):
-    matches = list(re.finditer(r"<\|im_start\|>assistant", response))
-    if not matches:
-        return response.strip()
-    last = matches[-1].start()
-
-    return response[last + len("<|im_start|>assistant"):].strip()
