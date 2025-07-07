@@ -17,7 +17,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "proto"))
 
 # Import project files
 from config import Config
-from utils.models import Lab, LabAsset, ArticleRelation, Submission, SubmissionAsset
+from utils.models import Lab, LabAsset, ArticleRelation, Submission, SubmissionAsset, Tag, LabTag
 import proto.labs_service_pb2 as labs_stub # Generated from labs.proto
 import proto.labs_service_pb2_grpc as labs_service # Generated from labs.proto
 import proto.submissions_service_pb2 as submissions_stub  # Generated from submissions_service.proto
@@ -138,11 +138,40 @@ class LabService(labs_service.LabServiceServicer):
                 article_ids = request.related_articles.article_id
                 new_lab.articles.extend(article_ids)
 
+            if request.HasField("tags"):
+                tags = request.tags.tags
+
+                # Check if there are new tags
+                new_tags = []
+                for tag in tags:
+                    stmt = select(Tag).where(Tag.name == tag)
+                    tag = session.execute(stmt).scalar_one_or_none()
+
+                    if tag is None:
+                        new_tags.append(Tag(name=tag))
+                
+                # Add new tags to the database
+                if new_tags:
+                    session.add_all(new_tags)
+                    session.commit()
+                
+                # Add tags to the lab
+                for tag in tags:
+                    stmt = select(Tag).where(Tag.name == tag)
+                    tag = session.execute(stmt).scalar_one_or_none()
+
+                    new_lab.tags.extend([LabTag(lab_id=new_lab.id, tag_id=tag.id) for tag in new_tags])
+
             session.commit()
 
             self.logger.info(f"Created Lab with id={new_lab.id}, title={new_lab.title}")
 
-            return labs_stub.Lab(**new_lab.get_attrs())
+            response_lab_data = new_lab.get_attrs()
+            response_lab_data["related_articles"] = labs_stub.ArticleList(total_count=len(response_lab_data["related_articles"]), article_id=response_lab_data["related_articles"])
+            response_lab_data["tags"] = labs_stub.TagList(total_count=len(response_lab_data["tags"]), tags=response_lab_data["tags"])
+            response_lab = labs_stub.Lab(**response_lab_data)
+
+            return response_lab
 
 
     def GetLab(self, request, context) -> labs_stub.Lab:
@@ -178,7 +207,12 @@ class LabService(labs_service.LabServiceServicer):
 
             self.logger.info(f"Retrieved Lab with id={lab.id}, title={lab.title}")
 
-            return labs_stub.Lab(**lab.get_attrs())
+            response_lab_data = lab.get_attrs()
+            response_lab_data["related_articles"] = labs_stub.ArticleList(total_count=len(response_lab_data["related_articles"]), article_id=response_lab_data["related_articles"])
+            response_lab_data["tags"] = labs_stub.TagList(total_count=len(response_lab_data["tags"]), tags=response_lab_data["tags"])
+            response_lab = labs_stub.Lab(**response_lab_data)
+
+            return response_lab
 
 
     def GetLabs(self, request, context) -> labs_stub.LabList:
@@ -225,7 +259,11 @@ class LabService(labs_service.LabServiceServicer):
 
             lab_list = labs_stub.LabList(total_count=total_count)
             for lab in labs:
-                lab_list.labs.append(labs_stub.Lab(**lab.get_attrs()))
+                response_lab_data = lab.get_attrs()
+                response_lab_data["related_articles"] = labs_stub.ArticleList(total_count=len(response_lab_data["related_articles"]), article_id=response_lab_data["related_articles"])
+                response_lab_data["tags"] = labs_stub.TagList(total_count=len(response_lab_data["tags"]), tags=response_lab_data["tags"])
+                response_lab = labs_stub.Lab(**response_lab_data)
+                lab_list.labs.append(response_lab)
 
             self.logger.info(f"Retrieved {len(labs)} labs, page {data['page_number']} of size {data['page_size']}")
 
@@ -257,7 +295,8 @@ class LabService(labs_service.LabServiceServicer):
             "lab_id": request.lab_id,
             "title": request.title if request.HasField("title") else None,
             "abstract": request.abstract if request.HasField("abstract") else None,
-            "related_articles": request.related_articles if request.HasField("related_articles") else None
+            "related_articles": request.related_articles if request.HasField("related_articles") else None,
+            "tags": request.tags if request.HasField("tags") else None
         }
 
         with Session(self.engine) as session:
@@ -278,13 +317,44 @@ class LabService(labs_service.LabServiceServicer):
             if data["related_articles"] is not None:
                 article_ids = data["related_articles"].article_id
                 lab.articles.clear()
-                lab.articles.extend(article_ids)
+                lab.articles.extend([ArticleRelation(lab_id=lab.id, article_id=article_id) for article_id in article_ids])
+
+            if data["tags"] is not None:
+                tags = data["tags"].tags
+                lab.tags.clear()
+                
+                # Check if there are new tags
+                new_tags = False
+                for tag in tags:
+                    stmt = select(Tag).where(Tag.name == tag)
+                    tag = session.execute(stmt).scalar_one_or_none()
+
+                    if tag is None:
+                        session.add(Tag(name=tag))
+                        new_tags = True
+
+                if new_tags:
+                    session.commit()
+
+                for tag in tags:
+                    stmt = select(Tag).where(Tag.name == tag)
+                    tag = session.execute(stmt).scalar_one_or_none()
+
+                    if tag is None:
+                        raise ValueError(f"Tag {tag} not found")
+
+                    lab.tags.append(LabTag(lab_id=lab.id, tag_id=tag.id))
 
             session.commit()
 
             self.logger.info(f"Updated Lab with id={lab.id}, title={lab.title}")
 
-            return labs_stub.Lab(**lab.get_attrs())
+            response_lab_data = lab.get_attrs()
+            response_lab_data["related_articles"] = labs_stub.ArticleList(total_count=len(response_lab_data["related_articles"]), article_id=response_lab_data["related_articles"])
+            response_lab_data["tags"] = labs_stub.TagList(total_count=len(response_lab_data["tags"]), tags=response_lab_data["tags"])
+            response_lab = labs_stub.Lab(**response_lab_data)
+
+            return response_lab
 
 
     def DeleteLab(self, request, context) -> labs_stub.DeleteLabResponse:
@@ -364,7 +434,7 @@ class LabService(labs_service.LabServiceServicer):
         metadata_request = next(request_iterator)
 
         if metadata_request.HasField('metadata'):
-            data: dict = {
+            data = {
                 "lab_id": metadata_request.metadata.lab_id,
                 "filename": metadata_request.metadata.filename,
                 "filesize": metadata_request.metadata.filesize
