@@ -38,12 +38,15 @@ services:
       - ML_SERVICE_HOST=ml-service
       - ML_SERVICE_PORT=8082
       - SPRING_PROFILES_ACTIVE=docker
+      - FEEDBACK_SERVICE_HOST=feedback-service
+      - FEEDBACK_SERVICE_PORT=9090
     restart: unless-stopped
     depends_on:
       - auth-service
       - users-service
       - labs-service
       - articles-service
+      - feedback-service
       - ml-service
     networks:
       - app-network
@@ -165,10 +168,14 @@ services:
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
       - MINIO_BUCKET_NAME=feedback
       - MINIO_USE_SSL=false
-    restart: "no"
+      - MONGODB_URI=mongodb://mongodb-feedback:27017
+      - MONGODB_DATABASE=feedback
+      - MONGODB_COLLECTION=comments
+    restart: unless-stopped
     depends_on:
       - postgres-feedback
       - minio
+      - mongodb-feedback
     networks:
       - app-network
 
@@ -269,8 +276,8 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-adminadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-adminadmin}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
       - minio-data:/data
     restart: unless-stopped
@@ -289,6 +296,16 @@ services:
     networks:
       - app-network
 
+  mongodb-feedback:
+    image: mongo:latest
+    environment:
+      MONGO_INITDB_DATABASE: feedback
+    volumes:
+      - mongodb-feedback-data:/data/db
+    restart: unless-stopped
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge
@@ -303,3 +320,4 @@ volumes:
   ml-models:
   minio-data:
   mongodb-labs-data:
+  mongodb-feedback-data:
