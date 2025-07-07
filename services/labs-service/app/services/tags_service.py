@@ -150,6 +150,39 @@ class TagService(tags_service.TagServiceServicer):
 
             return tags_list
 
+    
+    def GetTagsByIds(self, request, context) -> tags_stub.TagList:
+        """
+        Get a list of tags by tag_ids.
+        """
+
+        data: dict = {
+            "tag_ids": request.tag_ids
+        }
+
+        self.logger.info(f"GetTagsByIds requested")
+
+        if data["tag_ids"] is None or len(data["tag_ids"]) == 0:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Tag ids are required, got {data['tag_ids']}"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
+            return tags_stub.TagList()
+        
+        with Session(self.engine) as session:
+            stmt = select(Tag).where(Tag.id.in_(data["tag_ids"]))
+            tags = session.execute(stmt).scalars().all()
+
+            tags_list = tags_stub.TagList(total_count=len(tags))
+            for tag in tags:
+                tags_list.tags.append(tags_stub.Tag(**tag.get_attrs()))
+
+            self.logger.info(f"Tags retrieved: {len(tags)}")
+
+            return tags_list
+
 
     def UpdateTag(self, request, context) -> tags_stub.Tag:
         """
