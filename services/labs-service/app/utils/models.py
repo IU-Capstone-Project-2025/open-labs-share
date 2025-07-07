@@ -46,8 +46,8 @@ class Lab(Base, SerializerMixin):
             "submissions": self.submissions,
             "stars_total": self.stars,
             "people_rated": self.people_rated,
-            "related_articles": self.articles,
-            "tags": [tag.name for tag in self.tags]
+            "related_articles": [article.article_id for article in self.articles],
+            "tags": [tag.tag_id for tag in self.tags]
         }
 
 class Submission(Base, SerializerMixin):
@@ -82,12 +82,20 @@ class Tag(Base, SerializerMixin):
     __tablename__ = "tags"
     
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    labs_count: Mapped[int] = mapped_column(BigInteger, default=0)
 
     def get_attrs(self):
         return {
             "tag_id": self.id,
-            "name": self.name
+            "name": self.name,
+            "description": self.description,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "labs_count": self.labs_count
         }
 
 
