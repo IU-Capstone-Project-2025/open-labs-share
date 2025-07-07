@@ -29,6 +29,7 @@ class Lab(Base, SerializerMixin):
     lab_submissions = relationship("Submission", back_populates="lab", cascade="all, delete")
     assets = relationship("LabAsset", back_populates="lab", cascade="all, delete")
     articles = relationship("ArticleRelation", back_populates="lab", cascade="all, delete")
+    tags = relationship("LabTag", back_populates="lab", cascade="all, delete")
 
     def __repr__(self):
         return f"<Lab(id={self.id}, title={self.title})>"
@@ -44,7 +45,9 @@ class Lab(Base, SerializerMixin):
             "views": self.views,
             "submissions": self.submissions,
             "stars_total": self.stars,
-            "people_rated": self.people_rated
+            "people_rated": self.people_rated,
+            "related_articles": self.articles,
+            "tags": [tag.name for tag in self.tags]
         }
 
 class Submission(Base, SerializerMixin):
@@ -72,6 +75,36 @@ class Submission(Base, SerializerMixin):
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "status": self.status
+        }
+
+
+class Tag(Base, SerializerMixin):
+    __tablename__ = "tags"
+    
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    def get_attrs(self):
+        return {
+            "tag_id": self.id,
+            "name": self.name
+        }
+
+
+class LabTag(Base, SerializerMixin):
+    __tablename__ = "lab_tags"
+    
+    lab_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("labs.id", ondelete="CASCADE"), primary_key=True)
+    tag_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True)
+
+    # Relationships
+    lab = relationship("Lab", back_populates="tags")
+    tag = relationship("Tag")
+
+    def get_attrs(self):
+        return {
+            "lab_id": self.lab_id,
+            "tag_id": self.tag_id
         }
 
 
