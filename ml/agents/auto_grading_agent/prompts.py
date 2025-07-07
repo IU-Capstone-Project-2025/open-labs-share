@@ -70,24 +70,15 @@ For each criterion (Correctness, Code Elegance, Documentation, Readability):
 
     Then assign an overall grade out of 10, based on all chunk feedback.
 
-Output Format:
-
-Grades:
-Code Elegance: <final_grade>
-Correctness: <final_grade>
-Documentation: <final_grade>
-Readability: <final_grade>
-
-Feedback:
-Code Elegance:
-<consolidated feedback here>
-
-Correctness:
-<consolidated feedback here>
-
-Documentation:
-<consolidated feedback here>
-
-Readability:
-<consolidated feedback here>
+Return only JSON with this structure:
+{{
+    "code_elegance_grade": <grade>,
+    "correctness_grade": <grade>,
+    "documentation_grade": <grade>,
+    "readability_grade": <grade>,
+    "code_elegance_feedback": "<your feedback here>",
+    "correctness_feedback": "<your feedback here>",
+    "documentation_feedback": "<your feedback here>",
+    "readability_feedback": "<your feedback here>"  
+}}
 """
