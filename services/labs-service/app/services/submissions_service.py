@@ -87,7 +87,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
             if lab is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Lab not found")
+                error_message = f"Lab with id '{data['lab_id']}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return submissions_stub.Submission()
 
             # Create new submission
@@ -137,7 +141,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
             if submission is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Submission not found")
+                error_message = f"Submission with id '{data['submission_id']}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return submissions_stub.Submission()
 
             # Fetch text from MongoDB
@@ -183,12 +191,20 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
         if data["page_number"] is None or data["page_number"] <= 0:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details(f"Page number is required, got '{data['page_number']}'")
+            error_message = f"Page number is required, got '{data['page_number']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
             return submissions_stub.SubmissionList()
 
         if data["page_size"] is None or data["page_size"] <= 0:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details(f"Page size is required, got '{data['page_size']}'")
+            error_message = f"Page size is required, got '{data['page_size']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
             return submissions_stub.SubmissionList()
 
         with Session(self.postgresql_engine) as session:
@@ -198,7 +214,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
             if lab is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Lab not found")
+                error_message = f"Lab with id '{data['lab_id']}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return submissions_stub.SubmissionList()
 
             # Get paginated submissions
@@ -216,8 +236,6 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
                 submission_list.submissions.append(result)
 
             self.logger.info(f"Retrieved {len(submissions)} submissions for lab_id={data['lab_id']}, page {data['page_number']} of size {data['page_size']}")
-
-            self.logger.info(f"Submission list: {submission_list}")
 
             return submission_list
 
@@ -253,16 +271,29 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
             if submission is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Submission not found")
+                error_message = f"Submission with id '{data['submission_id']}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return submissions_stub.Submission()
 
             if data["status"] is not None:
-                submission.status = self.get_db_status[data["status"]]
+                if submission.status == self.get_db_status[submissions_stub.Status.NOT_GRADED] or submission.status == self.get_db_status[submissions_stub.Status.IN_PROGRESS]:
+                    submission.status = self.get_db_status[data["status"]]
+                else:
+                    context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                    error_message = f"Submission with id '{data['submission_id']}' is already graded"
+                    context.set_details(error_message)
+
+                    self.logger.error(error_message)
+
+                    return submissions_stub.Submission()
 
             session.commit()
 
             result = submissions_stub.Submission(**submission.get_attrs())
-            result.status = data["status"] if data["status"] is not None else self.get_grpc_status[result.status]
+            result.status = self.get_grpc_status[result.status]
 
             # Update text in MongoDB
             if data["text"] is not None:
@@ -311,7 +342,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
             if submission is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Submission not found")
+                error_message = f"Submission with id '{data['submission_id']}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return submissions_stub.DeleteSubmissionResponse(success=False)
 
             session.delete(submission)
@@ -326,7 +361,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
                     self.minio_client.remove_object('submissions', f"{submission.id}/{asset.filename}")
             except Exception as e:
                 context.set_code(grpc.StatusCode.INTERNAL)
-                context.set_details(f"Failed to delete assets from MinIO: {str(e)}")
+                error_message = f"Failed to delete assets from MinIO: {str(e)}"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return submissions_stub.DeleteSubmissionResponse(success=False)
 
             self.logger.info(f"Deleted Submission with id={submission.id}, lab_id={submission.lab_id}")
@@ -361,12 +400,20 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
         if data["page_number"] is None or data["page_number"] <= 0:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details(f"Page number is required, got '{data['page_number']}'")
+            error_message = f"Page number is required, got '{data['page_number']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
             return submissions_stub.SubmissionList()
 
         if data["page_size"] is None or data["page_size"] <= 0:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details(f"Page size is required, got '{data['page_size']}'")
+            error_message = f"Page size is required, got '{data['page_size']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
             return submissions_stub.SubmissionList()
 
         with Session(self.postgresql_engine) as session:
@@ -423,17 +470,29 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
             if data["filename"] is None or data["filename"] == "":
                 context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                context.set_details(f"Filename is required, got '{data['filename']}'")
+                error_message = f"Filename is required, got '{data['filename']}'"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return submissions_stub.Asset()
 
             if data["filesize"] is None or data["filesize"] <= 0:
                 context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                context.set_details(f"Filesize is required, got '{data['filesize']}'")
+                error_message = f"Filesize is required, got '{data['filesize']}'"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return submissions_stub.Asset()
 
         else:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details("First request must contain metadata")
+            error_message = "First request must contain metadata"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
             return submissions_stub.Asset()
 
         with Session(self.postgresql_engine) as session:
@@ -443,7 +502,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
             if submission is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Submission not found")
+                error_message = f"Submission with id '{data['submission_id']}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return submissions_stub.Asset()
 
             # Create new asset
@@ -460,7 +523,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
                             f.write(request.chunk)
                         else:
                             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                            context.set_details("Subsequent requests must contain chunk data")
+                            error_message = "Subsequent requests must contain chunk data"
+                            context.set_details(error_message)
+
+                            self.logger.error(error_message)
+
                             return submissions_stub.Asset()
 
                 # Put the file in MinIO
@@ -475,7 +542,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
             except Exception as e:
                 context.set_code(grpc.StatusCode.INTERNAL)
-                context.set_details(f"Failed to upload asset to MinIO: {str(e)}")
+                error_message = f"Failed to upload asset to MinIO: {str(e)}"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return submissions_stub.Asset()
 
             self.logger.info(f"Uploaded asset with id={new_asset.id}, filename={new_asset.filename} for submission_id={new_asset.submission_id}")
@@ -517,17 +588,29 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
             if data["filename"] is None or data["filename"] == "":
                 context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                context.set_details(f"Filename is required, got '{data['filename']}'")
+                error_message = f"Filename is required, got '{data['filename']}'"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return submissions_stub.Asset()
 
             if data["filesize"] is None or data["filesize"] <= 0:
                 context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                context.set_details(f"Filesize is required, got '{data['filesize']}'")
+                error_message = f"Filesize is required, got '{data['filesize']}'"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return submissions_stub.Asset()
 
         else:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details("First request must contain metadata")
+            error_message = "First request must contain metadata"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
             return submissions_stub.Asset()
 
         with Session(self.postgresql_engine) as session:
@@ -537,7 +620,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
             if asset is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Asset not found")
+                error_message = f"Asset with id '{data['asset_id']}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return submissions_stub.Asset()
 
             # Try to remove the old asset file from MinIO
@@ -545,7 +632,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
                 self.minio_client.remove_object('submissions', f"{asset.submission_id}/{asset.filename}")
             except Exception as e:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details(f"Failed to delete asset from MinIO: {str(e)}")
+                error_message = f"Failed to delete asset from MinIO: {str(e)}"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return submissions_stub.Asset()
 
             asset.filename = data["filename"]
@@ -559,7 +650,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
                         f.write(request.chunk)
                     else:
                         context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                        context.set_details("Subsequent requests must contain chunk data")
+                        error_message = "Subsequent requests must contain chunk data"
+                        context.set_details(error_message)
+
+                        self.logger.error(error_message)
+
                         return submissions_stub.Asset()
 
             # Put the file in MinIO
@@ -608,7 +703,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
                 if asset is None:
                     context.set_code(grpc.StatusCode.NOT_FOUND)
-                    context.set_details("Asset not found")
+                    error_message = f"Asset with id '{data['asset_id']}' not found"
+                    context.set_details(error_message)
+
+                    self.logger.error(error_message)
+
                     return submissions_stub.DownloadAssetResponse()
 
                 yield submissions_stub.DownloadAssetResponse(asset=submissions_stub.Asset(**asset.get_attrs()))
@@ -622,7 +721,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
                     )
                 except Exception as e:
                     context.set_code(grpc.StatusCode.INTERNAL)
-                    context.set_details(f"Failed to download asset from MinIO: {str(e)}")
+                    error_message = f"Failed to download asset from MinIO: {str(e)}"
+                    context.set_details(error_message)
+
+                    self.logger.error(error_message)
+
                     return submissions_stub.DownloadAssetResponse()
 
                 with open(f'files/{asset.filename}', 'rb') as f:
@@ -670,7 +773,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
             if asset is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Asset not found")
+                error_message = f"Asset with id '{data['asset_id']}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return submissions_stub.DeleteAssetResponse(success=False)
 
             session.delete(asset)
@@ -681,7 +788,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
                 self.minio_client.remove_object('submissions', f"{asset.submission_id}/{asset.filename}")
             except Exception as e:
                 context.set_code(grpc.StatusCode.INTERNAL)
-                context.set_details(f"Failed to delete asset from MinIO: {str(e)}")
+                error_message = f"Failed to delete asset from MinIO: {str(e)}"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return submissions_stub.DeleteAssetResponse(success=False)
 
             self.logger.info(f"Deleted asset with id={asset.id}, filename={asset.filename} for submission_id={asset.submission_id}")
@@ -716,12 +827,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
             if submission is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Submission not found")
-                return submissions_stub.AssetList()
+                error_message = f"Submission with id '{data['submission_id']}' not found"
+                context.set_details(error_message)
 
-            if not submission.assets:
-                context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Submission has no assets")
+                self.logger.error(error_message)
+
                 return submissions_stub.AssetList()
 
             asset_list = submissions_stub.AssetList()

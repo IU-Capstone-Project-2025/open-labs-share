@@ -34,7 +34,7 @@ class LabService(labs_service.LabServiceServicer):
         if not os.path.exists('files'):
             os.makedirs('files')
 
-    # ------- Labs Management -------
+
     def CreateLab(self, request, context) -> labs_stub.Lab:
         """
         Create a new lab.
@@ -64,12 +64,20 @@ class LabService(labs_service.LabServiceServicer):
 
         if data["title"] is None or data["title"] == "":
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details(f"Title is required, got '{data['title']}'")
+            error_message = f"Title is required, got '{data['title']}'"
+            context.set_details(error_message)
+            
+            self.logger.error(error_message)
+            
             return labs_stub.Lab()
         
         if data["abstract"] is None or data["abstract"] == "":
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details(f"Abstract is required, got '{data['abstract']}'")
+            error_message = f"Abstract is required, got '{data['abstract']}'"
+            context.set_details(error_message)
+            
+            self.logger.error(error_message)
+            
             return labs_stub.Lab()
 
         with Session(self.engine) as session:
@@ -89,7 +97,11 @@ class LabService(labs_service.LabServiceServicer):
 
                     if tag is None:
                         context.set_code(grpc.StatusCode.NOT_FOUND)
-                        context.set_details(f"Tag with id '{tag_id}' not found")
+                        error_message = f"Tag with id '{tag_id}' not found"
+                        context.set_details(error_message)
+                        
+                        self.logger.error(error_message)
+                        
                         return labs_stub.Lab()
 
                     new_lab.tags.append(LabTag(lab_id=new_lab.id, tag_id=tag.id))
@@ -102,6 +114,7 @@ class LabService(labs_service.LabServiceServicer):
             response_data = new_lab.get_attrs()
             response_data["related_articles"] = labs_stub.ArticleList(total_count=len(response_data["related_articles"]), article_id=response_data["related_articles"])
             response_data["tags"] = labs_stub.LabTagList(total_count=len(response_data["tags"]), tag_ids=response_data["tags"])
+
             response_lab = labs_stub.Lab(**response_data)
 
             return response_lab
@@ -135,7 +148,11 @@ class LabService(labs_service.LabServiceServicer):
 
             if lab is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Lab not found")
+                error_message = f"Lab with id '{data['lab_id']}' not found"
+                context.set_details(error_message)
+                
+                self.logger.error(error_message)
+                
                 return labs_stub.Lab()
 
             self.logger.info(f"Retrieved Lab with id={lab.id}, title={lab.title}")
@@ -143,6 +160,7 @@ class LabService(labs_service.LabServiceServicer):
             response_lab_data = lab.get_attrs()
             response_lab_data["related_articles"] = labs_stub.ArticleList(total_count=len(response_lab_data["related_articles"]), article_id=response_lab_data["related_articles"])
             response_lab_data["tags"] = labs_stub.LabTagList(total_count=len(response_lab_data["tags"]), tag_ids=response_lab_data["tags"])
+
             response_lab = labs_stub.Lab(**response_lab_data)
 
             return response_lab
@@ -174,12 +192,20 @@ class LabService(labs_service.LabServiceServicer):
 
         if data["page_number"] is None or data["page_number"] <= 0:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details(f"Page number is required, got '{data['page_number']}'")
+            error_message = f"Page number is required, got '{data['page_number']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+            
             return labs_stub.LabList()
         
         if data["page_size"] is None or data["page_size"] <= 0:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details(f"Page size is required, got '{data['page_size']}'")
+            error_message = f"Page size is required, got '{data['page_size']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+            
             return labs_stub.LabList()
 
         with Session(self.engine) as session:
@@ -232,13 +258,26 @@ class LabService(labs_service.LabServiceServicer):
             "tags": request.tags if request.HasField("tags") else None
         }
 
+        if data["title"] is not None and data["title"] == "":
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Title is required, got '{data['title']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+            
+            return labs_stub.Lab()
+
         with Session(self.engine) as session:
             stmt = select(Lab).where(Lab.id == data["lab_id"])
             lab = session.execute(stmt).scalar_one_or_none()
 
             if lab is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Lab not found")
+                error_message = f"Lab with id '{data['lab_id']}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return labs_stub.Lab()
 
             if data["title"] is not None:
@@ -253,30 +292,40 @@ class LabService(labs_service.LabServiceServicer):
                 lab.articles.extend([ArticleRelation(lab_id=lab.id, article_id=article_id) for article_id in article_ids])
 
             if data["tags"] is not None:
-                tags = data["tags"].tags
+                tags_ids = data["tags"].tag_ids
+
+                for lab_tag in lab.tags:
+                    stmt = select(Tag).where(Tag.id == lab_tag.tag_id)
+                    tag = session.execute(stmt).scalar_one_or_none()
+
+                    if tag is None:
+                        context.set_code(grpc.StatusCode.NOT_FOUND)
+                        error_message = f"Tag with id '{lab_tag.tag_id}' not found"
+                        context.set_details(error_message)
+
+                        self.logger.error(error_message)
+
+                        return labs_stub.Lab()
+
+                    tag.labs_count -= 1
+
                 lab.tags.clear()
                 
-                # Check if there are new tags
-                new_tags = False
-                for tag in tags:
-                    stmt = select(Tag).where(Tag.name == tag)
+                for tag_id in tags_ids:
+                    stmt = select(Tag).where(Tag.id == tag_id)
                     tag = session.execute(stmt).scalar_one_or_none()
 
                     if tag is None:
-                        session.add(Tag(name=tag))
-                        new_tags = True
+                        context.set_code(grpc.StatusCode.NOT_FOUND)
+                        error_message = f"Tag with id '{tag_id}' not found"
+                        context.set_details(error_message)
 
-                if new_tags:
-                    session.commit()
+                        self.logger.error(error_message)
 
-                for tag in tags:
-                    stmt = select(Tag).where(Tag.name == tag)
-                    tag = session.execute(stmt).scalar_one_or_none()
-
-                    if tag is None:
-                        raise ValueError(f"Tag {tag} not found")
-
+                        return labs_stub.Lab()
+                    
                     lab.tags.append(LabTag(lab_id=lab.id, tag_id=tag.id))
+                    tag.labs_count += 1
 
             session.commit()
 
@@ -319,7 +368,11 @@ class LabService(labs_service.LabServiceServicer):
 
             if lab is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Lab not found")
+                error_message = f"Lab with id '{data['lab_id']}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return labs_stub.DeleteLabResponse(success=False)
 
             session.delete(lab)
@@ -331,7 +384,11 @@ class LabService(labs_service.LabServiceServicer):
                     self.minio_client.remove_object('labs', f"{lab.id}/{asset.filename}")
             except Exception as e:
                 context.set_code(grpc.StatusCode.INTERNAL)
-                context.set_details(f"Failed to delete assets from MinIO: {str(e)}")
+                error_message = f"Failed to delete assets from MinIO: {str(e)}"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return labs_stub.DeleteLabResponse(success=False)
 
             self.logger.info(f"Deleted Lab with id={lab.id}, title={lab.title}")
@@ -375,17 +432,29 @@ class LabService(labs_service.LabServiceServicer):
 
             if data["filename"] is None or data["filename"] == "":
                 context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                context.set_details(f"Filename is required, got '{data['filename']}'")
+                error_message = f"Filename is required, got '{data['filename']}'"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return labs_stub.Asset()
 
             if data["filesize"] is None or data["filesize"] <= 0:
                 context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                context.set_details(f"Filesize is required, got '{data['filesize']}'")
+                error_message = f"Filesize is required, got '{data['filesize']}'"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return labs_stub.Asset()
 
         else:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details("First request must contain metadata")
+            error_message = "First request must contain metadata"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
             return labs_stub.Asset()
 
         with Session(self.engine) as session:
@@ -395,7 +464,11 @@ class LabService(labs_service.LabServiceServicer):
 
             if lab is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Lab not found")
+                error_message = f"Lab with id '{data['lab_id']}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return labs_stub.Asset()
 
             # Create new asset
@@ -411,7 +484,11 @@ class LabService(labs_service.LabServiceServicer):
                             f.write(request.chunk)
                         else:
                             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                            context.set_details("Subsequent requests must contain chunk data")
+                            error_message = "Subsequent requests must contain chunk data"
+                            context.set_details(error_message)
+
+                            self.logger.error(error_message)
+                            
                             return labs_stub.Asset()
 
                 # Put the file in MinIO
@@ -426,7 +503,11 @@ class LabService(labs_service.LabServiceServicer):
 
             except Exception as e:
                 context.set_code(grpc.StatusCode.INTERNAL)
-                context.set_details(f"Failed to upload asset to MinIO: {str(e)}")
+                error_message = f"Failed to upload asset to MinIO: {str(e)}"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return labs_stub.Asset()
 
             session.commit()
@@ -472,22 +553,38 @@ class LabService(labs_service.LabServiceServicer):
 
             if data["asset_id"] is None:
                 context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                context.set_details(f"Asset ID is required, got '{data['asset_id']}'")
+                error_message = f"Asset ID is required, got '{data['asset_id']}'"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return labs_stub.Asset()
 
             if data["filename"] is None or data["filename"] == "":
                 context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                context.set_details(f"Filename is required, got '{data['filename']}'")
+                error_message = f"Filename is required, got '{data['filename']}'"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return labs_stub.Asset()
 
             if data["filesize"] is None or data["filesize"] <= 0:
                 context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                context.set_details(f"Filesize is required, got '{data['filesize']}'")
+                error_message = f"Filesize is required, got '{data['filesize']}'"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return labs_stub.Asset()
 
         else:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details("First request must contain metadata")
+            error_message = "First request must contain metadata"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
             return labs_stub.Asset()
 
         with Session(self.engine) as session:
@@ -497,7 +594,11 @@ class LabService(labs_service.LabServiceServicer):
 
             if lab_asset is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Asset not found")
+                error_message = f"Asset with id '{data['asset_id']}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return labs_stub.Asset()
 
             # Try to remove the old asset file from MinIO
@@ -505,7 +606,11 @@ class LabService(labs_service.LabServiceServicer):
                 self.minio_client.remove_object('labs', f"{lab_asset.lab_id}/{lab_asset.filename}")
             except Exception as e:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details(f"Failed to delete asset from MinIO: {str(e)}")
+                error_message = f"Failed to delete asset from MinIO: {str(e)}"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return labs_stub.Asset()
 
             lab_asset.filename = data["filename"]
@@ -518,7 +623,11 @@ class LabService(labs_service.LabServiceServicer):
                         f.write(request.chunk)
                     else:
                         context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                        context.set_details("Subsequent requests must contain chunk data")
+                        error_message = "Subsequent requests must contain chunk data"
+                        context.set_details(error_message)
+
+                        self.logger.error(error_message)
+
                         return labs_stub.Asset()
 
             # Put the file in MinIO
@@ -570,7 +679,11 @@ class LabService(labs_service.LabServiceServicer):
 
                 if lab_asset is None:
                     context.set_code(grpc.StatusCode.NOT_FOUND)
-                    context.set_details("Asset not found")
+                    error_message = f"Asset with id '{data['asset_id']}' not found"
+                    context.set_details(error_message)
+
+                    self.logger.error(error_message)
+
                     return labs_stub.DownloadAssetResponse()
 
                 yield labs_stub.DownloadAssetResponse(asset=labs_stub.Asset(**lab_asset.get_attrs()))
@@ -584,7 +697,11 @@ class LabService(labs_service.LabServiceServicer):
                     )
                 except Exception as e:
                     context.set_code(grpc.StatusCode.INTERNAL)
-                    context.set_details(f"Failed to download asset from MinIO: {str(e)}")
+                    error_message = f"Failed to download asset from MinIO: {str(e)}"
+                    context.set_details(error_message)
+
+                    self.logger.error(error_message)
+
                     return labs_stub.DownloadAssetResponse()
 
                 with open(f'files/{lab_asset.filename}', 'rb') as f:
@@ -633,7 +750,11 @@ class LabService(labs_service.LabServiceServicer):
 
             if asset is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Asset not found")
+                error_message = f"Asset with id '{data['asset_id']}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return labs_stub.DeleteAssetResponse(success=False)
 
             session.delete(asset)
@@ -643,7 +764,11 @@ class LabService(labs_service.LabServiceServicer):
                 self.minio_client.remove_object('labs', f"{asset.lab_id}/{asset.filename}")
             except Exception as e:
                 context.set_code(grpc.StatusCode.INTERNAL)
-                context.set_details(f"Failed to delete asset from MinIO: {str(e)}")
+                error_message = f"Failed to delete asset from MinIO: {str(e)}"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return labs_stub.DeleteAssetResponse(success=False)
 
             session.commit()
@@ -681,12 +806,11 @@ class LabService(labs_service.LabServiceServicer):
 
             if lab is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Lab not found")
-                return labs_stub.AssetList()
+                error_message = f"Lab with id '{data['lab_id']}' not found"
+                context.set_details(error_message)
 
-            if not lab.assets:
-                context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Lab has no assets")
+                self.logger.error(error_message)
+
                 return labs_stub.AssetList()
 
             asset_list = labs_stub.AssetList()

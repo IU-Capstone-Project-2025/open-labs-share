@@ -39,13 +39,26 @@ class TagService(tags_service.TagServiceServicer):
             "description": request.description,
         }
 
+        if data["name"] is None or data["name"] == "":
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Name is required, got {data['name']}"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+            
+            return tags_stub.Tag()
+
         with Session(self.engine) as session:
             stmt = select(Tag).where(Tag.name == data["name"])
             tag = session.execute(stmt).scalar_one_or_none()
             
             if tag is not None:
                 context.set_code(grpc.StatusCode.ALREADY_EXISTS)
-                context.set_details(f"Tag with name '{data['name']}' already exists")
+                error_message = f"Tag with name '{data['name']}' already exists"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return tags_stub.Tag()
 
             new_tag = Tag(**data)
@@ -62,7 +75,20 @@ class TagService(tags_service.TagServiceServicer):
         Get a tag by tag_id.
         """
 
+        data: dict = {
+            "tag_id": request.tag_id
+        }
+
         self.logger.info(f"GetTag requested")
+
+        if data["tag_id"] is None:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Tag id is required, got {data['tag_id']}"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+            
+            return tags_stub.Tag()
 
         with Session(self.engine) as session:
             stmt = select(Tag).where(Tag.id == request.tag_id)
@@ -70,7 +96,11 @@ class TagService(tags_service.TagServiceServicer):
 
             if tag is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details(f"Tag with id '{request.tag_id}' not found")
+                error_message = f"Tag with id '{request.tag_id}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return tags_stub.Tag()
 
             self.logger.info(f"Tag found: {tag.get_attrs()}")
@@ -92,12 +122,20 @@ class TagService(tags_service.TagServiceServicer):
 
         if data["page_number"] is None or data["page_number"] <= 0:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details("Page number must be greater than 0")
+            error_message = f"Page number must be greater than 0, got {data['page_number']}"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
             return tags_stub.TagList()
 
         if data["page_size"] is None or data["page_size"] <= 0:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details("Page size must be greater than 0")
+            error_message = f"Page size must be greater than 0, got {data['page_size']}"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
             return tags_stub.TagList()
 
         with Session(self.engine) as session:
@@ -125,6 +163,15 @@ class TagService(tags_service.TagServiceServicer):
             "name": request.name if request.HasField("name") else None,
             "description": request.description if request.HasField("description") else None,
         }
+        
+        if data["name"] is not None and data["name"] == "":
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Name is required, got {data['name']}"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+            
+            return tags_stub.Tag()
 
         with Session(self.engine) as session:
             stmt = select(Tag).where(Tag.id == data["tag_id"])
@@ -132,7 +179,11 @@ class TagService(tags_service.TagServiceServicer):
 
             if tag is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details(f"Tag with id '{data['tag_id']}' not found")
+                error_message = f"Tag with id '{data['tag_id']}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return tags_stub.Tag()
             
             if data["name"] is not None:
@@ -164,13 +215,17 @@ class TagService(tags_service.TagServiceServicer):
 
             if tag is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details(f"Tag with id '{data['tag_id']}' not found")
+                error_message = f"Tag with id '{data['tag_id']}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return tags_stub.DeleteTagResponse(success=False)
             
             session.delete(tag)
             session.commit()
 
-            self.logger.info(f"Tag deleted: {tag.get_attrs()}")
+            self.logger.info(f"Tag deleted: {tag.id}")
             
             return tags_stub.DeleteTagResponse(success=True)
 
