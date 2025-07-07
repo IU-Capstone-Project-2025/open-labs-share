@@ -142,7 +142,7 @@ export const usersAPI = {
 
 // --- Labs API ---
 export const labsAPI = {
-  getLabs: (page = 1, limit = 20) => apiCall(`/labs?page=${page}&limit=${limit}`),
+  getLabs: (page = 1, limit = 100, search = "") => apiCall(`/labs?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`),
   getMyLabs: (page = 1, limit = 20) => apiCall('/labs/my', {
     // Add a cache-busting parameter to ensure fresh data
     params: { _: new Date().getTime() },
@@ -167,7 +167,8 @@ export const labsAPI = {
 
 // --- Articles API ---
 export const articlesAPI = {
-  getArticles: (page = 1, limit = 20) => apiCall(`/articles?page=${page}&limit=${limit}`),
+  // getArticles: (page = 1, limit = 20) => apiCall(`/articles?page=${page}&limit=${limit}`),
+  getArticles: (page = 1, limit = 100, search = "") => apiCall(`/articles?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`),
   getMyArticles: (page = 1, limit = 20) => apiCall('/articles/my'),
   getArticleById: (articleId) => apiCall(`/articles/${articleId}`),
   createArticle: (formData) => apiCall('/articles', {
