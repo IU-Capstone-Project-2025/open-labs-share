@@ -8,8 +8,10 @@ import olsh.backend.api_gateway.dto.response.*;
 import olsh.backend.api_gateway.exception.AssetUploadException;
 import olsh.backend.api_gateway.exception.FeedbackNotFoundException;
 import olsh.backend.api_gateway.exception.ForbiddenAccessException;
+import olsh.backend.api_gateway.exception.SubmissionIsAlreadyGradedException;
 import olsh.backend.api_gateway.grpc.client.FeedbackServiceClient;
 import olsh.backend.api_gateway.grpc.proto.FeedbackProto;
+import olsh.backend.api_gateway.grpc.proto.SubmissionProto;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -22,6 +24,7 @@ import java.util.stream.Collectors;
 public class FeedbackService {
 
     private final FeedbackServiceClient feedbackClient;
+    private final SubmissionService submissionService;
     private final UserService userService;
     private final UploadFileConfiguration uploadConfig;
 
@@ -41,6 +44,7 @@ public class FeedbackService {
             files = Arrays.asList(request.getFiles());
             validateFiles(files);
         }
+        validateLabStatus(request.getSubmissionId());
         String feedbackId = registerFeedback(request, reviewerId).getId();
         uploadAssetsForFeedback(reviewerId, feedbackId, files);
         userService.incrementLabsReviewed(reviewerId);
@@ -48,7 +52,23 @@ public class FeedbackService {
         FeedbackProto.Feedback feedback = getFeedbackById(feedbackId);
         FeedbackResponse response = mapToFeedbackResponse(feedback);
         log.info("Successfully created feedback {} for submission {}", response.getId(), response.getSubmissionId());
+        submissionService.setSubmissionStatus(request.getSubmissionId(), SubmissionProto.Status.ACCEPTED);
         return response;
+    }
+
+    private void validateLabStatus(Long submissionId) {
+        log.debug("Validating lab status for submission {}", submissionId);
+        if (submissionId == null || submissionId <= 0) {
+            log.error("Invalid submission ID: {}", submissionId);
+            throw new IllegalArgumentException("Submission ID must be a positive number");
+        }
+        SubmissionResponse submission = submissionService.getSubmissionById(submissionId);
+        if (!submission.getStatus().equals("NOT_GRADED")){
+            log.warn("Submission {} is not in NOT_GRADED status, current status: {}", submissionId, submission.getStatus());
+            throw new SubmissionIsAlreadyGradedException(
+                    "Submission is already graded or in progress, cannot add feedback");
+        }
+        log.debug("Submission {} is in NOT_GRADED status, proceeding with feedback creation", submissionId);
     }
 
     /**

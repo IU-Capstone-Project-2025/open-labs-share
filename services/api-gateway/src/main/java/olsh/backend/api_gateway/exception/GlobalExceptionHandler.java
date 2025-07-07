@@ -53,6 +53,11 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(SubmissionIsAlreadyGradedException.class)
+    public ResponseEntity<ErrorResponse> handleSubmissionIsAlreadyGradedException(SubmissionIsAlreadyGradedException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), "The submission has already been graded");
+    }
+
     @ExceptionHandler(SubmissionNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleSubmissionNotFoundException(SubmissionNotFoundException ex) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), "The requested submission was not found");

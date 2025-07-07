@@ -5,6 +5,7 @@ import olsh.backend.api_gateway.config.UploadFileConfiguration;
 import olsh.backend.api_gateway.dto.request.CreateSubmissionRequest;
 import olsh.backend.api_gateway.dto.response.*;
 import olsh.backend.api_gateway.exception.ForbiddenAccessException;
+import olsh.backend.api_gateway.exception.SubmissionIsAlreadyGradedException;
 import olsh.backend.api_gateway.grpc.client.SubmissionServiceClient;
 import olsh.backend.api_gateway.grpc.proto.SubmissionProto;
 import org.apache.catalina.User;
@@ -180,6 +181,23 @@ public class SubmissionService {
                 .success(true)
                 .message("Submission deleted successfully")
                 .build();
+    }
+
+    protected void setSubmissionStatus(Long submissionId, SubmissionProto.Status status) {
+        log.debug("Setting submission ID: {} status to {}", submissionId, status);
+        SubmissionProto.Submission submission = submissionServiceClient.getSubmission(submissionId);
+        if (submission == null) {
+            throw new IllegalArgumentException("Submission not found");
+        }
+        if (submission.getStatus() == SubmissionProto.Status.ACCEPTED) {
+            throw new SubmissionIsAlreadyGradedException("Submission is already graded");
+        }
+        SubmissionProto.UpdateSubmissionRequest request = SubmissionProto.UpdateSubmissionRequest.newBuilder()
+                .setSubmissionId(submissionId)
+                .setStatus(status)
+                .build();
+        submissionServiceClient.updateSubmission(request);
+        log.info("Successfully set submission ID: {} status to {}", submissionId, status);
     }
 
     // File validation methods
