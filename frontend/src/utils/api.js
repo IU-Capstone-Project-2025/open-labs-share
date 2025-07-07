@@ -181,46 +181,30 @@ export const articlesAPI = {
 // --- Submissions API ---
 export const submissionsAPI = {
   getAllSubmissions: (page = 1, limit = 100) => apiCall(`/submissions?page=${page}&limit=${limit}`),
-  getLabSubmissions: (labId, page = 1, limit = 20) => apiCall(`/labs/${labId}/submissions?page=${page}&limit=${limit}`),
+  getLabSubmissions: (labId, page = 1, limit = 20) => apiCall(`/submissions/lab/${labId}?page=${page}&limit=${limit}`),
   getSubmissionById: (submissionId) => apiCall(`/submissions/${submissionId}`),
-  createSubmission: (submissionData) => apiCall('/submissions', {
-    method: 'POST',
-    body: JSON.stringify(submissionData),
-  }),
+  getMySubmissions: (page = 1, limit = 20) => apiCall(`/submissions/my?page=${page}&limit=${limit}`),
+  submitLabSolution: async (labId, solutionText, files) => {
+    const formData = new FormData();
+    formData.append('labId', labId);
+    formData.append('textComment', solutionText);
+
+    if (files && files.length > 0) {
+      files.forEach(file => {
+        formData.append('files', file);
+      });
+    }
+
+    return apiCall('/submissions', {
+      method: 'POST',
+      body: formData,
+    });
+  },
   updateSubmission: (submissionId, submissionData) => apiCall(`/submissions/${submissionId}`, {
     method: 'PUT',
     body: JSON.stringify(submissionData),
   }),
   deleteSubmission: (submissionId) => apiCall(`/submissions/${submissionId}`, { method: 'DELETE' }),
-  uploadSubmissionAsset: (submissionId, formData) => apiCall(`/submissions/${submissionId}/assets/upload`, {
-    method: 'POST',
-    body: formData,
-  }),
-  submitLabSolution: async (labId, userId, solutionText, files) => {
-    // 1. Create submission record
-    const submissionData = {
-      lab_id: parseInt(labId),
-      owner_id: userId,
-      status: 'submitted',
-      text: solutionText, // Assuming the backend can handle a 'text' field for the solution comment
-    };
-    const submissionResponse = await submissionsAPI.createSubmission(submissionData);
-    const submissionId = submissionResponse.id || submissionResponse.data?.id;
-    if (!submissionId) throw new Error('Failed to create submission record.');
-
-    // 2. Upload all files associated with the submission
-    if (files && files.length > 0) {
-      const uploadPromises = files.map(file => {
-        const formData = new FormData();
-        formData.append('file', file);
-        return submissionsAPI.uploadSubmissionAsset(submissionId, formData);
-      });
-      const uploads = await Promise.all(uploadPromises);
-      return { submission: submissionResponse, uploads };
-    }
-
-    return { submission: submissionResponse };
-  },
 };
 
 // --- ML API ---
@@ -231,4 +215,26 @@ export const mlAPI = {
     method: 'POST',
     body: JSON.stringify({ uuid, assignment_id, content }),
   }),
+};
+
+// --- Feedback API ---
+export const feedbackAPI = {
+  createFeedback: (formData) => apiCall('/feedback', {
+    method: 'POST',
+    body: formData, // multipart/form-data
+  }),
+  deleteFeedback: (feedbackId) => apiCall(`/feedback/${feedbackId}`, {
+    method: 'DELETE',
+  }),
+  getMyFeedbackForSubmission: (submissionId) => apiCall(`/feedback/my/${submissionId}`),
+  listMyFeedbacks: (page = 1, limit = 20) => apiCall(`/feedback/my?page=${page}&limit=${limit}`),
+  getFeedbackById: (feedbackId) => apiCall(`/feedback/${feedbackId}`),
+  listStudentFeedbacks: (studentId, page = 1, limit = 20) => apiCall(`/feedback/student/${studentId}?page=${page}&limit=${limit}`),
+  listReviewerFeedbacks: (reviewerId, submissionId = null, page = 1, limit = 20) => {
+    let url = `/feedback/reviewer/${reviewerId}?page=${page}&limit=${limit}`;
+    if (submissionId) {
+      url += `&submissionId=${submissionId}`;
+    }
+    return apiCall(url);
+  },
 };

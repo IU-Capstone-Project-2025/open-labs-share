@@ -24,8 +24,13 @@ import LabPage from "./pages/LabPage";
 import ArticlePage from "./pages/ArticlePage";
 import CreateLabPage from "./pages/CreateLabPage";
 import CreateArticlePage from "./pages/CreateArticlePage";
+import MySubmissionsPage from "./pages/MySubmissionsPage";
+import ReviewSubmissionsPage from "./pages/ReviewSubmissionsPage";
+import SubmissionPage from "./pages/SubmissionPage";
 import BackgroundCircles from "./components/BackgroundCircles";
 import { UserContext } from './hooks/useUser';
+import ReviewQueuePage from './pages/ReviewQueuePage';
+import ReviewSubmissionPage from './pages/ReviewSubmissionPage';
 
 // Component to protect routes that require authentication
 function ProtectedRoute({ children }) {
@@ -241,6 +246,11 @@ function AppContent() {
             <Route path="/article/:id" element={<ProtectedRoute><ArticlePage /></ProtectedRoute>} />
             <Route path="/create-article" element={<ProtectedRoute><CreateArticlePage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/submissions/my" element={<ProtectedRoute><MySubmissionsPage /></ProtectedRoute>} />
+            <Route path="/submissions/review" element={<ProtectedRoute><ReviewSubmissionsPage /></ProtectedRoute>} />
+            <Route path="/submissions/:id" element={<ProtectedRoute><SubmissionPage /></ProtectedRoute>} />
+            <Route path="/reviews" element={<ReviewQueuePage />} />
+            <Route path="/review/:submissionId" element={<ReviewSubmissionPage />} />
             {/* Catch-all route for undefined paths */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

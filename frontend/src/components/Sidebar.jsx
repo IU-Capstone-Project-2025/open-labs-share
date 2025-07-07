@@ -4,6 +4,7 @@ import { MoonIcon, SunIcon, ChevronDownIcon, ArrowRightOnRectangleIcon } from "@
 import GemIcon from "./GemIcon";
 import { signOut } from "../utils/auth";
 import { useUser } from '../hooks/useUser';
+import { DocumentTextIcon, NewspaperIcon, DocumentCheckIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 
 export default function Sidebar({
   isOpen,
@@ -25,6 +26,7 @@ export default function Sidebar({
     { path: "/home", name: "Home" },
     { path: "/all-labs", name: "All Labs" },
     { path: "/all-articles", name: "All Articles" },
+    { path: "/reviews", name: "Review Queue"},
     {
       name: "Create",
       dropdown: [
@@ -38,6 +40,7 @@ export default function Sidebar({
     { path: "/profile", name: "Change Info" },
     { path: "/my-labs", name: "My Labs" },
     { path: "/my-articles", name: "My Articles" },
+    { path: "/submissions/my", name: "My Submissions" },
   ];
 
   const isProfileActive = profileDropdownItems.some(item => item.path === activePath);

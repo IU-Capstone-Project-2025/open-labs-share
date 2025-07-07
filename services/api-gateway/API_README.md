@@ -446,6 +446,7 @@ assets: file[] (optional) - Supporting assets (images, etc.)
 | [`POST /submissions`](#create-submission)                     | POST   | Create new submission for a lab                          |
 | [`GET /submissions/{submission_id}`](#get-submission-by-id)   | GET    | Get submission by ID                                      |
 | [`GET /submissions/lab/{lab_id}`](#get-lab-submissions)       | GET    | Get all submissions for a specific lab                    |
+| [`GET /submissions/my`](#get-my-submissions)                  | GET    | Get all submissions by the authenticated user              |
 | [`DELETE /submissions/{submission_id}`](#delete-submission)    | DELETE | Delete specific submission by its ID                      |
 
 ### Create Submission
@@ -571,28 +572,34 @@ assets: file[] (required) - Submission files
 {
   "submissions": [
     {
-      "submissionId": number,
-      "labId": number,
-      "ownerId": number,
-      "username": "string",
-      "ownerName": "string",
-      "ownerSurname": "string",
+      "submissionId": "number",
+      "labId": "number",
+      "owner": {
+        "id": "number",
+        "username": "string",
+        "name": "string",
+        "surname": "string",
+        "email": "string",
+        "labs_solved": "number",
+        "labs_reviewed": "number",
+        "balance": "number"
+      },
       "text": "string",
       "createdAt": "string (ISO 8601)",
       "updatedAt": "string (ISO 8601)",
       "status": "string",
       "assets": [
         {
-          "assetId": number,
-          "submissionId": number,
+          "assetId": "number",
+          "submissionId": "number",
           "filename": "string",
-          "totalSize": number,
+          "totalSize": "number",
           "uploadDate": "string (ISO 8601)"
         }
       ]
     }
   ],
-  "totalCount": number
+  "totalCount": "number"
 }
 ```  
 
@@ -600,6 +607,52 @@ assets: file[] (required) - Submission files
 - `401 Unauthorized` - Authentication required
 - `403 Forbidden` - You have no access to view lab submissions
 - `404 Not Found` - Lab not found
+
+---
+
+### Get My Submissions
+
+**Get all submissions by the authenticated user**
+- **Endpoint:** `GET /submissions/my`
+- **Authentication:** Required
+- **Description:** Returns a paginated list of all submissions made by the authenticated user, including their attachments.
+
+**Query Parameters:**
+- `page`: number (optional, default: 1) — Page number (starts from 1)
+- `limit`: number (optional, default: 20) — Page size
+
+**Response:**
+- **Status:** `200 OK`
+- **Body:**
+```json
+{
+  "submissions": [
+    {
+      "submissionId": "number",
+      "labId": "number",
+      "owner": "null",
+      "text": "string",
+      "createdAt": "string (ISO 8601)",
+      "updatedAt": "string (ISO 8601)",
+      "status": "string",
+      "assets": [
+        {
+          "assetId": "number",
+          "submissionId": "number",
+          "filename": "string",
+          "totalSize": "number",
+          "uploadDate": "string (ISO 8601)"
+        }
+      ]
+    }
+    // ...more submissions
+  ],
+  "totalCount": "number"
+}
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Authentication required
 
 ---
 

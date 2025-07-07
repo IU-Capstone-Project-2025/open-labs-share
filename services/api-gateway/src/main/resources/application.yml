@@ -92,3 +92,11 @@ springdoc:
     tryItOutEnabled: true
   default-produces-media-type: application/json
   default-consumes-media-type: application/json
+
+cors:
+  allowed-origins: "http://localhost:5173"
+  allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+  allowed-headers: "Authorization,Content-Type,X-Requested-With"
+  exposed-headers: "Content-Disposition"
+  allow-credentials: true
+  max-age: 3600

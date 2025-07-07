@@ -14,6 +14,8 @@ service SubmissionService {
     rpc GetSubmissions (GetSubmissionsRequest) returns (SubmissionList);
     rpc UpdateSubmission (UpdateSubmissionRequest) returns (Submission);
     rpc DeleteSubmission (DeleteSubmissionRequest) returns (DeleteSubmissionResponse);
+    // Retrieve submissions for a specific user
+    rpc GetUsersSubmissions (GetUsersSubmissionsRequest) returns (SubmissionList);
 
     // Assets Management
     rpc UploadAsset (stream UploadAssetRequest) returns (Asset);
@@ -74,6 +76,12 @@ message DeleteSubmissionRequest {
 
 message DeleteSubmissionResponse {
     bool success = 1;
+}
+
+message GetUsersSubmissionsRequest {
+    int64 user_id = 1;
+    int32 page_number = 2;
+    int32 page_size = 3;
 }
 
 // Assets Management
