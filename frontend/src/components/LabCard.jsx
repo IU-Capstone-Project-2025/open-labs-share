@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { TagsList } from "../components/Tags";
 
 export default function LabCard({ lab }) {
   return (
@@ -14,6 +15,10 @@ export default function LabCard({ lab }) {
         <p className="text-msc dark:text-gray-300 text-sm line-clamp-2">
           {lab.shortDesc || lab.abstract || lab.description || 'No description available'}
         </p>
+
+        <div className="py-1">
+          <TagsList tags={lab.tags} />
+        </div>
 
         <div className="flex items-center justify-between pt-2">
           <div className="flex items-center">

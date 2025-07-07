@@ -1,23 +1,40 @@
 import { useState } from 'react';
 import { labsAPI } from '../utils/api';
 import { getCurrentUser } from '../utils/auth';
+import { TagsInput } from "../components/Tags";
 
 export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
   const [labData, setLabData] = useState({
     title: '',
     short_desc: '',
     md_file: null,
-    assets: []
+    assets: [],
+    tags: []
   });
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [dragActive, setDragActive] = useState(false);
+  const [availableTags] = useState(['JavaScript', 'Python', 'React', 'Machine Learning', 'Algorithms']);//will be backend request
+
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setLabData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+  const handleAddTag = (tag) => {
+    setLabData(prev => ({
+      ...prev,
+      tags: [...prev.tags, tag]
+    }));
+  };
+
+  const handleRemoveTag = (tagToRemove) => {
+    setLabData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
   };
 
@@ -96,6 +113,10 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
       formData.append('title', labData.title);
       formData.append('short_desc', labData.short_desc);
       formData.append('md_file', labData.md_file);
+
+      labData.tags.forEach(tag => {
+        formData.append('tags', tag);
+      });
       
       if (labData.assets && labData.assets.length > 0) {
         for (const asset of labData.assets) {
@@ -157,6 +178,18 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
             required
           />
         </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Tags
+          </label>
+          <TagsInput 
+              tags={labData.tags}
+              availableTags={availableTags}
+              onAddTag={handleAddTag}
+              onRemoveTag={handleRemoveTag}
+            />
+          </div>
 
         {/* Markdown File Upload */}
         <div>

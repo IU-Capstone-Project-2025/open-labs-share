@@ -27,6 +27,7 @@ import CreateArticlePage from "./pages/CreateArticlePage";
 import MySubmissionsPage from "./pages/MySubmissionsPage";
 import SubmissionPage from "./pages/SubmissionPage";
 import BackgroundCircles from "./components/BackgroundCircles";
+import Search from "./components/Search";
 import { UserContext } from './hooks/useUser';
 import ReviewQueuePage from './pages/ReviewQueuePage';
 import ReviewSubmissionPage from './pages/ReviewSubmissionPage';
@@ -168,30 +169,7 @@ function AppContent() {
                 </button>
 
                 <div className="relative w-64">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg
-                      className="w-4 h-4 text-msc"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
-                    </svg>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md text-sm 
-                              placeholder:text-light-blue
-                              text-msc
-                              bg-light-blue bg-opacity-55
-                              focus:outline-none focus:ring-1 focus:ring-msc"
-                  />
+                  <Search />
                 </div>
               </div>
 
