@@ -30,12 +30,9 @@ message Lab {
   google.protobuf.Timestamp created_at = 4;
   google.protobuf.Timestamp updated_at = 5;
   string abstract = 6;
-  int64 views = 7;
-  int64 submissions = 8;
-  int64 stars_total = 9;
-  int64 people_rated = 10;
-  repeated int64 related_articles_ids = 11;
-  repeated int32 tags_ids = 12;
+  int64 submissions = 7;
+  repeated int64 related_articles_ids = 8;
+  repeated int32 tags_ids = 9;
 }
 
 message CreateLabRequest {
