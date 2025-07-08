@@ -41,6 +41,7 @@ export default function Sidebar({
     { path: "/my-labs", name: "My Labs" },
     { path: "/my-articles", name: "My Articles" },
     { path: "/submissions/my", name: "My Submissions" },
+    { path: "/feedback/my", name: "My Feedbacks" },
   ];
 
   const isProfileActive = profileDropdownItems.some(item => item.path === activePath);
@@ -239,7 +240,7 @@ export default function Sidebar({
             <span>Sign Out</span>
           </button>
           
-          <div className="p-4 flex justify-center">
+          <div className="p-2 flex justify-center">
             <button
               onClick={toggleTheme}
               className="p-2 rounded-full bg-white bg-opacity-10 hover:bg-opacity-20 transition-colors"
