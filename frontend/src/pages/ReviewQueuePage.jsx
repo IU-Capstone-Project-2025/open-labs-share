@@ -1,24 +1,26 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { submissionsAPI } from '../utils/api';
 import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
 import { DocumentTextIcon, ClockIcon } from '@heroicons/react/24/outline';
 
 const SubmissionCard = ({ submission }) => {
-  const { id, lab, ownerName, ownerSurname, createdAt } = submission;
+  const { submissionId, lab, owner, createdAt } = submission;
+  const labTitle = lab?.title || `Lab ${submission.labId}`;
 
   return (
-    <Link to={`/feedback/${id}`} className="block group">
+    // исправить 2 на id
+    <Link to={`/feedback/${2}`} className="block group">
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-200 dark:border-gray-700">
         <div className="flex items-center mb-4">
           <DocumentTextIcon className="w-8 h-8 text-blue-500 dark:text-blue-400 mr-4" />
           <div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              {lab?.title || 'Unknown Lab'}
+              {labTitle}
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Submitted by: {ownerName} {ownerSurname}
+              Submitted by: {owner?.name} {owner?.surname}
             </p>
           </div>
         </div>
@@ -34,7 +36,6 @@ const SubmissionCard = ({ submission }) => {
 };
 
 const ReviewQueuePage = () => {
-  const { labId } = useParams();
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -48,14 +49,16 @@ const ReviewQueuePage = () => {
       }
       try {
         setLoading(true);
-        // Получаем сабмишены только для конкретной лабы
-        const response = await submissionsAPI.getLabSubmissions(labId);
-        const allSubmissions = response.submissions || response.data?.submissions || response.data || response || [];
-        // Фильтруем для сабмишенов со статусом "submitted" и не принадлежащих текущему пользователю
-        const reviewableSubmissions = allSubmissions.filter(
-          sub => sub.status === 'submitted' && sub.ownerId !== user.id
+        //сабмишены для лабы 2
+        const response = await submissionsAPI.getLabSubmissions(2);
+        
+        const submissionsData = response.submissions || response.data?.submissions || response.data || response || [];
+        
+        const reviewableSubmissions = submissionsData.filter(
+          sub => sub.status.toLowerCase() === 'submitted' && sub.owner?.id !== user.id
         );
-        setSubmissions(reviewableSubmissions);
+        
+        setSubmissions(submissionsData);
       } catch (err) {
         setError('Failed to fetch submissions for review.');
         console.error(err);
@@ -65,7 +68,7 @@ const ReviewQueuePage = () => {
     };
 
     fetchSubmissionsForReview();
-  }, [user, labId]); // Добавляем labId в зависимости useEffect
+  }, [user]);
 
   if (loading) {
     return <div className="flex justify-center items-center h-64"><Spinner /></div>;
@@ -78,12 +81,12 @@ const ReviewQueuePage = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">
-        Review Queue for Lab {labId}
+        Review Queue for Lab 2
       </h1>
       {submissions.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {submissions.map(submission => (
-            <SubmissionCard key={submission.id} submission={submission} />
+            <SubmissionCard key={submission.submissionId} submission={submission} />
           ))}
         </div>
       ) : (
