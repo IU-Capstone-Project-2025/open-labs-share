@@ -5,6 +5,7 @@ from agents.helper_agent.agent import HelperAgent
 from agents.auto_grading_agent.agent import AutoGradingAgent
 from rag_backend.utils import check_postgres, setup_logging
 from rag_backend.api.routes import router
+from rag_backend.repositories.redis_repository import RedisRepository
 import logging
 
 setup_logging()
@@ -17,6 +18,8 @@ async def startup_events(app: FastAPI):
     logger.info("RAG Agent successfully loaded")
     app.state.auto_grading_agent = AutoGradingAgent()
     logger.info("Auto Grading Agent successfully loaded")
+    app.state.redis_repository = RedisRepository(db=1)
+    logger.info("Redis successfully loaded")
     yield
 
 app = FastAPI(docs_url="/", lifespan=startup_events)

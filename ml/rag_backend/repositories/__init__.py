@@ -1,1 +1,2 @@
 from .minio_repository import MinioRepository
+from .redis_repository import RedisRepository
