@@ -20,6 +20,7 @@ class Lab(Base, SerializerMixin):
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
     abstract: Mapped[Optional[str]] = mapped_column(Text)
+    views: Mapped[int] = mapped_column(BigInteger, default=0)
     submissions: Mapped[int] = mapped_column(BigInteger, default=0)
 
     # Relationships
@@ -39,6 +40,7 @@ class Lab(Base, SerializerMixin):
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "abstract": self.abstract,
+            "views": self.views,
             "submissions": self.submissions,
             "related_articles_ids": [article.article_id for article in self.articles],
             "tags_ids": [tag.tag_id for tag in self.tags]
