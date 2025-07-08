@@ -78,15 +78,17 @@ async def get_auto_grade_result(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@router.get("/get_auto_grade_status")
+@router.get("/get_auto_grade_status", response_model=AutoGradingTaskResponse)
 async def get_auto_grade_status(
     request: AutoGradingRequest,
     tasks_service: TasksService = Depends(get_tasks_service)
 ):
     try:
-        status = tasks_service.get_task_status(request)
-        if not status:
+        response = tasks_service.get_task_status(request)
+        if not response:
             raise HTTPException(status_code=404, detail="Result not found")
-        return {"status": status}
+        return response
+    except HTTPException as e:
+        raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
