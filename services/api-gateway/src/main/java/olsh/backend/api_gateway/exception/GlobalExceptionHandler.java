@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.util.HashMap;
@@ -16,41 +17,59 @@ import java.util.Map;
 
 @ControllerAdvice
 @ApiResponses(value = {
-    @ApiResponse(
-        responseCode = "400",
-        description = "Bad Request - Invalid input data",
-        content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))
-    ),
-    @ApiResponse(
-        responseCode = "401",
-        description = "Unauthorized - Authentication required",
-        content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))
-    ),
-    @ApiResponse(
-        responseCode = "403",
-        description = "Forbidden - Insufficient permissions",
-        content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))
-    ),
-    @ApiResponse(
-        responseCode = "404",
-        description = "Not Found - Resource not found",
-        content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))
-    ),
-    @ApiResponse(
-        responseCode = "500",
-        description = "Internal Server Error",
-        content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))
-    )
+        @ApiResponse(
+                responseCode = "400",
+                description = "Bad Request - Invalid input data",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                        ErrorResponse.class))
+        ),
+        @ApiResponse(
+                responseCode = "401",
+                description = "Unauthorized - Authentication required",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                        ErrorResponse.class))
+        ),
+        @ApiResponse(
+                responseCode = "403",
+                description = "Forbidden - Insufficient permissions",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                        ErrorResponse.class))
+        ),
+        @ApiResponse(
+                responseCode = "404",
+                description = "Not Found - Resource not found",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                        ErrorResponse.class))
+        ),
+        @ApiResponse(
+                responseCode = "413",
+                description = "Payload Too Large - The uploaded file exceeds the maximum allowed size",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                        ErrorResponse.class))
+        ),
+        @ApiResponse(
+                responseCode = "500",
+                description = "Internal Server Error",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                        ErrorResponse.class))
+        )
 })
 public class GlobalExceptionHandler {
 
-    private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String message, String details){
+    private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String message, String details) {
         return ResponseEntity.status(status).body(
                 ErrorResponse.builder()
                         .message(message != null ? message : "")
                         .details(details != null ? details : "")
                         .build()
         );
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
+        return buildResponse(HttpStatus.PAYLOAD_TOO_LARGE,
+                "The uploaded file exceeds the maximum allowed size of 100MB",
+                "File size exceeds maximum allowed size");
     }
 
     @ExceptionHandler(SubmissionIsAlreadyGradedException.class)

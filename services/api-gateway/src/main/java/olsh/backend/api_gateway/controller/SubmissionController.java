@@ -163,31 +163,34 @@ public class SubmissionController {
     }
 
 
-@Operation(
-        summary = "Get user's own submissions",
-        description = "Returns a paginated list of all submissions made by the authenticated user, including their attachments. Authentication required."
-)
-@ApiResponses(value = {
-        @ApiResponse(
-                responseCode = "200",
-                description = "List of submissions successfully retrieved",
-                content = @Content(mediaType = "application/json", schema = @Schema(implementation =
-                        SubmissionListResponse.class))
-        ),
-        @ApiResponse(responseCode = "401", description = "Unauthorized - authentication required")
-})
-@RequireAuth
-@GetMapping("/my")
-public ResponseEntity<SubmissionListResponse> getMySubmissions(
-        HttpServletRequest request,
-        @RequestParam(defaultValue = "1") @Parameter(description = "Page number (starts from 1)", example = "1") Integer page,
-        @RequestParam(defaultValue = "20") @Parameter(description = "Page size", example = "20") Integer limit
-) {
-    Long userId = attributesProvider.extractUserIdFromRequest(request);
-    log.debug("Received request to get submissions for user with ID: {} (page: {}, limit: {})", userId, page, limit);
-    SubmissionListResponse response = submissionService.getSubmissionsByUserId(userId, page, limit);
-    log.debug("Successfully retrieved {} submissions for user with ID: {}", response.getSubmissions().size(), userId);
-    return ResponseEntity.ok(response);
-}
+    @Operation(
+            summary = "Get user's own submissions",
+            description = "Returns a paginated list of all submissions made by the authenticated user, including " +
+                    "their attachments. Authentication required."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "List of submissions successfully retrieved",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                            SubmissionListResponse.class))
+            ),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - authentication required")
+    })
+    @RequireAuth
+    @GetMapping("/my")
+    public ResponseEntity<SubmissionListResponse> getMySubmissions(
+            HttpServletRequest request,
+            @RequestParam(defaultValue = "1") @Parameter(description = "Page number (starts from 1)", example = "1") Integer page,
+            @RequestParam(defaultValue = "20") @Parameter(description = "Page size", example = "20") Integer limit
+    ) {
+        Long userId = attributesProvider.extractUserIdFromRequest(request);
+        log.debug("Received request to get submissions for user with ID: {} (page: {}, limit: {})", userId, page,
+                limit);
+        SubmissionListResponse response = submissionService.getSubmissionsByUserId(userId, page, limit);
+        log.debug("Successfully retrieved {} submissions for user with ID: {}", response.getSubmissions().size(),
+                userId);
+        return ResponseEntity.ok(response);
+    }
 }
 

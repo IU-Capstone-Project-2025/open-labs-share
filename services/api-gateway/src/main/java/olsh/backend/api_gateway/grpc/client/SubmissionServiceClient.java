@@ -55,6 +55,12 @@ public class SubmissionServiceClient {
         }
     }
 
+    /**
+     * Retrieves a specific submission by its ID.
+     * @param submissionId the ID of the submission to retrieve
+     * @return the Submission object if found
+     * @throws SubmissionNotFoundException if no submission with the given ID exists
+     */
     public Submission getSubmission(Long submissionId) {
         log.debug("Calling gRPC GetSubmission for submission ID: {}", submissionId);
         try {
@@ -71,6 +77,13 @@ public class SubmissionServiceClient {
         }
     }
 
+    /**
+     * Retrieves all submissions for a specific lab, paginated.
+     * @param labId lab ID to retrieve submissions for
+     * @param page the page number to retrieve (1-based)
+     * @param limit the number of submissions per page
+     * @return
+     */
     public SubmissionList getSubmissions(Long labId, Integer page, Integer limit) {
         log.debug("Calling gRPC GetSubmissions for lab ID: {}, page: {}, limit: {}", labId, page, limit);
         try {
@@ -83,7 +96,7 @@ public class SubmissionServiceClient {
         } catch (Exception e) {
             if (e.getMessage().contains("NOT_FOUND")) {
                 log.warn("No submissions found for lab ID: {}", labId);
-                return null; // No attachments found for this feedback
+                throw new LabNotFoundException("No lab found with ID: " + labId);
             }
             log.error("Error calling GetSubmissions gRPC for lab ID {}: {}", labId, e.getMessage(), e);
             throw new RuntimeException("Failed to get submissions via gRPC", e);

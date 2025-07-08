@@ -33,42 +33,41 @@ public class FeedbackService {
      */
     public FeedbackResponse createFeedback(CreateFeedbackRequest request, Long reviewerId) {
         log.info("Creating feedback for submission {} by reviewer {}", request.getSubmissionId(), reviewerId);
-        List<MultipartFile> files = Arrays.asList(request.getFiles());
-        if (request.getFiles() == null) {
-            files = null;
-        } else if (files.size() == 1 && files.getFirst().isEmpty()) {
-            log.warn("Received empty file (because of presence of 'files' field), skipping validation");
-            files = null;
-        } else {
-            log.debug("Received {} files for feedback", request.getFiles().length);
-            files = Arrays.asList(request.getFiles());
-            validateFiles(files);
-        }
-        validateLabStatus(request.getSubmissionId());
+        List<MultipartFile> files = validateFiles(request);
+        validateSubmissionStatus(request.getSubmissionId());
+        validateUserAccess(reviewerId, request.getSubmissionId());
         String feedbackId = registerFeedback(request, reviewerId).getId();
         uploadAssetsForFeedback(reviewerId, feedbackId, files);
         userService.incrementLabsReviewed(reviewerId);
-        // TODO: Implement change of submission status either by calling the submission service or other way
-        FeedbackProto.Feedback feedback = getFeedbackById(feedbackId);
-        FeedbackResponse response = mapToFeedbackResponse(feedback);
-        log.info("Successfully created feedback {} for submission {}", response.getId(), response.getSubmissionId());
+        log.info("Successfully created feedback {} for submission {}", feedbackId, request.getSubmissionId());
         submissionService.setSubmissionStatus(request.getSubmissionId(), SubmissionProto.Status.ACCEPTED);
+        FeedbackResponse response = getFeedback(feedbackId);
         return response;
     }
 
-    private void validateLabStatus(Long submissionId) {
+    private void validateSubmissionStatus(Long submissionId) {
         log.debug("Validating lab status for submission {}", submissionId);
         if (submissionId == null || submissionId <= 0) {
             log.error("Invalid submission ID: {}", submissionId);
             throw new IllegalArgumentException("Submission ID must be a positive number");
         }
-        SubmissionResponse submission = submissionService.getSubmissionById(submissionId);
-        if (!submission.getStatus().equals("NOT_GRADED")){
-            log.warn("Submission {} is not in NOT_GRADED status, current status: {}", submissionId, submission.getStatus());
+        SubmissionProto.Status status = submissionService.getSubmissionStatus(submissionId);
+        if (status != SubmissionProto.Status.NOT_GRADED) {
+            log.warn("Submission {} is not in NOT_GRADED status, current status: {}", submissionId,
+                    status);
             throw new SubmissionIsAlreadyGradedException(
                     "Submission is already graded or in progress, cannot add feedback");
         }
         log.debug("Submission {} is in NOT_GRADED status, proceeding with feedback creation", submissionId);
+    }
+
+    private void validateUserAccess(Long reviewerId, Long submissionId) {
+        log.debug("Validating access for reviewer {} to submission {}", reviewerId, submissionId);
+        if (Objects.equals(submissionService.getSubmissionOwnerId(submissionId), reviewerId)){
+            log.warn("Reviewer {} cannot create feedback for their own submission {}", reviewerId, submissionId);
+            throw new ForbiddenAccessException("You cannot create feedback for your own submission");
+        }
+        log.debug("Reviewer {} has access to submission {}", reviewerId, submissionId);
     }
 
     /**
@@ -115,13 +114,7 @@ public class FeedbackService {
         log.info("Retrieving feedback with ID {}", feedbackId);
         FeedbackProto.Feedback feedback = feedbackClient.getFeedbackById(feedbackId);
         FeedbackProto.ListAttachmentsResponse attachmentsResponse = feedbackClient.listAttachments(feedbackId);
-        List<FeedbackProto.AttachmentInfo> attachments;
-        if (attachmentsResponse == null || attachmentsResponse.getAttachmentsCount() == 0) {
-            attachments = null; // No attachments found
-        } else {
-            attachments = attachmentsResponse.getAttachmentsList();
-        }
-        FeedbackResponse response = mapToFeedbackResponse(feedback, attachments);
+        FeedbackResponse response = mapToFeedbackResponse(feedback, attachmentsResponse.getAttachmentsList());
         log.debug("Successfully retrieved feedback with id {}", feedbackId);
         return response;
     }
@@ -140,7 +133,8 @@ public class FeedbackService {
                 .setSubmissionId(submissionId)
                 .build();
         FeedbackProto.Feedback feedback = feedbackClient.getStudentFeedback(grpcRequest);
-        FeedbackResponse response = mapToFeedbackResponse(feedback);
+        FeedbackProto.ListAttachmentsResponse attachments = feedbackClient.listAttachments(feedback.getId());
+        FeedbackResponse response = mapToFeedbackResponse(feedback, attachments.getAttachmentsList());
         log.debug("Retrieved feedback {} created by reviewer {}", response.getId(), response.getReviewer().getId());
         return response;
     }
@@ -155,7 +149,7 @@ public class FeedbackService {
                 .setPage(page)
                 .setLimit(limit)
                 .build();
-        if (submissionId!= null){
+        if (submissionId != null) {
             grpcRequest = grpcRequest.toBuilder()
                     .setSubmissionId(submissionId)
                     .build();
@@ -180,7 +174,7 @@ public class FeedbackService {
                 .setPage(page)
                 .setLimit(limit)
                 .build();
-        if (submissionId!= null){
+        if (submissionId != null) {
             grpcRequest = grpcRequest.toBuilder()
                     .setSubmissionId(submissionId)
                     .build();
@@ -289,11 +283,18 @@ public class FeedbackService {
 
     // ========== Private Helper Methods ==========
 
-    private void validateFiles(List<MultipartFile> files) {
-        if (files == null || files.isEmpty()) {
-            return;
+    private List<MultipartFile> validateFiles(CreateFeedbackRequest request) {
+        List<MultipartFile> files;
+        if (request.getFiles() == null) {
+            return Collections.emptyList();
+        } else {
+            log.debug("Received {} files for feedback", request.getFiles().length);
+            files = Arrays.asList(request.getFiles());
         }
-
+        if (files.size() == 1 && files.getFirst().isEmpty()) {
+            log.warn("Received empty file (because of presence of 'files' field), skipping validation");
+            return Collections.emptyList();
+        }
         log.debug("Validating {} files", files.size());
         for (MultipartFile file : files) {
             // Check file size
@@ -306,9 +307,9 @@ public class FeedbackService {
                         uploadConfig.getMaxFileSize()
                 ));
             }
-
             log.debug("File {} ({} bytes) passed validation", file.getOriginalFilename(), file.getSize());
         }
+        return files;
     }
 
     private List<FeedbackResponse> mapToFeedbackResponses(List<FeedbackProto.Feedback> feedbackList) {
@@ -317,22 +318,26 @@ public class FeedbackService {
         for (FeedbackProto.Feedback feedback : feedbackList) {
             UserResponse student = userCache.computeIfAbsent(feedback.getStudentId(), userService::getUserByIdSafe);
             UserResponse reviewer = userCache.computeIfAbsent(feedback.getReviewerId(), userService::getUserByIdSafe);
+            FeedbackProto.ListAttachmentsResponse attachmentsResponse =
+                    feedbackClient.listAttachments(feedback.getId());
+            List<FeedbackAssetResponse> attachments = buildAssetResponse(attachmentsResponse.getAttachmentsList(),
+                    feedback.getId());
             FeedbackResponse response = FeedbackResponse.builder()
                     .id(feedback.getId())
                     .submissionId(feedback.getSubmissionId())
-                    .content(feedback.getContent())
+                    .content((
+                            feedback.getContent() == null || feedback.getContent().isBlank()) ?
+                            "No content!" : feedback.getContent()
+                    )
                     .student(student)
                     .reviewer(reviewer)
                     .createdAt(TimestampConverter.convertTimestampToIso(feedback.getCreatedAt()))
                     .updatedAt(TimestampConverter.convertTimestampToIso(feedback.getUpdatedAt()))
+                    .attachments(attachments)
                     .build();
             responses.add(response);
         }
         return responses;
-    }
-
-    private FeedbackResponse mapToFeedbackResponse(FeedbackProto.Feedback feedback) {
-        return mapToFeedbackResponse(feedback, null);
     }
 
     private FeedbackResponse mapToFeedbackResponse(FeedbackProto.Feedback feedback,
@@ -347,13 +352,20 @@ public class FeedbackService {
                 .content(feedback.getContent())
                 .student(student)
                 .reviewer(reviewer)
-                .attachments(buildAssetResponse(attachments, feedback.getId()))
+                .attachments(
+                        buildAssetResponse(attachments, feedback.getId())
+                )
                 .createdAt(TimestampConverter.convertTimestampToIso(feedback.getCreatedAt()))
                 .updatedAt(TimestampConverter.convertTimestampToIso(feedback.getUpdatedAt()))
                 .build();
     }
 
-    private List<FeedbackAssetResponse> buildAssetResponse(List<FeedbackProto.AttachmentInfo> attachments, String feedbackId) {
+    /**
+     * Builds a list of asset responses for the feedback attachments.
+     * If there are no attachments, returns an empty list.
+     */
+    private List<FeedbackAssetResponse> buildAssetResponse(List<FeedbackProto.AttachmentInfo> attachments,
+                                                           String feedbackId) {
         if (attachments == null || attachments.isEmpty()) {
             return Collections.emptyList();
         }
@@ -362,6 +374,9 @@ public class FeedbackService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Builds a single asset response for a feedback attachment.
+     */
     private FeedbackAssetResponse buildAssetResponse(FeedbackProto.AttachmentInfo info, String feedbackId) {
         return FeedbackAssetResponse.builder()
                 .feedbackId(feedbackId)
