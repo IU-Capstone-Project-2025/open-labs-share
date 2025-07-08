@@ -98,6 +98,8 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             new_submission = Submission(**data)
             session.add(new_submission)
 
+            lab.submissions += 1
+
             session.commit()
 
             self.submissions_texts.insert_one({
@@ -348,6 +350,8 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
                 self.logger.error(error_message)
 
                 return submissions_stub.DeleteSubmissionResponse(success=False)
+
+            submission.lab.submissions -= 1
 
             session.delete(submission)
             session.commit()
