@@ -76,7 +76,7 @@ class TagService(tags_service.TagServiceServicer):
         """
 
         data: dict = {
-            "tag_id": request.tag_id
+            "tag_id": request.id
         }
 
         self.logger.info(f"GetTag requested")
@@ -91,12 +91,12 @@ class TagService(tags_service.TagServiceServicer):
             return tags_stub.Tag()
 
         with Session(self.engine) as session:
-            stmt = select(Tag).where(Tag.id == request.tag_id)
+            stmt = select(Tag).where(Tag.id == data["tag_id"])
             tag = session.execute(stmt).scalar_one_or_none()
 
             if tag is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                error_message = f"Tag with id '{request.tag_id}' not found"
+                error_message = f"Tag with id '{data['tag_id']}' not found"
                 context.set_details(error_message)
 
                 self.logger.error(error_message)
@@ -157,7 +157,7 @@ class TagService(tags_service.TagServiceServicer):
         """
 
         data: dict = {
-            "tag_ids": request.tag_ids
+            "tag_ids": request.ids
         }
 
         self.logger.info(f"GetTagsByIds requested")
@@ -172,14 +172,25 @@ class TagService(tags_service.TagServiceServicer):
             return tags_stub.TagList()
         
         with Session(self.engine) as session:
-            stmt = select(Tag).where(Tag.id.in_(data["tag_ids"]))
-            tags = session.execute(stmt).scalars().all()
+            tags_list = tags_stub.TagList(count=0)
 
-            tags_list = tags_stub.TagList(count=len(tags))
-            for tag in tags:
+            for tag_id in data["tag_ids"]:
+                stmt = select(Tag).where(Tag.id == tag_id)
+                tag = session.execute(stmt).scalar_one_or_none()
+
+                if tag is None:
+                    context.set_code(grpc.StatusCode.NOT_FOUND)
+                    error_message = f"Tag with id '{tag_id}' not found"
+                    context.set_details(error_message)
+
+                    self.logger.error(error_message)
+
+                    return tags_stub.TagList()
+
                 tags_list.tags.append(tags_stub.Tag(**tag.get_attrs()))
+                tags_list.count += 1
 
-            self.logger.info(f"Tags retrieved: {len(tags)}")
+            self.logger.info(f"Tags retrieved: {tags_list.count}")
 
             return tags_list
 
@@ -192,7 +203,7 @@ class TagService(tags_service.TagServiceServicer):
         self.logger.info(f"UpdateTag requested")
 
         data: dict = {
-            "tag_id": request.tag_id,
+            "tag_id": request.id,
             "name": request.name if request.HasField("name") else None,
             "description": request.description if request.HasField("description") else None,
         }
@@ -239,7 +250,7 @@ class TagService(tags_service.TagServiceServicer):
         self.logger.info(f"DeleteTag requested")
 
         data: dict = {
-            "tag_id": request.tag_id
+            "tag_id": request.id
         }
 
         with Session(self.engine) as session:
