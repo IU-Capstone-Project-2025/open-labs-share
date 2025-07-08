@@ -34,26 +34,16 @@ message Lab {
   int64 submissions = 8;
   int64 stars_total = 9;
   int64 people_rated = 10;
-  ArticleList related_articles = 11;
-  LabTagList tags = 12;
-}
-
-message ArticleList {
-  int64 total_count = 1;
-  repeated int64 article_id = 2;
-}
-
-message LabTagList {
-  int32 total_count = 1;
-  repeated int32 tag_ids = 2;
+  repeated int64 related_articles_ids = 11;
+  repeated int32 tags_ids = 12;
 }
 
 message CreateLabRequest {
   int64 owner_id = 1;
   string title = 2;
   string abstract = 3;
-  optional ArticleList related_articles = 4;
-  optional LabTagList tags = 5;
+  repeated int64 related_articles_ids = 4;
+  repeated int32 tags_ids = 5;
 }
 
 message GetLabRequest {
@@ -66,16 +56,16 @@ message GetLabsRequest {
 }
 
 message LabList {
-  int64 total_count = 1;
+  int64 count = 1;
   repeated Lab labs = 2;
 }
 
 message UpdateLabRequest {
   int64 lab_id = 1;
-  optional string title = 2;
-  optional string abstract = 3;
-  optional ArticleList related_articles = 4;
-  optional LabTagList tags = 5;
+  string title = 2;
+  string abstract = 3;
+  repeated int64 related_articles_ids = 4;
+  repeated int32 tags_ids = 5;
 }
 
 message DeleteLabRequest {
@@ -145,6 +135,6 @@ message ListAssetsRequest {
 }
 
 message AssetList {
-  int64 total_count = 1;
+  int64 count = 1;
   repeated Asset assets = 2;
 }

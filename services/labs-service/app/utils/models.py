@@ -46,8 +46,8 @@ class Lab(Base, SerializerMixin):
             "submissions": self.submissions,
             "stars_total": self.stars,
             "people_rated": self.people_rated,
-            "related_articles": [article.article_id for article in self.articles],
-            "tags": [tag.tag_id for tag in self.tags]
+            "related_articles_ids": [article.article_id for article in self.articles],
+            "tags_ids": [tag.tag_id for tag in self.tags]
         }
 
 class Submission(Base, SerializerMixin):

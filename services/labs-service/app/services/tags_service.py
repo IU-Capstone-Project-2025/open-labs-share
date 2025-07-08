@@ -142,7 +142,7 @@ class TagService(tags_service.TagServiceServicer):
             stmt = select(Tag).order_by(Tag.id.desc()).offset((data["page_number"] - 1) * data["page_size"]).limit(data["page_size"])
             tags = session.execute(stmt).scalars().all()
 
-            tags_list = tags_stub.TagList(total_count=len(tags))
+            tags_list = tags_stub.TagList(count=len(tags))
             for tag in tags:
                 tags_list.tags.append(tags_stub.Tag(**tag.get_attrs()))
 
@@ -175,7 +175,7 @@ class TagService(tags_service.TagServiceServicer):
             stmt = select(Tag).where(Tag.id.in_(data["tag_ids"]))
             tags = session.execute(stmt).scalars().all()
 
-            tags_list = tags_stub.TagList(total_count=len(tags))
+            tags_list = tags_stub.TagList(count=len(tags))
             for tag in tags:
                 tags_list.tags.append(tags_stub.Tag(**tag.get_attrs()))
 

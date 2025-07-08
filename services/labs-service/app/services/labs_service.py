@@ -59,7 +59,7 @@ class LabService(labs_service.LabServiceServicer):
         data: dict = {
             "owner_id": request.owner_id,
             "title": request.title,
-            "abstract": request.abstract,
+            "abstract": request.abstract
         }
 
         if data["title"] is None or data["title"] == "":
@@ -84,14 +84,11 @@ class LabService(labs_service.LabServiceServicer):
             new_lab = Lab(**data)
             session.add(new_lab)
 
-            if request.HasField("related_articles"):
-                article_ids = request.related_articles.article_id
-                new_lab.articles.extend([ArticleRelation(lab_id=new_lab.id, article_id=article_id) for article_id in article_ids])
+            if request.related_articles_ids is not None:
+                new_lab.articles.extend([ArticleRelation(lab_id=new_lab.id, article_id=article_id) for article_id in request.related_articles_ids])
 
-            if request.HasField("tags"):
-                tags_ids = request.tags.tag_ids
-
-                for tag_id in tags_ids:
+            if request.tags_ids is not None:
+                for tag_id in request.tags_ids:
                     stmt = select(Tag).where(Tag.id == tag_id)
                     tag = session.execute(stmt).scalar_one_or_none()
 
@@ -111,13 +108,7 @@ class LabService(labs_service.LabServiceServicer):
 
             self.logger.info(f"Created Lab with id={new_lab.id}, title={new_lab.title}")
 
-            response_data = new_lab.get_attrs()
-            response_data["related_articles"] = labs_stub.ArticleList(total_count=len(response_data["related_articles"]), article_id=response_data["related_articles"])
-            response_data["tags"] = labs_stub.LabTagList(total_count=len(response_data["tags"]), tag_ids=response_data["tags"])
-
-            response_lab = labs_stub.Lab(**response_data)
-
-            return response_lab
+            return labs_stub.Lab(**new_lab.get_attrs())
 
 
     def GetLab(self, request, context) -> labs_stub.Lab:
@@ -157,13 +148,7 @@ class LabService(labs_service.LabServiceServicer):
 
             self.logger.info(f"Retrieved Lab with id={lab.id}, title={lab.title}")
 
-            response_lab_data = lab.get_attrs()
-            response_lab_data["related_articles"] = labs_stub.ArticleList(total_count=len(response_lab_data["related_articles"]), article_id=response_lab_data["related_articles"])
-            response_lab_data["tags"] = labs_stub.LabTagList(total_count=len(response_lab_data["tags"]), tag_ids=response_lab_data["tags"])
-
-            response_lab = labs_stub.Lab(**response_lab_data)
-
-            return response_lab
+            return labs_stub.Lab(**lab.get_attrs())
 
 
     def GetLabs(self, request, context) -> labs_stub.LabList:
@@ -209,20 +194,13 @@ class LabService(labs_service.LabServiceServicer):
             return labs_stub.LabList()
 
         with Session(self.engine) as session:
-            # Get total count of labs
-            total_count = session.query(Lab).count()
-
             # Get paginated labs
             stmt = select(Lab).offset((data["page_number"] - 1) * data["page_size"]).limit(data["page_size"])
             labs = session.execute(stmt).scalars().all()
 
-            lab_list = labs_stub.LabList(total_count=total_count)
+            lab_list = labs_stub.LabList(count=len(labs))
             for lab in labs:
-                response_lab_data = lab.get_attrs()
-                response_lab_data["related_articles"] = labs_stub.ArticleList(total_count=len(response_lab_data["related_articles"]), article_id=response_lab_data["related_articles"])
-                response_lab_data["tags"] = labs_stub.LabTagList(total_count=len(response_lab_data["tags"]), tag_ids=response_lab_data["tags"])
-                response_lab = labs_stub.Lab(**response_lab_data)
-                lab_list.labs.append(response_lab)
+                lab_list.labs.append(labs_stub.Lab(**lab.get_attrs()))
 
             self.logger.info(f"Retrieved {len(labs)} labs, page {data['page_number']} of size {data['page_size']}")
 
@@ -252,13 +230,13 @@ class LabService(labs_service.LabServiceServicer):
 
         data: dict = {
             "lab_id": request.lab_id,
-            "title": request.title if request.HasField("title") else None,
-            "abstract": request.abstract if request.HasField("abstract") else None,
-            "related_articles": request.related_articles if request.HasField("related_articles") else None,
-            "tags": request.tags if request.HasField("tags") else None
+            "title": request.title,
+            "abstract": request.abstract,
+            "related_articles_ids": request.related_articles_ids,
+            "tags_ids": request.tags_ids
         }
 
-        if data["title"] is not None and data["title"] == "":
+        if data["title"] is None or data["title"] == "":
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
             error_message = f"Title is required, got '{data['title']}'"
             context.set_details(error_message)
@@ -280,23 +258,18 @@ class LabService(labs_service.LabServiceServicer):
 
                 return labs_stub.Lab()
 
-            if data["title"] is not None:
-                lab.title = data["title"]
+            lab.title = data["title"]
+            lab.abstract = data["abstract"]
 
-            if data["abstract"] is not None:
-                lab.abstract = data["abstract"]
+            if data["related_articles_ids"] is not None:
+                for article_relation in lab.articles:
+                    session.delete(article_relation)
 
-            if data["related_articles"] is not None:
-                article_ids = data["related_articles"].article_id
-                lab.articles.clear()
-                lab.articles.extend([ArticleRelation(lab_id=lab.id, article_id=article_id) for article_id in article_ids])
+                lab.articles.extend([ArticleRelation(lab_id=lab.id, article_id=article_id) for article_id in data["related_articles_ids"]])
 
-            if data["tags"] is not None:
-                tags_ids = data["tags"].tag_ids
-
-                exiisting_lab_tags = list(lab.tags)
-
-                for lab_tag in exiisting_lab_tags:
+            if data["tags_ids"] is not None:
+                existing_lab_tags = list(lab.tags)
+                for lab_tag in existing_lab_tags:
                     stmt = select(Tag).where(Tag.id == lab_tag.tag_id)
                     tag = session.execute(stmt).scalar_one_or_none()
 
@@ -312,7 +285,7 @@ class LabService(labs_service.LabServiceServicer):
                     tag.labs_count -= 1
                     session.delete(lab_tag)
                 
-                for tag_id in tags_ids:
+                for tag_id in data["tags_ids"]:
                     stmt = select(Tag).where(Tag.id == tag_id)
                     tag = session.execute(stmt).scalar_one_or_none()
 
@@ -332,12 +305,7 @@ class LabService(labs_service.LabServiceServicer):
 
             self.logger.info(f"Updated Lab with id={lab.id}, title={lab.title}")
 
-            response_lab_data = lab.get_attrs()
-            response_lab_data["related_articles"] = labs_stub.ArticleList(total_count=len(response_lab_data["related_articles"]), article_id=response_lab_data["related_articles"])
-            response_lab_data["tags"] = labs_stub.LabTagList(total_count=len(response_lab_data["tags"]), tag_ids=response_lab_data["tags"])
-            response_lab = labs_stub.Lab(**response_lab_data)
-
-            return response_lab
+            return labs_stub.Lab(**lab.get_attrs())
 
 
     def DeleteLab(self, request, context) -> labs_stub.DeleteLabResponse:
@@ -814,8 +782,7 @@ class LabService(labs_service.LabServiceServicer):
 
                 return labs_stub.AssetList()
 
-            asset_list = labs_stub.AssetList()
-            asset_list.total_count = len(lab.assets)
+            asset_list = labs_stub.AssetList(count=len(lab.assets))
             asset_list.assets.extend([labs_stub.Asset(**asset.get_attrs()) for asset in lab.assets])
 
             self.logger.info(f"Listed {len(lab.assets)} assets for lab_id={data['lab_id']}")

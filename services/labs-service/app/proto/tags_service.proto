@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package labs;
+package tags;
 
 import "google/protobuf/timestamp.proto";
 
@@ -24,7 +24,7 @@ message Tag {
 }
 
 message TagList {
-    int32 total_count = 1;
+    int32 count = 1;
     repeated Tag tags = 2;
 }
 
