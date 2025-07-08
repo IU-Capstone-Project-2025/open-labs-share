@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { submissionsAPI } from '../utils/api';
 import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
@@ -9,7 +9,7 @@ const SubmissionCard = ({ submission }) => {
   const { id, lab, ownerName, ownerSurname, createdAt } = submission;
 
   return (
-    <Link to={`/review/${id}`} className="block group">
+    <Link to={`/feedback/${id}`} className="block group">
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-200 dark:border-gray-700">
         <div className="flex items-center mb-4">
           <DocumentTextIcon className="w-8 h-8 text-blue-500 dark:text-blue-400 mr-4" />
@@ -33,8 +33,8 @@ const SubmissionCard = ({ submission }) => {
   );
 };
 
-
 const ReviewQueuePage = () => {
+  const { labId } = useParams();
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -48,10 +48,13 @@ const ReviewQueuePage = () => {
       }
       try {
         setLoading(true);
-        const response = await submissionsAPI.getAllSubmissions();
+        // Получаем сабмишены только для конкретной лабы
+        const response = await submissionsAPI.getLabSubmissions(labId);
         const allSubmissions = response.submissions || response.data?.submissions || response.data || response || [];
-        // Filter for submissions that are "submitted" and not owned by the current user
-        const reviewableSubmissions = allSubmissions.filter(sub => sub.status === 'submitted' && sub.ownerId !== user.id);
+        // Фильтруем для сабмишенов со статусом "submitted" и не принадлежащих текущему пользователю
+        const reviewableSubmissions = allSubmissions.filter(
+          sub => sub.status === 'submitted' && sub.ownerId !== user.id
+        );
         setSubmissions(reviewableSubmissions);
       } catch (err) {
         setError('Failed to fetch submissions for review.');
@@ -62,7 +65,7 @@ const ReviewQueuePage = () => {
     };
 
     fetchSubmissionsForReview();
-  }, [user]);
+  }, [user, labId]); // Добавляем labId в зависимости useEffect
 
   if (loading) {
     return <div className="flex justify-center items-center h-64"><Spinner /></div>;
@@ -74,7 +77,9 @@ const ReviewQueuePage = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">Review Queue</h1>
+      <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">
+        Review Queue for Lab {labId}
+      </h1>
       {submissions.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {submissions.map(submission => (
@@ -83,11 +88,11 @@ const ReviewQueuePage = () => {
         </div>
       ) : (
         <div className="text-center text-gray-500 dark:text-gray-400 mt-8">
-          <p>There are no submissions waiting for review right now.</p>
+          <p>There are no submissions waiting for review for this lab.</p>
         </div>
       )}
     </div>
   );
 };
 
-export default ReviewQueuePage; 
+export default ReviewQueuePage;
