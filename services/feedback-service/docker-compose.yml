@@ -1,37 +1,32 @@
-version: "3.9"
-
 services:
   feedback-service:
     build: .
     ports:
       - "9090:9090"
     environment:
-      GRPC_PORT: 9090
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: feedback_user
-      POSTGRES_PASSWORD: feedback_password
-      POSTGRES_NAME: feedback_db
-      MONGODB_URI: mongodb://mongodb:27017
-      MONGODB_DATABASE: feedback
-      MONGODB_COLLECTION: comments
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
-      MINIO_BUCKET_NAME: feedback
-      MINIO_USE_SSL: "false"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      mongodb:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+      - GRPC_PORT=9090
+      - POSTGRES_HOST=postgres-feedback
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=feedback_user
+      - POSTGRES_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD:-feedback_password}
+      - POSTGRES_DB=feedback_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BUCKET_NAME=feedback
+      - MINIO_USE_SSL=false
+      - MONGODB_URI=mongodb://mongodb-feedback:27017
+      - MONGODB_DATABASE=feedback
+      - MONGODB_COLLECTION=comments
     restart: unless-stopped
+    depends_on:
+      - postgres-feedback
+      - minio
+      - mongodb-feedback
     networks:
       - backend
 
-  postgres:
+  postgres-feedback:
     image: postgres:15-alpine
     environment:
       POSTGRES_DB: feedback_db

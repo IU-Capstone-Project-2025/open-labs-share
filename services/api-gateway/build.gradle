@@ -30,6 +30,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation' // Requests Validation
 	implementation 'org.springframework.boot:spring-boot-starter-aop' // Custom Annotations
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9' // @ParameterObject && Swagger
+	implementation 'org.springframework.boot:spring-boot-starter-actuator' // Actuator
 
 	// Lombok
 	compileOnly 'org.projectlombok:lombok:1.18.34'
@@ -44,6 +45,7 @@ dependencies {
 	// gRPC client
 	implementation 'org.springframework.grpc:spring-grpc-client-spring-boot-starter'
 	implementation 'io.grpc:grpc-services'
+	implementation 'com.google.protobuf:protobuf-java-util:4.28.2'
 
 	// Jakarta annotations for Java 21
 	compileOnly 'jakarta.annotation:jakarta.annotation-api:2.1.1'

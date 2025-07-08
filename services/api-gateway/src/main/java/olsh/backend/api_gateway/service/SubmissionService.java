@@ -5,6 +5,7 @@ import olsh.backend.api_gateway.config.UploadFileConfiguration;
 import olsh.backend.api_gateway.dto.request.CreateSubmissionRequest;
 import olsh.backend.api_gateway.dto.response.*;
 import olsh.backend.api_gateway.exception.ForbiddenAccessException;
+import olsh.backend.api_gateway.exception.SubmissionIsAlreadyGradedException;
 import olsh.backend.api_gateway.grpc.client.SubmissionServiceClient;
 import olsh.backend.api_gateway.grpc.proto.SubmissionProto;
 import org.apache.catalina.User;
@@ -21,13 +22,14 @@ public class SubmissionService {
     private final SubmissionServiceClient submissionServiceClient;
     private final UploadFileConfiguration uploadConfig;
     private final UserService userService;
+    private final LabService labService;
 
     public CreateSubmissionResponse createSubmission(CreateSubmissionRequest request, Long ownerId) {
         log.debug("Creating submission for lab ID: {} by owner: {}", request.getLabId(), ownerId);
-        if (request.getFiles() != null) {
-            for (MultipartFile file : request.getFiles()) {
-                validateSubmissionFile(file);
-            }
+        validateSubmissionFiles(request.getFiles());
+        labService.validateLabExists(request.getLabId());
+        if (labService.validateLabAuthorId(request.getLabId(), ownerId)){
+            throw new ForbiddenAccessException("You cannot submit to your own lab");
         }
         SubmissionResponse submission = registerSubmission(request, ownerId);
         List<SubmissionAssetResponse> assets = uploadAssetsForSubmission(
@@ -182,7 +184,53 @@ public class SubmissionService {
                 .build();
     }
 
+    protected void setSubmissionStatus(Long submissionId, SubmissionProto.Status status) {
+        log.debug("Setting submission ID: {} status to {}", submissionId, status);
+        SubmissionProto.Submission submission = submissionServiceClient.getSubmission(submissionId);
+        if (submission == null) {
+            throw new IllegalArgumentException("Submission not found");
+        }
+        if (submission.getStatus() == SubmissionProto.Status.ACCEPTED) {
+            throw new SubmissionIsAlreadyGradedException("Submission is already graded");
+        }
+        SubmissionProto.UpdateSubmissionRequest request = SubmissionProto.UpdateSubmissionRequest.newBuilder()
+                .setSubmissionId(submissionId)
+                .setStatus(status)
+                .build();
+        submissionServiceClient.updateSubmission(request);
+        log.info("Successfully set submission ID: {} status to {}", submissionId, status);
+    }
+
+    protected SubmissionProto.Status getSubmissionStatus(Long submissionId) {
+        log.debug("Getting status for submission ID: {}", submissionId);
+        SubmissionProto.Submission submission = submissionServiceClient.getSubmission(submissionId);
+        if (submission == null) {
+            throw new IllegalArgumentException("Submission not found");
+        }
+        log.info("Submission ID: {} has status: {}", submissionId, submission.getStatus());
+        return  submission.getStatus();
+    }
+    protected Long getSubmissionOwnerId(Long submissionId) {
+        log.debug("Getting owner ID for submission ID: {}", submissionId);
+        SubmissionProto.Submission submission = submissionServiceClient.getSubmission(submissionId);
+        if (submission == null) {
+            throw new IllegalArgumentException("Submission not found");
+        }
+        log.info("Submission ID: {} is owned by user ID: {}", submissionId, submission.getOwnerId());
+        return submission.getOwnerId();
+    }
+
     // File validation methods
+    private void validateSubmissionFiles(MultipartFile[] files) {
+        if (files == null || files.length == 0) {
+            return; // Skip validation for empty file arrays
+        }
+
+        for (MultipartFile file : files) {
+            validateSubmissionFile(file);
+        }
+    }
+
     protected void validateSubmissionFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             return; // Skip validation for empty files
