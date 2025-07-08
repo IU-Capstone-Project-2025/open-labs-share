@@ -94,6 +94,15 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
                 return submissions_stub.Submission()
 
+            if lab.owner_id == data["owner_id"]:
+                context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                error_message = f"User cannot submit to his own lab"
+                context.set_details(error_message)
+                
+                self.logger.error(error_message)
+                
+                return submissions_stub.Submission()
+
             # Create new submission
             new_submission = Submission(**data)
             session.add(new_submission)
@@ -435,6 +444,47 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
                 submission_list.submissions.append(result)
 
             self.logger.info(f"Retrieved {len(submissions)} submissions for user_id={data['user_id']}, page {data['page_number']} of size {data['page_size']}")
+
+            return submission_list
+
+    
+    def GetPossibleToReviewSubmissions(self, request, context) -> submissions_stub.SubmissionList:
+        data: dict = {
+            "user_id": request.user_id
+        }
+
+        self.logger.info(f"GetPossibleToReviewSubmissions requested")
+
+        with Session(self.postgresql_engine) as session:
+            # Get all user submissions that have been accepted
+            stmt = select(Submission).where(Submission.owner_id == data["user_id"]).where(Submission.status == self.get_db_status[submissions_stub.Status.ACCEPTED])
+            submissions = session.execute(stmt).scalars().all()
+
+            # Get all labs that the user owns
+            stmt = select(Lab).where(Lab.owner_id == data["user_id"])
+            labs = session.execute(stmt).scalars().all()
+
+            # Combine unique lab ids from submissions and labs
+            lab_ids = set([submission.lab_id for submission in submissions] + [lab.id for lab in labs])
+
+            # Get all submissions that are not graded and not owned by the user
+            stmt = select(Submission).where(Submission.lab_id.in_(lab_ids)).where(Submission.status == self.get_db_status[submissions_stub.Status.NOT_GRADED]).where(Submission.owner_id != data["user_id"])
+            submissions = session.execute(stmt).scalars().all()
+
+            # Create submission list
+            submission_list = submissions_stub.SubmissionList(total_count=len(submissions))
+
+            for submission in submissions:
+                result = submissions_stub.Submission(**submission.get_attrs())
+                result.status = self.get_grpc_status[result.status]
+                # Fetch text from MongoDB
+                text_data = self.submissions_texts.find_one({"submission_id": str(submission.id)})
+                if text_data:
+                    result.text = text_data.get("text", "")
+
+                submission_list.submissions.append(result)
+
+            self.logger.info(f"Retrieved {len(submissions)} submissions to review for user_id={data['user_id']}")
 
             return submission_list
 
