@@ -1,16 +1,20 @@
 import { useState, useEffect } from "react";
+import { commentsAPI } from "../utils/api";
 
-export default function CommentsSection({ contentType, contentId, userId }) {
+export default function CommentsSection({ contentType, contentId, userId, userName }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState("");
+  const [editingComment, setEditingComment] = useState(null);
+  const [editText, setEditText] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [expandedReplies, setExpandedReplies] = useState(new Set());
   const [page, setPage] = useState(1);
   const [totalComments, setTotalComments] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [loadingReplies, setLoadingReplies] = useState(new Set());
 
   // Validate props
   if (!['lab', 'article'].includes(contentType)) {
@@ -18,22 +22,21 @@ export default function CommentsSection({ contentType, contentId, userId }) {
     return null;
   }
 
-  // Fetch comments for the content (temporarily disabled - comments service not connected)
+  // Fetch comments for the content
   const fetchComments = async (pageNum = 1, resetComments = false) => {
     try {
       setLoading(pageNum === 1);
-      // TODO: Replace with actual API call when comments service is connected
-      // const data = await commentsAPI.getContentComments(contentType, contentId, pageNum, 20);
-      const newComments = []; // Empty for now
+      const data = await commentsAPI.getLabComments(contentId, pageNum);
       
       if (resetComments || pageNum === 1) {
-        setComments(newComments);
+        setComments(data.comments);
       } else {
-        setComments(prev => [...prev, ...newComments]);
+        setComments(prev => [...prev, ...data.comments]);
       }
       
-      setTotalComments(0);
-      setHasMore(false);
+      setTotalComments(data.pagination.totalItems);
+      setHasMore(data.pagination.currentPage < data.pagination.totalPages);
+      setPage(pageNum);
     } catch (error) {
       console.error("Error fetching comments:", error);
     } finally {
@@ -41,24 +44,27 @@ export default function CommentsSection({ contentType, contentId, userId }) {
     }
   };
 
-  // Fetch replies for a specific comment (temporarily disabled)
+  // Fetch replies for a specific comment
   const fetchReplies = async (commentId) => {
     try {
-      // TODO: Replace with actual API call when comments service is connected
-      // const data = await commentsAPI.getCommentReplies(commentId, 1, 50);
-      const replies = []; // Empty for now
+      setLoadingReplies(prev => new Set([...prev, commentId]));
+      const data = await commentsAPI.getCommentReplies(commentId);
       
-      // Update the comments state to include replies
       setComments(prev => prev.map(comment => 
         comment.id === commentId 
-          ? { ...comment, replies: replies }
+          ? { ...comment, replies: data.comments }
           : comment
       ));
       
-      // Expand replies for this comment
       setExpandedReplies(prev => new Set([...prev, commentId]));
     } catch (error) {
       console.error("Error fetching replies:", error);
+    } finally {
+      setLoadingReplies(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(commentId);
+        return newSet;
+      });
     }
   };
 
@@ -68,26 +74,16 @@ export default function CommentsSection({ contentType, contentId, userId }) {
 
     setSubmitting(true);
     try {
-      const commentData = {
-        user_id: parseInt(userId),
+      const response = await commentsAPI.createComment(contentId, {
         content: newComment.trim(),
-      };
-
-      // Add the appropriate content ID field based on type
-      if (contentType === 'lab') {
-        commentData.lab_id = parseInt(contentId);
-      } else if (contentType === 'article') {
-        commentData.article_id = parseInt(contentId);
-      }
-
-      // TODO: Replace with actual API call when comments service is connected
-      // await commentsAPI.createComment(commentData);
-      console.log('Comment would be created:', commentData);
+      });
 
       setNewComment("");
-      fetchComments(1, true); // Refresh comments
+      setComments(prev => [response, ...prev]);
+      setTotalComments(prev => prev + 1);
     } catch (error) {
       console.error("Error submitting comment:", error);
+      alert("Error submitting comment. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -99,37 +95,101 @@ export default function CommentsSection({ contentType, contentId, userId }) {
 
     setSubmitting(true);
     try {
-      const commentData = {
-        user_id: parseInt(userId),
-        parent_id: parentId,
+      const response = await commentsAPI.createComment(contentId, {
         content: replyText.trim(),
-      };
-
-      // Add the appropriate content ID field based on type
-      if (contentType === 'lab') {
-        commentData.lab_id = parseInt(contentId);
-      } else if (contentType === 'article') {
-        commentData.article_id = parseInt(contentId);
-      }
-
-      // TODO: Replace with actual API call when comments service is connected
-      // await commentsAPI.createComment(commentData);
-      console.log('Reply would be created:', commentData);
+        parentId: parentId,
+      });
 
       setReplyText("");
       setReplyingTo(null);
-      fetchReplies(parentId); // Refresh replies for this comment
+      
+      // Update the parent comment's replies
+      setComments(prev => prev.map(comment => 
+        comment.id === parentId
+          ? { ...comment, replies: [...(comment.replies || []), response] }
+          : comment
+      ));
     } catch (error) {
       console.error("Error submitting reply:", error);
+      alert("Error submitting reply. Please try again.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Edit a comment
+  const editComment = async (commentId) => {
+    if (!editText.trim()) return;
+
+    console.log('Editing comment:', {
+      commentId,
+      editText: editText.trim(),
+      userId,
+      userIdType: typeof userId
+    });
+
+    setSubmitting(true);
+    try {
+      const response = await commentsAPI.updateComment(commentId, editText.trim(), userId);
+      
+      // Update the comment in the list
+      setComments(prev => prev.map(comment => {
+        if (comment.id === commentId) {
+          return { ...comment, content: response.content, updatedAt: response.updatedAt };
+        }
+        // Also check replies
+        if (comment.replies) {
+          return {
+            ...comment,
+            replies: comment.replies.map(reply => 
+              reply.id === commentId 
+                ? { ...reply, content: response.content, updatedAt: response.updatedAt }
+                : reply
+            )
+          };
+        }
+        return comment;
+      }));
+      
+      setEditingComment(null);
+      setEditText("");
+    } catch (error) {
+      console.error("Error editing comment:", error);
+      console.error("Error details:", error.message);
+      alert("Error editing comment. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Delete a comment
+  const deleteComment = async (commentId) => {
+    if (!window.confirm("Are you sure you want to delete this comment?")) return;
+
+    try {
+      await commentsAPI.deleteComment(commentId);
+      
+      // Remove the comment from the list
+      setComments(prev => {
+        // Remove from top-level comments
+        const filtered = prev.filter(comment => comment.id !== commentId);
+        // Remove from replies
+        return filtered.map(comment => ({
+          ...comment,
+          replies: comment.replies ? comment.replies.filter(reply => reply.id !== commentId) : comment.replies
+        }));
+      });
+      
+      setTotalComments(prev => prev - 1);
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      alert("Error deleting comment. Please try again.");
     }
   };
 
   // Load more comments
   const loadMoreComments = () => {
     const nextPage = page + 1;
-    setPage(nextPage);
     fetchComments(nextPage, false);
   };
 
@@ -151,6 +211,25 @@ export default function CommentsSection({ contentType, contentId, userId }) {
     const date = new Date(dateString);
     return date.toLocaleDateString() + " " + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
   };
+
+  // Get user display name
+  const getUserDisplayName = (comment) => {
+    if (comment.firstName && comment.lastName) {
+      return `${comment.firstName} ${comment.lastName}`;
+    }
+    return `User ${comment.userId}`;
+  };
+
+  // Get user initials
+  const getUserInitials = (comment) => {
+    if (comment.firstName && comment.lastName) {
+      return `${comment.firstName.charAt(0)}${comment.lastName.charAt(0)}`;
+    }
+    return comment.userId?.toString().charAt(0) || 'U';
+  };
+
+  // Check if user owns the comment
+  const isOwner = (comment) => comment.userId === userId;
 
   // Get appropriate labels based on content type
   const getLabels = () => {
@@ -228,25 +307,84 @@ export default function CommentsSection({ contentType, contentId, userId }) {
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-msc rounded-full flex items-center justify-center">
                       <span className="text-white text-sm font-medium">
-                        {comment.user_id?.toString().charAt(0) || 'U'}
+                        {getUserInitials(comment)}
                       </span>
                     </div>
                     <div>
                       <p className="font-medium text-gray-900 dark:text-white">
-                        User {comment.user_id}
+                        {getUserDisplayName(comment)}
                       </p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {formatDate(comment.created_at)}
+                        {formatDate(comment.createdAt)}
+                        {comment.updatedAt !== comment.createdAt && (
+                          <span className="ml-2 text-xs">(edited)</span>
+                        )}
                       </p>
                     </div>
                   </div>
+                  {isOwner(comment) && (
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => {
+                          setEditingComment(comment.id);
+                          setEditText(comment.content);
+                        }}
+                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => deleteComment(comment.id)}
+                        className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Comment Content */}
                 <div className="mb-4">
-                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                    {comment.content}
-                  </p>
+                  {editingComment === comment.id ? (
+                    <div className="space-y-3">
+                      <textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-msc focus:border-transparent"
+                        rows="3"
+                      />
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          onClick={() => {
+                            setEditingComment(null);
+                            setEditText("");
+                          }}
+                          className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => editComment(comment.id)}
+                          disabled={!editText.trim() || submitting}
+                          className={`px-4 py-2 text-sm rounded-md font-medium transition-colors ${
+                            editText.trim() && !submitting
+                              ? "bg-msc text-white hover:bg-msc-dark"
+                              : "bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                          }`}
+                        >
+                          {submitting ? "Saving..." : "Save"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                      {comment.content}
+                    </p>
+                  )}
                 </div>
 
                 {/* Comment Actions */}
@@ -259,9 +397,19 @@ export default function CommentsSection({ contentType, contentId, userId }) {
                   </button>
                   <button
                     onClick={() => toggleReplies(comment.id)}
-                    className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                    className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 flex items-center space-x-1"
+                    disabled={loadingReplies.has(comment.id)}
                   >
-                    {expandedReplies.has(comment.id) ? "Hide replies" : "Show replies"}
+                    {loadingReplies.has(comment.id) ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-t border-b border-current"></div>
+                        <span>Loading...</span>
+                      </>
+                    ) : (
+                      <span>
+                        {expandedReplies.has(comment.id) ? "Hide replies" : "Show replies"}
+                      </span>
+                    )}
                   </button>
                 </div>
 
@@ -305,24 +453,86 @@ export default function CommentsSection({ contentType, contentId, userId }) {
                   <div className="mt-4 pl-4 border-l-2 border-gray-200 dark:border-gray-600 space-y-4">
                     {comment.replies.map((reply) => (
                       <div key={reply.id} className="bg-white dark:bg-gray-800 rounded-lg p-4">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <div className="w-6 h-6 bg-msc rounded-full flex items-center justify-center">
-                            <span className="text-white text-xs font-medium">
-                              {reply.user_id?.toString().charAt(0) || 'U'}
-                            </span>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-6 h-6 bg-msc rounded-full flex items-center justify-center">
+                              <span className="text-white text-xs font-medium">
+                                {getUserInitials(reply)}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                {getUserDisplayName(reply)}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {formatDate(reply.createdAt)}
+                                {reply.updatedAt !== reply.createdAt && (
+                                  <span className="ml-2">(edited)</span>
+                                )}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
-                              User {reply.user_id}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {formatDate(reply.created_at)}
-                            </p>
-                          </div>
+                          {isOwner(reply) && (
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => {
+                                  setEditingComment(reply.id);
+                                  setEditText(reply.content);
+                                }}
+                                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                              >
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => deleteComment(reply.id)}
+                                className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                              >
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
                         </div>
-                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                          {reply.content}
-                        </p>
+                        
+                        {editingComment === reply.id ? (
+                          <div className="space-y-3">
+                            <textarea
+                              value={editText}
+                              onChange={(e) => setEditText(e.target.value)}
+                              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-msc focus:border-transparent"
+                              rows="3"
+                            />
+                            <div className="flex justify-end space-x-2">
+                              <button
+                                onClick={() => {
+                                  setEditingComment(null);
+                                  setEditText("");
+                                }}
+                                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => editComment(reply.id)}
+                                disabled={!editText.trim() || submitting}
+                                className={`px-4 py-2 text-sm rounded-md font-medium transition-colors ${
+                                  editText.trim() && !submitting
+                                    ? "bg-msc text-white hover:bg-msc-dark"
+                                    : "bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                                }`}
+                              >
+                                {submitting ? "Saving..." : "Save"}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                            {reply.content}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -354,4 +564,4 @@ export default function CommentsSection({ contentType, contentId, userId }) {
       </div>
     </section>
   );
-} 
+}

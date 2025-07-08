@@ -239,3 +239,23 @@ export const feedbackAPI = {
     return apiCall(url);
   },
 };
+// --- Comments API ---
+export const commentsAPI = {
+  createComment: (labId, commentData) => apiCall(`/labs/${labId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify(commentData),
+  }),
+  getLabComments: (labId, page = 1, limit = 20) => apiCall(`/labs/${labId}/comments?page=${page}&limit=${limit}`),
+  getCommentById: (commentId) => apiCall(`/comments/${commentId}`),
+  getCommentReplies: (commentId, page = 1, size = 20) => apiCall(`/comments/${commentId}/replies?page=${page}&size=${size}`),
+  updateComment: (commentId, content) => {
+  const payload = { content };
+  return apiCall(`/comments/${commentId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+},
+  deleteComment: (commentId) => apiCall(`/comments/${commentId}`, {
+    method: 'DELETE',
+  }),
+};
