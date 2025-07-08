@@ -10,17 +10,47 @@ All endpoints require JWT authentication unless specified otherwise.
 
 ## Agenda
 
-1. [User Service](#user-service)
-2. [Labs Service](#labs-service)
-3. [Submissions Service](#submissions-service)
-4. [Comments Service](#comments-service)
-5. [Articles Service](#articles-service)
-6. [Feedback Service](#feedback-service)
-7. [Common Response Codes](#common-response-codes)
-8. [Authentication Headers](#authentication-headers)
-9. [Error Response Format](#error-response-format)
+1. [Health Check](#health-check)
+2. [User Service](#user-service)
+3. [Labs Service](#labs-service)
+4. [Submissions Service](#submissions-service)
+5. [Comments Service](#comments-service)
+6. [Articles Service](#articles-service)
+7. [Feedback Service](#feedback-service)
+8. [Common Response Codes](#common-response-codes)
+9. [Authentication Headers](#authentication-headers)
+10. [Error Response Format](#error-response-format)
 
 ---  
+
+## Health Check
+Made with Spring Boot Actuator.
+
+You can check the health of the API service by sending a request to the following endpoint:
+- **Endpoint:** `GET /health`
+
+Returns a simple JSON response indicating the service is up and running.
+
+Example response:
+```json
+{
+  "status": "UP",
+  "groups": [
+    "liveness",
+    "readiness"
+  ]
+}
+```
+
+For simpler approaches you can use `liveness` endpoint:
+- **Endpoint:** `GET actuator/health/liveness`
+
+Example response:
+```json
+{
+  "status": "UP"
+}
+```
 
 ## User Service
 

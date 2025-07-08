@@ -116,3 +116,4 @@ cors:
   exposed-headers: "Content-Disposition"
   allow-credentials: true
   max-age: 3600
+
