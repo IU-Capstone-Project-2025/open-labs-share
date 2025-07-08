@@ -198,7 +198,7 @@ class LabService(labs_service.LabServiceServicer):
             stmt = select(Lab).offset((data["page_number"] - 1) * data["page_size"]).limit(data["page_size"])
             labs = session.execute(stmt).scalars().all()
 
-            lab_list = labs_stub.LabList(count=len(labs))
+            lab_list = labs_stub.LabList(total_count=len(labs))
             for lab in labs:
                 lab_list.labs.append(labs_stub.Lab(**lab.get_attrs()))
 
@@ -343,6 +343,15 @@ class LabService(labs_service.LabServiceServicer):
                 self.logger.error(error_message)
 
                 return labs_stub.DeleteLabResponse(success=False)
+
+            for lab_tag in lab.tags:
+                stmt = select(Tag).where(Tag.id == lab_tag.tag_id)
+                tag = session.execute(stmt).scalar_one_or_none()
+                tag.labs_count -= 1
+                session.delete(lab_tag)
+            
+            for article_relation in lab.articles:
+                session.delete(article_relation)
 
             session.delete(lab)
             session.commit()
@@ -782,7 +791,7 @@ class LabService(labs_service.LabServiceServicer):
 
                 return labs_stub.AssetList()
 
-            asset_list = labs_stub.AssetList(count=len(lab.assets))
+            asset_list = labs_stub.AssetList(total_count=len(lab.assets))
             asset_list.assets.extend([labs_stub.Asset(**asset.get_attrs()) for asset in lab.assets])
 
             self.logger.info(f"Listed {len(lab.assets)} assets for lab_id={data['lab_id']}")

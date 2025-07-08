@@ -53,7 +53,7 @@ message GetSubmissionRequest {
 }
 
 message SubmissionList {
-  int64 count = 1;
+  int64 total_count = 1;
   repeated Submission submissions = 2;
 }
 
@@ -142,6 +142,6 @@ message ListAssetsRequest {
 }
 
 message AssetList {
-  int64 count = 1;
+  int64 total_count = 1;
   repeated Asset assets = 2;
 }
