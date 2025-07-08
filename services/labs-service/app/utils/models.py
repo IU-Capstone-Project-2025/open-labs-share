@@ -22,13 +22,12 @@ class Lab(Base, SerializerMixin):
     abstract: Mapped[Optional[str]] = mapped_column(Text)
     views: Mapped[int] = mapped_column(BigInteger, default=0)
     submissions: Mapped[int] = mapped_column(BigInteger, default=0)
-    stars: Mapped[int] = mapped_column(BigInteger, default=0)
-    people_rated: Mapped[int] = mapped_column(BigInteger, default=0)
 
     # Relationships
     lab_submissions = relationship("Submission", back_populates="lab", cascade="all, delete")
     assets = relationship("LabAsset", back_populates="lab", cascade="all, delete")
     articles = relationship("ArticleRelation", back_populates="lab", cascade="all, delete")
+    tags = relationship("LabTag", back_populates="lab", cascade="all, delete")
 
     def __repr__(self):
         return f"<Lab(id={self.id}, title={self.title})>"
@@ -43,8 +42,8 @@ class Lab(Base, SerializerMixin):
             "abstract": self.abstract,
             "views": self.views,
             "submissions": self.submissions,
-            "stars_total": self.stars,
-            "people_rated": self.people_rated
+            "related_articles_ids": [article.article_id for article in self.articles],
+            "tags_ids": [tag.tag_id for tag in self.tags]
         }
 
 class Submission(Base, SerializerMixin):
@@ -72,6 +71,44 @@ class Submission(Base, SerializerMixin):
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "status": self.status
+        }
+
+
+class Tag(Base, SerializerMixin):
+    __tablename__ = "tags"
+    
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    labs_count: Mapped[int] = mapped_column(BigInteger, default=0)
+
+    def get_attrs(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "labs_count": self.labs_count
+        }
+
+
+class LabTag(Base, SerializerMixin):
+    __tablename__ = "lab_tags"
+    
+    lab_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("labs.id", ondelete="CASCADE"), primary_key=True)
+    tag_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True)
+
+    # Relationships
+    lab = relationship("Lab", back_populates="tags")
+    tag = relationship("Tag")
+
+    def get_attrs(self):
+        return {
+            "lab_id": self.lab_id,
+            "tag_id": self.tag_id
         }
 
 

@@ -35,8 +35,8 @@ services:
       - LAB_SERVICE_PORT=9091
       - ARTICLE_SERVICE_HOST=articles-service
       - ARTICLE_SERVICE_PORT=50051
-      # - ML_SERVICE_HOST=ml-service
-      # - ML_SERVICE_PORT=8082
+      - ML_SERVICE_HOST=ml-service
+      - ML_SERVICE_PORT=8082
       - SPRING_PROFILES_ACTIVE=docker
       - FEEDBACK_SERVICE_HOST=feedback-service
       - FEEDBACK_SERVICE_PORT=9090
@@ -227,45 +227,45 @@ services:
     networks:
       - app-network
 
-  # ml-service:
-  #   build:
-  #     context: .
-  #     dockerfile: docker/Dockerfile.ml-service
-  #   ports:
-  #     - "8083:8081"
-  #   environment:
-  #     - DEVICE=cuda
-  #     - RAG_DB_PATH=/app/ml/faiss
-  #     - SCORE_THRESHOLD=1.0
-  #     - EMBEDDING_MODEL_NAME=BAAI/bge-small-en-v1.5
-  #     - LLM_MODEL_NAME=Qwen/Qwen2.5-Coder-1.5B-Instruct
-  #     - PDF_DIR=/app/ml/data/predator-pray-22/pdfs
-  #     - CODE_DIR=/app/ml/data/predator-pray-22/code
-  #     - POSTGRES_USER=ml_user
-  #     - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD}
-  #     - POSTGRES_HOST=postgres-ml
-  #     - POSTGRES_PORT=5432
-  #     - POSTGRES_DB=chat_history_db
-  #   volumes:
-  #     - ./ml:/app/ml
-  #     - ml-models:/app/models
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - postgres-ml
-  #   networks:
-  #     - app-network
+  ml-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ml-service
+    ports:
+      - "8083:8081"
+    environment:
+      - DEVICE=cuda
+      - RAG_DB_PATH=/app/ml/faiss
+      - SCORE_THRESHOLD=1.0
+      - EMBEDDING_MODEL_NAME=BAAI/bge-small-en-v1.5
+      - LLM_MODEL_NAME=Qwen/Qwen2.5-Coder-1.5B-Instruct
+      - PDF_DIR=/app/ml/data/predator-pray-22/pdfs
+      - CODE_DIR=/app/ml/data/predator-pray-22/code
+      - POSTGRES_USER=ml_user
+      - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD}
+      - POSTGRES_HOST=postgres-ml
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=chat_history_db
+    volumes:
+      - ./ml:/app/ml
+      - ml-models:/app/models
+    restart: unless-stopped
+    depends_on:
+      - postgres-ml
+    networks:
+      - app-network
 
-  # postgres-ml:
-  #   image: postgres:15-alpine
-  #   environment:
-  #     - POSTGRES_DB=chat_history_db
-  #     - POSTGRES_USER=ml_user
-  #     - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD}
-  #   volumes:
-  #     - postgres-ml-data:/var/lib/postgresql/data
-  #   restart: unless-stopped
-  #   networks:
-  #     - app-network
+  postgres-ml:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=chat_history_db
+      - POSTGRES_USER=ml_user
+      - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD}
+    volumes:
+      - postgres-ml-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - app-network
 
   minio:
     image: minio/minio:latest
@@ -314,8 +314,8 @@ volumes:
   postgres-feedback-data:
   postgres-labs-data:
   postgres-articles-data:
-  # postgres-ml-data:
-  # ml-models:
+  postgres-ml-data:
+  ml-models:
   minio-data:
   mongodb-labs-data:
   mongodb-feedback-data:

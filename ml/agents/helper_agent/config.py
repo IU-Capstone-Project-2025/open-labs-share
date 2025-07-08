@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv("agent/.env")
+load_dotenv("agents/helper_agent/.env")
 
 DEVICE = os.getenv("DEVICE", "cpu")
 RAG_DB_PATH = os.getenv("RAG_DB_PATH")

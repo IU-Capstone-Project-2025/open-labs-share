@@ -1,4 +1,3 @@
-version: '3.8'
 name: 'labs-service'
 services:
   # 1. MinIO Storage Service
@@ -9,6 +8,11 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
     volumes:
       - minio_data:/data
     networks:
@@ -26,6 +30,11 @@ services:
       POSTGRES_USER: labs_user
       POSTGRES_PASSWORD: ${POSTGRESQL_PASSWORD:-postgres}
       POSTGRES_DB: labs_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U labs_user -d labs_db"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -40,6 +49,11 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USER:-mongo}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:-mongo}
       MONGO_INITDB_DATABASE: labs_mongo_db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh --port 27017 --quiet
+      interval: 2s
+      timeout: 2s
+      retries: 5
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -71,16 +85,18 @@ services:
       - MONGODB_PASSWORD=${MONGODB_PASSWORD:-mongo}
       - MONGODB_NAME=labs_mongo_db
     depends_on:
-      - postgres-labs
-      - mongodb-labs
-      - minio-labs
+      postgres-labs:
+        condition: service_healthy
+      mongodb-labs:
+        condition: service_healthy
+      minio-labs:
+        condition: service_healthy
     volumes:
       - ./files:/app/files
     networks:
       - labs-network
     ports:
       - "${SERVICE_PORT:-9091}:${SERVICE_PORT:-9091}"
-    restart: unless-stopped
 
 volumes:
   postgres_data:
