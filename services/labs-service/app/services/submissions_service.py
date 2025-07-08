@@ -225,7 +225,7 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             stmt = select(Submission).where(Submission.lab_id == data["lab_id"]).offset((data["page_number"] - 1) * data["page_size"]).limit(data["page_size"])
             submissions = session.execute(stmt).scalars().all()
 
-            submission_list = submissions_stub.SubmissionList(count=len(submissions))
+            submission_list = submissions_stub.SubmissionList(total_count=len(submissions))
             for submission in submissions:
                 # Fetch text from MongoDB
                 text_data = self.submissions_texts.find_one({"submission_id": str(submission.id)})
@@ -420,7 +420,7 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             stmt = select(Submission).where(Submission.owner_id == data["user_id"]).offset((data["page_number"] - 1) * data["page_size"]).limit(data["page_size"])
             submissions = session.execute(stmt).scalars().all()
             
-            submission_list = submissions_stub.SubmissionList(count=len(submissions))
+            submission_list = submissions_stub.SubmissionList(total_count=len(submissions))
             for submission in submissions:
                 # Fetch text from MongoDB
                 text_data = self.submissions_texts.find_one({"submission_id": str(submission.id)})
@@ -834,7 +834,7 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
                 return submissions_stub.AssetList()
 
-            asset_list = submissions_stub.AssetList(count=len(submission.assets))
+            asset_list = submissions_stub.AssetList(total_count=len(submission.assets))
             asset_list.assets.extend([submissions_stub.Asset(**asset.get_attrs()) for asset in submission.assets])
 
             self.logger.info(f"Listed {len(submission.assets)} assets for submission_id={data['submission_id']}")
