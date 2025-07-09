@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - master
-      - "**" # this is for testing purposes
+      - "*" # this is for testing purposes
     paths:
       - 'services/feedback-service/**'
       - 'docker/Dockerfile.feedback-service'
