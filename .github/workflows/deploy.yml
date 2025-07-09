@@ -1,158 +1,22 @@
-name: Deploy to Production
+name: CD - Deploy to Server
 
 on:
-  # push:
-  #   branches:
-      # - "*" # TODO: Change to main after testing
   workflow_dispatch:
     inputs:
-      skip_build:
-        description: 'Skip build and push to deploy already existing images'
-        required: true
-        type: boolean
-        default: false
+      services:
+        description: 'Comma-separated list of services to deploy (e.g., api-gateway,auth-service). Leave empty to deploy all.'
+        required: false
+        default: ''
 
 jobs:
-  test:
-    if: github.event_name == 'push' || github.event.inputs.skip_build == false
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Make gradlew executable
-        run: find . -type f -name "gradlew" | xargs chmod +x
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Test api-gateway
-        working-directory: ./services/api-gateway
-        run: ./gradlew test
-
-      - name: Test auth-service
-        working-directory: ./services/auth-service
-        run: ./gradlew test
-
-      - name: Test users-service
-        working-directory: ./services/users-service
-        run: ./gradlew test
-      
-      # - name: Set up Go
-      #   uses: actions/setup-go@v5
-      #   with:
-      #     go-version: '1.20'
-
-      # - name: Test feedback-service
-      #   working-directory: ./services/feedback-service
-      #   run: go test ./...
-
-      # - name: Set up Node.js
-      #   uses: actions/setup-node@v4
-      #   with:
-      #     node-version: '20'
-
-      # - name: Test frontend
-      #   working-directory: ./frontend
-      #   run: |
-      #     npm install
-      #     npm test
-          
-  build-and-push:
-    needs: test
-    if: github.event_name == 'push' || github.event.inputs.skip_build == false
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push images
-        run: |
-          # Build all images using the production configuration
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml build
-          
-          # Tag and push each service image defined in the production config
-          for service in $(docker compose -f docker-compose.yml -f docker-compose.prod.yml config --services); do
-            # Use the directory name as the image name prefix to avoid conflicts
-            project_name=$(basename $PWD | tr '[:upper:]' '[:lower:]')
-            image_name="${project_name}-${service}"
-            
-            # Check if the image exists locally before tagging and pushing
-            if [[ "$(docker images -q ${image_name} 2> /dev/null)" != "" ]]; then
-              echo "Tagging and pushing image for $service"
-              docker tag ${image_name} ${{ secrets.DOCKER_HUB_USERNAME }}/${image_name}:latest
-              docker push ${{ secrets.DOCKER_HUB_USERNAME }}/${image_name}:latest
-            else
-              echo "Skipping push for ${service}, no local image found. It might be a base image."
-            fi
-          done
-
   deploy:
-    needs: [test, build-and-push]
-    if: always() && ((needs.test.result == 'success' && needs.build-and-push.result == 'success') || (github.event.inputs.skip_build == true && needs.test.result == 'skipped' && needs.build-and-push.result == 'skipped'))
     runs-on: self-hosted
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          clean: true
-
-      - name: Log in to Docker Hub
-        run: echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
 
       - name: Deploy services
         run: |
-          # Pull the latest images from Docker Hub
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
-          
-          # Restart the services with the new images
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-          
-      - name: Wait for services to stabilize
-        run: |
-          echo "Waiting for 60 seconds for services to stabilize..."
-          sleep 60
-
-      - name: Check container statuses
-        id: check_statuses
-        run: |
-          echo "Checking container statuses..."
-          FAILING_SERVICES=$(docker compose -f docker-compose.yml -f docker-compose.prod.yml ps | grep -E "restarting|unhealthy|exited" || true)
-          
-          if [ -n "$FAILING_SERVICES" ]; then
-            echo "Failing services found."
-            # Using a heredoc to pass multiline strings to outputs
-            echo "failing_services<<EOF" >> $GITHUB_OUTPUT
-            echo "$FAILING_SERVICES" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-            echo "has_failures=true" >> $GITHUB_OUTPUT
-            echo "::error::The following services are not stable:"
-            echo "$FAILING_SERVICES"
-          else
-            echo "All services are running."
-            echo "has_failures=false" >> $GITHUB_OUTPUT
-          fi
-          echo "Full service list:"
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
-
-      - name: Stop services on failure
-        if: steps.check_statuses.outputs.has_failures == 'true'
-        run: |
-          echo "One or more services are unstable. Stopping all services."
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml down --remove-orphans
-          exit 1
-          
-      - name: Clean up old, dangling images
-        run: docker image prune -f
+          # Convert comma-separated list to space-separated list
+          services_to_deploy=$(echo ${{ github.event.inputs.services }} | tr ',' ' ')
+          ./scripts/deploy_green.sh $services_to_deploy

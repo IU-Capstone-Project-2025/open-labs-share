@@ -1,105 +1,123 @@
+networks:
+  blue-network:
+    driver: bridge
+  green-network:
+    driver: bridge
+
+volumes:
+  postgres-users-data:
+  postgres-feedback-data:
+  postgres-labs-data:
+  postgres-articles-data:
+  postgres-ml-data:
+  ml-models:
+  minio-data:
+  mongodb-labs-data:
+  mongodb-feedback-data:
+
 services:
-  frontend:
+  haproxy:
+    image: haproxy:2.8
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    environment:
+      - ACTIVE_ENV=blue
+    ports:
+      - "80:80"
+      - "8404:8404"
+    networks:
+      - blue-network
+      - green-network
+    restart: unless-stopped
+
+
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "8090:8080"
+    networks:
+      - blue-network
+      - green-network
+    restart: unless-stopped
+
+  # --- Blue Environment ---
+  frontend-blue:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app/frontend
-      - frontend_node_modules:/app/frontend/node_modules
     environment:
-      - NODE_ENV=development
-      - VITE_API_GATEWAY_ENDPOINT=http://localhost:8080/api/v1
-      - VITE_AUTH_API_ENDPOINT=http://localhost:8081/api/v1/auth
-    restart: unless-stopped
-    depends_on:
-      - api-gateway
-      - auth-service
+      - NODE_ENV=production
+      - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
     networks:
-      - app-network
+      - blue-network
+    restart: unless-stopped
+    profiles: ["blue"]
 
-  api-gateway:
+  api-gateway-blue:
     build:
       context: .
       dockerfile: docker/Dockerfile.api-gateway
-    ports:
-      - "8080:8080"
     environment:
       - SPRING_APP_PORT=8080
-      - AUTH_SERVICE_HOST=auth-service
+      - AUTH_SERVICE_HOST=auth-service-blue
       - AUTH_SERVICE_PORT=9092
-      - USER_SERVICE_HOST=users-service
+      - USER_SERVICE_HOST=users-service-blue
       - USER_SERVICE_PORT=9093
-      - LAB_SERVICE_HOST=labs-service
+      - LAB_SERVICE_HOST=labs-service-blue
       - LAB_SERVICE_PORT=9091
-      - ARTICLE_SERVICE_HOST=articles-service
+      - ARTICLE_SERVICE_HOST=articles-service-blue
       - ARTICLE_SERVICE_PORT=50051
-      - ML_SERVICE_HOST=ml-service
+      - ML_SERVICE_HOST=ml-service-blue
       - ML_SERVICE_PORT=8082
       - SPRING_PROFILES_ACTIVE=docker
-      - FEEDBACK_SERVICE_HOST=feedback-service
+      - FEEDBACK_SERVICE_HOST=feedback-service-blue
       - FEEDBACK_SERVICE_PORT=9090
-    restart: unless-stopped
-    depends_on:
-      - auth-service
-      - users-service
-      - labs-service
-      - articles-service
-      - feedback-service
-      - ml-service
     networks:
-      - app-network
+      - blue-network
+    restart: unless-stopped
+    profiles: ["blue"]
 
-  auth-service:
+  auth-service-blue:
     build:
       context: .
       dockerfile: docker/Dockerfile.auth-service
-    ports:
-      - "8081:8081"
-      - "9092:9092"
     environment:
       - PORT=8081
       - GRPC_PORT=9092
-      - USERS_SERVICE_HOST=users-service
+      - USERS_SERVICE_HOST=users-service-blue
       - USERS_SERVICE_PORT=9093
       - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:-adminadmin}
-      - ACCESS_TOKEN_EXPIRATION=144000000
-      - REFRESH_TOKEN_EXPIRATION=1008000000
       - SPRING_PROFILES_ACTIVE=docker
-    restart: unless-stopped
-    depends_on:
-      - users-service
     networks:
-      - app-network
+      - blue-network
+    restart: unless-stopped
+    profiles: ["blue"]
 
-  users-service:
+  users-service-blue:
     build:
       context: .
       dockerfile: docker/Dockerfile.users-service
-    ports:
-      - "9093:9093"
     environment:
       - GRPC_PORT=9093
       - DB_URL=jdbc:postgresql://postgres-users:5432/users_service
       - DB_USERNAME=users_user
       - DB_PASSWORD=${POSTGRES_USERS_PASSWORD:-postgres}
-      - HIBERNATE_DDL_AUTO=update
-      - SHOW_SQL=false
-      - LOG_LEVEL=INFO
       - SPRING_PROFILES_ACTIVE=docker
-    restart: unless-stopped
-    depends_on:
-      - postgres-users
     networks:
-      - app-network
+      - blue-network
+    restart: unless-stopped
+    profiles: ["blue"]
 
-  labs-service:
+  labs-service-blue:
     build:
       context: .
       dockerfile: docker/Dockerfile.labs-service
-    ports:
-      - "9091:9091"
     environment:
       - SERVICE_HOST=0.0.0.0
       - SERVICE_PORT=9091
@@ -111,27 +129,20 @@ services:
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
       - MONGODB_HOST=mongodb-labs
       - MONGODB_PORT=27017
       - MONGODB_USER=${MONGO_ROOT_USER:-mongo}
       - MONGODB_PASSWORD=${MONGO_ROOT_PASSWORD:-mongo}
       - MONGODB_NAME=labs_mongo_db
-    restart: unless-stopped
-    depends_on:
-      - postgres-labs
-      - mongodb-labs
-      - minio
     networks:
-      - app-network
+      - blue-network
+    restart: unless-stopped
+    profiles: ["blue"]
 
-  articles-service:
+  articles-service-blue:
     build:
       context: .
       dockerfile: docker/Dockerfile.articles-service
-    ports:
-      - "50051:50051"
     environment:
       - SERVICE_HOST=0.0.0.0
       - SERVICE_PORT=50051
@@ -143,19 +154,180 @@ services:
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
-    restart: unless-stopped
-    depends_on:
-      - postgres-articles
-      - minio
     networks:
-      - app-network
+      - blue-network
+    restart: unless-stopped
+    profiles: ["blue"]
 
-  feedback-service:
+  feedback-service-blue:
     build:
       context: .
       dockerfile: docker/Dockerfile.feedback-service
-    ports:
-      - "9090:9090"
+    environment:
+      - GRPC_PORT=9090
+      - DB_HOST=postgres-feedback
+      - DB_PORT=5432
+      - DB_USER=feedback_user
+      - DB_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD:-feedback_password}
+      - DB_NAME=feedback_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BUCKET_NAME=feedback
+      - MINIO_USE_SSL=false
+      - MONGODB_URI=mongodb://mongodb-feedback:27017
+      - MONGODB_DATABASE=feedback
+      - MONGODB_COLLECTION=comments
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["blue"]
+
+  ml-service-blue:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ml-service
+    environment:
+      - SERVICE_PORT=8082
+      - DEVICE=cpu
+      - RAG_DB_PATH=/app/ml/faiss
+      - SCORE_THRESHOLD=1.0
+      - EMBEDDING_MODEL_NAME=BAAI/bge-small-en-v1.5
+      - LLM_MODEL_NAME=Qwen/Qwen2.5-Coder-1.5B-Instruct
+      - PDF_DIR=/app/ml/data/predator-pray-22/pdfs
+      - CODE_DIR=/app/ml/data/predator-pray-22/code
+      - POSTGRES_USER=ml_user
+      - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD:-password}
+      - POSTGRES_HOST=postgres-ml
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=chat_history_db
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ./ml:/app/ml
+      - ml-models:/app/models
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["blue"]
+
+  # --- Green Environment ---
+  frontend-green:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    environment:
+      - NODE_ENV=production
+      - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
+    networks:
+      - green-network
+    restart: unless-stopped
+    profiles: ["green"]
+
+  api-gateway-green:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api-gateway
+    environment:
+      - SPRING_APP_PORT=8080
+      - AUTH_SERVICE_HOST=auth-service-green
+      - AUTH_SERVICE_PORT=9092
+      - USER_SERVICE_HOST=users-service-green
+      - USER_SERVICE_PORT=9093
+      - LAB_SERVICE_HOST=labs-service-green
+      - LAB_SERVICE_PORT=9091
+      - ARTICLE_SERVICE_HOST=articles-service-green
+      - ARTICLE_SERVICE_PORT=50051
+      - ML_SERVICE_HOST=ml-service-green
+      - ML_SERVICE_PORT=8082
+      - SPRING_PROFILES_ACTIVE=docker
+      - FEEDBACK_SERVICE_HOST=feedback-service-green
+      - FEEDBACK_SERVICE_PORT=9090
+    networks:
+      - green-network
+    restart: unless-stopped
+    profiles: ["green"]
+
+  auth-service-green:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.auth-service
+    environment:
+      - PORT=8081
+      - GRPC_PORT=9092
+      - USERS_SERVICE_HOST=users-service-green
+      - USERS_SERVICE_PORT=9093
+      - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:-adminadmin}
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - green-network
+    restart: unless-stopped
+    profiles: ["green"]
+
+  users-service-green:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.users-service
+    environment:
+      - GRPC_PORT=9093
+      - DB_URL=jdbc:postgresql://postgres-users:5432/users_service
+      - DB_USERNAME=users_user
+      - DB_PASSWORD=${POSTGRES_USERS_PASSWORD:-postgres}
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - green-network
+    restart: unless-stopped
+    profiles: ["green"]
+
+  labs-service-green:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.labs-service
+    environment:
+      - SERVICE_HOST=0.0.0.0
+      - SERVICE_PORT=9091
+      - POSTGRESQL_HOST=postgres-labs
+      - POSTGRESQL_PORT=5432
+      - POSTGRESQL_USER=labs_user
+      - POSTGRESQL_PASSWORD=${POSTGRES_LABS_PASSWORD:-postgres}
+      - POSTGRESQL_NAME=labs_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MONGODB_HOST=mongodb-labs
+      - MONGODB_PORT=27017
+      - MONGODB_USER=${MONGO_ROOT_USER:-mongo}
+      - MONGODB_PASSWORD=${MONGO_ROOT_PASSWORD:-mongo}
+      - MONGODB_NAME=labs_mongo_db
+    networks:
+      - green-network
+    restart: unless-stopped
+    profiles: ["green"]
+
+  articles-service-green:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.articles-service
+    environment:
+      - SERVICE_HOST=0.0.0.0
+      - SERVICE_PORT=50051
+      - POSTGRES_HOST=postgres-articles
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=articles_user
+      - POSTGRES_PASSWORD=${POSTGRES_ARTICLES_PASSWORD:-password}
+      - POSTGRES_NAME=articles_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+    networks:
+      - green-network
+    restart: unless-stopped
+    profiles: ["green"]
+
+  feedback-service-green:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.feedback-service
     environment:
       - GRPC_PORT=9090
       - POSTGRES_HOST=postgres-feedback
@@ -171,14 +343,40 @@ services:
       - MONGODB_URI=mongodb://mongodb-feedback:27017
       - MONGODB_DATABASE=feedback
       - MONGODB_COLLECTION=comments
-    restart: unless-stopped
-    depends_on:
-      - postgres-feedback
-      - minio
-      - mongodb-feedback
     networks:
-      - app-network
+      - green-network
+    restart: unless-stopped
+    profiles: ["green"]
 
+  ml-service-green:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ml-service
+    environment:
+      - SERVICE_PORT=8082
+      - DEVICE=cpu
+      - RAG_DB_PATH=/app/ml/faiss
+      - SCORE_THRESHOLD=1.0
+      - EMBEDDING_MODEL_NAME=BAAI/bge-small-en-v1.5
+      - LLM_MODEL_NAME=Qwen/Qwen2.5-Coder-1.5B-Instruct
+      - PDF_DIR=/app/ml/data/predator-pray-22/pdfs
+      - CODE_DIR=/app/ml/data/predator-pray-22/code
+      - POSTGRES_USER=ml_user
+      - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD:-password}
+      - POSTGRES_HOST=postgres-ml
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=chat_history_db
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ./ml:/app/ml
+      - ml-models:/app/models
+    networks:
+      - green-network
+    restart: unless-stopped
+    profiles: ["green"]
+
+  # --- Shared Services ---
   postgres-users:
     image: postgres:15-alpine
     environment:
@@ -187,9 +385,10 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_USERS_PASSWORD:-postgres}
     volumes:
       - postgres-users-data:/var/lib/postgresql/data
-    restart: unless-stopped
     networks:
-      - app-network
+      - blue-network
+      - green-network
+    restart: unless-stopped
 
   postgres-feedback:
     image: postgres:15-alpine
@@ -199,9 +398,10 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD:-feedback_password}
     volumes:
       - postgres-feedback-data:/var/lib/postgresql/data
-    restart: unless-stopped
     networks:
-      - app-network
+      - blue-network
+      - green-network
+    restart: unless-stopped
 
   postgres-labs:
     image: postgres:15-alpine
@@ -211,9 +411,10 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_LABS_PASSWORD:-postgres}
     volumes:
       - postgres-labs-data:/var/lib/postgresql/data
-    restart: unless-stopped
     networks:
-      - app-network
+      - blue-network
+      - green-network
+    restart: unless-stopped
 
   postgres-articles:
     image: postgres:15-alpine
@@ -223,7 +424,6 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_ARTICLES_PASSWORD:-password}
     volumes:
       - postgres-articles-data:/var/lib/postgresql/data
-    restart: unless-stopped
     networks:
       - app-network
 
@@ -259,16 +459,18 @@ services:
       - ml-celery-worker
     networks:
       - app-network
+      - blue-network
+      - green-network
+    restart: unless-stopped
 
   postgres-ml:
     image: postgres:15-alpine
     environment:
       - POSTGRES_DB=chat_history_db
       - POSTGRES_USER=ml_user
-      - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD}
+      - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD:-password}
     volumes:
       - postgres-ml-data:/var/lib/postgresql/data
-    restart: unless-stopped
     networks:
       - app-network
   ml-redis-broker:
@@ -278,6 +480,9 @@ services:
     restart: unless-stopped
     networks:
       - app-network
+      - blue-network
+      - green-network
+    restart: unless-stopped
 
   ml-celery-worker:
     build:
@@ -305,9 +510,10 @@ services:
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
       - minio-data:/data
-    restart: unless-stopped
     networks:
-      - app-network
+      - blue-network
+      - green-network
+    restart: unless-stopped
 
   mongodb-labs:
     image: mongo:latest
@@ -317,9 +523,10 @@ services:
       - MONGO_INITDB_DATABASE=labs_mongo_db
     volumes:
       - mongodb-labs-data:/data/db
-    restart: unless-stopped
     networks:
-      - app-network
+      - blue-network
+      - green-network
+    restart: unless-stopped
 
   mongodb-feedback:
     image: mongo:latest
@@ -327,22 +534,7 @@ services:
       - MONGO_INITDB_DATABASE=feedback
     volumes:
       - mongodb-feedback-data:/data/db
-    restart: unless-stopped
     networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
-
-volumes:
-  frontend_node_modules:
-  postgres-users-data:
-  postgres-feedback-data:
-  postgres-labs-data:
-  postgres-articles-data:
-  postgres-ml-data:
-  ml-models:
-  minio-data:
-  mongodb-labs-data:
-  mongodb-feedback-data:
+      - blue-network
+      - green-network
+    restart: unless-stopped 

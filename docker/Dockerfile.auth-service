@@ -4,14 +4,13 @@ WORKDIR /app
 COPY services/auth-service/gradle/ gradle/
 COPY services/auth-service/gradlew services/auth-service/build.gradle services/auth-service/settings.gradle ./
 
-RUN gradle dependencies --no-daemon || true
+# Use cache mount for gradle dependencies
+RUN --mount=type=cache,target=/root/.gradle gradle dependencies --no-daemon || true
 
 COPY services/auth-service/src/ src/
 
-RUN gradle clean && \
-    gradle generateProto &&  \
-    gradle build --no-daemon -x test && \
-    gradle bootJar
+# Use cache mount for building
+RUN --mount=type=cache,target=/root/.gradle gradle clean generateProto build -x test bootJar --no-daemon
 
 RUN jlink --verbose \
           --module-path $JAVA_HOME/jmods \
@@ -28,7 +27,7 @@ FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends wget ca-certificates && \
+    apt-get install -y --no-install-recommends wget ca-certificates curl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p /opt/app
@@ -49,6 +48,9 @@ ENV PATH="/opt/jre/bin:${PATH}" \
     JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom"
 
 EXPOSE 8081 9092
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 \
+  CMD curl -f http://localhost:8081/actuator/health || exit 1
 
 ENTRYPOINT ["/opt/jre/bin/java", \
             "-XX:+UseContainerSupport", \

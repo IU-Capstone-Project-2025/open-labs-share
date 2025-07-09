@@ -1,38 +1,49 @@
-FROM pytorch/pytorch:2.7.1-cuda12.6-cudnn9-runtime
+# --- Builder Stage ---
+FROM pytorch/pytorch:2.7.1-cuda12.6-cudnn9-runtime AS builder
+
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    dos2unix \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy ML service requirements
-COPY ml/requirements.txt /app/requirements.txt
+# Install python dependencies with cache mount
+COPY ml/requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip pip install --no-cache-dir -r requirements.txt -t /app/deps
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# --- Final Stage ---
+FROM pytorch/pytorch:2.7.1-cuda12.6-cudnn9-runtime
 
-# Copy the entire ml directory
-COPY ml/ /app/ml/
+# Create a non-root user
+RUN useradd --create-home appuser
+WORKDIR /home/appuser/app
 
-# Copy and make startup script executable
-COPY ml/startup.sh /app/startup.sh
-RUN dos2unix /app/startup.sh && chmod +x /app/startup.sh
+# Install runtime dependencies and netcat
+RUN apt-get update && apt-get install -y --no-install-recommends dos2unix curl netcat-openbsd && \
+    rm -rf /var/lib/apt/lists/*
 
-# Create necessary directories
-RUN mkdir -p /app/models
+# Copy dependencies and application code
+COPY --from=builder /app/deps /home/appuser/app/deps
+COPY ml/ /home/appuser/app/ml/
+COPY ml/startup.sh /home/appuser/app/startup.sh
 
-# Set working directory to ml for the service
-WORKDIR /app/ml
+# Set permissions
+RUN dos2unix /home/appuser/app/startup.sh && \
+    chmod +x /home/appuser/app/startup.sh && \
+    chown -R appuser:appuser /home/appuser/app
 
-# Expose the port
-EXPOSE 8081
+USER appuser
+WORKDIR /home/appuser/app/ml
 
-# Set environment variables
-ENV PYTHONPATH=/app/ml
+# Add deps to python path and bin to PATH
+ENV PYTHONPATH=/home/appuser/app/deps
+ENV PATH="/home/appuser/app/deps/bin:${PATH}"
 ENV DEVICE=cpu
 
-# Run the startup script
-CMD ["/app/startup.sh"] 
+EXPOSE 8082
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 \
+  CMD nc -z localhost 8082 || exit 1
+
+CMD ["/home/appuser/app/startup.sh"] 
