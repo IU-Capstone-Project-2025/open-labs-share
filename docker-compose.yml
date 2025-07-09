@@ -156,6 +156,7 @@ services:
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
     networks:
       - blue-network
+      - green-network
     restart: unless-stopped
     profiles: ["blue"]
 
@@ -208,6 +209,7 @@ services:
       - ml-models:/app/models
     networks:
       - blue-network
+      - green-network
     restart: unless-stopped
     profiles: ["blue"]
 
@@ -425,7 +427,8 @@ services:
     volumes:
       - postgres-articles-data:/var/lib/postgresql/data
     networks:
-      - app-network
+      - blue-network
+      - green-network
 
   ml-service:
     build:
@@ -458,7 +461,6 @@ services:
       - minio
       - ml-celery-worker
     networks:
-      - app-network
       - blue-network
       - green-network
 
@@ -471,14 +473,14 @@ services:
     volumes:
       - postgres-ml-data:/var/lib/postgresql/data
     networks:
-      - app-network
+      - blue-network
+      - green-network
   ml-redis-broker:
     image: redis:7
     ports:
       - "6379:6379"
     restart: unless-stopped
     networks:
-      - app-network
       - blue-network
       - green-network
 
@@ -496,7 +498,8 @@ services:
       - ml-redis-broker
       - minio
     networks:
-      - app-network
+      - blue-network
+      - green-network
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
