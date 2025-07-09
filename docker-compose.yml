@@ -461,7 +461,6 @@ services:
       - app-network
       - blue-network
       - green-network
-    restart: unless-stopped
 
   postgres-ml:
     image: postgres:15-alpine
@@ -482,7 +481,6 @@ services:
       - app-network
       - blue-network
       - green-network
-    restart: unless-stopped
 
   ml-celery-worker:
     build:

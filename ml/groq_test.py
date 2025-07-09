@@ -4,7 +4,6 @@ import os
 KEYS_PATH = ""
 
 
-
 def load_groq_keys(filepath=os.path.join("groq-keys/groq_keys.txt")):
     with open(filepath, "r") as f:
         keys = [line.strip() for line in f if line.strip()]
