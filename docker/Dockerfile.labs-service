@@ -1,40 +1,53 @@
-FROM python:3.12-slim
+# --- Builder Stage ---
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    gcc \
-    postgresql-client \
-    dos2unix \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements file
-COPY services/labs-service/app/requirements.txt ./
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Set env var to ensure deps are on the path, and install deps into /app/deps
+ENV PATH="/app/deps/bin:${PATH}"
+ENV PYTHONPATH="/app/deps"
+COPY services/labs-service/app/requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip pip install --no-cache-dir -r requirements.txt -t /app/deps
 
 # Copy application code
-COPY services/labs-service/app/ /app/
+COPY services/labs-service/app .
+
+# Clean any existing protobuf files and generate fresh ones
+RUN rm -f proto/*_pb2.py proto/*_pb2_grpc.py
+RUN touch proto/__init__.py utils/__init__.py
+RUN python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto proto/*.proto
+
+# --- Final Stage ---
+FROM python:3.12-slim
+WORKDIR /app
+
+# Create a non-root user
+RUN useradd --create-home appuser
+WORKDIR /home/appuser/app
+
+# Install runtime dependencies and netcat
+RUN apt-get update && apt-get install -y --no-install-recommends netcat-openbsd dos2unix postgresql-client && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy dependencies and application code from builder
+COPY --from=builder /app/deps /home/appuser/app/deps
+COPY --from=builder /app .
 
 # Copy wait script
 COPY services/labs-service/scripts/wait-for-postgres.sh /usr/local/bin/wait-for-postgres.sh
 RUN dos2unix /usr/local/bin/wait-for-postgres.sh && chmod +x /usr/local/bin/wait-for-postgres.sh
 
-# Create __init__.py files to make directories Python packages
-RUN touch proto/__init__.py utils/__init__.py
+# Create files directory and set permissions
+RUN mkdir -p files && chown -R appuser:appuser .
+USER appuser
 
-# Generate protobuf files for all proto files
-RUN python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto proto/*.proto
+# Add deps to python path
+ENV PYTHONPATH=/home/appuser/app/deps
 
-# Create files directory for temporary storage
-RUN mkdir -p /app/files
-
-# Expose the gRPC port
 EXPOSE 9091
 
-# Run the application
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 \
+  CMD nc -z localhost 9091 || exit 1
+
 ENTRYPOINT ["wait-for-postgres.sh", "postgres-labs", "python", "main.py"]
 CMD [] 

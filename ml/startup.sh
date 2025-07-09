@@ -70,4 +70,4 @@ except Exception as e:
 }
 
 echo "Starting FastAPI server..."
-exec uvicorn rag_backend.main:app --host 0.0.0.0 --port 8081 
+exec python -m uvicorn rag_backend.main:app --host 0.0.0.0 --port 8082 

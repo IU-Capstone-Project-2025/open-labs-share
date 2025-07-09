@@ -1,7 +1,6 @@
 // In production, all API calls are sent to the same origin, and Nginx proxies them.
 // In development, we explicitly target the API gateway's exposed port.
-const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_ENDPOINT || (import.meta.env.PROD ? '' : 'http://localhost:8080/api/v1');
-const AUTH_SERVICE_BASE_URL = import.meta.env.VITE_AUTH_API_ENDPOINT || (import.meta.env.PROD ? '' : 'http://localhost:8081/api/v1/auth');
+const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_ENDPOINT || (import.meta.env.PROD ? '' : 'http://localhost/api/v1');
 
 /**
  * A unified function for making API calls to the backend gateway.
@@ -67,7 +66,7 @@ const apiCall = async (path, options = {}) => {
  * This is necessary because the Auth service is not exposed via the API Gateway.
  */
 const authApiCall = async (path, options = {}) => {
-    const url = `${AUTH_SERVICE_BASE_URL}${path}`;
+    const url = `${API_BASE_URL}/auth${path}`;
     const token = localStorage.getItem('authToken');
 
     const headers = {
