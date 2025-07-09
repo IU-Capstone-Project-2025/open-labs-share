@@ -12,6 +12,8 @@ service LabService {
   rpc UpdateLab (UpdateLabRequest) returns (Lab);
   rpc DeleteLab (DeleteLabRequest) returns (DeleteLabResponse);
 
+  rpc GetLabsByUserId (GetLabsByUserIdRequest) returns (LabList);
+
   // Assets Management
   rpc UploadAsset (stream UploadAssetRequest) returns (Asset);
   rpc UpdateAsset (stream UpdateAssetRequest) returns (Asset);
@@ -49,6 +51,12 @@ message GetLabRequest {
 message GetLabsRequest {
   int32 page_number = 1;
   int32 page_size = 2;
+  optional string text = 3; // Labs title or abstract contains text if specified
+  repeated int32 tags_ids = 4; // Labs with tags with tags_ids if specified
+}
+
+message GetLabsByUserIdRequest {
+  int64 user_id = 1;
 }
 
 message LabList {
