@@ -13,9 +13,9 @@ on:
   #     - main
   #     - dev
   
-  push:
-    branches:
-      - '**' # Deploy all branches, MUST BE DELETED BEFORE MERGING TO MAIN
+  # push:
+  #   branches:
+  #     - '**' # Deploy all branches, MUST BE DELETED BEFORE MERGING TO MAIN
 
 jobs:
   deploy:
