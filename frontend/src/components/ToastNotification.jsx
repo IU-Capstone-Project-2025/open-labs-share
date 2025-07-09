@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-export default function ToastNotification({ message, type = "success", onClose }) {
+export default function ToastNotification({ message, type, onClose }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
