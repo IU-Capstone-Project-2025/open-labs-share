@@ -48,7 +48,7 @@ export default function LabPage() {
   const [uploading, setUploading] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMode, setChatMode] = useState('floating'); // 'floating' or 'sidebar'
-  const [toast, setToast] = useState({ show: false, message: "" });
+  const [toast, setToast] = useState({ show: false, message: "", type: "" });
   
   // Use the custom hook for user state management
   const user = useUser();
@@ -109,12 +109,12 @@ export default function LabPage() {
       // Notify all components about the user data update (including this component)
       notifyUserDataUpdate();
 
-      setToast({ show: true, message: "Your solution was uploaded successfully!" });
+      setToast({ show: true, message: "Your solution was uploaded successfully!", type: "success" });
       setFiles([]);
       setSubmissionText("");
     } catch (err) {
       console.error("Upload error:", err);
-      alert("Upload failed: " + err.message);
+      setToast({ show: true, message: `Upload failed: ${err.message}`, type: "error" });
     } finally {
       setUploading(false);
     }
@@ -409,8 +409,9 @@ Lab content delivery is currently being developed. The markdown content for this
 
         {toast.show && (
           <ToastNotification 
-            message={toast.message} 
-            onClose={() => setToast({ show: false, message: "" })}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast({ show: false, message: "", type: "" })}
           />
         )}
 
