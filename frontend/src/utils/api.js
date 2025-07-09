@@ -179,7 +179,7 @@ export const articlesAPI = {
 
 // --- Submissions API ---
 export const submissionsAPI = {
-  getPossibleToReviewSubmissions: (page = 1, limit = 100) => apiCall(`/submissions?page=${page}&limit=${limit}`),
+  getSubmissionsForReview: (page = 1, limit = 20) => apiCall(`/submissions/review?page=${page}&limit=${limit}`),
   getLabSubmissions: (labId, page = 1, limit = 20) => apiCall(`/submissions/lab/${labId}?page=${page}&limit=${limit}`),
   getSubmissionById: (submissionId) => apiCall(`/submissions/${submissionId}`),
   getMySubmissions: (page = 1, limit = 20) => apiCall(`/submissions/my?page=${page}&limit=${limit}`),
