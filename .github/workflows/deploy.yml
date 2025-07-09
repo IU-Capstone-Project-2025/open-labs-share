@@ -8,6 +8,15 @@ on:
         required: false
         default: ''
 
+  # pull_request:
+  #   branches:
+  #     - main
+  #     - dev
+  
+  push:
+    branches:
+      - '**' # Deploy all branches, MUST BE DELETED BEFORE MERGING TO MAIN
+
 jobs:
   deploy:
     runs-on: self-hosted
