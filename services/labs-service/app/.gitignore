@@ -4,3 +4,4 @@
 *.pdf
 proto/labs_service*.py
 proto/submissions_service*.py
+proto/tags_service*.py

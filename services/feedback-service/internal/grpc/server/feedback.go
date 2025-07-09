@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	pb "github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/api"
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/config"
@@ -231,9 +232,16 @@ func (s *FeedbackServer) GetFeedbackById(ctx context.Context, req *pb.GetFeedbac
 
 // UploadAttachment uploads an attachment to a feedback (reviewer only)
 func (s *FeedbackServer) UploadAttachment(stream pb.FeedbackService_UploadAttachmentServer) error {
+	// Create context with cancellation for proper cleanup
+	ctx, cancel := context.WithCancel(stream.Context())
+	defer cancel()
+
 	// Receive first chunk with metadata
 	req, err := stream.Recv()
 	if err != nil {
+		if err == io.EOF {
+			return status.Error(codes.InvalidArgument, "no metadata received - stream closed immediately")
+		}
 		return status.Error(codes.Internal, fmt.Sprintf("failed to receive metadata: %v", err))
 	}
 
@@ -241,6 +249,10 @@ func (s *FeedbackServer) UploadAttachment(stream pb.FeedbackService_UploadAttach
 	if metadata == nil {
 		return status.Error(codes.InvalidArgument, "metadata is required in first chunk")
 	}
+	
+	fmt.Printf("UploadAttachment: Starting upload - ReviewerID: %d, FeedbackID: %s, Filename: %s, Size: %d\n", 
+		metadata.ReviewerId, metadata.FeedbackId, metadata.Filename, metadata.TotalSize)
+	
 	if metadata.ReviewerId <= 0 {
 		return status.Error(codes.InvalidArgument, "reviewer_id is required")
 	}
@@ -260,7 +272,7 @@ func (s *FeedbackServer) UploadAttachment(stream pb.FeedbackService_UploadAttach
 	}
 
 	// Check attachment count limit
-	existingAttachments, err := s.feedbackService.ListAttachments(stream.Context(), feedbackID)
+	existingAttachments, err := s.feedbackService.ListAttachments(ctx, feedbackID)
 	if err != nil {
 		return status.Error(codes.Internal, fmt.Sprintf("failed to check existing attachments: %v", err))
 	}
@@ -270,49 +282,186 @@ func (s *FeedbackServer) UploadAttachment(stream pb.FeedbackService_UploadAttach
 
 	// Create pipe for streaming data
 	pipeReader, pipeWriter := io.Pipe()
-	defer pipeReader.Close()
 
-	// Upload in goroutine
+	// Channel for upload result
 	uploadErrCh := make(chan error, 1)
+
+	// Start upload goroutine IMMEDIATELY using the same context
 	go func() {
-		defer pipeWriter.Close()
-		err := s.feedbackService.UploadAttachment(stream.Context(), feedbackID, metadata.Filename, metadata.ContentType, pipeReader, metadata.TotalSize)
+		defer func() {
+			if r := recover(); r != nil {
+				uploadErrCh <- fmt.Errorf("upload panic: %v", r)
+			}
+		}()
+		
+		fmt.Printf("UploadAttachment: Starting upload goroutine\n")
+		err := s.feedbackService.UploadAttachment(ctx, feedbackID, metadata.Filename, metadata.ContentType, pipeReader, metadata.TotalSize)
+		fmt.Printf("UploadAttachment: Upload goroutine finished with error: %v\n", err)
 		uploadErrCh <- err
 	}()
 
-	// Stream chunks
+	// Stream data from client to pipe
 	var totalReceived int64
-	for {
-		req, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return status.Error(codes.Internal, fmt.Sprintf("failed to receive chunk: %v", err))
+	var streamErr error
+
+	// Check if the first request also contains chunk data
+	firstChunk := req.GetChunk()
+	
+	// Read chunks from stream
+	fmt.Printf("UploadAttachment: Starting to read chunks from stream\n")
+	
+	func() {
+		// Ensure pipe writer is closed when we exit this function
+		defer func() {
+			fmt.Printf("UploadAttachment: Closing pipe writer\n")
+			if closeErr := pipeWriter.Close(); closeErr != nil {
+				fmt.Printf("UploadAttachment: Error closing pipe writer: %v\n", closeErr)
+				if streamErr == nil {
+					streamErr = fmt.Errorf("failed to close pipe writer: %v", closeErr)
+				}
+			}
+		}()
+
+		// Handle first chunk if it exists
+		if firstChunk != nil && len(firstChunk) > 0 {
+			fmt.Printf("UploadAttachment: Processing first chunk with %d bytes\n", len(firstChunk))
+			
+			// Validate total size
+			if int64(len(firstChunk)) > metadata.TotalSize {
+				streamErr = fmt.Errorf("first chunk larger than total size: %d > %d", len(firstChunk), metadata.TotalSize)
+				fmt.Printf("UploadAttachment: Size validation failed: %v\n", streamErr)
+				return
+			}
+
+			// Write first chunk to pipe
+			n, writeErr := pipeWriter.Write(firstChunk)
+			if writeErr != nil {
+				streamErr = fmt.Errorf("failed to write first chunk: %v", writeErr)
+				fmt.Printf("UploadAttachment: Write error: %v\n", writeErr)
+				return
+			}
+			totalReceived += int64(n)
+			fmt.Printf("UploadAttachment: Written first chunk %d bytes, total received: %d/%d\n", n, totalReceived, metadata.TotalSize)
+			
+			// Check if we've received all expected data from first chunk
+			if totalReceived >= metadata.TotalSize {
+				fmt.Printf("UploadAttachment: Received all expected data from first chunk (%d bytes), ending stream\n", totalReceived)
+				return
+			}
 		}
 
-		chunk := req.GetChunk()
-		if chunk == nil {
-			continue
-		}
+		// Continue reading additional chunks
+		for {
+			select {
+			case <-ctx.Done():
+				streamErr = fmt.Errorf("stream context cancelled: %v", ctx.Err())
+				return
+			default:
+			}
 
-		if _, err := pipeWriter.Write(chunk); err != nil {
-			return status.Error(codes.Internal, fmt.Sprintf("failed to write chunk: %v", err))
-		}
+			if streamErr != nil {
+				return
+			}
 
-		totalReceived += int64(len(chunk))
-		if totalReceived > metadata.TotalSize {
-			return status.Error(codes.InvalidArgument, "received more data than expected")
+			fmt.Printf("UploadAttachment: Waiting for next chunk...\n")
+			req, err := stream.Recv()
+			if err == io.EOF {
+				// End of stream - this is expected and normal
+				fmt.Printf("UploadAttachment: Received EOF, stream ended normally. Total received: %d bytes\n", totalReceived)
+				return
+			}
+			if err != nil {
+				// Check if it's a context cancellation error
+				if ctx.Err() != nil {
+					streamErr = fmt.Errorf("stream cancelled: %v", ctx.Err())
+				} else {
+					streamErr = fmt.Errorf("failed to receive chunk: %v", err)
+				}
+				fmt.Printf("UploadAttachment: Error receiving chunk: %v\n", err)
+				return
+			}
+
+			chunk := req.GetChunk()
+			if chunk == nil {
+				// Skip empty chunks - this means we got a metadata packet or empty chunk
+				fmt.Printf("UploadAttachment: Received empty chunk or metadata packet, skipping\n")
+				continue
+			}
+
+			fmt.Printf("UploadAttachment: Received chunk of %d bytes\n", len(chunk))
+
+			// Validate total size
+			if totalReceived+int64(len(chunk)) > metadata.TotalSize {
+				streamErr = fmt.Errorf("received more data than expected: %d + %d > %d", totalReceived, len(chunk), metadata.TotalSize)
+				fmt.Printf("UploadAttachment: Size validation failed: %v\n", streamErr)
+				return
+			}
+
+			// Write chunk to pipe
+			n, writeErr := pipeWriter.Write(chunk)
+			if writeErr != nil {
+				// Check if the error is due to closed pipe
+				if writeErr == io.ErrClosedPipe {
+					streamErr = fmt.Errorf("pipe closed during write - upload may have failed")
+				} else {
+					streamErr = fmt.Errorf("failed to write chunk: %v", writeErr)
+				}
+				fmt.Printf("UploadAttachment: Write error: %v\n", writeErr)
+				return
+			}
+			totalReceived += int64(n)
+			fmt.Printf("UploadAttachment: Written %d bytes, total received: %d/%d\n", n, totalReceived, metadata.TotalSize)
+			
+			// Check if we've received all expected data
+			if totalReceived >= metadata.TotalSize {
+				fmt.Printf("UploadAttachment: Received all expected data (%d bytes), ending stream\n", totalReceived)
+				return
+			}
 		}
+	}()
+
+	// Check for streaming errors
+	if streamErr != nil {
+		fmt.Printf("UploadAttachment: Stream error detected: %v\n", streamErr)
+		cancel() // Cancel main context to stop upload
+		// Wait for upload to finish with a timeout
+		select {
+		case uploadErr := <-uploadErrCh:
+			// Upload finished
+			fmt.Printf("UploadAttachment: Upload finished after stream error with result: %v\n", uploadErr)
+		case <-time.After(5 * time.Second):
+			// Timeout waiting for upload to finish
+			fmt.Printf("UploadAttachment: Timeout waiting for upload to finish after stream error\n")
+		}
+		return status.Error(codes.Internal, streamErr.Error())
 	}
 
-	pipeWriter.Close()
+	// Validate that we received all expected data
+	if totalReceived != metadata.TotalSize {
+		fmt.Printf("UploadAttachment: Size mismatch - received %d bytes, expected %d bytes\n", totalReceived, metadata.TotalSize)
+		cancel() // Cancel main context to stop upload
+		return status.Error(codes.InvalidArgument, fmt.Sprintf("received %d bytes, expected %d bytes", totalReceived, metadata.TotalSize))
+	}
 
+	fmt.Printf("UploadAttachment: Waiting for upload to complete...\n")
 	// Wait for upload to complete
-	if err := <-uploadErrCh; err != nil {
-		return status.Error(codes.Internal, fmt.Sprintf("failed to upload attachment: %v", err))
+	select {
+	case uploadErr := <-uploadErrCh:
+		if uploadErr != nil {
+			fmt.Printf("UploadAttachment: Upload failed: %v\n", uploadErr)
+			return status.Error(codes.Internal, fmt.Sprintf("failed to upload attachment: %v", uploadErr))
+		}
+		fmt.Printf("UploadAttachment: Upload completed successfully\n")
+	case <-ctx.Done():
+		fmt.Printf("UploadAttachment: Upload cancelled due to context\n")
+		return status.Error(codes.Canceled, "upload cancelled")
+	case <-time.After(30 * time.Second): // Add reasonable timeout
+		fmt.Printf("UploadAttachment: Upload timed out\n")
+		cancel() // Cancel context to stop any ongoing operations
+		return status.Error(codes.DeadlineExceeded, "upload timeout")
 	}
 
+	fmt.Printf("UploadAttachment: Sending response - filename: %s, size: %d\n", metadata.Filename, totalReceived)
 	return stream.SendAndClose(&pb.UploadAttachmentResponse{
 		Filename: metadata.Filename,
 		Size:     totalReceived,
@@ -450,4 +599,50 @@ func (s *FeedbackServer) ListAttachments(ctx context.Context, req *pb.ListAttach
 	}
 
 	return &pb.ListAttachmentsResponse{Attachments: pbAttachments}, nil
+}
+
+// GetAttachmentLocation returns location information for attachments (both roles)
+func (s *FeedbackServer) GetAttachmentLocation(ctx context.Context, req *pb.GetAttachmentLocationRequest) (*pb.GetAttachmentLocationResponse, error) {
+	if req.FeedbackId == "" {
+		return nil, status.Error(codes.InvalidArgument, "feedback_id is required")
+	}
+
+	feedbackID, err := uuid.Parse(req.FeedbackId)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid feedback ID format")
+	}
+
+	var locationInfos []*models.AttachmentLocationInfo
+
+	if req.Filename != nil && *req.Filename != "" {
+		// Get location info for specific attachment
+		locationInfo, err := s.feedbackService.GetAttachmentLocation(ctx, feedbackID, *req.Filename)
+		if err != nil {
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get attachment location: %v", err))
+		}
+		locationInfos = []*models.AttachmentLocationInfo{locationInfo}
+	} else {
+		// Get location info for all attachments
+		infos, err := s.feedbackService.ListAttachmentLocations(ctx, feedbackID)
+		if err != nil {
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list attachment locations: %v", err))
+		}
+		locationInfos = infos
+	}
+
+	pbLocationInfos := make([]*pb.AttachmentLocationInfo, len(locationInfos))
+	for i, info := range locationInfos {
+		pbLocationInfos[i] = &pb.AttachmentLocationInfo{
+			Filename:         info.Filename,
+			Size:             info.Size,
+			ContentType:      info.ContentType,
+			UploadedAt:       timestamppb.New(info.UploadedAt),
+			MinioBucket:      info.MinioBucket,
+			MinioObjectPath:  info.MinioObjectPath,
+			MinioEndpoint:    info.MinioEndpoint,
+			UseSsl:           info.UseSSL,
+		}
+	}
+
+	return &pb.GetAttachmentLocationResponse{Attachments: pbLocationInfos}, nil
 }

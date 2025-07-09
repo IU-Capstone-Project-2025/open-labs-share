@@ -110,6 +110,7 @@ public class CommentService {
             throw new ForbiddenAccessException("You can only delete your own comments");
         }
         CommentProto.DeleteCommentRequest grpcRequest = CommentProto.DeleteCommentRequest.newBuilder()
+                .setUserId(userId)
                 .setId(commentId)
                 .build();
         boolean success = commentServiceClient.deleteComment(grpcRequest);

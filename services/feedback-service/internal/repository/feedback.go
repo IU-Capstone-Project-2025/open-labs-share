@@ -207,6 +207,14 @@ func (r *feedbackRepository) ListByUser(ctx context.Context, filter models.Feedb
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan feedback: %w", err)
 		}
+
+		// Get content from MongoDB
+		content, err := r.GetContent(ctx, feedback.ID)
+		if err != nil && err != mongo.ErrNoDocuments {
+			return nil, 0, fmt.Errorf("failed to get feedback content for ID %s: %w", feedback.ID, err)
+		}
+		feedback.Content = content
+
 		feedbacks = append(feedbacks, feedback)
 	}
 
@@ -260,6 +268,14 @@ func (r *feedbackRepository) ListByStudent(ctx context.Context, filter models.Fe
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan feedback: %w", err)
 		}
+
+		// Get content from MongoDB
+		content, err := r.GetContent(ctx, feedback.ID)
+		if err != nil && err != mongo.ErrNoDocuments {
+			return nil, 0, fmt.Errorf("failed to get feedback content for ID %s: %w", feedback.ID, err)
+		}
+		feedback.Content = content
+
 		feedbacks = append(feedbacks, feedback)
 	}
 

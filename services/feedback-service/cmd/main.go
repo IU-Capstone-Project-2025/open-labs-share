@@ -13,11 +13,13 @@ import (
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/config"
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/database"
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/grpc/server"
+	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/middleware"
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/repository"
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/service"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -86,10 +88,23 @@ func main() {
 	feedbackService := service.NewFeedbackService(feedbackRepo, attachmentRepo)
 	commentService := service.NewCommentService(commentRepo)
 
-	// Create gRPC server
+	// Create gRPC server with improved streaming error handling
 	grpcServer := grpc.NewServer(
 		grpc.MaxRecvMsgSize(32*1024*1024), // 32MB max message size for file uploads
 		grpc.MaxSendMsgSize(32*1024*1024), // 32MB max message size for file downloads
+		grpc.StreamInterceptor(middleware.StreamingServerInterceptor()),
+		grpc.ConnectionTimeout(30*time.Second), // Connection timeout
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			MaxConnectionIdle:     30 * time.Second, // Connection idle timeout
+			MaxConnectionAge:      5 * time.Minute,  // Max connection age
+			MaxConnectionAgeGrace: 5 * time.Second,  // Grace period for connection age
+			Time:                  5 * time.Second,  // Keepalive ping interval
+			Timeout:               1 * time.Second,  // Keepalive ping timeout
+		}),
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             5 * time.Second, // Min time between keepalive pings
+			PermitWithoutStream: true,            // Allow keepalive without active streams
+		}),
 	)
 
 	// Register services

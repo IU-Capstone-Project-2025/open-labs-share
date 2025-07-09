@@ -211,17 +211,36 @@ func (s *FeedbackService) UploadAttachment(ctx context.Context, feedbackID uuid.
 		return fmt.Errorf("invalid file size")
 	}
 
+	// Check if context is already cancelled
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("upload cancelled: %w", ctx.Err())
+	default:
+	}
+
+	fmt.Printf("FeedbackService: Starting upload for feedback %s, file %s, size %d\n", feedbackID, filename, size)
+
 	// Verify feedback exists
 	_, err := s.feedbackRepo.GetByID(ctx, feedbackID)
 	if err != nil {
+		fmt.Printf("FeedbackService: Feedback not found: %v\n", err)
 		return fmt.Errorf("feedback not found: %w", err)
 	}
 
-	// Upload attachment
+	fmt.Printf("FeedbackService: Feedback verified, starting attachment upload\n")
+
+	// Upload attachment with context monitoring
 	if err := s.attachmentRepo.Upload(ctx, feedbackID, filename, contentType, data, size); err != nil {
+		// Check if the error is due to context cancellation
+		if ctx.Err() != nil {
+			fmt.Printf("FeedbackService: Upload cancelled: %v\n", ctx.Err())
+			return fmt.Errorf("upload cancelled: %w", ctx.Err())
+		}
+		fmt.Printf("FeedbackService: Upload failed: %v\n", err)
 		return fmt.Errorf("failed to upload attachment: %w", err)
 	}
 
+	fmt.Printf("FeedbackService: Upload completed successfully\n")
 	return nil
 }
 
@@ -305,4 +324,49 @@ func (s *FeedbackService) GetFeedbackByID(ctx context.Context, id uuid.UUID) (*m
 	}
 
 	return feedback, nil
+}
+
+// GetAttachmentLocation gets location information for a specific attachment
+func (s *FeedbackService) GetAttachmentLocation(ctx context.Context, feedbackID uuid.UUID, filename string) (*models.AttachmentLocationInfo, error) {
+	if feedbackID == uuid.Nil {
+		return nil, fmt.Errorf("invalid feedback ID")
+	}
+	if filename == "" {
+		return nil, fmt.Errorf("filename is required")
+	}
+
+	// Verify feedback exists
+	_, err := s.feedbackRepo.GetByID(ctx, feedbackID)
+	if err != nil {
+		return nil, fmt.Errorf("feedback not found: %w", err)
+	}
+
+	// Get attachment location info
+	locationInfo, err := s.attachmentRepo.GetLocationInfo(ctx, feedbackID, filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get attachment location: %w", err)
+	}
+
+	return locationInfo, nil
+}
+
+// ListAttachmentLocations lists location information for all attachments of a feedback
+func (s *FeedbackService) ListAttachmentLocations(ctx context.Context, feedbackID uuid.UUID) ([]*models.AttachmentLocationInfo, error) {
+	if feedbackID == uuid.Nil {
+		return nil, fmt.Errorf("invalid feedback ID")
+	}
+
+	// Verify feedback exists
+	_, err := s.feedbackRepo.GetByID(ctx, feedbackID)
+	if err != nil {
+		return nil, fmt.Errorf("feedback not found: %w", err)
+	}
+
+	// List attachment location info
+	locationInfos, err := s.attachmentRepo.ListLocationInfo(ctx, feedbackID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list attachment locations: %w", err)
+	}
+
+	return locationInfos, nil
 }

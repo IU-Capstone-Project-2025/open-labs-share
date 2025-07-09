@@ -50,11 +50,11 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		GRPCPort: getEnv("GRPC_PORT", "9090"),
 		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnv("DB_PORT", "5432"),
-			User:     getEnv("DB_USER", "feedback_user"),
-			Password: getEnv("DB_PASSWORD", "feedback_password"),
-			DBName:   getEnv("DB_NAME", "feedback_db"),
+			Host:     getEnv("POSTGRES_HOST", "localhost"),
+			Port:     getEnv("POSTGRES_PORT", "5432"),
+			User:     getEnv("POSTGRES_USER", "feedback_user"),
+			Password: getEnv("POSTGRES_PASSWORD", "feedback_password"),
+			DBName:   getEnv("POSTGRES_DB", "feedback_db"),
 		},
 		MongoDB: MongoDBConfig{
 			URI:        getEnv("MONGODB_URI", "mongodb://localhost:27017"),
@@ -84,16 +84,16 @@ func (c *Config) validate() error {
 		return fmt.Errorf("GRPC_PORT is required")
 	}
 	if c.Database.Host == "" {
-		return fmt.Errorf("DB_HOST is required")
+		return fmt.Errorf("POSTGRES_HOST is required")
 	}
 	if c.Database.User == "" {
-		return fmt.Errorf("DB_USER is required")
+		return fmt.Errorf("POSTGRES_USER is required")
 	}
 	if c.Database.Password == "" {
-		return fmt.Errorf("DB_PASSWORD is required")
+		return fmt.Errorf("POSTGRES_PASSWORD is required")
 	}
 	if c.Database.DBName == "" {
-		return fmt.Errorf("DB_NAME is required")
+		return fmt.Errorf("POSTGRES_DB is required")
 	}
 	if c.MongoDB.URI == "" {
 		return fmt.Errorf("MONGODB_URI is required")

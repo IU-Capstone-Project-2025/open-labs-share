@@ -179,21 +179,24 @@ public Feedback getStudentFeedback(GetStudentFeedbackRequest request) {
     /**
      * Retrieves a specific feedback by its ID.
      *
-     * @param request gRPC request containing the feedback ID
+     * @param feedbackId feedback ID
      * @return The feedback if found
      * @throws FeedbackNotFoundException if the feedback does not exist
      * @throws RuntimeException if the gRPC call fails
      */
-    public Feedback getFeedbackById(GetFeedbackByIdRequest request) {
-        log.debug("Calling gRPC GetFeedbackById for feedback ID: {}", request.getId());
+    public Feedback getFeedbackById(String feedbackId) {
+        log.debug("Calling gRPC GetFeedbackById for feedback ID: {}", feedbackId);
         try {
+            GetFeedbackByIdRequest request = GetFeedbackByIdRequest.newBuilder()
+                    .setId(feedbackId)
+                    .build();
             Feedback response = blockingStub.getFeedbackById(request);
             log.debug("Successfully retrieved feedback via gRPC with ID: {}", response.getId());
             return response;
         } catch (Exception e) {
             log.error("Error calling GetFeedbackById gRPC: {}", e.getMessage(), e);
             if (e.getMessage().contains("NOT_FOUND")) {
-                throw new FeedbackNotFoundException(String.format("Feedback with id=%s not found", request.getId()));
+                throw new FeedbackNotFoundException(String.format("Feedback with id=%s not found", feedbackId));
             }
             throw new RuntimeException("Failed to get feedback via gRPC", e);
         }
@@ -218,19 +221,27 @@ public Feedback getStudentFeedback(GetStudentFeedbackRequest request) {
             CompletableFuture<UploadAttachmentResponse> future = new CompletableFuture<>();
             StreamObserver<UploadAttachmentRequest> requestObserver = createUploadStream(future);
 
+            // Send metadata first
             sendAttachmentMetadata(requestObserver, reviewerId, feedbackId, file);
-            long totalSent = streamFileContent(requestObserver, file);
+            
+            // Stream file content
+            streamFileContent(requestObserver, file);
+            
+            // Mark the stream as complete
             requestObserver.onCompleted();
-
+            
+            // Wait for the response with timeout
             UploadAttachmentResponse result = future.get(uploadConfig.getTimeoutSeconds(), TimeUnit.SECONDS);
             log.info("Successfully uploaded attachment: filename={}, size={} bytes",
-                    result.getFilename(), totalSent);
+                    result.getFilename(), result.getSize());
             return result;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new AssetUploadException("Upload interrupted: " + e.getMessage());
         } catch (ExecutionException e) {
-            throw new AssetUploadException("Upload execution failed: " + e.getMessage());
+            Throwable cause = e.getCause();
+            log.error("Upload execution failed", cause);
+            throw new AssetUploadException("Upload failed: " + cause.getMessage());
         } catch (TimeoutException e) {
             throw new AssetUploadException("Upload timed out after " + uploadConfig.getTimeoutSeconds() + " seconds");
         } catch (IOException e) {
@@ -259,6 +270,9 @@ public Feedback getStudentFeedback(GetStudentFeedbackRequest request) {
             return response;
         } catch (Exception e) {
             log.error("Failed to list attachments for feedback ID: {}", feedbackId, e);
+            if (e.getMessage().contains("NOT_FOUND")) {
+                return null; // No attachments found for this feedback
+            }
             throw new RuntimeException("Failed to list attachments via gRPC", e);
         }
     }

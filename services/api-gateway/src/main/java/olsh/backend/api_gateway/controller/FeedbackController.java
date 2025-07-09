@@ -89,7 +89,7 @@ public class FeedbackController {
             @PathVariable Long submissionId,
             HttpServletRequest httpRequest) {
         Long userId = attributesProvider.extractUserIdFromRequest(httpRequest);
-        FeedbackResponse response = feedbackService.getStudentFeedback(submissionId, userId);
+        FeedbackResponse response = feedbackService.getStudentFeedback(userId, submissionId);
         return ResponseEntity.ok(response);
     }
 

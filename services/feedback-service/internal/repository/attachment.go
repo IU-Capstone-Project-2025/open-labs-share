@@ -32,25 +32,41 @@ func NewAttachmentRepository(minioClient *minio.Client, bucketName, endpoint str
 
 // Upload uploads an attachment file to MinIO
 func (r *attachmentRepository) Upload(ctx context.Context, feedbackID uuid.UUID, filename string, contentType string, data io.Reader, size int64) error {
+	// Check if context is already cancelled
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("upload cancelled before starting: %w", ctx.Err())
+	default:
+	}
+
 	// Create object name: feedback{feedbackID}/filename
 	objectName := fmt.Sprintf("feedback%s/%s", feedbackID.String(), filename)
+	
+	fmt.Printf("MinIO Upload: Starting upload - Object: %s, Size: %d, ContentType: %s\n", objectName, size, contentType)
 
-	// Set metadata
+	// Set custom metadata (excluding Content-Type which is set separately)
 	metaData := map[string]string{
-		"Content-Type":  contentType,
 		"X-Feedback-ID": feedbackID.String(),
 		"X-Uploaded-At": time.Now().Format(time.RFC3339),
 	}
 
-	// Upload object
-	_, err := r.minioClient.PutObject(ctx, r.bucketName, objectName, data, size, minio.PutObjectOptions{
+	// Upload object with context monitoring
+	fmt.Printf("MinIO Upload: Calling PutObject...\n")
+	uploadInfo, err := r.minioClient.PutObject(ctx, r.bucketName, objectName, data, size, minio.PutObjectOptions{
 		ContentType:  contentType,
 		UserMetadata: metaData,
 	})
 	if err != nil {
+		// Check if the error is due to context cancellation
+		if ctx.Err() != nil {
+			fmt.Printf("MinIO Upload: Failed due to context cancellation: %v\n", ctx.Err())
+			return fmt.Errorf("upload cancelled during operation: %w", ctx.Err())
+		}
+		fmt.Printf("MinIO Upload: Failed with error: %v\n", err)
 		return fmt.Errorf("failed to upload attachment: %w", err)
 	}
 
+	fmt.Printf("MinIO Upload: Successfully uploaded - ETag: %s, Size: %d\n", uploadInfo.ETag, uploadInfo.Size)
 	return nil
 }
 

@@ -46,7 +46,7 @@ public class CommentServiceClient {
     public Comment getCommentById(GetCommentRequest request) {
         try {
             log.debug("Fetching comment with ID: {}", request.getId());
-            Comment grpcResponse =  commentBlockingStub.getComment(request);
+            Comment grpcResponse = commentBlockingStub.getComment(request);
             log.debug("Comment fetched successfully: {}", grpcResponse);
             return grpcResponse;
         } catch (StatusRuntimeException e) {
@@ -109,12 +109,14 @@ public class CommentServiceClient {
 
     public boolean deleteComment(DeleteCommentRequest request) {
         try {
-             return commentBlockingStub.deleteComment(request).getSuccess();
+            log.debug("Deleting comment with ID: {}", request.getId());
+            return commentBlockingStub.deleteComment(request).getSuccess();
         } catch (StatusRuntimeException e) {
             if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
                 throw new CommentNotFoundException("Comment with id " + request.getId() + " not found");
             } else {
                 // For UNAVAILABLE, INTERNAL, or other unexpected errors
+                log.error("Failed to delete comment with ID: {} due to gRPC error: {}", request.getId(), e.getStatus().getDescription());
                 throw new RuntimeException("gRPC call to feedback-service failed while deleting comment", e);
             }
         } catch (NullPointerException e) {

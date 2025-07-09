@@ -89,7 +89,8 @@ public class LabService {
             throw new IllegalArgumentException("Asset for lab cannot contain an .md file.");
         }
         if (asset.getSize() > uploadConfig.getMaxFileSize()) {
-            throw new IllegalArgumentException(String.format("Asset file size for lab exceeds maximum limit of %d bytes",
+            throw new IllegalArgumentException(String.format("Asset file size for lab exceeds maximum limit of %d " +
+                            "bytes",
                     uploadConfig.getMaxFileSize()));
         }
     }
@@ -210,6 +211,17 @@ public class LabService {
         return DeleteLabResponse.builder()
                 .message("Lab deleted successfully!")
                 .build();
+    }
+
+    protected void validateLabExists(Long labId) {
+        log.debug("Validating existence of lab with ID: {}", labId);
+        LabProto.Lab lab = labServiceClient.getLab(labId);
+    }
+
+    protected boolean validateLabAuthorId(Long labId, Long userId) {
+        log.debug("Checking if user {} is the author of lab with ID: {}", userId, labId);
+        LabProto.Lab lab = labServiceClient.getLab(labId);
+        return lab.getOwnerId() == userId;
     }
 
     // New methods for asset management
