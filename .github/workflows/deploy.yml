@@ -45,7 +45,7 @@ jobs:
 
       - name: Deploy services
         run: |
-          chmod +x ./scripts/deploy_green.sh
+          chmod +x ./scripts/*.sh
           # Convert comma-separated list to space-separated list
           services_to_deploy=$(echo ${{ github.event.inputs.services }} | tr ',' ' ')
           ./scripts/deploy_green.sh $services_to_deploy
