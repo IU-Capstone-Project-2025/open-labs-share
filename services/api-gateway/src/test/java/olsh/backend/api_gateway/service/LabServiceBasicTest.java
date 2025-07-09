@@ -11,7 +11,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -246,9 +246,7 @@ class LabServiceBasicTest {
         MultipartFile nullAsset = null;
 
         // When & Then
-        assertThatThrownBy(() -> labService.validateAsset(nullAsset))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Asset file for lab is empty or null arrived");
+        assertNull(labService.validateAsset(nullAsset));
     }
 
     @Test
@@ -262,9 +260,7 @@ class LabServiceBasicTest {
         );
 
         // When & Then
-        assertThatThrownBy(() -> labService.validateAsset(emptyAsset))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Asset file for lab is empty or null arrived");
+        assertNull(labService.validateAsset(emptyAsset));
     }
 
     @Test
