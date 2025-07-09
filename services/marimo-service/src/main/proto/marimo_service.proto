@@ -1,0 +1,238 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "olsh.backend.marimoservice.grpc";
+option java_outer_classname = "MarimoServiceProto";
+
+package marimo;
+
+import "google/protobuf/timestamp.proto";
+
+// Main service for Marimo execution and notebook management
+service MarimoExecutionService {
+    // Notebook lifecycle management
+    rpc CreateNotebook(CreateNotebookRequest) returns (CreateNotebookResponse);
+    rpc UpdateNotebook(UpdateNotebookRequest) returns (UpdateNotebookResponse);
+    rpc DeleteNotebook(DeleteNotebookRequest) returns (DeleteNotebookResponse);
+    rpc GetNotebookContent(GetNotebookContentRequest) returns (GetNotebookContentResponse);
+    
+    // Session management for interactive components
+    rpc StartSession(StartSessionRequest) returns (StartSessionResponse);
+    rpc GetSessionStatus(GetSessionStatusRequest) returns (GetSessionStatusResponse);
+    rpc StopSession(StopSessionRequest) returns (StopSessionResponse);
+    rpc CleanExpiredSessions(CleanExpiredSessionsRequest) returns (CleanExpiredSessionsResponse);
+    
+    // Component serving and embedding
+    rpc GetEmbedUrl(GetEmbedUrlRequest) returns (GetEmbedUrlResponse);
+    rpc ValidateNotebook(ValidateNotebookRequest) returns (ValidateNotebookResponse);
+    
+    // Health and monitoring
+    rpc GetServiceHealth(GetServiceHealthRequest) returns (GetServiceHealthResponse);
+}
+
+// ========================================
+// Notebook Management Messages
+// ========================================
+
+message CreateNotebookRequest {
+    string component_id = 1;
+    string notebook_name = 2;
+    string notebook_content = 3;
+    ComponentType component_type = 4;
+    map<string, string> metadata = 5;
+}
+
+message CreateNotebookResponse {
+    bool success = 1;
+    string notebook_path = 2;
+    string error_message = 3;
+}
+
+message UpdateNotebookRequest {
+    string component_id = 1;
+    string notebook_content = 2;
+    map<string, string> metadata = 3;
+}
+
+message UpdateNotebookResponse {
+    bool success = 1;
+    string error_message = 2;
+}
+
+message DeleteNotebookRequest {
+    string component_id = 1;
+}
+
+message DeleteNotebookResponse {
+    bool success = 1;
+    string error_message = 2;
+}
+
+message GetNotebookContentRequest {
+    string component_id = 1;
+}
+
+message GetNotebookContentResponse {
+    bool success = 1;
+    string notebook_content = 2;
+    map<string, string> metadata = 3;
+    string error_message = 4;
+}
+
+// ========================================
+// Session Management Messages  
+// ========================================
+
+message StartSessionRequest {
+    string component_id = 1;
+    string session_id = 2;
+    SessionConfig config = 3;
+}
+
+message StartSessionResponse {
+    bool success = 1;
+    string session_url = 2;
+    string process_id = 3;
+    string error_message = 4;
+}
+
+message GetSessionStatusRequest {
+    string session_id = 1;
+}
+
+message GetSessionStatusResponse {
+    bool success = 1;
+    SessionStatus status = 2;
+    SessionInfo session_info = 3;
+    string error_message = 4;
+}
+
+message StopSessionRequest {
+    string session_id = 1;
+}
+
+message StopSessionResponse {
+    bool success = 1;
+    string error_message = 2;
+}
+
+message CleanExpiredSessionsRequest {
+    int64 expiry_threshold_seconds = 1;
+}
+
+message CleanExpiredSessionsResponse {
+    bool success = 1;
+    int32 cleaned_sessions_count = 2;
+    string error_message = 3;
+}
+
+// ========================================
+// Component Serving Messages
+// ========================================
+
+message GetEmbedUrlRequest {
+    string component_id = 1;
+    EmbedMode mode = 2;
+    EmbedConfig config = 3;
+}
+
+message GetEmbedUrlResponse {
+    bool success = 1;
+    string embed_url = 2;
+    EmbedParams embed_params = 3;
+    string error_message = 4;
+}
+
+message ValidateNotebookRequest {
+    string notebook_content = 1;
+}
+
+message ValidateNotebookResponse {
+    bool is_valid = 1;
+    repeated string validation_errors = 2;
+    repeated string warnings = 3;
+}
+
+// ========================================
+// Health and Monitoring Messages
+// ========================================
+
+message GetServiceHealthRequest {
+    // Empty request
+}
+
+message GetServiceHealthResponse {
+    bool healthy = 1;
+    string version = 2;
+    int32 active_sessions_count = 3;
+    repeated ServiceMetric metrics = 4;
+}
+
+// ========================================
+// Supporting Types and Enums
+// ========================================
+
+enum ComponentType {
+    COMPONENT_TYPE_UNSPECIFIED = 0;
+    ARTICLE_VISUALIZATION = 1;
+    LAB_INTERACTIVE = 2;
+    DATA_EXPLORER = 3;
+    ALGORITHM_DEMO = 4;
+    REAL_TIME_FEEDBACK = 5;
+}
+
+enum SessionStatus {
+    SESSION_STATUS_UNSPECIFIED = 0;
+    STARTING = 1;
+    ACTIVE = 2;
+    IDLE = 3;
+    STOPPING = 4;
+    STOPPED = 5;
+    ERROR = 6;
+}
+
+enum EmbedMode {
+    EMBED_MODE_UNSPECIFIED = 0;
+    IFRAME = 1;          // Full iframe embed
+    COMPONENT = 2;       // Individual component embed  
+    WEBASSEMBLY = 3;     // Static WebAssembly embed
+}
+
+message SessionConfig {
+    int32 timeout_minutes = 1;
+    bool auto_save = 2;
+    string theme = 3;
+    map<string, string> environment_vars = 4;
+}
+
+message SessionInfo {
+    string session_id = 1;
+    string component_id = 2;
+    SessionStatus status = 3;
+    string process_id = 4;
+    google.protobuf.Timestamp created_at = 5;
+    google.protobuf.Timestamp last_accessed = 6;
+    google.protobuf.Timestamp expires_at = 7;
+    map<string, string> state_data = 8;
+}
+
+message EmbedConfig {
+    int32 width = 1;
+    int32 height = 2;
+    bool show_code = 3;
+    bool readonly = 4;
+    string theme = 5;
+}
+
+message EmbedParams {
+    int32 recommended_width = 1;
+    int32 recommended_height = 2;
+    bool scrolling = 3;
+    string sandbox_permissions = 4;
+}
+
+message ServiceMetric {
+    string name = 1;
+    string value = 2;
+    string unit = 3;
+} 
