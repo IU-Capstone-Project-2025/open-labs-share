@@ -10,6 +10,7 @@ import olsh.backend.api_gateway.grpc.client.TagServiceClient;
 import olsh.backend.api_gateway.grpc.proto.TagProto;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -52,6 +53,9 @@ public class TagService {
      */
     public TagListResponse getTagsByIds(List<Integer> ids) {
         log.debug("Getting tags by IDs: {}", ids);
+        if (ids.isEmpty()){
+            return TagListResponse.builder().tags(Collections.emptyList()).count(0).build();
+        }
         TagProto.TagList tagList = tagServiceClient.getTagsByIds(ids);
         return mapToTagListResponse(tagList);
     }
