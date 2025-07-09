@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - master
+      - 213-auto-deploy
     paths:
       - 'services/labs-service/**'
       - 'docker/Dockerfile.labs-service'
