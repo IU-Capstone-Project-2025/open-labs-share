@@ -166,11 +166,11 @@ services:
       dockerfile: docker/Dockerfile.feedback-service
     environment:
       - GRPC_PORT=9090
-      - DB_HOST=postgres-feedback
-      - DB_PORT=5432
-      - DB_USER=feedback_user
-      - DB_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD:-feedback_password}
-      - DB_NAME=feedback_db
+      - POSTGRES_HOST=postgres-feedback
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=feedback_user
+      - POSTGRES_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD:-feedback_password}
+      - POSTGRES_NAME=feedback_db
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
