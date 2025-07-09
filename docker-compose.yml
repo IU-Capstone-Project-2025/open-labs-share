@@ -246,12 +246,17 @@ services:
       - POSTGRES_HOST=postgres-ml
       - POSTGRES_PORT=5432
       - POSTGRES_DB=chat_history_db
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - REDIS_BROKER_URL=${REDIS_BROKER_URL}
     volumes:
       - ./ml:/app/ml
       - ml-models:/app/models
     restart: unless-stopped
     depends_on:
       - postgres-ml
+      - minio
+      - ml-celery-worker
     networks:
       - app-network
 
