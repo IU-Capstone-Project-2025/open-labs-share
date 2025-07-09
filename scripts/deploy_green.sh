@@ -7,17 +7,18 @@ TARGET_ENV="green"
 HEALTH_CHECK_TIMEOUT=300
 
 # Get the list of BASE services to deploy (e.g., api-gateway, auth-service)
-BASE_SERVICES=($@)
-if [ ${#BASE_SERVICES[@]} -eq 0 ]; then
-    # If no services are specified, get all services from docker-compose for the green profile and strip the -green suffix
-    BASE_SERVICES=($(docker-compose --profile green config --services | sed 's/-green$//'))
-fi
+BASE_SERVICES_INPUT=($@)
 
-# Construct the full service names for docker-compose
 SERVICES_TO_DEPLOY=()
-for service in "${BASE_SERVICES[@]}"; do
-    SERVICES_TO_DEPLOY+=("${service}-${TARGET_ENV}")
-done
+if [ ${#BASE_SERVICES_INPUT[@]} -eq 0 ]; then
+    # If no services are specified, get all services from docker-compose for the green profile.
+    SERVICES_TO_DEPLOY=($(docker-compose --profile $TARGET_ENV config --services))
+else
+    # If services are specified, construct the full service names for docker-compose
+    for service in "${BASE_SERVICES_INPUT[@]}"; do
+        SERVICES_TO_DEPLOY+=("${service}-${TARGET_ENV}")
+    done
+fi
 
 echo "Deploying services: ${SERVICES_TO_DEPLOY[@]} to $TARGET_ENV environment"
 

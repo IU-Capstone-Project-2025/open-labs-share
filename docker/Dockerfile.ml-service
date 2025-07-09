@@ -23,15 +23,14 @@ WORKDIR /home/appuser/app
 RUN apt-get update && apt-get install -y --no-install-recommends dos2unix curl netcat-openbsd && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy dependencies and application code
-COPY --from=builder /app/deps /home/appuser/app/deps
-COPY ml/ /home/appuser/app/ml/
-COPY ml/startup.sh /home/appuser/app/startup.sh
+# Copy dependencies and application code with correct permissions
+COPY --from=builder --chown=appuser:appuser /app/deps /home/appuser/app/deps
+COPY --chown=appuser:appuser ml/ /home/appuser/app/ml/
+COPY --chown=appuser:appuser ml/startup.sh /home/appuser/app/startup.sh
 
-# Set permissions
+# Set executable permissions
 RUN dos2unix /home/appuser/app/startup.sh && \
-    chmod +x /home/appuser/app/startup.sh && \
-    chown -R appuser:appuser /home/appuser/app
+    chmod +x /home/appuser/app/startup.sh
 
 USER appuser
 WORKDIR /home/appuser/app/ml

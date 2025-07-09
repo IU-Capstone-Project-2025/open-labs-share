@@ -41,6 +41,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(request -> request
                 // one star (*) - for one nesting level, two stars (**) for any number of nesting levels.
                 .requestMatchers("/api/v1/auth/**").permitAll()
+                .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/swagger/**",
                                  "/swagger-ui/**",
                                  "/swagger-ui.html",

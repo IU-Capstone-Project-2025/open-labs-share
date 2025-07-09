@@ -1,6 +1,6 @@
 # Local Blue/Green Deployment Testing
 
-This guide will help you test the full Blue/Green deployment cycle on your local machine using Docker.
+This guide will help you test the full Blue/Green deployment cycle on your local machine using `test` Docker Compose profile.
 
 ## Step 1: Initial Setup
 
@@ -19,14 +19,13 @@ This is a "cold" start of your system, which is performed once before you begin 
 **Note: This is used also for testing Docker stability locally in even the next starts.**
 
 1.  Open a terminal in the project's root folder.
-2.  Run the command to start **only the "blue"** environment and all shared services (databases, HAProxy, etc.):
+2.  Run the command to start **only the "test"** environment and all shared services (databases, HAProxy, etc.):
     ```bash
-    docker-compose --profile blue up -d --build
+    docker-compose --profile test up -d --build
     ```
     This command will build all the necessary Docker images for the first time (this may take a while) and run the containers in the background.
 
 3.  **Launch Verification:**
-    *   **Container Status:** Make sure all `blue` and `shared` services are running: `docker-compose ps`
     *   **Frontend:** Open `http://localhost/` in your browser. You should see your interface.
     *   **HAProxy Stats:** Open `http://localhost:8404/` and make sure that traffic (session) is active on the `blue` backends.
 
