@@ -15,6 +15,7 @@ COPY ml/agents/auto_grading_agent ./agents/auto_grading_agent
 COPY ml/agents/schemas ./agents/schemas
 
 COPY ml/groq_keys.txt ./
+COPY .env ./
 
 RUN pip install --no-cache-dir tqdm minio groq langchain langgraph langchain-community httpx celery[redis] langchain-groq fastapi
 
