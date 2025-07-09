@@ -12,6 +12,8 @@ service ArticleService {
   rpc UpdateArticle (UpdateArticleRequest) returns (Article);
   rpc DeleteArticle (DeleteArticleRequest) returns (DeleteArticleResponse);
 
+  rpc GetArticlesByUserId (GetArticlesByUserIdRequest) returns (ArticleList);
+
   // Assets Management
   rpc UploadAsset (stream UploadAssetRequest) returns (Asset);
   rpc UpdateAsset (stream UpdateAssetRequest) returns (Asset);
@@ -50,6 +52,8 @@ message ArticleList {
 message GetArticlesRequest {
   int32 page_number = 1;
   int32 page_size = 2;
+  optional string text = 3;
+  repeated int32 tags_ids = 4;
 }
 
 message UpdateArticleRequest {
@@ -64,6 +68,12 @@ message DeleteArticleRequest {
 
 message DeleteArticleResponse {
   bool success = 1;
+}
+
+message GetArticlesByUserIdRequest {
+  int64 user_id = 1;
+  int32 page_number = 2;
+  int32 page_size = 3;
 }
 
 // Assets Management

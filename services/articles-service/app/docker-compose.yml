@@ -1,64 +1,75 @@
-version: '3.8'
 name: 'article-service'
 services:
-  articles-minio:
+  # 1. MinIO Storage Service
+  minio-articles:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     env_file: .env
-    container_name: ${CONTAINER_MINIO}
     environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
     volumes:
         - minio_data:/data
     networks:
-        - grpc-network
+        - articles-network
     ports:
         - "9000:9000"  # MinIO API
         - "9001:9001"  # MinIO Console
     restart: unless-stopped
 
-  articles-db:
-    image: postgres:latest
+  # 2. PostgreSQL Database Service
+  postgres-articles:
+    image: postgres:15-alpine
     env_file: .env
-    container_name: ${CONTAINER_POSTGRES}
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_NAME}
+      POSTGRES_USER: articles_user
+      POSTGRES_PASSWORD: ${POSTGRESQL_PASSWORD:-postgres}
+      POSTGRES_DB: articles_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U articles_user -d articles_db"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
     volumes:
       - postgres_data_articles:/var/lib/postgresql/data
     networks:
-      - grpc-network
+      - articles-network
     ports:
       - "${POSTGRES_PORT}:5432"
 
+  # 3. Article Service
   article-service:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: article-service
     env_file: .env
     environment:
-      - SERVICE_HOST=${SERVICE_HOST}
-      - SERVICE_PORT=${SERVICE_PORT}
-      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - POSTGRES_NAME=${POSTGRES_NAME}
+      - SERVICE_HOST=0.0.0.0
+      - SERVICE_PORT=50051
+      - MINIO_ENDPOINT=minio-articles:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - POSTGRES_HOST=postgres-articles
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=articles_user
+      - POSTGRES_PASSWORD=${POSTGRESQL_PASSWORD:-postgres}
+      - POSTGRES_NAME=articles_db
     depends_on:
-      - articles-db
-      - articles-minio
+      postgres-articles:
+        condition: service_healthy
+      minio-articles:
+        condition: service_healthy
     volumes:
       - ./files:/app/files
     networks:
-      - grpc-network
+      - articles-network
     ports:
-      - "50051:50051"
+      - "${SERVICE_PORT:-50051}:${SERVICE_PORT:-50051}"
     restart: unless-stopped
 
 volumes:
@@ -66,4 +77,5 @@ volumes:
   minio_data:
 
 networks:
-    grpc-network:
+  articles-network:
+    driver: bridge
