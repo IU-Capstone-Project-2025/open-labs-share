@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/database"
@@ -161,14 +162,23 @@ func (r *commentRepository) ListByContext(ctx context.Context, filter models.Com
 	if filter.ParentID != nil {
 		mongoFilter["parent_id"] = *filter.ParentID
 	} else {
-		mongoFilter["parent_id"] = bson.M{"$exists": false}
+		// For top-level comments, look for documents where parent_id doesn't exist, is null, or is empty string
+		mongoFilter["$or"] = []bson.M{
+			{"parent_id": bson.M{"$exists": false}},
+			{"parent_id": nil},
+			{"parent_id": ""},
+		}
 	}
+
+	log.Printf("MongoDB filter: %+v", mongoFilter)
 
 	// Get total count
 	totalCount, err := r.mongodb.Collection.CountDocuments(ctx, mongoFilter)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count comments: %w", err)
 	}
+
+	log.Printf("Total count found: %d", totalCount)
 
 	// Set up find options with pagination and sorting
 	findOptions := options.Find()
