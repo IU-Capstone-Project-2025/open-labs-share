@@ -6,7 +6,7 @@ import Spinner from '../components/Spinner';
 import { DocumentTextIcon, ClockIcon, UserIcon } from '@heroicons/react/24/outline';
 
 const FeedbackCard = ({ feedback }) => {
-  const { id, submission, student, createdAt, content } = feedback;
+  const { id, submissionId, student, createdAt, content } = feedback;
 
   if (!feedback.id || typeof feedback.id !== 'string') {
     console.error('Invalid feedback ID:', feedback.id);
@@ -20,7 +20,7 @@ const FeedbackCard = ({ feedback }) => {
           <DocumentTextIcon className="w-8 h-8 text-blue-500 dark:text-blue-400 mr-4" />
           <div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              Feedback for: {submission.lab?.title || 'Unknown Lab'}
+              Feedback for submission #{submissionId}
             </h3>
             <div className="flex items-center mt-1">
               <UserIcon className="w-4 h-4 text-gray-500 mr-1" />
@@ -56,14 +56,14 @@ const MyFeedbackPage = () => {
   const user = useUser();
 
   useEffect(() => {
-    const fetchMyFeedbacks = async () => {
+    const fetchMyCreatedFeedbacks = async () => {
       if (!user) {
         setLoading(false);
         return;
       }
       try {
         setLoading(true);
-        const response = await feedbackAPI.listMyFeedbacks(pagination.page, pagination.limit);
+        const response = await feedbackAPI.listMyCreatedFeedbacks(user.id, pagination.page, pagination.limit);
         setFeedbacks(response.feedbacks || []);
         setPagination(prev => ({
           ...prev,
@@ -77,7 +77,7 @@ const MyFeedbackPage = () => {
       }
     };
 
-    fetchMyFeedbacks();
+    fetchMyCreatedFeedbacks();
   }, [user, pagination.page, pagination.limit]);
 
   const handlePageChange = (newPage) => {
@@ -106,11 +106,12 @@ const MyFeedbackPage = () => {
             ))}
           </div>
           
-          <div className="flex justify-center items-center space-x-2">
+          {/* Flip through the pages */}
+          {/* <div className="flex justify-center items-center space-x-2">
             <button
               onClick={() => handlePageChange(pagination.page - 1)}
               disabled={pagination.page === 1}
-              className="px-4 py-2 border rounded-md disabled:opacity-50"
+              className="px-4 py-2 border rounded-md disabled:opacity-50 text-gray-600 dark:text-gray-300"
             >
               Previous
             </button>
@@ -120,11 +121,11 @@ const MyFeedbackPage = () => {
             <button
               onClick={() => handlePageChange(pagination.page + 1)}
               disabled={pagination.page * pagination.limit >= pagination.totalCount}
-              className="px-4 py-2 border rounded-md disabled:opacity-50"
+              className="px-4 py-2 border rounded-md disabled:opacity-50 text-gray-600 dark:text-gray-300"
             >
               Next
             </button>
-          </div>
+          </div> */}
         </>
       ) : (
         <div className="text-center text-gray-500 dark:text-gray-400 mt-8">

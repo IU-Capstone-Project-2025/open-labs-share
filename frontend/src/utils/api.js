@@ -179,7 +179,7 @@ export const articlesAPI = {
 
 // --- Submissions API ---
 export const submissionsAPI = {
-  getAllSubmissions: (page = 1, limit = 100) => apiCall(`/submissions?page=${page}&limit=${limit}`),
+  getPossibleToReviewSubmissions: (page = 1, limit = 100) => apiCall(`/submissions?page=${page}&limit=${limit}`),
   getLabSubmissions: (labId, page = 1, limit = 20) => apiCall(`/submissions/lab/${labId}?page=${page}&limit=${limit}`),
   getSubmissionById: (submissionId) => apiCall(`/submissions/${submissionId}`),
   getMySubmissions: (page = 1, limit = 20) => apiCall(`/submissions/my?page=${page}&limit=${limit}`),
@@ -226,7 +226,9 @@ export const feedbackAPI = {
     method: 'DELETE',
   }),
   getMyFeedbackForSubmission: (submissionId) => apiCall(`/feedback/my/${submissionId}`),
+  //Получение фидбеков для студента (которые он получил)
   listMyFeedbacks: (page = 1, limit = 20) => apiCall(`/feedback/my?page=${page}&limit=${limit}`),
+  listMyCreatedFeedbacks: (reviewerId, page = 1, limit = 20) => apiCall(`/feedback/reviewer/${reviewerId}?page=${page}&limit=${limit}`),
   getFeedbackById: (feedbackId) => apiCall(`/feedback/${feedbackId}`),
   listStudentFeedbacks: (studentId, page = 1, limit = 20) => apiCall(`/feedback/student/${studentId}?page=${page}&limit=${limit}`),
   listReviewerFeedbacks: (reviewerId, submissionId = null, page = 1, limit = 20) => {
