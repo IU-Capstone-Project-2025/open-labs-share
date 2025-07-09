@@ -1,7 +1,7 @@
 # Import downloaded modules
 import grpc
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 # Import built-in modules
 import os
@@ -172,7 +172,9 @@ class LabService(labs_service.LabServiceServicer):
 
         data: dict = {
             "page_number": request.page_number,
-            "page_size": request.page_size
+            "page_size": request.page_size,
+            "text": request.text if request.HasField('text') else None,
+            "tags_ids": request.tags_ids
         }
 
         if data["page_number"] is None or data["page_number"] <= 0:
@@ -193,9 +195,46 @@ class LabService(labs_service.LabServiceServicer):
             
             return labs_stub.LabList()
 
+        if data["text"] is not None and data["text"] == "":
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Text is required, got '{data['text']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
+            return labs_stub.LabList()
+
         with Session(self.engine) as session:
+            stmt = select(Lab)
+
+            if data["text"] is not None:
+                stmt = stmt.where(Lab.title.ilike(f"%{data['text']}%") | Lab.abstract.ilike(f"%{data['text']}%"))
+            
+            if data["tags_ids"] is not None and len(data["tags_ids"]) > 0:
+                # Check if all tags exist
+                for tag_id in data["tags_ids"]:
+                    tag_stmt = select(Tag).where(Tag.id == tag_id)
+                    tag = session.execute(tag_stmt).scalar_one_or_none()
+
+                    if tag is None:
+                        context.set_code(grpc.StatusCode.NOT_FOUND)
+                        error_message = f"Tag with id '{tag_id}' not found"
+                        context.set_details(error_message)
+
+                        self.logger.error(error_message)
+
+                        return labs_stub.LabList()
+
+                # Join LabTag and group by Lab.id, filter by count
+                stmt = (
+                    stmt.join(LabTag, Lab.id == LabTag.lab_id)
+                        .filter(LabTag.tag_id.in_(data["tags_ids"]))
+                        .group_by(Lab.id)
+                        .having(func.count(LabTag.tag_id) == len(data["tags_ids"]))
+                )
+
             # Get paginated labs
-            stmt = select(Lab).offset((data["page_number"] - 1) * data["page_size"]).limit(data["page_size"])
+            stmt = stmt.offset((data["page_number"] - 1) * data["page_size"]).limit(data["page_size"])
             labs = session.execute(stmt).scalars().all()
 
             lab_list = labs_stub.LabList(total_count=len(labs))
@@ -372,6 +411,39 @@ class LabService(labs_service.LabServiceServicer):
             self.logger.info(f"Deleted Lab with id={lab.id}, title={lab.title}")
 
             return labs_stub.DeleteLabResponse(success=True)
+
+
+    def GetLabsByUserId(self, request, context) -> labs_stub.LabList:
+        """
+        Retrieve a list of labs by user ID.
+        
+        Args:
+            request: GetLabsByUserIdRequest containing:
+                - user_id (int): ID of the user to retrieve labs for
+            context: gRPC context
+            
+        Returns:
+            labs_stub.LabList: List of labs with total count
+        """
+
+        self.logger.info(f"GetLabsByUserId requested")
+
+        data: dict = {
+            "user_id": request.user_id
+        }
+
+        with Session(self.engine) as session:
+            stmt = select(Lab).where(Lab.owner_id == data["user_id"])
+            labs = session.execute(stmt).scalars().all()
+
+            lab_list = labs_stub.LabList(total_count=len(labs))
+            for lab in labs:
+                lab_list.labs.append(labs_stub.Lab(**lab.get_attrs()))
+
+            self.logger.info(f"Retrieved {len(labs)} labs for user with id={data['user_id']}")
+
+            return lab_list
+
 
     # ------- Lab Assets Management -------
     def UploadAsset(self, request_iterator, context) -> labs_stub.Asset:
