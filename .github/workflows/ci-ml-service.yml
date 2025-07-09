@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - master
+      - "**" # this is for testing purposes
     paths:
       - 'ml/**'
       - 'docker/Dockerfile.ml-service'
@@ -18,7 +19,7 @@ env:
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: read
       packages: write

@@ -157,7 +157,6 @@ services:
     networks:
       - blue-network
       - green-network
-      - green-network
     restart: unless-stopped
     profiles: ["blue"]
 
@@ -167,11 +166,6 @@ services:
       dockerfile: docker/Dockerfile.feedback-service
     environment:
       - GRPC_PORT=9090
-      - POSTGRES_HOST=postgres-feedback
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=feedback_user
-      - POSTGRES_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD:-feedback_password}
-      - POSTGRES_NAME=feedback_db
       - POSTGRES_HOST=postgres-feedback
       - POSTGRES_PORT=5432
       - POSTGRES_USER=feedback_user
@@ -216,9 +210,143 @@ services:
     networks:
       - blue-network
       - green-network
-      - green-network
     restart: unless-stopped
     profiles: ["blue"]
+
+  # --- Test Environment ---
+  frontend-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    environment:
+      - NODE_ENV=production
+      - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
+
+  api-gateway-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api-gateway
+    environment:
+      - SPRING_APP_PORT=8080
+      - AUTH_SERVICE_HOST=auth-service-test
+      - AUTH_SERVICE_PORT=9092
+      - USER_SERVICE_HOST=users-service-test
+      - USER_SERVICE_PORT=9093
+      - LAB_SERVICE_HOST=labs-service-test
+      - LAB_SERVICE_PORT=9091
+      - ARTICLE_SERVICE_HOST=articles-service-test
+      - ARTICLE_SERVICE_PORT=50051
+      - SPRING_PROFILES_ACTIVE=docker
+      - FEEDBACK_SERVICE_HOST=feedback-service-test
+      - FEEDBACK_SERVICE_PORT=9090
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
+
+  auth-service-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.auth-service
+    environment:
+      - PORT=8081
+      - GRPC_PORT=9092
+      - USERS_SERVICE_HOST=users-service-test
+      - USERS_SERVICE_PORT=9093
+      - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:-adminadmin}
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
+
+  users-service-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.users-service
+    environment:
+      - GRPC_PORT=9093
+      - DB_URL=jdbc:postgresql://postgres-users:5432/users_service
+      - DB_USERNAME=users_user
+      - DB_PASSWORD=${POSTGRES_USERS_PASSWORD:-postgres}
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
+
+  labs-service-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.labs-service
+    environment:
+      - SERVICE_HOST=0.0.0.0
+      - SERVICE_PORT=9091
+      - POSTGRESQL_HOST=postgres-labs
+      - POSTGRESQL_PORT=5432
+      - POSTGRESQL_USER=labs_user
+      - POSTGRESQL_PASSWORD=${POSTGRES_LABS_PASSWORD:-postgres}
+      - POSTGRESQL_NAME=labs_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MONGODB_HOST=mongodb-labs
+      - MONGODB_PORT=27017
+      - MONGODB_USER=${MONGO_ROOT_USER:-mongo}
+      - MONGODB_PASSWORD=${MONGO_ROOT_PASSWORD:-mongo}
+      - MONGODB_NAME=labs_mongo_db
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
+
+  articles-service-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.articles-service
+    environment:
+      - SERVICE_HOST=0.0.0.0
+      - SERVICE_PORT=50051
+      - POSTGRES_HOST=postgres-articles
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=articles_user
+      - POSTGRES_PASSWORD=${POSTGRES_ARTICLES_PASSWORD:-password}
+      - POSTGRES_NAME=articles_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
+
+  feedback-service-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.feedback-service
+    environment:
+      - GRPC_PORT=9090
+      - POSTGRES_HOST=postgres-feedback
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=feedback_user
+      - POSTGRES_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD:-feedback_password}
+      - POSTGRES_NAME=feedback_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BUCKET_NAME=feedback
+      - MINIO_USE_SSL=false
+      - MONGODB_URI=mongodb://mongodb-feedback:27017
+      - MONGODB_DATABASE=feedback
+      - MONGODB_COLLECTION=comments
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
 
   # --- Green Environment ---
   frontend-green:
@@ -436,8 +564,6 @@ services:
     networks:
       - blue-network
       - green-network
-      - blue-network
-      - green-network
 
   ml-service:
     build:
@@ -472,6 +598,8 @@ services:
     networks:
       - blue-network
       - green-network
+    profiles:
+      - ml
 
   postgres-ml:
     image: postgres:15-alpine
@@ -484,6 +612,9 @@ services:
     networks:
       - blue-network
       - green-network
+    profiles:
+      - ml
+      
   ml-redis-broker:
     image: redis:7
     ports:
@@ -492,6 +623,8 @@ services:
     networks:
       - blue-network
       - green-network
+    profiles:
+      - ml
 
   ml-celery-worker:
     build:
@@ -509,6 +642,9 @@ services:
     networks:
       - blue-network
       - green-network
+    profiles:
+      - ml
+      
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
