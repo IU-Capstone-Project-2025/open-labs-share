@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - master
-      - 213-auto-deploy
+      - "**" # this is for testing purposes
     paths:
       - 'services/api-gateway/**'
       - 'docker/Dockerfile.api-gateway'

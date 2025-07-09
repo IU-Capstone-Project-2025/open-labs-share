@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - master
-      - 213-auto-deploy
+      - "**" # this is for testing purposes
     paths:
       - 'services/feedback-service/**'
       - 'docker/Dockerfile.feedback-service'
