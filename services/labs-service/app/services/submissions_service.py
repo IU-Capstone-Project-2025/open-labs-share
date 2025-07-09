@@ -450,10 +450,30 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
     
     def GetPossibleToReviewSubmissions(self, request, context) -> submissions_stub.SubmissionList:
         data: dict = {
-            "user_id": request.user_id
+            "user_id": request.user_id,
+            "page_number": request.page_number,
+            "page_size": request.page_size
         }
 
         self.logger.info(f"GetPossibleToReviewSubmissions requested")
+
+        if data["page_number"] is None or data["page_number"] <= 0:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Page number is required, got '{data['page_number']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
+            return submissions_stub.SubmissionList()
+
+        if data["page_size"] is None or data["page_size"] <= 0:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Page size is required, got '{data['page_size']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
+            return submissions_stub.SubmissionList()
 
         with Session(self.postgresql_engine) as session:
             # Get all user submissions that have been accepted
@@ -468,7 +488,13 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             lab_ids = set([submission.lab_id for submission in submissions] + [lab.id for lab in labs])
 
             # Get all submissions that are not graded and not owned by the user
-            stmt = select(Submission).where(Submission.lab_id.in_(lab_ids)).where(Submission.status == self.get_db_status[submissions_stub.Status.NOT_GRADED]).where(Submission.owner_id != data["user_id"])
+            stmt = (select(Submission)
+                    .where(Submission.lab_id.in_(lab_ids))
+                    .where(Submission.status == self.get_db_status[submissions_stub.Status.NOT_GRADED])
+                    .where(Submission.owner_id != data["user_id"])
+                    .offset((data["page_number"] - 1) * data["page_size"])
+                    .limit(data["page_size"]))
+                    
             submissions = session.execute(stmt).scalars().all()
 
             # Create submission list

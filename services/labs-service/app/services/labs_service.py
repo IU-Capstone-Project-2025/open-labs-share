@@ -62,6 +62,15 @@ class LabService(labs_service.LabServiceServicer):
             "abstract": request.abstract
         }
 
+        if data["owner_id"] is None or data["owner_id"] <= 0:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Owner ID is required, got '{data['owner_id']}'"
+            context.set_details(error_message)
+            
+            self.logger.error(error_message)
+            
+            return labs_stub.Lab()
+
         if data["title"] is None or data["title"] == "":
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
             error_message = f"Title is required, got '{data['title']}'"
@@ -429,11 +438,40 @@ class LabService(labs_service.LabServiceServicer):
         self.logger.info(f"GetLabsByUserId requested")
 
         data: dict = {
-            "user_id": request.user_id
+            "user_id": request.user_id,
+            "page_number": request.page_number,
+            "page_size": request.page_size
         }
 
+        if data["user_id"] is None or data["user_id"] <= 0:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"User ID is required, got '{data['user_id']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
+            return labs_stub.LabList()
+
+        if data["page_number"] is None or data["page_number"] <= 0:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Page number must be greater than 0, got '{data['page_number']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
+            return labs_stub.LabList()
+
+        if data["page_size"] is None or data["page_size"] <= 0:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Page size must be greater than 0, got '{data['page_size']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
+            return labs_stub.LabList()
+
         with Session(self.engine) as session:
-            stmt = select(Lab).where(Lab.owner_id == data["user_id"])
+            stmt = select(Lab).where(Lab.owner_id == data["user_id"]).offset((data["page_number"] - 1) * data["page_size"]).limit(data["page_size"])
             labs = session.execute(stmt).scalars().all()
 
             lab_list = labs_stub.LabList(total_count=len(labs))
