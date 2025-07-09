@@ -13,13 +13,14 @@ All endpoints require JWT authentication unless specified otherwise.
 1. [Health Check](#health-check)
 2. [User Service](#user-service)
 3. [Labs Service](#labs-service)
-4. [Submissions Service](#submissions-service)
-5. [Comments Service](#comments-service)
-6. [Articles Service](#articles-service)
-7. [Feedback Service](#feedback-service)
-8. [Common Response Codes](#common-response-codes)
-9. [Authentication Headers](#authentication-headers)
-10. [Error Response Format](#error-response-format)
+4. [Tag Service](#tag-service)
+5. [Submissions Service](#submissions-service)
+6. [Comments Service](#comments-service)
+7. [Articles Service](#articles-service)
+8. [Feedback Service](#feedback-service)
+9. [Common Response Codes](#common-response-codes)
+10. [Authentication Headers](#authentication-headers)
+11. [Error Response Format](#error-response-format)
 
 ---  
 
@@ -290,6 +291,7 @@ pdf_file: file (required) - PDF document file
 - `404 Not Found` - Article not found
 
 ---
+
 ## Labs Service
 
 | Endpoint                                             | Type   | Description                           |
@@ -309,12 +311,12 @@ pdf_file: file (required) - PDF document file
 - **Description:** Creation of new lab with main md file and supporting assets
 
 **Request Body (Form Data):**
-```json  
-title: string (required) - Lab title  
-short_desc: string (required) - Lab description  
-md_file: file (required) - Markdown document file  
-assets: file[] (optional) - Supporting assets (images, etc.)  
-```  
+- `title`: string (required, 10-255 chars) — Lab title
+- `short_desc`: string (required, 20-1000 chars) — Lab description
+- `md_file`: file (required) — Markdown document file
+- `assets`: file[] (optional) — Supporting assets (images, etc.)
+- `articles`: string (optional, e.g. "[1,2,4]" or "1,2,4") — List of article IDs to associate
+- `tags`: string (optional, e.g. "[5,6,7]" or "5,6,7") — Comma-separated list of tag IDs
 
 **Response:**
 - **Status:** `201 Created`
@@ -350,22 +352,38 @@ assets: file[] (optional) - Supporting assets (images, etc.)
 {
   "labs": [
     {
-      "id": "number",
-      "title": "string",
-      "short_desc": "string",
-      "created_at": "string (ISO 8601)",
-      "views": "number",
-      "submissions": "number",
-      "author_id": "number",
-      "author_name": "string",
-      "author_surname": "string"
+      "id": 1,
+      "title": "Introduction to Data Structures",
+      "shortDesc": "Learn about basic data structures and their implementations",
+      "createdAt": "2024-03-15T14:30:00Z",
+      "views": 42,
+      "submissions": 15,
+      "authorId": 123,
+      "authorName": "John",
+      "authorSurname": "Doe",
+      "assets": [
+        {
+          "assetId": 10,
+          "labId": 1,
+          "filename": "diagram.png",
+          "totalSize": 1048576,
+          "uploadDate": "2024-03-15T14:31:00Z"
+        }
+      ],
+      "articles": [1, 2, 3],
+      "tags": [5, 6, 7]
     }
   ],
-  "pagination": {
-    "current_page": "integer",
-    "total_pages": "integer",
-    "total_items": "integer"
-  }
+  "tags": [
+    {
+      "id": 5,
+      "name": "Java",
+      "description": "Java programming language",
+      "labs_count": 5
+    },
+    ...
+  ],
+  "count": 1
 }
 ```  
 
@@ -373,6 +391,63 @@ assets: file[] (optional) - Supporting assets (images, etc.)
 - `401 Unauthorized` - Authentication required
   
 ---  
+
+### Get My Labs
+
+**Retrieve labs created by the current user**
+- **Endpoint:** `GET /labs/my`
+- **Authentication:** Required
+- **Query Parameters:**
+  - `page` (integer, optional) - Page number (default: 1)
+  - `limit` (integer, optional) - Items per page (default: 20, max: 100)
+- **Description:** Get paginated list of labs created by the authenticated user
+
+**Response:**
+- **Status:** `200 OK`
+- **Body:**
+```json
+{
+  "labs": [
+    {
+      "id": 1,
+      "title": "Introduction to Data Structures",
+      "shortDesc": "Learn about basic data structures and their implementations",
+      "createdAt": "2024-03-15T14:30:00Z",
+      "views": 42,
+      "submissions": 15,
+      "authorId": 123,
+      "authorName": "John",
+      "authorSurname": "Doe",
+      "assets": [
+        {
+          "assetId": 10,
+          "labId": 1,
+          "filename": "diagram.md",
+          "totalSize": 1048576,
+          "uploadDate": "2024-03-15T14:31:00Z"
+        }
+      ],
+      "articles": [1, 2, 3],
+      "tags": [5, 6, 7]
+    }
+  ],
+  "tags": [
+    {
+      "id": 5,
+      "name": "Java",
+      "description": "Java programming language",
+      "labs_count": 5
+    },
+    ...
+  ],
+  "count": 1
+}
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Authentication required
+
+---
 
 ### Get Lab by ID
 
@@ -386,21 +461,31 @@ assets: file[] (optional) - Supporting assets (images, etc.)
 - **Body:**
 ```json  
 {
-  "id": "number",
-  "title": "string",
-  "short_desc": "string",
-  "created_at": "string (ISO 8601)",
-  "views": "number",
-  "submissions": "number",
-  "author_id": "number",
-  "author_name": "string",
-  "author_surname": "string",
-  "content": "string (markdown content)",
+  "id": 1,
+  "title": "Introduction to Data Structures",
+  "shortDesc": "Learn about basic data structures and their implementations",
+  "createdAt": "2024-03-15T14:30:00Z",
+  "views": 42,
+  "submissions": 15,
+  "authorId": 123,
+  "authorName": "John",
+  "authorSurname": "Doe",
   "assets": [
     {
-      "asset_id": "string",
-      "filename": "string",
-      "url": "string"
+      "assetId": 10,
+      "labId": 1,
+      "filename": "diagram.md",
+      "totalSize": 1048576,
+      "uploadDate": "2024-03-15T14:31:00Z"
+    }
+  ],
+  "articles": [1, 2, 3],
+  "tags": [
+    {
+      "id": 5,
+      "name": "Java",
+      "description": "Java programming language",
+      "labs_count": 5
     }
   ]
 }
@@ -421,19 +506,19 @@ assets: file[] (optional) - Supporting assets (images, etc.)
 - **Description:** Update lab with main md file and supporting assets
 
 **Request Body (Form Data):**
-```json  
-title: string (required) - Lab title  
-short_desc: string (required) - Lab description  
-md_file: file (required) - Markdown document file  
-assets: file[] (optional) - Supporting assets (images, etc.)  
-```  
+- `title`: string (required, 10-255 chars) — Lab title
+- `short_desc`: string (required, 20-1000 chars) — Lab description
+- `md_file`: file (required) — Markdown document file
+- `assets`: file[] (optional) — Supporting assets (images, etc.)
+- `articles`: string (optional, e.g. "[1,2,4]" or "1,2,4") — List of article IDs to associate
+- `tags`: string (optional, e.g. "[5,6,7]" or "5,6,7") — Comma-separated list of tag IDs
 
 **Response:**
 - **Status:** `200 OK`
 - **Body:**
-```json  
-{  
-  "id": number,
+```json
+{
+  "id": 1,
   "message": "Lab updated successfully"
 }
 ```  
@@ -458,14 +543,219 @@ assets: file[] (optional) - Supporting assets (images, etc.)
 - **Body:**
 ```json  
 {
-  "message": "Lab deleted successfully"
-}  
-```  
+  "message": "Lab deleted successfully!"
+}
+```
 
 **Error Responses:**
 - `401 Unauthorized` - Authentication required
 - `403 Forbidden` - You have no access to delete the lab
 - `404 Not Found` - Lab not found
+
+---
+
+## Tag Service
+
+| Endpoint                                 | Type   | Description                                 |
+| ---------------------------------------- | ------ | ------------------------------------------- |
+| [`POST /tags`](#create-tag)              | POST   | Create a new tag                            |
+| [`GET /tags/{tagId}`](#get-tag-by-id)    | GET    | Get tag by ID                               |
+| [`POST /tags/by-ids`](#get-tags-by-ids)  | POST   | Get tags by a list of IDs                   |
+| [`GET /tags`](#get-tags-list)            | GET    | Get paginated list of tags                  |
+| [`PUT /tags/update`](#update-tag)        | PUT    | Update a tag                                |
+| [`DELETE /tags/{tagId}`](#delete-tag)    | DELETE | Delete a tag by ID                          |
+
+### Create Tag
+
+**Create a new tag**
+- **Endpoint:** `POST /tags`
+- **Authentication:** Required
+- **Content-Type:** `application/json`
+- **Description:** Create a new tag
+
+**Request Body:**
+```json
+{
+  "name": "string (required)",
+  "description": "string (optional)"
+}
+```
+
+**Response:**
+- **Status:** `201 Created`
+- **Body:**
+```json
+{
+  "id": 1,
+  "name": "Java",
+  "description": "Java programming language",
+  "labs_count": 5
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid input
+- `401 Unauthorized` - Authentication required
+
+---
+
+### Get Tag by ID
+
+**Retrieve a tag by its ID**
+- **Endpoint:** `GET /tags/{tagId}`
+- **Authentication:** Not Required
+- **Description:** Get tag by ID
+
+**Response:**
+- **Status:** `201 Created`
+- **Body:**
+```json
+{
+  "id": 1,
+  "name": "Java",
+  "description": "Java programming language",
+  "labs_count": 5
+}
+```
+
+**Error Responses:**
+- `404 Not Found` - Tag not found
+
+---
+
+### Get Tags by IDs
+
+**Retrieve tags by a list of IDs**
+- **Endpoint:** `POST /tags/by-ids`
+- **Authentication:** Not Required
+- **Content-Type:** `application/json`
+- **Description:** Get tags by a list of IDs
+
+**Request Body:**
+```json
+{
+  "ids": [1, 2, 3]
+}
+```
+
+**Response:**
+- **Status:** `200 OK`
+- **Body:**
+```json
+{
+  "tags": [
+    {
+      "id": 1,
+      "name": "Java",
+      "description": "Java programming language",
+      "labs_count": 5
+    },
+    {
+      "id": 2,
+      "name": "Python",
+      "description": "Python programming language",
+      "labs_count": 8
+    }
+  ],
+  "count": 2
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid input
+
+---
+
+### Get Tags List
+
+**Retrieve paginated list of tags**
+- **Endpoint:** `GET /tags`
+- **Authentication:** Not Required
+- **Query Parameters:**
+  - `page` (integer, optional, default: 0) — Page number
+  - `limit` (integer, optional, default: 50) — Items per page
+- **Description:** Get paginated list of tags
+
+**Response:**
+- **Status:** `200 OK`
+- **Body:**
+```json
+{
+  "tags": [
+    {
+      "id": 1,
+      "name": "Java",
+      "description": "Java programming language",
+      "labs_count": 5
+    },
+    {
+      "id": 2,
+      "name": "Python",
+      "description": "Python programming language",
+      "labs_count": 8
+    }
+  ],
+  "count": 2
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid pagination parameters
+
+---
+
+### Update Tag
+
+**Update an existing tag**
+- **Endpoint:** `PUT /tags/update`
+- **Authentication:** Required
+- **Content-Type:** `application/json`
+- **Description:** Update a tag's name and/or description
+
+**Request Body:**
+```json
+{
+  "id": 1,
+  "name": "Java Advanced (optional)",
+  "description": "Advanced Java programming language (optional)"
+}
+```
+
+
+**Response:**
+- **Status:** `200 OK`
+- **Body:**
+```json
+{
+  "id": 1,
+  "name": "Java Advanced",
+  "description": "Advanced Java programming language",
+  "labs_count": 5
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid input
+- `404 Not Found` - Tag not found
+
+---
+
+### Delete Tag
+
+**Delete a tag by its ID**
+- **Endpoint:** `DELETE /tags/{tagId}`
+- **Authentication:** Required
+- **Description:** Delete a tag by its ID
+
+**Response:**
+- **Status:** `200 OK`
+- **Body:**
+```json
+true
+```
+
+**Error Responses:**
+- `404 Not Found` - Tag not found
 
 ---
 
@@ -477,6 +767,7 @@ assets: file[] (optional) - Supporting assets (images, etc.)
 | [`GET /submissions/{submission_id}`](#get-submission-by-id)   | GET    | Get submission by ID                                      |
 | [`GET /submissions/lab/{lab_id}`](#get-lab-submissions)       | GET    | Get all submissions for a specific lab                    |
 | [`GET /submissions/my`](#get-my-submissions)                  | GET    | Get all submissions by the authenticated user              |
+| [`GET /submissions/review`](#get-submissions-for-review)      | GET    | Get submissions that require review by the authenticated user |
 | [`DELETE /submissions/{submission_id}`](#delete-submission)    | DELETE | Delete specific submission by its ID                      |
 
 ### Create Submission
@@ -678,6 +969,59 @@ assets: file[] (required) - Submission files
     // ...more submissions
   ],
   "totalCount": "number"
+}
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Authentication required
+
+---
+
+### Get Submissions for Review
+
+**Retrieve submissions that require review by the authenticated user**
+- **Endpoint:** `GET /submissions/review`
+- **Authentication:** Required
+- **Query Parameters:**
+  - `page` (integer, optional, default: 1) — Page number (starts from 1)
+  - `limit` (integer, optional, default: 20) — Page size
+- **Description:** Returns a paginated list of submissions that require review by the authenticated user, including their attachments.
+
+**Response:**
+- **Status:** `200 OK`
+- **Body:**
+```json
+{
+  "submissions": [
+    {
+      "submissionId": 1,
+      "labId": 1,
+      "owner": {
+        "id": 123,
+        "username": "student1",
+        "name": "John",
+        "surname": "Doe",
+        "email": "john.doe@example.com",
+        "labs_solved": 5,
+        "labs_reviewed": 2,
+        "balance": 100
+      },
+      "text": "Here is my solution for the lab work",
+      "createdAt": "2024-03-15T14:30:00Z",
+      "updatedAt": "2024-03-15T14:30:00Z",
+      "status": "NOT_GRADED",
+      "assets": [
+        {
+          "assetId": 10,
+          "submissionId": 1,
+          "filename": "solution.java",
+          "totalSize": 2048,
+          "uploadDate": "2024-03-15T14:31:00Z"
+        }
+      ]
+    }
+  ],
+  "totalCount": 1
 }
 ```
 

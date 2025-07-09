@@ -2,14 +2,17 @@ package olsh.backend.api_gateway.grpc.client;
 
 import com.google.protobuf.ByteString;
 import io.grpc.Channel;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.config.UploadFileConfiguration;
 import olsh.backend.api_gateway.exception.AssetUploadException;
+import olsh.backend.api_gateway.exception.GrpcError;
 import olsh.backend.api_gateway.exception.LabNotFoundException;
 import olsh.backend.api_gateway.grpc.proto.LabProto.*;
 import olsh.backend.api_gateway.grpc.proto.LabServiceGrpc;
 import org.springframework.grpc.client.GrpcChannelFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -41,9 +44,9 @@ public class LabServiceClient {
             Lab response = blockingStub.createLab(request);
             log.debug("Successfully created lab via gRPC with ID: {}", response.getLabId());
             return response;
-        } catch (Exception e) {
+        } catch (StatusRuntimeException e) {
             log.error("Error calling CreateLab gRPC: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to create lab via gRPC", e);
+            throw new GrpcError(HttpStatus.BAD_REQUEST, e.getStatus().getCode().name(), e.getMessage());
         }
     }
 

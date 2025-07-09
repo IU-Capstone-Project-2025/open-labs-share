@@ -12,8 +12,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.stream.Collectors;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -94,7 +92,7 @@ public class SubmissionController {
 
         log.debug("Received request to get submission with ID: {}", submissionId);
 
-        SubmissionResponse response = submissionService.getSubmissionById(submissionId);
+        SubmissionResponse response = submissionService.getById(submissionId);
         log.debug("Successfully retrieved submission data for submissionId: {}", submissionId);
         return ResponseEntity.ok(response);
     }
@@ -125,7 +123,7 @@ public class SubmissionController {
         log.debug("Received request to get submissions for lab ID: {} (page: {}, size: {})",
                 labId, pageNum, pageSize);
 
-        SubmissionListResponse response = submissionService.getSubmissionsByLabId(labId, pageNum, pageSize);
+        SubmissionListResponse response = submissionService.getByLabId(labId, pageNum, pageSize);
         log.debug("Successfully retrieved {} submissions for lab ID: {}",
                 response.getSubmissions().size(), labId);
         return ResponseEntity.ok(response);
@@ -187,9 +185,36 @@ public class SubmissionController {
         Long userId = attributesProvider.extractUserIdFromRequest(request);
         log.debug("Received request to get submissions for user with ID: {} (page: {}, limit: {})", userId, page,
                 limit);
-        SubmissionListResponse response = submissionService.getSubmissionsByUserId(userId, page, limit);
+        SubmissionListResponse response = submissionService.getByUserId(userId, page, limit);
         log.debug("Successfully retrieved {} submissions for user with ID: {}", response.getSubmissions().size(),
                 userId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "Get submissions for review",
+            description = "Retrieves a paginated list of submissions that require review. Requires authentication."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Submissions for review retrieved successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                            SubmissionListResponse.class))
+            ),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required")
+    })
+    @RequireAuth
+    @GetMapping("/review")
+    public ResponseEntity<SubmissionListResponse> getSubmissionsForReview(
+            HttpServletRequest request,
+            @RequestParam(defaultValue = "1") @Parameter(description = "Page number (starts from 1)", example = "1") Integer page,
+            @RequestParam(defaultValue = "20") @Parameter(description = "Page size", example = "20") Integer limit
+    ){
+        Long userId = attributesProvider.extractUserIdFromRequest(request);
+        log.debug("Received request to get submissions for review (page: {}, limit: {})", page, limit);
+        SubmissionListResponse response = submissionService.getForReview(userId, page, limit);
+        log.debug("Successfully retrieved {} submissions for review", response.getSubmissions().size());
         return ResponseEntity.ok(response);
     }
 }

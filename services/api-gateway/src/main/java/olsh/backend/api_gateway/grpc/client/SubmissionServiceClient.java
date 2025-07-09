@@ -57,6 +57,7 @@ public class SubmissionServiceClient {
 
     /**
      * Retrieves a specific submission by its ID.
+     *
      * @param submissionId the ID of the submission to retrieve
      * @return the Submission object if found
      * @throws SubmissionNotFoundException if no submission with the given ID exists
@@ -79,8 +80,9 @@ public class SubmissionServiceClient {
 
     /**
      * Retrieves all submissions for a specific lab, paginated.
+     *
      * @param labId lab ID to retrieve submissions for
-     * @param page the page number to retrieve (1-based)
+     * @param page  the page number to retrieve (1-based)
      * @param limit the number of submissions per page
      * @return
      */
@@ -115,6 +117,26 @@ public class SubmissionServiceClient {
         } catch (Exception e) {
             log.error("Error calling GetSubmissionsByUser gRPC for user ID {}: {}", userId, e.getMessage(), e);
             throw new RuntimeException("Failed to get submissions by user via gRPC", e);
+        }
+    }
+
+    public SubmissionList getForReview(Long userId, Integer page, Integer limit) {
+        log.debug("Calling gRPC GetPossibleToReviewSubmissions for user ID: {}, page: {}, limit: {}",
+                userId, page, limit);
+        try {
+            GetPossibleToReviewSubmissionsRequest request =
+                    GetPossibleToReviewSubmissionsRequest.newBuilder()
+                            .setUserId(userId)
+                            .setPageNumber(page)
+                            .setPageSize(limit)
+                            .build();
+            SubmissionList response = blockingStub.getPossibleToReviewSubmissions(request);
+            log.debug("Successfully retrieved {} submissions for review via gRPC (total: {})",
+                    response.getSubmissionsCount(), response.getTotalCount());
+            return response;
+        } catch (Exception e) {
+            log.error("Error calling GetForReview gRPC for user ID {}: {}", userId, e.getMessage(), e);
+            throw new RuntimeException("Failed to get submissions for review via gRPC", e);
         }
     }
 
