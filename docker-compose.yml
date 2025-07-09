@@ -614,6 +614,7 @@ services:
       - green-network
     profiles:
       - ml
+      
   ml-redis-broker:
     image: redis:7
     ports:
@@ -643,6 +644,7 @@ services:
       - green-network
     profiles:
       - ml
+      
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"

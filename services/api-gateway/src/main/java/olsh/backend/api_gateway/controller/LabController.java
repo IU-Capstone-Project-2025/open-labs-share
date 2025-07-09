@@ -4,13 +4,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.annotation.RequireAuth;
-import olsh.backend.api_gateway.dto.request.CreateLabRequest;
+import olsh.backend.api_gateway.dto.request.LabCreateRequest;
 import olsh.backend.api_gateway.dto.request.GetLabsRequest;
-import olsh.backend.api_gateway.dto.response.CreateLabResponse;
-import olsh.backend.api_gateway.dto.response.DeleteLabResponse;
-import olsh.backend.api_gateway.dto.response.LabListResponse;
-import olsh.backend.api_gateway.dto.response.LabResponse;
-import olsh.backend.api_gateway.dto.response.AssetListResponse;
+import olsh.backend.api_gateway.dto.response.*;
 import olsh.backend.api_gateway.service.LabService;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,9 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -55,7 +48,7 @@ public class LabController {
         @ApiResponse(
             responseCode = "201",
             description = "Lab created successfully",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = CreateLabResponse.class))
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = LabCreateResponse.class))
         ),
         @ApiResponse(responseCode = "400", description = "Invalid request data"),
         @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
@@ -64,10 +57,10 @@ public class LabController {
     @RequireAuth
     @PostMapping
     public ResponseEntity<?> createLab(
-            @Valid @ModelAttribute CreateLabRequest request,
+            @Valid @ModelAttribute LabCreateRequest request,
             HttpServletRequest httpRequest) {
         log.debug("Received request to create lab with title: {}", request.getTitle());
-        CreateLabResponse response = labService.createLab(request,
+        LabCreateResponse response = labService.createLab(request,
                 attributesProvider.extractUserIdFromRequest(httpRequest));
         log.debug("Successfully created lab");
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -88,12 +81,12 @@ public class LabController {
     })
     @RequireAuth
     @GetMapping("/{lab_id}")
-    public ResponseEntity<LabResponse> getLab(
+    public ResponseEntity<LabAndTagsResponse> getLab(
             @Parameter(description = "ID of the lab to retrieve", required = true)
             @PathVariable("lab_id") Long labId,
             HttpServletRequest request) {
         log.debug("Received request to get lab with ID: {}", labId);
-        LabResponse response = labService.getLabById(labId);
+        LabAndTagsResponse response = labService.getLabById(labId);
         log.debug("Successfully retrieved lab data for labId: {}", labId);
         return ResponseEntity.ok(response);
     }
@@ -160,7 +153,7 @@ public class LabController {
         @ApiResponse(
             responseCode = "200",
             description = "Lab deleted successfully",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = DeleteLabResponse.class))
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = LabDeleteResponse.class))
         ),
         @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
         @ApiResponse(responseCode = "403", description = "Forbidden - No access to delete the lab"),
@@ -168,13 +161,13 @@ public class LabController {
     })
     @RequireAuth
     @DeleteMapping("/{lab_id}")
-    public ResponseEntity<DeleteLabResponse> deleteLab(
+    public ResponseEntity<LabDeleteResponse> deleteLab(
             @Parameter(description = "ID of the lab to delete", required = true)
             @PathVariable("lab_id") Long labId,
             HttpServletRequest request) {
         log.debug("Received request to delete lab with ID: {}", labId);
         Long userId = attributesProvider.extractUserIdFromRequest(request);
-        DeleteLabResponse response = labService.deleteLab(labId, userId);
+        LabDeleteResponse response = labService.deleteLab(labId, userId);
         log.debug("Successfully deleted lab with ID: {}", labId);
         return ResponseEntity.ok(response);
     }

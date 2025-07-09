@@ -65,6 +65,16 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(GrpcError.class)
+    public ResponseEntity<ErrorResponse> handleGrpcError(GrpcError ex) {
+        return buildResponse(ex.getStatus(), ex.getCode(), ex.getMessage());
+    }
+
+    @ExceptionHandler(TagNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleTagNotFoundException(TagNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, TagNotFoundException.class.getSimpleName(), ex.getMessage());
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
         return buildResponse(HttpStatus.PAYLOAD_TOO_LARGE,

@@ -1,15 +1,15 @@
 package olsh.backend.api_gateway.dto.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
-import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 
 @Data
 @Builder
 @Schema(description = "Response object containing laboratory work details")
-public class LabResponse {
+public class LabAndTagsResponse {
     @Schema(description = "Unique identifier of the lab", example = "1")
     private Long id;
 
@@ -43,6 +43,6 @@ public class LabResponse {
     @Schema(description = "List of article IDs associated with this lab", example = "[1, 2, 3]")
     private List<Long> articles;
 
-    @Schema(description = "List of tag IDs associated with this lab", example = "[1, 2, 3]")
-    private List<Integer> tags;
+    @Schema(description = "List of tags associated with this lab", example = "See TagResponse")
+    private List<TagResponse> tags;
 }
