@@ -3,11 +3,11 @@
 
 import { authAPI } from './api';
 
-const AUTH_API_ENDPOINT = import.meta.env.VITE_AUTH_API_ENDPOINT;
+const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_ENDPOINT || (import.meta.env.PROD ? '' : 'http://localhost/api/v1');
 
 // Helper function to make API calls
 const makeAuthRequest = async (endpoint, options = {}) => {
-  const url = `${AUTH_API_ENDPOINT}${endpoint}`;
+  const url = `${API_BASE_URL}/auth${endpoint}`;
   
   const defaultOptions = {
     method: 'GET',

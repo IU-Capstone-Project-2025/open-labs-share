@@ -5,7 +5,9 @@ WORKDIR /app
 RUN apk add --no-cache git protobuf protobuf-dev
 
 COPY services/feedback-service/go.mod services/feedback-service/go.sum ./
-RUN go mod download
+
+# Use cache mount for go modules
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
@@ -20,16 +22,20 @@ RUN protoc --go_out=. --go_opt=paths=source_relative \
     --go-grpc_out=. --go-grpc_opt=paths=source_relative \
     api/comment_service.proto
 
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o feedback-service ./cmd/
+# Use cache mount for building
+RUN --mount=type=cache,target=/go/pkg/mod CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o feedback-service ./cmd/
 
-FROM gcr.io/distroless/static-debian11
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates netcat-openbsd
 
 WORKDIR /app
 
 COPY --from=builder /app/feedback-service .
-
 COPY --from=builder /app/migrations ./migrations
 
 EXPOSE 9090
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 \
+  CMD nc -z localhost 9090 || exit 1
 
 CMD ["./feedback-service"] 
