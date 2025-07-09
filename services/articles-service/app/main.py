@@ -274,6 +274,8 @@ class ArticleService(service.ArticleServiceServicer):
             stub.ArticleList: List of articles with total count
         """
 
+        self.logger.info(f"GetArticlesByUserId requested")
+
         data: dict = {
             "user_id": request.user_id,
             "page_number": request.page_number,
@@ -315,6 +317,8 @@ class ArticleService(service.ArticleServiceServicer):
             for article in articles:
                 article_list.articles.append(stub.Article(**article.get_attrs()))
 
+            self.logger.info(f"Retrieved {len(articles)} articles for user with ID {data['user_id']}")
+
             return article_list
 
     def UpdateArticle(self, request, context) -> stub.Article:
@@ -335,7 +339,7 @@ class ArticleService(service.ArticleServiceServicer):
             grpc.StatusCode.NOT_FOUND: If article doesn't exist
         """
 
-        self.logger.info(f"Updating article with request: {request}")
+        self.logger.info(f"UpdateArticle requested")
 
         data: dict = {
             "article_id": request.article_id,
@@ -380,7 +384,7 @@ class ArticleService(service.ArticleServiceServicer):
             grpc.StatusCode.NOT_FOUND: If article doesn't exist
         """
 
-        self.logger.info(f"Deleting article with request: {request}")
+        self.logger.info(f"DeleteArticle requested")
 
         with Session(self.engine) as session:
             stmt = select(Article).where(Article.id == request.article_id)
@@ -421,7 +425,7 @@ class ArticleService(service.ArticleServiceServicer):
             grpc.StatusCode.INTERNAL: If file upload fails
         """
 
-        self.logger.info(f"Uploading asset with request: {request_iterator}")
+        self.logger.info(f"UploadAsset requested")
 
         asset_metadata = next(request_iterator)
 
@@ -515,7 +519,8 @@ class ArticleService(service.ArticleServiceServicer):
             grpc.StatusCode.INTERNAL: If file upload fails
         """
 
-        self.logger.info(f"Updating asset with request: {request_iterator}")
+        self.logger.info(f"UpdateAsset requested")
+
         asset_metadata = next(request_iterator)
 
         if asset_metadata.HasField('metadata'):
@@ -610,7 +615,7 @@ class ArticleService(service.ArticleServiceServicer):
             grpc.StatusCode.INTERNAL: If file download fails
         """
 
-        self.logger.info(f"Downloading asset with request: {request}")
+        self.logger.info(f"DownloadAsset requested")
 
         def response_messages():
             # First, retrieve the asset from the database
@@ -661,7 +666,7 @@ class ArticleService(service.ArticleServiceServicer):
             grpc.StatusCode.INTERNAL: If file deletion from storage fails
         """
 
-        self.logger.info(f"Deleting asset with request: {request}")
+        self.logger.info(f"DeleteAsset requested")
 
         with Session(self.engine) as session:
             stmt = select(ArticleAsset).where(ArticleAsset.id == request.asset_id)
@@ -703,7 +708,7 @@ class ArticleService(service.ArticleServiceServicer):
             grpc.StatusCode.NOT_FOUND: If article doesn't exist or has no assets
         """
 
-        self.logger.info(f"Listing assets with request: {request}")
+        self.logger.info(f"ListAssets requested")
 
         with Session(self.engine) as session:
             stmt = select(ArticleAsset).where(ArticleAsset.article_id == request.article_id)
