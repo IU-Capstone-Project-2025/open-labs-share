@@ -32,15 +32,6 @@ public class SubmissionResponse {
     @Schema(description = "Current status of the submission", example = "NOT_GRADED")
     private String status;
 
-    @Schema(description = "Number of submissions made by the user", example = "5")
-    private long submissions;
-
-    @Schema(description = "List of article IDs associated with this submission")
-    private List<Long> articles;
-
-    @Schema(description = "List of tag IDs associated with this submission")
-    private List<Long> tags;
-
     @Schema(description = "List of assets associated with this submission")
     private List<SubmissionAssetResponse> assets;
 }

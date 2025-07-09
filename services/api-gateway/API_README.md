@@ -767,6 +767,7 @@ true
 | [`GET /submissions/{submission_id}`](#get-submission-by-id)   | GET    | Get submission by ID                                      |
 | [`GET /submissions/lab/{lab_id}`](#get-lab-submissions)       | GET    | Get all submissions for a specific lab                    |
 | [`GET /submissions/my`](#get-my-submissions)                  | GET    | Get all submissions by the authenticated user              |
+| [`GET /submissions/review`](#get-submissions-for-review)      | GET    | Get submissions that require review by the authenticated user |
 | [`DELETE /submissions/{submission_id}`](#delete-submission)    | DELETE | Delete specific submission by its ID                      |
 
 ### Create Submission
@@ -968,6 +969,59 @@ assets: file[] (required) - Submission files
     // ...more submissions
   ],
   "totalCount": "number"
+}
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Authentication required
+
+---
+
+### Get Submissions for Review
+
+**Retrieve submissions that require review by the authenticated user**
+- **Endpoint:** `GET /submissions/review`
+- **Authentication:** Required
+- **Query Parameters:**
+  - `page` (integer, optional, default: 1) — Page number (starts from 1)
+  - `limit` (integer, optional, default: 20) — Page size
+- **Description:** Returns a paginated list of submissions that require review by the authenticated user, including their attachments.
+
+**Response:**
+- **Status:** `200 OK`
+- **Body:**
+```json
+{
+  "submissions": [
+    {
+      "submissionId": 1,
+      "labId": 1,
+      "owner": {
+        "id": 123,
+        "username": "student1",
+        "name": "John",
+        "surname": "Doe",
+        "email": "john.doe@example.com",
+        "labs_solved": 5,
+        "labs_reviewed": 2,
+        "balance": 100
+      },
+      "text": "Here is my solution for the lab work",
+      "createdAt": "2024-03-15T14:30:00Z",
+      "updatedAt": "2024-03-15T14:30:00Z",
+      "status": "NOT_GRADED",
+      "assets": [
+        {
+          "assetId": 10,
+          "submissionId": 1,
+          "filename": "solution.java",
+          "totalSize": 2048,
+          "uploadDate": "2024-03-15T14:31:00Z"
+        }
+      ]
+    }
+  ],
+  "totalCount": 1
 }
 ```
 

@@ -13,9 +13,6 @@ public class SubmissionListResponse {
     @Schema(description = "List of submissions")
     private List<SubmissionResponse> submissions;
 
-    @Schema(description = "List of assets associated with the submissions")
-    private List<TagResponse> tags;
-
     @Schema(description = "Total count of submissions", example = "15")
     private Long totalCount;
 }

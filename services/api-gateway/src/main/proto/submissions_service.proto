@@ -86,6 +86,8 @@ message GetUsersSubmissionsRequest {
 
 message GetPossibleToReviewSubmissionsRequest {
   int64 user_id = 1;
+  int32 page_number = 2;
+  int32 page_size = 3;
 }
 
 // Assets Management

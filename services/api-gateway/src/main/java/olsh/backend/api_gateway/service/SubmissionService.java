@@ -8,7 +8,6 @@ import olsh.backend.api_gateway.exception.ForbiddenAccessException;
 import olsh.backend.api_gateway.exception.SubmissionIsAlreadyGradedException;
 import olsh.backend.api_gateway.grpc.client.SubmissionServiceClient;
 import olsh.backend.api_gateway.grpc.proto.SubmissionProto;
-import org.apache.catalina.User;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.ArrayList;
@@ -31,8 +30,8 @@ public class SubmissionService {
         if (labService.validateLabAuthorId(request.getLabId(), ownerId)){
             throw new ForbiddenAccessException("You cannot submit to your own lab");
         }
-        SubmissionResponse submission = registerSubmission(request, ownerId);
-        List<SubmissionAssetResponse> assets = uploadAssetsForSubmission(
+        SubmissionResponse submission = register(request, ownerId);
+        List<SubmissionAssetResponse> assets = uploadAssets(
                 submission.getSubmissionId(),
                 request.getFiles()
         );
@@ -47,7 +46,7 @@ public class SubmissionService {
                 .build();
     }
 
-    private SubmissionResponse registerSubmission(CreateSubmissionRequest request, Long ownerId) {
+    private SubmissionResponse register(CreateSubmissionRequest request, Long ownerId) {
         SubmissionProto.CreateSubmissionRequest protoRequest = SubmissionProto.CreateSubmissionRequest.newBuilder()
                 .setLabId(request.getLabId())
                 .setOwnerId(ownerId)
@@ -57,17 +56,17 @@ public class SubmissionService {
         SubmissionProto.Submission submission = submissionServiceClient.createSubmission(protoRequest);
         log.debug("Successfully registered submission with ID: {}", submission.getSubmissionId());
         UserResponse owner = userService.getUserByIdSafe(ownerId);
-        return convertSubmissionToResponse(submission, owner, new ArrayList<>());
+        return mapSubmissionToResponse(submission, owner, new ArrayList<>());
     }
 
-    private List<SubmissionAssetResponse> uploadAssetsForSubmission(Long submissionId, MultipartFile[] files) {
+    private List<SubmissionAssetResponse> uploadAssets(Long submissionId, MultipartFile[] files) {
         List<SubmissionAssetResponse> assetResponses = new ArrayList<>();
         log.debug("Uploading assets for submission ID: {}", submissionId);
         if (files != null) {
             for (MultipartFile file : files) {
                 if (!file.isEmpty()) {
                     SubmissionProto.Asset asset = submissionServiceClient.uploadAsset(submissionId, file);
-                    assetResponses.add(convertAssetToResponse(asset));
+                    assetResponses.add(mapAssetToResponse(asset));
                 }
             }
         }
@@ -75,7 +74,7 @@ public class SubmissionService {
         return assetResponses;
     }
 
-    public SubmissionResponse getSubmissionById(Long submissionId) {
+    public SubmissionResponse getById(Long submissionId) {
         if (submissionId == null || submissionId <= 0) {
             throw new IllegalArgumentException("Submission ID should be provided and positive");
         }
@@ -87,13 +86,13 @@ public class SubmissionService {
 
         SubmissionProto.AssetList assetList = submissionServiceClient.listAssets(submissionId);
         List<SubmissionAssetResponse> assets = assetList.getAssetsList().stream()
-                .map(this::convertAssetToResponse)
+                .map(this::mapAssetToResponse)
                 .toList();
 
-        return convertSubmissionToResponse(submission, owner, assets);
+        return mapSubmissionToResponse(submission, owner, assets);
     }
 
-    public SubmissionListResponse getSubmissionsByLabId(Long labId, Integer pageNum, Integer pageSize) {
+    public SubmissionListResponse getByLabId(Long labId, Integer pageNum, Integer pageSize) {
         if (labId == null || labId <= 0) {
             throw new IllegalArgumentException("Lab ID should be provided and positive");
         }
@@ -103,31 +102,16 @@ public class SubmissionService {
         if (pageSize <= 0) {
             throw new IllegalArgumentException("Page size must be positive");
         }
-
         log.debug("Getting submissions for lab ID: {} (page: {}, size: {})",
                 labId, pageNum, pageSize);
-
         SubmissionProto.SubmissionList submissionList =
                 submissionServiceClient.getSubmissions(labId, pageNum, pageSize);
-
-        List<SubmissionResponse> submissions = submissionList.getSubmissionsList().stream()
-                .map(submission -> {
-                    UserResponse owner = userService.getUserByIdSafe(submission.getOwnerId());
-                    SubmissionProto.AssetList assets = submissionServiceClient.listAssets(submission.getSubmissionId());
-                    List<SubmissionAssetResponse> assetResponses = assets.getAssetsList().stream()
-                            .map(this::convertAssetToResponse)
-                            .toList();
-                    return convertSubmissionToResponse(submission, owner, assetResponses);
-                })
-                .toList();
-
-        return SubmissionListResponse.builder()
-                .submissions(submissions)
-                .totalCount(submissionList.getTotalCount())
-                .build();
+        SubmissionListResponse response = buildSubmissionListResponse(submissionList);
+        log.info("Retrieved {} submissions for lab ID: {}", submissionList.getSubmissionsCount(), labId);
+        return response;
     }
 
-    public SubmissionListResponse getSubmissionsByUserId(Long userId, Integer pageNum, Integer pageSize) {
+    public SubmissionListResponse getByUserId(Long userId, Integer pageNum, Integer pageSize) {
         if (userId == null || userId <= 0) {
             throw new IllegalArgumentException("User ID should be provided and positive");
         }
@@ -137,27 +121,30 @@ public class SubmissionService {
         if (pageSize <= 0) {
             throw new IllegalArgumentException("Page size must be positive");
         }
-
         log.debug("Getting submissions for user ID: {} (page: {}, size: {})",
                 userId, pageNum, pageSize);
-
         SubmissionProto.SubmissionList submissionList =
                 submissionServiceClient.getSubmissionsByUser(userId, pageNum, pageSize);
+        SubmissionListResponse response = buildSubmissionListResponse(submissionList);
+        log.info("Retrieved {} submissions for user ID: {}", submissionList.getSubmissionsCount(), userId);
+        return response;
+    }
 
-        List<SubmissionResponse> submissions = submissionList.getSubmissionsList().stream()
-                .map(submission -> {
-                    SubmissionProto.AssetList assets = submissionServiceClient.listAssets(submission.getSubmissionId());
-                    List<SubmissionAssetResponse> assetResponses = assets.getAssetsList().stream()
-                            .map(this::convertAssetToResponse)
-                            .toList();
-                    return convertSubmissionToResponse(submission, null, assetResponses);
-                })
-                .toList();
-
-        return SubmissionListResponse.builder()
-                .submissions(submissions)
-                .totalCount(submissionList.getTotalCount())
-                .build();
+    public SubmissionListResponse getForReview(Long userId, Integer pageNum, Integer pageSize) {
+        if (pageNum < 1) {
+            throw new IllegalArgumentException("Page number should be natural");
+        }
+        if (pageSize <= 0) {
+            throw new IllegalArgumentException("Page size must be positive");
+        }
+        log.debug("Getting submissions for review by user ID: {} (page: {}, size: {})",
+                userId, pageNum, pageSize);
+        SubmissionProto.SubmissionList submissionList =
+                submissionServiceClient.getForReview(userId, pageNum, pageSize);
+        SubmissionListResponse response = buildSubmissionListResponse(submissionList);
+        log.info("Retrieved {} submissions for review by user ID: {}",
+                submissionList.getSubmissionsCount(), userId);
+        return response;
     }
 
     public DeleteSubmissionResponse deleteSubmission(Long submissionId, Long userId) {
@@ -248,7 +235,7 @@ public class SubmissionService {
         log.debug("File validation passed for: {}", file.getOriginalFilename());
     }
 
-    private SubmissionResponse convertSubmissionToResponse(
+    private SubmissionResponse mapSubmissionToResponse(
             SubmissionProto.Submission submission,
             UserResponse owner,
             List<SubmissionAssetResponse> assets) {
@@ -264,13 +251,31 @@ public class SubmissionService {
                 .build();
     }
 
-    private SubmissionAssetResponse convertAssetToResponse(SubmissionProto.Asset asset) {
+    private SubmissionAssetResponse mapAssetToResponse(SubmissionProto.Asset asset) {
         return SubmissionAssetResponse.builder()
                 .assetId(asset.getAssetId())
                 .submissionId(asset.getSubmissionId())
                 .filename(asset.getFilename())
                 .totalSize(asset.getFilesize())
                 .uploadDate(asset.getUploadDate().toString())
+                .build();
+    }
+
+    private SubmissionListResponse buildSubmissionListResponse(
+            SubmissionProto.SubmissionList submissionList) {
+        List<SubmissionResponse> submissions = submissionList.getSubmissionsList().stream()
+                .map(submission -> {
+                    UserResponse owner = userService.getUserByIdSafe(submission.getOwnerId());
+                    SubmissionProto.AssetList assets = submissionServiceClient.listAssets(submission.getSubmissionId());
+                    List<SubmissionAssetResponse> assetResponses = assets.getAssetsList().stream()
+                            .map(this::mapAssetToResponse)
+                            .toList();
+                    return mapSubmissionToResponse(submission, owner, assetResponses);
+                })
+                .toList();
+        return SubmissionListResponse.builder()
+                .submissions(submissions)
+                .totalCount(submissionList.getTotalCount())
                 .build();
     }
 }
