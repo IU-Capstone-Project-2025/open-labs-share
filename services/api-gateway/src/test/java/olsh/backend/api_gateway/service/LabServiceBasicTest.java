@@ -27,12 +27,13 @@ class LabServiceBasicTest {
         LabServiceClient labServiceClient = mock(LabServiceClient.class);
         UserService userService = mock(UserService.class);
         uploadConfig = mock(UploadFileConfiguration.class);
+        TagService tagService = mock(TagService.class);
 
         // Set up default configuration
         when(uploadConfig.getMaxFileSize()).thenReturn(1024L); // 1KB default
 
         // Create REAL service instance
-        labService = new LabService(labServiceClient, uploadConfig, userService);
+        labService = new LabService(labServiceClient, uploadConfig, userService, tagService);
 
         System.out.println("Starting up tests...");
     }
