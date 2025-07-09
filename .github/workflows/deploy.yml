@@ -1,21 +1,15 @@
 name: CD - Deploy to Server
 
 on:
+  workflow_dispatch:name: CD - Deploy to Server
+
+on:
   workflow_dispatch:
     inputs:
       services:
         description: 'Comma-separated list of services to deploy (e.g., api-gateway,auth-service). Leave empty to deploy all.'
         required: false
         default: ''
-
-  # pull_request:
-  #   branches:
-  #     - main
-  #     - dev
-  
-  # push:
-  #   branches:
-  #     - '**' # Deploy all branches, MUST BE DELETED BEFORE MERGING TO MAIN
 
 jobs:
   deploy:
@@ -24,28 +18,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Create .env file
+      - name: Deploy services
         run: |
-          echo "REDIS_BROKER_URL=${{ secrets.REDIS_BROKER_URL }}" >> .env
-          echo "MINIO_ROOT_USER=${{ secrets.MINIO_ROOT_USER }}" >> .env
-          echo "MINIO_ROOT_PASSWORD=${{ secrets.MINIO_ROOT_PASSWORD }}" >> .env
-          echo "POSTGRES_ML_PASSWORD=${{ secrets.POSTGRES_ML_PASSWORD }}" >> .env
-          echo "JWT_SIGNING_KEY=${{ secrets.JWT_SIGNING_KEY }}" >> .env
-          echo "POSTGRES_USERS_PASSWORD=${{ secrets.POSTGRES_USERS_PASSWORD }}" >> .env
-          echo "POSTGRES_LABS_PASSWORD=${{ secrets.POSTGRES_LABS_PASSWORD }}" >> .env
-          echo "POSTGRES_ARTICLES_PASSWORD=${{ secrets.POSTGRES_ARTICLES_PASSWORD }}" >> .env
-          echo "POSTGRES_FEEDBACK_PASSWORD=${{ secrets.POSTGRES_FEEDBACK_PASSWORD }}" >> .env
-          echo "MONGO_ROOT_USER=${{ secrets.MONGO_ROOT_USER }}" >> .env
-          echo "MONGO_ROOT_PASSWORD=${{ secrets.MONGO_ROOT_PASSWORD }}" >> .env
+          # Convert comma-separated list to space-separated list
+          services_to_deploy=$(echo ${{ github.event.inputs.services }} | tr ',' ' ')
+          ./scripts/deploy_green.sh $services_to_deploy
+    inputs:
+      services:
+        description: 'Comma-separated list of services to deploy (e.g., api-gateway,auth-service). Leave empty to deploy all.'
+        required: false
+        default: ''
 
-      - name: Create groq_keys.txt file
-        run: |
-          mkdir -p ml
-          echo "${{ secrets.GROQ_API_KEYS }}" > ml/groq_keys.txt
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Deploy services
         run: |
-          chmod +x ./scripts/*.sh
           # Convert comma-separated list to space-separated list
           services_to_deploy=$(echo ${{ github.event.inputs.services }} | tr ',' ' ')
           ./scripts/deploy_green.sh $services_to_deploy
