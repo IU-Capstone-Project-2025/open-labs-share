@@ -46,7 +46,7 @@ services:
       - green-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
       interval: 5s
       timeout: 5s
       retries: 5
