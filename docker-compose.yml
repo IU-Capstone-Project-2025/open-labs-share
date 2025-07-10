@@ -48,6 +48,7 @@ services:
 
   # --- Blue Environment ---
   frontend-blue:
+    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-frontend:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
@@ -58,8 +59,15 @@ services:
       - blue-network
     restart: unless-stopped
     profiles: ["blue"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   api-gateway-blue:
+    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-api-gateway:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.api-gateway
@@ -82,8 +90,15 @@ services:
       - blue-network
     restart: unless-stopped
     profiles: ["blue"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   auth-service-blue:
+    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-auth-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.auth-service
@@ -98,8 +113,15 @@ services:
       - blue-network
     restart: unless-stopped
     profiles: ["blue"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   users-service-blue:
+    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-users-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.users-service
@@ -113,8 +135,15 @@ services:
       - blue-network
     restart: unless-stopped
     profiles: ["blue"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:9093"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   labs-service-blue:
+    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-labs-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.labs-service
@@ -138,8 +167,15 @@ services:
       - blue-network
     restart: unless-stopped
     profiles: ["blue"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:9091"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   articles-service-blue:
+    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-articles-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.articles-service
@@ -159,8 +195,15 @@ services:
       - green-network
     restart: unless-stopped
     profiles: ["blue"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:50051"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   feedback-service-blue:
+    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-feedback-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.feedback-service
@@ -183,8 +226,15 @@ services:
       - blue-network
     restart: unless-stopped
     profiles: ["blue"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:9090"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   ml-service-blue:
+    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-ml-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.ml-service
@@ -212,6 +262,12 @@ services:
       - green-network
     restart: unless-stopped
     profiles: ["blue"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
 
   # --- Test Environment ---
   frontend-test:
@@ -393,6 +449,7 @@ services:
 
   # --- Green Environment ---
   frontend-green:
+    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-frontend:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
@@ -403,8 +460,15 @@ services:
       - green-network
     restart: unless-stopped
     profiles: ["green"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   api-gateway-green:
+    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-api-gateway:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.api-gateway
@@ -427,8 +491,15 @@ services:
       - green-network
     restart: unless-stopped
     profiles: ["green"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   auth-service-green:
+    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-auth-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.auth-service
@@ -443,8 +514,15 @@ services:
       - green-network
     restart: unless-stopped
     profiles: ["green"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   users-service-green:
+    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-users-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.users-service
@@ -458,8 +536,15 @@ services:
       - green-network
     restart: unless-stopped
     profiles: ["green"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:9093"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   labs-service-green:
+    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-labs-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.labs-service
@@ -483,8 +568,15 @@ services:
       - green-network
     restart: unless-stopped
     profiles: ["green"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:9091"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   articles-service-green:
+    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-articles-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.articles-service
@@ -503,8 +595,15 @@ services:
       - green-network
     restart: unless-stopped
     profiles: ["green"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:50051"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   feedback-service-green:
+    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-feedback-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.feedback-service
@@ -527,8 +626,15 @@ services:
       - green-network
     restart: unless-stopped
     profiles: ["green"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:9090"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   ml-service-green:
+    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-ml-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.ml-service
@@ -555,10 +661,16 @@ services:
       - green-network
     restart: unless-stopped
     profiles: ["green"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
 
   # --- Shared Services ---
   postgres-users:
-    image: postgres:15-alpine
+    image: postgres:16
     environment:
       - POSTGRES_DB=users_service
       - POSTGRES_USER=users_user
@@ -571,7 +683,7 @@ services:
     restart: unless-stopped
 
   postgres-feedback:
-    image: postgres:15-alpine
+    image: postgres:16
     environment:
       - POSTGRES_DB=feedback_db
       - POSTGRES_USER=feedback_user
@@ -584,7 +696,7 @@ services:
     restart: unless-stopped
 
   postgres-labs:
-    image: postgres:15-alpine
+    image: postgres:16
     environment:
       - POSTGRES_DB=labs_db
       - POSTGRES_USER=labs_user
@@ -597,7 +709,7 @@ services:
     restart: unless-stopped
 
   postgres-articles:
-    image: postgres:15-alpine
+    image: postgres:16
     environment:
       - POSTGRES_DB=articles_db
       - POSTGRES_USER=articles_user
@@ -645,7 +757,7 @@ services:
       - ml
 
   postgres-ml:
-    image: postgres:15-alpine
+    image: postgres:16
     environment:
       - POSTGRES_DB=chat_history_db
       - POSTGRES_USER=ml_user

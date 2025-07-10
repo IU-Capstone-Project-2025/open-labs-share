@@ -7,18 +7,35 @@ on:
         description: 'Comma-separated list of services to deploy (e.g., api-gateway,auth-service). Leave empty to deploy all.'
         required: false
         default: ''
-
-  # pull_request:
-  #   branches:
-  #     - main
-  #     - dev
-  
-  # push:
-  #   branches:
-  #     - '**' # Deploy all branches, MUST BE DELETED BEFORE MERGING TO MAIN
+  push:
+    branches:
+      - "*" # TODO: Change to main
 
 jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push images
+        run: |
+          docker buildx bake --push \
+            --set "*.REGISTRY=ghcr.io/${{ github.repository_owner }}" \
+            production-build
+
   deploy:
+    needs: build
     runs-on: self-hosted
     steps:
       - name: Checkout repository
