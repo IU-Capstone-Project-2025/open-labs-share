@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.config.UploadFileConfiguration;
 import olsh.backend.api_gateway.dto.request.LabCreateRequest;
-import olsh.backend.api_gateway.dto.request.GetLabsRequest;
+import olsh.backend.api_gateway.dto.request.LabsGetRequest;
 import olsh.backend.api_gateway.dto.response.*;
 import olsh.backend.api_gateway.exception.ForbiddenAccessException;
 import olsh.backend.api_gateway.exception.LabNotFoundException;
@@ -103,9 +103,9 @@ public class LabService {
                         .setOwnerId(ownerId)
                         .setTitle(request.getTitle())
                         .setAbstract(request.getShort_desc());
-        List<Long> articles = request.getArticlesAsArray();
+        List<Long> articles = request.getArticlesList();
         builder.addAllRelatedArticlesIds(articles);
-        List<Integer> tags = request.getTagsAsArray().stream().map(Long::intValue).toList();
+        List<Integer> tags = request.getTagsList();
         builder.addAllTagsIds(tags);
         LabProto.CreateLabRequest grpcRequest = builder.build();
         LabProto.Lab lab = labServiceClient.createLab(grpcRequest);
@@ -127,41 +127,33 @@ public class LabService {
         return response;
     }
 
-    public LabListResponse getLabs(GetLabsRequest request) {
+    public LabListResponse getLabs(LabsGetRequest request) {
         log.debug("Getting labs list - page: {}, limit: {}", request.getPage(), request.getLimit());
-        try {
-            LabProto.LabList grpcResponse = labServiceClient.getLabs(request.getPage(), request.getLimit());
-            List<LabResponse> labResponses = new ArrayList<>();
-            HashMap<Long, UserResponse> authorCache = new HashMap<>();
-            for (LabProto.Lab lab : grpcResponse.getLabsList()) {
-                try {
-                    UserResponse author = authorCache.computeIfAbsent(lab.getOwnerId(), userService::getUserById);
-                    LabProto.AssetList assets = labServiceClient.listAssets(lab.getLabId());
-                    labResponses.add(buildLabResponse(lab, author, assets));
-                } catch (Exception e) {
-                    log.warn("Skipping lab with ID {} due to an error fetching its owner (owner_id={}): {}",
-                            lab.getLabId(), lab.getOwnerId(), e.getMessage());
-                }
-            }
-            log.debug("Successfully retrieved {} labs out of {} total", labResponses.size(),
-                    grpcResponse.getLabsCount());
-            return buildLabListResponse(labResponses);
-        } catch (Exception e) {
-            log.error("Error getting labs list: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to retrieve labs: " + e.getMessage());
+        LabProto.GetLabsRequest.Builder grpcRequest = LabProto.GetLabsRequest.newBuilder()
+                .setPageNumber(request.getPage())
+                .setPageSize(request.getLimit())
+                .addAllTagsIds(request.getTagsList());
+        if (!request.getText().isBlank()) {
+            grpcRequest.setText(request.getText());
         }
+        LabProto.LabList grpcResponse = labServiceClient.getLabs(grpcRequest.build());
+        LabListResponse response = buildLabListResponseFromProto(grpcResponse.getLabsList());
+        log.info("Successfully retrieved {} labs out of {} total", response.getLabs().size(),
+                grpcResponse.getLabsCount());
+        return response;
     }
 
-    public LabListResponse getMyLabs(GetLabsRequest request, Long userId) {
-        LabListResponse allLabsResponse = getLabs(request);
-        // Filter labs by current user
-        // TODO: Tell Timur to add this functionality to gRPC service
-        List<LabResponse> userLabs = allLabsResponse.getLabs().stream()
-                .filter(lab -> lab.getAuthorId().equals(userId))
-                .collect(Collectors.toList());
-        LabListResponse response = buildLabListResponse(userLabs);
-        log.debug("Successfully retrieved my labs list with {} labs for user {}",
-                userLabs.size(), userId);
+    public LabListResponse getMyLabs(Long id, Integer page, Integer limit) {
+        log.debug("Getting articles for author {} - page: {}, limit: {}", id, page, limit);
+        LabProto.GetLabsByUserIdRequest request = LabProto.GetLabsByUserIdRequest.newBuilder()
+                .setUserId(id)
+                .setPageNumber(page)
+                .setPageSize(limit)
+                .build();
+        LabProto.LabList grpcResponse = labServiceClient.getUsersLabs(request);
+        LabListResponse response = buildLabListResponseFromProto(grpcResponse.getLabsList());
+        log.info("Successfully retrieved {} user's (ID: {}) labs out of {} total", response.getLabs().size(), id,
+                grpcResponse.getLabsCount());
         return response;
     }
 
@@ -264,7 +256,7 @@ public class LabService {
      * @return LabResponse with all fields mapped
      */
     private LabAndTagsResponse buildLabAndTagsResponse(LabProto.Lab lab, UserResponse author, LabProto.AssetList assets,
-                                                List<TagResponse> tags) {
+                                                       List<TagResponse> tags) {
         return LabAndTagsResponse.builder()
                 .id(lab.getLabId())
                 .title(lab.getTitle())
@@ -281,6 +273,21 @@ public class LabService {
                 .build();
     }
 
+    private LabListResponse buildLabListResponseFromProto(List<LabProto.Lab> labs){
+        List<LabResponse> labResponses = new ArrayList<>();
+        HashMap<Long, UserResponse> authorCache = new HashMap<>();
+        for (LabProto.Lab lab : labs) {
+            try {
+                UserResponse author = authorCache.computeIfAbsent(lab.getOwnerId(), userService::getUserById);
+                LabProto.AssetList assets = labServiceClient.listAssets(lab.getLabId());
+                labResponses.add(buildLabResponse(lab, author, assets));
+            } catch (Exception e) {
+                log.warn("Skipping lab with ID {} due to an error fetching its owner (owner_id={}): {}",
+                        lab.getLabId(), lab.getOwnerId(), e.getMessage());
+            }
+        }
+        return buildLabListResponse(labResponses);
+    }
     private LabListResponse buildLabListResponse(List<LabResponse> labResponses) {
         List<Integer> tagsIdsList = labResponses.stream()
                 .flatMap(labResponse -> labResponse.getTags().stream())

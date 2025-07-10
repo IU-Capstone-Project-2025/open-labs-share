@@ -167,15 +167,9 @@ public class ArticleServiceClient {
         }
     }
 
-    public ArticleList getArticles(Integer page, Integer limit) {
-        log.debug("Calling gRPC GetArticles for page: {}, limit: {}", page, limit);
-
+    public ArticleList getArticles(GetArticlesRequest request) {
+        log.debug("Calling gRPC GetArticles for page: {}, limit: {}", request.getPageNumber(), request.getPageSize());
         try {
-            GetArticlesRequest request = GetArticlesRequest.newBuilder()
-                    .setPageNumber(page)
-                    .setPageSize(limit)
-                    .build();
-
             ArticleList response = blockingStub.getArticles(request);
             log.debug("Successfully retrieved {} articles via gRPC (total: {})",
                     response.getArticlesCount(), response.getTotalCount());
@@ -184,6 +178,19 @@ public class ArticleServiceClient {
         } catch (Exception e) {
             log.error("Error calling GetArticles gRPC: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to get articles via gRPC", e);
+        }
+    }
+
+    public ArticleList getUserArticles(GetArticlesByUserIdRequest request) {
+        log.debug("Calling gRPC GetUserArticles for user ID: {}", request.getUserId());
+        try {
+            ArticleList response = blockingStub.getArticlesByUserId(request);
+            log.debug("Successfully retrieved {} user articles via gRPC (total: {})",
+                    response.getArticlesCount(), response.getTotalCount());
+            return response;
+        } catch (Exception e) {
+            log.error("Error calling GetUserArticles gRPC: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to get user articles via gRPC", e);
         }
     }
 

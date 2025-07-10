@@ -403,6 +403,24 @@ Lab content delivery is currently being developed. The markdown content for this
                 <span>•</span>
                 <span>{lab.views} views</span>
               </div>
+              {lab.tags && lab.tags.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {lab.tags.map((tag, index) => (
+                    <span
+                      key={tag.id || tag}
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 relative group"
+                      title={typeof tag === 'object' ? tag.description : ''}
+                    >
+                      {typeof tag === 'object' ? tag.name : `Tag ${tag}`}
+                      {typeof tag === 'object' && tag.description && (
+                        <span className="absolute z-10 hidden group-hover:block w-64 px-2 py-1 mt-6 -ml-4 text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 rounded shadow-lg">
+                          {tag.description}
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         )}

@@ -38,7 +38,7 @@ class ArticleService(service.ArticleServiceServicer):
 
         self.logger.info(f"Connecting to PostgreSQL at {url}")
 
-        self.engine = create_engine(url, echo=True)
+        self.engine = create_engine(url, echo=False)
 
         from utils.models import Base
         Base.metadata.create_all(self.engine)
@@ -89,13 +89,40 @@ class ArticleService(service.ArticleServiceServicer):
             stub.Article: Created article with generated ID and timestamps
         """
 
-        self.logger.info(f"Creating article with request: {request}")
+        self.logger.info(f"CreateArticle requested")
 
         data: dict = {
             "owner_id": request.owner_id,
             "title": request.title,
             "abstract": request.abstract
         }
+
+        if data["owner_id"] is None or data["owner_id"] <= 0:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Owner ID is required, got '{data['owner_id']}'"
+            context.set_details(error_message)
+            
+            self.logger.error(error_message)
+            
+            return stub.Article()
+        
+        if data["title"] is None or data["title"] == "":
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Title is required, got '{data['title']}'"
+            context.set_details(error_message)
+            
+            self.logger.error(error_message)
+            
+            return stub.Article()
+
+        if data["abstract"] is None or data["abstract"] == "":
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Abstract is required, got '{data['abstract']}'"
+            context.set_details(error_message)
+            
+            self.logger.error(error_message)
+            
+            return stub.Article()
 
         with Session(self.engine) as session:
             article = Article(**data)
@@ -123,15 +150,32 @@ class ArticleService(service.ArticleServiceServicer):
             grpc.StatusCode.NOT_FOUND: If article doesn't exist
         """
 
-        self.logger.info(f"Retrieving article with request: {request}")
+        self.logger.info(f"GetArticle requested")
+
+        data: dict = {
+            "article_id": request.article_id
+        }
+
+        if data["article_id"] is None or data["article_id"] <= 0:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Article ID is required, got '{data['article_id']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+            
+            return stub.Article()
 
         with Session(self.engine) as session:
-            stmt = select(Article).where(Article.id == request.article_id)
+            stmt = select(Article).where(Article.id == data["article_id"])
             article = session.execute(stmt).scalar_one_or_none()
 
             if article is None:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details("Article not found")
+                error_message = f"Article with ID '{data['article_id']}' not found"
+                context.set_details(error_message)
+
+                self.logger.error(error_message)
+
                 return stub.Article()
             
             self.logger.info(f"Retrieved article with ID {article.id}")
@@ -155,14 +199,55 @@ class ArticleService(service.ArticleServiceServicer):
             TODO: Add specific filters (e.g. author_id, title, abstract, etc.)
         """
 
-        self.logger.info(f"Retrieving articles with request: {request}")
+        self.logger.info(f"GetArticles requested")
 
+        data: dict = {
+            "page_number": request.page_number,
+            "page_size": request.page_size,
+            "text": request.text if request.HasField('text') else None,
+            "tags_ids": request.tags_ids
+        }
 
+        # TODO: When tags for articles are implemented, add them to the query
+        del data["tags_ids"]
+
+        if data["page_number"] is None or data["page_number"] <= 0:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Page number must be greater than 0, got '{data['page_number']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
+            return stub.ArticleList()
+
+        if data["page_size"] is None or data["page_size"] <= 0:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Page size must be greater than 0, got '{data['page_size']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
+            return stub.ArticleList()
+
+        self.logger.info(f"Data: {data}")
+        self.logger.info(f"Text: {data['text']}, {type(data['text'])=}, {data['text'] == ""}")
+
+        if data["text"] is not None and data["text"] == "":
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Text is required, got '{data['text']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
+            return stub.ArticleList()
+        
         with Session(self.engine) as session:
-            stmt = (select(Article)
-                    .order_by(Article.created_at.desc())
-                    .offset((request.page_number - 1) * request.page_size)
-                    .limit(request.page_size))
+            stmt = select(Article)
+
+            if data["text"] is not None:
+                stmt = stmt.where(Article.title.ilike(f"%{data['text']}%") | Article.abstract.ilike(f"%{data['text']}%"))
+            
+            stmt = stmt.offset((data["page_number"] - 1) * data["page_size"]).limit(data["page_size"])
             articles = session.execute(stmt).scalars().all()
 
             article_list = stub.ArticleList(total_count=len(articles))
@@ -173,30 +258,68 @@ class ArticleService(service.ArticleServiceServicer):
 
             return article_list
 
-    # Unused
-    # def GetArticlesByAuthorId(self, request, context) -> stub.ArticleList:
-    #     data: dict = {
-    #         "author_id": request.author_id,
-    #         "page_number": request.page_number,
-    #         "page_size": request.page_size
-    #     }
 
-    #     with Session(self.engine) as session:
-    #         total_count_stmt = select(func.count(Article.id)).where(Article.owner_id == data["author_id"])
-    #         total_count = session.execute(total_count_stmt).scalar()
+    def GetArticlesByUserId(self, request, context) -> stub.ArticleList:
+        """
+        Retrieve a paginated list of articles by user ID.
+        
+        Args:
+            request: GetArticlesByUserIdRequest containing:
+                - user_id (int): ID of the user to retrieve articles for
+                - page_number (int): Page number (1-based)
+                - page_size (int): Number of articles per page
+            context: gRPC context
+            
+        Returns:
+            stub.ArticleList: List of articles with total count
+        """
 
-    #         stmt = (select(Article)
-    #                 .where(Article.owner_id == data["author_id"])
-    #                 .order_by(Article.created_at.desc())
-    #                 .offset((data["page_number"] - 1) * data["page_size"])
-    #                 .limit(data["page_size"]))
-    #         articles = session.execute(stmt).scalars().all()
+        self.logger.info(f"GetArticlesByUserId requested")
 
-    #         article_list = stub.ArticleList(total_count=total_count)
-    #         for article in articles:
-    #             article_list.articles.append(stub.Article(**article.get_attrs()))
+        data: dict = {
+            "user_id": request.user_id,
+            "page_number": request.page_number,
+            "page_size": request.page_size
+        }
 
-    #         return article_list
+        if data["user_id"] is None or data["user_id"] <= 0:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"User ID is required, got '{data['user_id']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
+            return stub.ArticleList()
+
+        if data["page_number"] is None or data["page_number"] <= 0:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Page number must be greater than 0, got '{data['page_number']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
+            return stub.ArticleList()
+
+        if data["page_size"] is None or data["page_size"] <= 0:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            error_message = f"Page size must be greater than 0, got '{data['page_size']}'"
+            context.set_details(error_message)
+
+            self.logger.error(error_message)
+
+            return stub.ArticleList()
+
+        with Session(self.engine) as session:
+            stmt = select(Article).where(Article.owner_id == data["user_id"]).offset((data["page_number"] - 1) * data["page_size"]).limit(data["page_size"])
+            articles = session.execute(stmt).scalars().all()
+
+            article_list = stub.ArticleList(total_count=len(articles))
+            for article in articles:
+                article_list.articles.append(stub.Article(**article.get_attrs()))
+
+            self.logger.info(f"Retrieved {len(articles)} articles for user with ID {data['user_id']}")
+
+            return article_list
 
     def UpdateArticle(self, request, context) -> stub.Article:
         """
@@ -216,7 +339,7 @@ class ArticleService(service.ArticleServiceServicer):
             grpc.StatusCode.NOT_FOUND: If article doesn't exist
         """
 
-        self.logger.info(f"Updating article with request: {request}")
+        self.logger.info(f"UpdateArticle requested")
 
         data: dict = {
             "article_id": request.article_id,
@@ -261,7 +384,7 @@ class ArticleService(service.ArticleServiceServicer):
             grpc.StatusCode.NOT_FOUND: If article doesn't exist
         """
 
-        self.logger.info(f"Deleting article with request: {request}")
+        self.logger.info(f"DeleteArticle requested")
 
         with Session(self.engine) as session:
             stmt = select(Article).where(Article.id == request.article_id)
@@ -302,7 +425,7 @@ class ArticleService(service.ArticleServiceServicer):
             grpc.StatusCode.INTERNAL: If file upload fails
         """
 
-        self.logger.info(f"Uploading asset with request: {request_iterator}")
+        self.logger.info(f"UploadAsset requested")
 
         asset_metadata = next(request_iterator)
 
@@ -396,7 +519,8 @@ class ArticleService(service.ArticleServiceServicer):
             grpc.StatusCode.INTERNAL: If file upload fails
         """
 
-        self.logger.info(f"Updating asset with request: {request_iterator}")
+        self.logger.info(f"UpdateAsset requested")
+
         asset_metadata = next(request_iterator)
 
         if asset_metadata.HasField('metadata'):
@@ -491,7 +615,7 @@ class ArticleService(service.ArticleServiceServicer):
             grpc.StatusCode.INTERNAL: If file download fails
         """
 
-        self.logger.info(f"Downloading asset with request: {request}")
+        self.logger.info(f"DownloadAsset requested")
 
         def response_messages():
             # First, retrieve the asset from the database
@@ -542,7 +666,7 @@ class ArticleService(service.ArticleServiceServicer):
             grpc.StatusCode.INTERNAL: If file deletion from storage fails
         """
 
-        self.logger.info(f"Deleting asset with request: {request}")
+        self.logger.info(f"DeleteAsset requested")
 
         with Session(self.engine) as session:
             stmt = select(ArticleAsset).where(ArticleAsset.id == request.asset_id)
@@ -584,7 +708,7 @@ class ArticleService(service.ArticleServiceServicer):
             grpc.StatusCode.NOT_FOUND: If article doesn't exist or has no assets
         """
 
-        self.logger.info(f"Listing assets with request: {request}")
+        self.logger.info(f"ListAssets requested")
 
         with Session(self.engine) as session:
             stmt = select(ArticleAsset).where(ArticleAsset.article_id == request.article_id)
