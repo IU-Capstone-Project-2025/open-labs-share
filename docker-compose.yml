@@ -55,6 +55,8 @@ services:
     environment:
       - NODE_ENV=production
       - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
+    expose:
+      - "5173"
     networks:
       - blue-network
     restart: unless-stopped
@@ -86,6 +88,8 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - FEEDBACK_SERVICE_HOST=feedback-service-blue
       - FEEDBACK_SERVICE_PORT=9090
+    expose:
+      - "8080"
     networks:
       - blue-network
     restart: unless-stopped
@@ -109,6 +113,8 @@ services:
       - USERS_SERVICE_PORT=9093
       - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:-adminadmin}
       - SPRING_PROFILES_ACTIVE=docker
+    expose:
+      - "8081"
     networks:
       - blue-network
     restart: unless-stopped
@@ -267,6 +273,8 @@ services:
       - POSTGRES_DB=chat_history_db
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    expose:
+      - "8082"
     volumes:
       - ./ml:/app/ml
       - ml-models:/app/models
@@ -293,6 +301,8 @@ services:
     environment:
       - NODE_ENV=production
       - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
+    expose:
+      - "5173"
     networks:
       - blue-network
     restart: unless-stopped
@@ -321,6 +331,8 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - FEEDBACK_SERVICE_HOST=feedback-service-test
       - FEEDBACK_SERVICE_PORT=9090
+    expose:
+      - "8080"
     networks:
       - blue-network
     restart: unless-stopped
@@ -343,6 +355,8 @@ services:
       - USERS_SERVICE_PORT=9093
       - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:-adminadmin}
       - SPRING_PROFILES_ACTIVE=docker
+    expose:
+      - "8081"
     networks:
       - blue-network
     restart: unless-stopped
@@ -485,6 +499,8 @@ services:
     environment:
       - NODE_ENV=production
       - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
+    expose:
+      - "5173"
     networks:
       - green-network
     restart: unless-stopped
@@ -516,6 +532,8 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - FEEDBACK_SERVICE_HOST=feedback-service-green
       - FEEDBACK_SERVICE_PORT=9090
+    expose:
+      - "8080"
     networks:
       - green-network
     restart: unless-stopped
@@ -539,6 +557,8 @@ services:
       - USERS_SERVICE_PORT=9093
       - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:-adminadmin}
       - SPRING_PROFILES_ACTIVE=docker
+    expose:
+      - "8081"
     networks:
       - green-network
     restart: unless-stopped
@@ -696,6 +716,8 @@ services:
       - POSTGRES_DB=chat_history_db
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    expose:
+      - "8082"
     volumes:
       - ./ml:/app/ml
       - ml-models:/app/models
