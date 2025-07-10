@@ -33,6 +33,7 @@ import ReviewQueuePage from './pages/ReviewQueuePage';
 import ReviewSubmissionPage from './pages/ReviewSubmissionPage';
 import MyFeedbackPage from './pages/MyFeedbackPage';
 import FeedbackViewPage from './pages/FeedbackViewPage';
+import SearchResultsPage from './pages/SearchResultsPage';
 
 // Component to protect routes that require authentication
 function ProtectedRoute({ children }) {
@@ -231,6 +232,7 @@ function AppContent() {
             <Route path="/feedback/:submissionId" element={<ReviewSubmissionPage />} />
             <Route path="/feedback/my" element={<ProtectedRoute><MyFeedbackPage /></ProtectedRoute>} />
             <Route path="/feedback/view/:feedbackId" element={<ProtectedRoute><FeedbackViewPage /></ProtectedRoute>} />
+            <Route path="/search" element={<ProtectedRoute><SearchResultsPage /></ProtectedRoute>} />
             {/* Catch-all route for undefined paths */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
