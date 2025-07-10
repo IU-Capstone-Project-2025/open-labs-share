@@ -877,6 +877,11 @@ services:
       - blue-network
       - green-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   mongodb-labs:
     image: mongo:latest
