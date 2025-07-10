@@ -2,8 +2,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
+import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
-import "highlight.js/styles/github-dark.css";
+import rehypeKatex from "rehype-katex";
+import 'katex/dist/katex.min.css';
+import 'highlight.js/styles/github-dark.css';
 import GemIcon from "../components/GemIcon";
 import CommentsSection from "../components/CommentsSection";
 import ChatWindow from "../components/ChatWindow";
@@ -50,7 +53,6 @@ export default function LabPage() {
   const [chatMode, setChatMode] = useState('floating'); // 'floating' or 'sidebar'
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
   
-  // Use the custom hook for user state management
   const user = useUser();
 
   const scrollToSubmit = useCallback(() => {
@@ -291,72 +293,6 @@ Lab content delivery is currently being developed. The markdown content for this
       );
     };
 
-  const components = {
-    h1: HeadingRenderer(1),
-    h2: HeadingRenderer(2),
-    h3: HeadingRenderer(3),
-    ul: ({ node, ...props }) => (
-      <ul
-        {...props}
-        className="list-disc pl-6 my-4 space-y-1 dark:text-gray-300"
-      />
-    ),
-    ol: ({ node, ...props }) => (
-      <ol
-        {...props}
-        className="list-decimal pl-6 my-4 space-y-1 dark:text-gray-300"
-      />
-    ),
-    li: ({ node, ...props }) => <li {...props} className="pl-2" />,
-    pre: ({ node, ...props }) => (
-      <pre
-        {...props}
-        className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 overflow-x-auto my-4"
-      />
-    ),
-    code: ({ node, className, children, ...props }) => {
-      const match = /language-(\w+)/.exec(className || "");
-      const isInline = !match;
-
-      return isInline ? (
-        <code
-          className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm"
-          {...props}
-        >
-          {children}
-        </code>
-      ) : (
-        <code className={className} {...props}>
-          {children}
-        </code>
-      );
-    },
-    p: ({ node, ...props }) => (
-      <p {...props} className="my-4 leading-relaxed dark:text-gray-300" />
-    ),
-    blockquote: ({ node, ...props }) => (
-      <blockquote
-        {...props}
-        className="border-l-4 border-msc pl-4 my-4 italic dark:text-gray-300"
-      />
-    ),
-    a: ({ node, ...props }) => (
-      <a
-        {...props}
-        className="text-msc hover:text-msc-hover underline"
-        target="_blank"
-        rel="noopener noreferrer"
-      />
-    ),
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-msc"></div>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -437,9 +373,61 @@ Lab content delivery is currently being developed. The markdown content for this
         <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-8">
           <article className="prose dark:prose-invert max-w-none">
             <ReactMarkdown
-              rehypePlugins={[rehypeHighlight]}
-              remarkPlugins={[remarkGfm]}
-              components={components}
+              remarkPlugins={[
+                remarkGfm,
+                remarkMath
+              ]}
+              rehypePlugins={[
+                rehypeKatex,
+                rehypeHighlight
+              ]}
+              components={{
+                h1: HeadingRenderer(1),
+                h2: HeadingRenderer(2),
+                h3: HeadingRenderer(3),
+                p: ({ node, ...props }) => (
+                  <p {...props} className="my-4 leading-relaxed dark:text-gray-300" />
+                ),
+                ul: ({ node, ...props }) => (
+                  <ul {...props} className="list-disc pl-6 my-4 space-y-2 dark:text-gray-300" />
+                ),
+                ol: ({ node, ...props }) => (
+                  <ol {...props} className="list-decimal pl-6 my-4 space-y-2 dark:text-gray-300" />
+                ),
+                li: ({ node, ...props }) => <li {...props} className="pl-2 my-1" />,
+                pre: ({ node, ...props }) => (
+                  <pre {...props} className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 overflow-x-auto my-6" />
+                ),
+                code: ({ node, className, children, ...props }) => {
+                  const match = /language-(\w+)/.exec(className || "");
+                  const isInline = !match;
+
+                  return isInline ? (
+                    <code
+                      className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm"
+                      {...props}
+                    >
+                      {children}
+                    </code>
+                  ) : (
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  );
+                },
+                
+                table: ({ node, ...props }) => (
+                  <div className="overflow-x-auto">
+                    <table {...props} className="min-w-full divide-y divide-gray-700 my-4 border border-gray-700" />
+                  </div>
+                ),
+                th: ({ node, ...props }) => (
+                  <th {...props} className="px-4 py-2 bg-gray-800 text-left text-sm font-semibold text-white border-b border-gray-700" />
+                ),
+                td: ({ node, ...props }) => (
+                  <td {...props} className="px-4 py-2 text-sm text-black border-b border-gray-700" />
+                ),
+              }}
             >
               {markdown}
             </ReactMarkdown>
