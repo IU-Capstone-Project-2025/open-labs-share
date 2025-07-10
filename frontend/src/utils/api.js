@@ -240,3 +240,22 @@ export const feedbackAPI = {
     return apiCall(url);
   },
 };
+
+// --- Tags API ---
+export const tagsAPI = {
+  createTag: (tagData) => apiCall('/tags', {
+    method: 'POST',
+    body: JSON.stringify(tagData),
+  }),
+  getTagById: (tagId) => apiCall(`/tags/${tagId}`),
+  getTagsByIds: (ids) => apiCall('/tags/by-ids', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  }),
+  getTags: (page = 0, limit = 50) => apiCall(`/tags?page=${page}&limit=${limit}`),
+  updateTag: (tagData) => apiCall('/tags/update', {
+    method: 'PUT',
+    body: JSON.stringify(tagData),
+  }),
+  deleteTag: (tagId) => apiCall(`/tags/${tagId}`, { method: 'DELETE' }),
+};

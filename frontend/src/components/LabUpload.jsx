@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { labsAPI } from '../utils/api';
+import { useState, useEffect } from 'react';
+import { labsAPI, tagsAPI } from '../utils/api';
 import { getCurrentUser } from '../utils/auth';
 import { TagsInput } from "../components/Tags";
+import { Tooltip } from '../components/Tooltip';
 
 export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
   const [labData, setLabData] = useState({
@@ -14,8 +15,28 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [dragActive, setDragActive] = useState(false);
-  const [availableTags] = useState(['JavaScript', 'Python', 'React', 'Machine Learning', 'Algorithms']);//will be backend request
+  const [availableTags, setAvailableTags] = useState([]);
+  const [loadingTags, setLoadingTags] = useState(false);
+  const [showCreateTag, setShowCreateTag] = useState(false);
+  const [newTagData, setNewTagData] = useState({ name: '', description: '' });
+  const [creatingTag, setCreatingTag] = useState(false);
 
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        setLoadingTags(true);
+        const response = await tagsAPI.getTags(1, 100); // Получаем больше тегов
+        setAvailableTags(response.tags || []);
+      } catch (err) {
+        console.error('Error fetching tags:', err);
+        setError('Failed to load tags');
+      } finally {
+        setLoadingTags(false);
+      }
+    };
+
+    fetchTags();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -24,11 +45,15 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
       [name]: value
     }));
   };
-  const handleAddTag = (tag) => {
-    setLabData(prev => ({
-      ...prev,
-      tags: [...prev.tags, tag]
-    }));
+
+  const handleAddTag = (tagId) => {
+    // Добавляем тег только если его еще нет в списке
+    if (!labData.tags.includes(tagId)) {
+      setLabData(prev => ({
+        ...prev,
+        tags: [...prev.tags, tagId]
+      }));
+    }
   };
 
   const handleRemoveTag = (tagToRemove) => {
@@ -36,6 +61,38 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
+  };
+
+  const handleCreateTag = async (e) => {
+    e.preventDefault();
+    if (!newTagData.name.trim()) {
+      setError('Tag name is required');
+      return;
+    }
+
+    setCreatingTag(true);
+    try {
+      const createdTag = await tagsAPI.createTag({
+        name: newTagData.name.trim(),
+        description: newTagData.description.trim()
+      });
+      
+      // Добавляем новый тег к списку доступных
+      setAvailableTags(prev => [...prev, createdTag]);
+      
+      // Автоматически добавляем новый тег к лабе
+      handleAddTag(createdTag.id);
+      
+      // Очищаем форму и закрываем модальное окно
+      setNewTagData({ name: '', description: '' });
+      setShowCreateTag(false);
+      setError(null);
+    } catch (err) {
+      console.error('Error creating tag:', err);
+      setError(err.message || 'Failed to create tag');
+    } finally {
+      setCreatingTag(false);
+    }
   };
 
   const handleFileChange = (e) => {
@@ -114,9 +171,9 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
       formData.append('short_desc', labData.short_desc);
       formData.append('md_file', labData.md_file);
 
-      labData.tags.forEach(tag => {
-        formData.append('tags', tag);
-      });
+      if (labData.tags.length > 0) {
+        formData.append('tags', labData.tags.join(','));
+      }
       
       if (labData.assets && labData.assets.length > 0) {
         for (const asset of labData.assets) {
@@ -132,6 +189,12 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
     } finally {
       setUploading(false);
     }
+  };
+
+  const getSelectedTags = () => {
+    return labData.tags.map(tagId => 
+      availableTags.find(tag => tag.id === tagId)
+    ).filter(Boolean);
   };
 
   const content = (
@@ -179,17 +242,115 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
           />
         </div>
 
+        {/* Tags Section */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Tags
-          </label>
-          <TagsInput 
-              tags={labData.tags}
-              availableTags={availableTags}
-              onAddTag={handleAddTag}
-              onRemoveTag={handleRemoveTag}
-            />
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Tags
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowCreateTag(true)}
+              className="text-sm text-msc hover:text-msc-hover font-medium"
+            >
+              + Create New Tag
+            </button>
           </div>
+          
+          {loadingTags ? (
+            <div className="text-sm text-gray-500">Loading tags...</div>
+          ) : (
+            <div className="space-y-3">
+              {/* Available Tags */}
+              <div>
+                <p className="text-xs text-gray-500 mb-2">Available Tags:</p>
+                <div className="flex flex-wrap gap-2">
+                  {availableTags.map(tag => (
+                    tag.description && tag.description.length > 1 ? (
+                      <Tooltip 
+                        key={tag.id}
+                        content={tag.description}
+                        position="top"
+                        delay={200}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleAddTag(tag.id)}
+                          disabled={labData.tags.includes(tag.id)}
+                          className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                            labData.tags.includes(tag.id)
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              : 'bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200'
+                          }`}
+                        >
+                          {tag.name}
+                        </button>
+                      </Tooltip>
+                    ) : (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => handleAddTag(tag.id)}
+                        disabled={labData.tags.includes(tag.id)}
+                        className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                          labData.tags.includes(tag.id)
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200'
+                        }`}
+                      >
+                        {tag.name}
+                      </button>
+                    )
+                  ))}
+                  {availableTags.length === 0 && (
+                    <span className="text-gray-500 text-sm">No tags available</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Selected Tags */}
+              {labData.tags.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">Selected Tags:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {getSelectedTags().map(tag => (
+                      tag.description && tag.description.length > 1 ? (
+                        <Tooltip 
+                          key={tag.id}
+                          content={tag.description}
+                          position="top"
+                          delay={200}
+                        >
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-msc text-white">
+                            {tag.name}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveTag(tag.id)}
+                              className="ml-1 text-white hover:text-gray-200"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        </Tooltip>
+                      ) : (
+                        <span key={tag.id} className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-msc text-white">
+                          {tag.name}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTag(tag.id)}
+                            className="ml-1 text-white hover:text-gray-200"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Markdown File Upload */}
         <div>
@@ -303,6 +464,75 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
           </button>
         </div>
       </form>
+
+      {/* Create Tag Modal */}
+      {showCreateTag && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Create New Tag
+            </h3>
+            <form onSubmit={handleCreateTag} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Tag Name *
+                </label>
+                <input
+                  type="text"
+                  value={newTagData.name}
+                  onChange={(e) => setNewTagData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter tag name..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Description (optional)
+                </label>
+                <textarea
+                  value={newTagData.description}
+                  onChange={(e) => setNewTagData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter tag description..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                />
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateTag(false);
+                    setNewTagData({ name: '', description: '' });
+                    setError(null);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                  disabled={creatingTag}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingTag}
+                  className="px-4 py-2 bg-msc text-white rounded-md hover:bg-msc-hover disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                  {creatingTag ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Tag'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -321,4 +551,4 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
       {content}
     </div>
   );
-} 
+}
