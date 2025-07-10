@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/database"
@@ -89,65 +90,78 @@ func (r *commentRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("invalid comment ID: %w", err)
 	}
 
-	// Start a transaction to delete comment and all its replies
-	session, err := r.mongodb.Client.StartSession()
-	if err != nil {
-		return fmt.Errorf("failed to start session: %w", err)
+	// Delete all replies first (recursive)
+	if err := r.DeleteReplies(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete replies: %w", err)
 	}
-	defer session.EndSession(ctx)
 
-	_, err = session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
-		// Delete all replies first
-		if err := r.DeleteReplies(sc, id); err != nil {
-			return nil, err
-		}
+	// Delete the comment itself
+	result, err := r.mongodb.Collection.DeleteOne(ctx, bson.M{"_id": objectID})
+	if err != nil {
+		return fmt.Errorf("failed to delete comment: %w", err)
+	}
 
-		// Delete the comment itself
-		result, err := r.mongodb.Collection.DeleteOne(sc, bson.M{"_id": objectID})
-		if err != nil {
-			return nil, fmt.Errorf("failed to delete comment: %w", err)
-		}
+	if result.DeletedCount == 0 {
+		return fmt.Errorf("comment not found")
+	}
 
-		if result.DeletedCount == 0 {
-			return nil, fmt.Errorf("comment not found")
-		}
-
-		return nil, nil
-	})
-
-	return err
+	return nil
 }
 
 // DeleteReplies deletes all replies to a specific comment (recursive)
 func (r *commentRepository) DeleteReplies(ctx context.Context, parentID string) error {
-	// Find all direct replies
-	filter := bson.M{"parent_id": parentID}
-	cursor, err := r.mongodb.Collection.Find(ctx, filter)
+	// Get all descendant IDs first
+	descendantIDs, err := r.getAllDescendantIDs(ctx, parentID)
 	if err != nil {
-		return fmt.Errorf("failed to find replies: %w", err)
-	}
-	defer cursor.Close(ctx)
-
-	// Recursively delete replies to replies
-	for cursor.Next(ctx) {
-		var reply models.Comment
-		if err := cursor.Decode(&reply); err != nil {
-			return fmt.Errorf("failed to decode reply: %w", err)
-		}
-
-		// Recursively delete replies to this reply
-		if err := r.DeleteReplies(ctx, reply.ID.Hex()); err != nil {
-			return err
-		}
+		return fmt.Errorf("failed to get descendant IDs: %w", err)
 	}
 
-	// Delete all direct replies
+	// If no descendants, nothing to delete
+	if len(descendantIDs) == 0 {
+		return nil
+	}
+
+	// Delete all descendants in a single operation
+	filter := bson.M{"_id": bson.M{"$in": descendantIDs}}
 	_, err = r.mongodb.Collection.DeleteMany(ctx, filter)
 	if err != nil {
 		return fmt.Errorf("failed to delete replies: %w", err)
 	}
 
 	return nil
+}
+
+// getAllDescendantIDs recursively collects all descendant comment IDs
+func (r *commentRepository) getAllDescendantIDs(ctx context.Context, parentID string) ([]primitive.ObjectID, error) {
+	var allIDs []primitive.ObjectID
+
+	// Find all direct replies
+	filter := bson.M{"parent_id": parentID}
+	cursor, err := r.mongodb.Collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find replies: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	// Collect direct reply IDs and recursively get their descendants
+	for cursor.Next(ctx) {
+		var reply models.Comment
+		if err := cursor.Decode(&reply); err != nil {
+			return nil, fmt.Errorf("failed to decode reply: %w", err)
+		}
+
+		// Add this reply's ID
+		allIDs = append(allIDs, reply.ID)
+
+		// Recursively get descendants of this reply
+		descendants, err := r.getAllDescendantIDs(ctx, reply.ID.Hex())
+		if err != nil {
+			return nil, err
+		}
+		allIDs = append(allIDs, descendants...)
+	}
+
+	return allIDs, nil
 }
 
 // ListByContext lists comments by content ID
@@ -161,14 +175,23 @@ func (r *commentRepository) ListByContext(ctx context.Context, filter models.Com
 	if filter.ParentID != nil {
 		mongoFilter["parent_id"] = *filter.ParentID
 	} else {
-		mongoFilter["parent_id"] = bson.M{"$exists": false}
+		// For top-level comments, look for documents where parent_id doesn't exist, is null, or is empty string
+		mongoFilter["$or"] = []bson.M{
+			{"parent_id": bson.M{"$exists": false}},
+			{"parent_id": nil},
+			{"parent_id": ""},
+		}
 	}
+
+	log.Printf("MongoDB filter: %+v", mongoFilter)
 
 	// Get total count
 	totalCount, err := r.mongodb.Collection.CountDocuments(ctx, mongoFilter)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count comments: %w", err)
 	}
+
+	log.Printf("Total count found: %d", totalCount)
 
 	// Set up find options with pagination and sorting
 	findOptions := options.Find()

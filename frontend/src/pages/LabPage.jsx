@@ -627,7 +627,12 @@ Lab content delivery is currently being developed. The markdown content for this
             </div>
           </div>
           
-          <CommentsSection contentType="lab" contentId={id} userId={user?.id} />
+          <CommentsSection 
+            contentType="lab" 
+            contentId={id} 
+            userId={user?.id}
+            userName={`${user?.firstName} ${user?.lastName}`}
+          />
         </section>
         </div>
 

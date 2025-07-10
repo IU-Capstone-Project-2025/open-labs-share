@@ -6,8 +6,9 @@ import Spinner from '../components/Spinner';
 import { DocumentTextIcon, ClockIcon, UserIcon } from '@heroicons/react/24/outline';
 
 const SubmissionCard = ({ submission }) => {
+
   const { submissionId, labId, owner, createdAt } = submission;
-  
+
   return (
     <Link to={`/feedback/${submissionId}`} className="block group">
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-200 dark:border-gray-700">
@@ -52,15 +53,16 @@ const ReviewQueuePage = () => {
       
       try {
         setLoading(true);
-        // Используем новую ручку для получения сабмишенов для ревью
+
+
         const response = await submissionsAPI.getSubmissionsForReview();
-        
-        // Извлекаем данные согласно новой структуре API
+     
         const submissionsData = response.submissions || [];
         const total = response.totalCount || 0;
         
         setSubmissions(submissionsData);
         setTotalCount(total);
+
       } catch (err) {
         setError('Failed to fetch submissions for review.');
         console.error(err);

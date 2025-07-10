@@ -39,24 +39,24 @@ echo "Waiting for $TARGET_ENV environment to be healthy..."
 SECONDS=0
 while [ $SECONDS -lt $HEALTH_CHECK_TIMEOUT ]; do
     ALL_HEALTHY=true
-    # # Now we iterate over the full service names
-    # for service_name in "${SERVICES_TO_DEPLOY[@]}"; do
-    #     # docker-compose ps -q <service_name> might return an empty string if the container is not found yet, so we guard it.
-    #     container_id=$(docker-compose ps -q $service_name)
-    #     if [ -z "$container_id" ]; then
-    #         ALL_HEALTHY=false
-    #         echo "Service $service_name is not running yet."
-    #         break
-    #     fi
+    # Now we iterate over the full service names
+    for service_name in "${SERVICES_TO_DEPLOY[@]}"; do
+        # docker-compose ps -q <service_name> might return an empty string if the container is not found yet, so we guard it.
+        container_id=$(docker-compose ps -q $service_name)
+        if [ -z "$container_id" ]; then
+            ALL_HEALTHY=false
+            echo "Service $service_name is not running yet."
+            break
+        fi
 
-    #     HEALTH_STATUS=$(docker inspect --format '{{.State.Health.Status}}' $container_id 2>/dev/null || echo "unhealthy")
+        HEALTH_STATUS=$(docker inspect --format '{{.State.Health.Status}}' $container_id 2>/dev/null || echo "unhealthy")
 
-    #     if [ "$HEALTH_STATUS" != "healthy" ]; then
-    #         ALL_HEALTHY=false
-    #         echo "Service $service_name is not healthy yet (Status: $HEALTH_STATUS)."
-    #         break
-    #     fi
-    # done
+        if [ "$HEALTH_STATUS" != "healthy" ]; then
+            ALL_HEALTHY=false
+            echo "Service $service_name is not healthy yet (Status: $HEALTH_STATUS)."
+            break
+        fi
+    done
 
     if $ALL_HEALTHY; then
         echo "$TARGET_ENV environment is healthy."
@@ -73,3 +73,4 @@ echo "Timeout reached. $TARGET_ENV environment is not healthy."
 # If timeout is reached, rollback
 ./scripts/rollback.sh $TARGET_ENV
 exit 1
+

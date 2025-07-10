@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/models"
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/repository"
@@ -108,6 +109,8 @@ func (s *CommentService) DeleteComment(ctx context.Context, id string) error {
 
 // ListComments lists comments by content ID
 func (s *CommentService) ListComments(ctx context.Context, contentID int64, parentID *string, page, limit int32) ([]*models.Comment, int32, error) {
+	log.Printf("ListComments called: contentID=%d, parentID=%v, page=%d, limit=%d", contentID, parentID, page, limit)
+
 	if contentID <= 0 {
 		return nil, 0, fmt.Errorf("invalid content ID")
 	}
@@ -125,11 +128,15 @@ func (s *CommentService) ListComments(ctx context.Context, contentID int64, pare
 		Limit:     limit,
 	}
 
+	// Log the request
+	log.Printf("Listing comments - ContentID: %d, ParentID: %v, Page: %d, Limit: %d", contentID, parentID, page, limit)
+
 	comments, totalCount, err := s.commentRepo.ListByContext(ctx, filter)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list comments: %w", err)
 	}
 
+	log.Printf("ListComments result: found %d comments, totalCount=%d", len(comments), totalCount)
 	return comments, totalCount, nil
 }
 
