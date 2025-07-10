@@ -2,3 +2,6 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+.group-hover\:block {
+  transition: opacity 0.2s ease-in-out;
+}
