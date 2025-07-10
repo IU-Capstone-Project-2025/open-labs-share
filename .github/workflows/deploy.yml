@@ -30,9 +30,7 @@ jobs:
 
       - name: Build and push images
         run: |
-          docker buildx bake --push \
-            --set "*.REGISTRY=ghcr.io/${{ github.repository_owner }}" \
-            production-build
+          docker buildx bake --push production-build
 
   deploy:
     needs: build
