@@ -142,11 +142,8 @@ export const usersAPI = {
 
 // --- Labs API ---
 export const labsAPI = {
-  getLabs: (page = 1, limit = 100, search = "") => apiCall(`/labs?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`),
-  getMyLabs: (page = 1, limit = 20) => apiCall('/labs/my', {
-    // Add a cache-busting parameter to ensure fresh data
-    params: { _: new Date().getTime() },
-  }),
+  getLabs: (page = 1, limit = 20, search = "", tags = "") => apiCall(`/labs?page=${page}&limit=${limit}&text=${encodeURIComponent(search)}&tags=${tags}`),
+  getMyLabs: (page = 1, limit = 20) => apiCall(`/labs/my?page=${page}&limit=${limit}`),
   getLabById: (labId) => apiCall(`/labs/${labId}`),
   createLab: (formData) => apiCall('/labs', {
     method: 'POST',
@@ -163,19 +160,22 @@ export const labsAPI = {
     body: formData,
   }),
   downloadLabAsset: (labId, assetId) => apiCall(`/labs/${labId}/assets/${assetId}/download`),
+  searchLabs: (query, page = 1, limit = 20, tags = '') => 
+    apiCall(`/labs?text=${encodeURIComponent(query)}&page=${page}&limit=${limit}&tags=${tags}`),
 };
 
 // --- Articles API ---
 export const articlesAPI = {
-  // getArticles: (page = 1, limit = 20) => apiCall(`/articles?page=${page}&limit=${limit}`),
-  getArticles: (page = 1, limit = 100, search = "") => apiCall(`/articles?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`),
-  getMyArticles: (page = 1, limit = 20) => apiCall('/articles/my'),
+  getArticles: (page = 1, limit = 20, search = "", tags = "") => apiCall(`/articles?page=${page}&limit=${limit}&text=${encodeURIComponent(search)}&tags=${tags}`),
+  getMyArticles: (page = 1, limit = 20) => apiCall(`/articles/my?page=${page}&limit=${limit}`),
   getArticleById: (articleId) => apiCall(`/articles/${articleId}`),
   createArticle: (formData) => apiCall('/articles', {
     method: 'POST',
     body: formData,
   }),
   deleteArticle: (articleId) => apiCall(`/articles/${articleId}`, { method: 'DELETE' }),
+  searchArticles: (query, page = 1, limit = 20, tags = '') => 
+    apiCall(`/articles?text=${encodeURIComponent(query)}&page=${page}&limit=${limit}&tags=${tags}`),
 };
 
 // --- Submissions API ---

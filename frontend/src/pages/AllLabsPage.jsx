@@ -13,19 +13,8 @@ export default function AllLabsPage() {
     const fetchLabs = async () => {
       try {
         setLoading(true);
-        console.log('AllLabsPage: Fetching labs from backend API...');
-        const response = await labsAPI.getLabs();
-        console.log('AllLabsPage: Received response:', response);
-        console.log('AllLabsPage: Response type:', typeof response);
-        console.log('AllLabsPage: Response.labs:', response.labs);
-        console.log('AllLabsPage: Response.labs type:', typeof response.labs);
-        console.log('AllLabsPage: Response.labs length:', response.labs ? response.labs.length : 'null/undefined');
-        
-        // Handle different possible response structures
-        const labsArray = response.labs || response || [];
-        console.log('AllLabsPage: Processed labs array:', labsArray);
-        console.log('AllLabsPage: Processed labs array length:', labsArray.length);
-        setLabsData(labsArray);
+        const response = await labsAPI.getLabs(1, 100); // page=1, limit=100
+        setLabsData(response.labs || []);
         
       } catch (err) {
         console.error('AllLabsPage: Error fetching labs:', err);

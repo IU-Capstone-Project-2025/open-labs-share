@@ -15,8 +15,7 @@ export default function AllArticlesPage() {
     const fetchArticles = async () => {
       try {
         setLoading(true);
-        // TODO: Replace with real API call when articles service is connected
-        const response = await articlesAPI.getArticles();
+        const response = await articlesAPI.getArticles(1, 100); // page=1, limit=100
         setArticles(response.articles || []);
         
       } catch (err) {

@@ -22,8 +22,8 @@ export default function MyLabsPage() {
     const fetchMyLabs = async () => {
       try {
         setLoading(true);
-        const response = await labsAPI.getMyLabs();
-        setMyLabs(response.labs || response || []);
+        const response = await labsAPI.getMyLabs(1, 20); // page=1, limit=20
+        setMyLabs(response.labs || []);
       } catch (err) {
         console.error('Error fetching my labs:', err);
         if (err.message.includes('401') || err.message.includes('Unauthorized')) {
