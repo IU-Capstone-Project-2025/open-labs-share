@@ -798,8 +798,6 @@ services:
     networks:
       - blue-network
       - green-network
-    profiles:
-      - ml
 
   postgres-ml:
     image: postgres:15
@@ -812,8 +810,6 @@ services:
     networks:
       - blue-network
       - green-network
-    profiles:
-      - ml
       
   ml-redis-broker:
     image: redis:7
@@ -823,8 +819,6 @@ services:
     networks:
       - blue-network
       - green-network
-    profiles:
-      - ml
 
   ml-celery-worker:
     build:
@@ -842,8 +836,6 @@ services:
     networks:
       - blue-network
       - green-network
-    profiles:
-      - ml
       
   minio:
     image: minio/minio:latest
