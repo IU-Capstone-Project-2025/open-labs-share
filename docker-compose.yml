@@ -19,7 +19,7 @@ services:
   haproxy:
     image: haproxy:2.8
     volumes:
-      - ./haproxy/haproxy.blue.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./haproxy:/usr/local/etc/haproxy:ro
     environment:
       - ACTIVE_ENV=blue
     ports:
