@@ -24,7 +24,7 @@ group "production-build" {
 }
 
 variable "REGISTRY" {
-  default = "ghcr.io/IU-Capstone-Project-2025"
+  default = "ghcr.io/iu-capstone-project-2025"
 }
 
 target "frontend" {

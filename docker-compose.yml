@@ -48,7 +48,7 @@ services:
 
   # --- Blue Environment ---
   frontend-blue:
-    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-frontend:latest
+    image: ghcr.io/iu-capstone-project-2025/open-labs-share-frontend:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
@@ -67,7 +67,7 @@ services:
       start_period: 60s
 
   api-gateway-blue:
-    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-api-gateway:latest
+    image: ghcr.io/iu-capstone-project-2025/open-labs-share-api-gateway:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.api-gateway
@@ -98,7 +98,7 @@ services:
       start_period: 60s
 
   auth-service-blue:
-    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-auth-service:latest
+    image: ghcr.io/iu-capstone-project-2025/open-labs-share-auth-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.auth-service
@@ -121,7 +121,7 @@ services:
       start_period: 60s
 
   users-service-blue:
-    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-users-service:latest
+    image: ghcr.io/iu-capstone-project-2025/open-labs-share-users-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.users-service
@@ -143,7 +143,7 @@ services:
       start_period: 60s
 
   labs-service-blue:
-    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-labs-service:latest
+    image: ghcr.io/iu-capstone-project-2025/open-labs-share-labs-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.labs-service
@@ -175,7 +175,7 @@ services:
       start_period: 60s
 
   articles-service-blue:
-    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-articles-service:latest
+    image: ghcr.io/iu-capstone-project-2025/open-labs-share-articles-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.articles-service
@@ -203,7 +203,7 @@ services:
       start_period: 60s
 
   feedback-service-blue:
-    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-feedback-service:latest
+    image: ghcr.io/iu-capstone-project-2025/open-labs-share-feedback-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.feedback-service
@@ -234,7 +234,7 @@ services:
       start_period: 60s
 
   ml-service-blue:
-    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-ml-service:latest
+    image: ghcr.io/iu-capstone-project-2025/open-labs-share-ml-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.ml-service
@@ -449,7 +449,7 @@ services:
 
   # --- Green Environment ---
   frontend-green:
-    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-frontend:latest
+    image: ghcr.io/iu-capstone-project-2025/open-labs-share-frontend:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
@@ -468,7 +468,7 @@ services:
       start_period: 60s
 
   api-gateway-green:
-    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-api-gateway:latest
+    image: ghcr.io/iu-capstone-project-2025/open-labs-share-api-gateway:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.api-gateway
@@ -499,7 +499,7 @@ services:
       start_period: 60s
 
   auth-service-green:
-    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-auth-service:latest
+    image: ghcr.io/iu-capstone-project-2025/open-labs-share-auth-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.auth-service
@@ -522,7 +522,7 @@ services:
       start_period: 60s
 
   users-service-green:
-    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-users-service:latest
+    image: ghcr.io/iu-capstone-project-2025/open-labs-share-users-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.users-service
@@ -544,7 +544,7 @@ services:
       start_period: 60s
 
   labs-service-green:
-    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-labs-service:latest
+    image: ghcr.io/iu-capstone-project-2025/open-labs-share-labs-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.labs-service
@@ -576,7 +576,7 @@ services:
       start_period: 60s
 
   articles-service-green:
-    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-articles-service:latest
+    image: ghcr.io/iu-capstone-project-2025/open-labs-share-articles-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.articles-service
@@ -603,7 +603,7 @@ services:
       start_period: 60s
 
   feedback-service-green:
-    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-feedback-service:latest
+    image: ghcr.io/iu-capstone-project-2025/open-labs-share-feedback-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.feedback-service
@@ -634,7 +634,7 @@ services:
       start_period: 60s
 
   ml-service-green:
-    image: ghcr.io/IU-Capstone-Project-2025/open-labs-share-ml-service:latest
+    image: ghcr.io/iu-capstone-project-2025/open-labs-share-ml-service:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.ml-service
