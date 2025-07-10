@@ -141,6 +141,8 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    depends_on:
+      - postgres-users
 
   labs-service-blue:
     image: ghcr.io/iu-capstone-project-2025/open-labs-share-labs-service:latest
@@ -173,6 +175,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    depends_on:
+      - postgres-labs
+      - mongodb-labs
+      - minio
 
   articles-service-blue:
     image: ghcr.io/iu-capstone-project-2025/open-labs-share-articles-service:latest
@@ -201,6 +207,9 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    depends_on:
+      - postgres-articles
+      - minio
 
   feedback-service-blue:
     image: ghcr.io/iu-capstone-project-2025/open-labs-share-feedback-service:latest
@@ -232,6 +241,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    depends_on:
+      - postgres-feedback
+      - mongodb-feedback
+      - minio
 
   ml-service-blue:
     image: ghcr.io/iu-capstone-project-2025/open-labs-share-ml-service:latest
@@ -268,6 +281,9 @@ services:
       timeout: 10s
       retries: 5
       start_period: 120s
+    depends_on:
+      - postgres-ml
+      - minio
 
   # --- Test Environment ---
   frontend-test:
@@ -358,6 +374,8 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    depends_on:
+      - postgres-users
 
   labs-service-test:
     build:
@@ -389,6 +407,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    depends_on:
+      - postgres-labs
+      - mongodb-labs
+      - minio
 
   articles-service-test:
     build:
@@ -415,6 +437,9 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    depends_on:
+      - postgres-articles
+      - minio
 
   feedback-service-test:
     build:
@@ -426,7 +451,7 @@ services:
       - POSTGRES_PORT=5432
       - POSTGRES_USER=feedback_user
       - POSTGRES_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD:-feedback_password}
-      - POSTGRES_NAME=feedback_db
+      - POSTGRES_DB=feedback_db
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -445,6 +470,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    depends_on:
+      - postgres-feedback
+      - mongodb-feedback
+      - minio
 
 
   # --- Green Environment ---
@@ -542,6 +571,8 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    depends_on:
+      - postgres-users
 
   labs-service-green:
     image: ghcr.io/iu-capstone-project-2025/open-labs-share-labs-service:latest
@@ -574,6 +605,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    depends_on:
+      - postgres-labs
+      - mongodb-labs
+      - minio
 
   articles-service-green:
     image: ghcr.io/iu-capstone-project-2025/open-labs-share-articles-service:latest
@@ -601,6 +636,9 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    depends_on:
+      - postgres-articles
+      - minio
 
   feedback-service-green:
     image: ghcr.io/iu-capstone-project-2025/open-labs-share-feedback-service:latest
@@ -632,6 +670,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    depends_on:
+      - postgres-feedback
+      - mongodb-feedback
+      - minio
 
   ml-service-green:
     image: ghcr.io/iu-capstone-project-2025/open-labs-share-ml-service:latest
@@ -667,6 +709,9 @@ services:
       timeout: 10s
       retries: 5
       start_period: 120s
+    depends_on:
+      - postgres-ml
+      - minio
 
   # --- Shared Services ---
   postgres-users:
