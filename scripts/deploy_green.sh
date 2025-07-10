@@ -26,9 +26,13 @@ echo "Deploying services: ${SERVICES_TO_DEPLOY[@]} to $TARGET_ENV environment"
 # To skip, run with LOCAL_TESTING=true (e.g., LOCAL_TESTING=true ./scripts/deploy_green.sh)
 if [ "$LOCAL_TESTING" != "true" ]; then
     echo "Pulling latest images from registry..."
-    docker-compose --profile $TARGET_ENV pull ${SERVICES_TO_DEPLOY[@]}
+    if ! docker-compose --profile $TARGET_ENV pull ${SERVICES_TO_DEPLOY[@]}; then
+        echo "Failed to pull images from registry. Building images locally..."
+        docker-compose --profile $TARGET_ENV build ${SERVICES_TO_DEPLOY[@]}
+    fi
 else
-    echo "LOCAL_TESTING is true, skipping image pull."
+    echo "LOCAL_TESTING is true, skipping image pull and building locally..."
+    docker-compose --profile $TARGET_ENV build ${SERVICES_TO_DEPLOY[@]}
 fi
 
 # The --build flag is removed to ensure we use the images from the registry.
