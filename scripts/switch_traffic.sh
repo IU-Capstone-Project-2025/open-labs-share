@@ -27,11 +27,11 @@ echo "Traffic switched to $NEW_COLOR"
 
 # Stop the old environment's services
 if [ -n "$OLD_COLOR" ] && [ "$OLD_COLOR" != "$NEW_COLOR" ]; then
-    echo "Stopping old environment: $OLD_COLOR"
+echo "Stopping old environment: $OLD_COLOR"
     SERVICES_TO_STOP=($(docker-compose --profile "$OLD_COLOR" config --services))
     if [ ${#SERVICES_TO_STOP[@]} -gt 0 ]; then
         docker-compose --profile "$OLD_COLOR" stop
-        echo "Old environment $OLD_COLOR stopped."
+echo "Old environment $OLD_COLOR stopped."
     else
         echo "No services found for the old environment: $OLD_COLOR. Nothing to stop."
     fi
