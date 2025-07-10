@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { commentsAPI } from "../utils/api";
+import ToastNotification from "./ToastNotification";
 
 export default function CommentsSection({ contentType, contentId, userId, userName }) {
   const [comments, setComments] = useState([]);
@@ -15,6 +16,9 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
   const [totalComments, setTotalComments] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loadingReplies, setLoadingReplies] = useState(new Set());
+  const [notification, setNotification] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState(null);
 
   // Validate props
   if (!['lab', 'article'].includes(contentType)) {
@@ -39,6 +43,10 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
       setPage(pageNum);
     } catch (error) {
       console.error("Error fetching comments:", error);
+      setNotification({
+        message: "Error loading comments",
+        type: "error"
+      });
     } finally {
       setLoading(false);
     }
@@ -59,6 +67,10 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
       setExpandedReplies(prev => new Set([...prev, commentId]));
     } catch (error) {
       console.error("Error fetching replies:", error);
+      setNotification({
+        message: "Error loading replies",
+        type: "error"
+      });
     } finally {
       setLoadingReplies(prev => {
         const newSet = new Set(prev);
@@ -81,9 +93,16 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
       setNewComment("");
       setComments(prev => [response, ...prev]);
       setTotalComments(prev => prev + 1);
+      setNotification({
+        message: "Comment posted successfully",
+        type: "success"
+      });
     } catch (error) {
       console.error("Error submitting comment:", error);
-      alert("Error submitting comment. Please try again.");
+      setNotification({
+        message: "Error submitting comment. Please try again.",
+        type: "error"
+      });
     } finally {
       setSubmitting(false);
     }
@@ -103,15 +122,22 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
       setReplyText("");
       setReplyingTo(null);
       
-      // Update the parent comment's replies
       setComments(prev => prev.map(comment => 
         comment.id === parentId
           ? { ...comment, replies: [...(comment.replies || []), response] }
           : comment
       ));
+      
+      setNotification({
+        message: "Reply posted successfully",
+        type: "success"
+      });
     } catch (error) {
       console.error("Error submitting reply:", error);
-      alert("Error submitting reply. Please try again.");
+      setNotification({
+        message: "Error submitting reply. Please try again.",
+        type: "error"
+      });
     } finally {
       setSubmitting(false);
     }
@@ -121,23 +147,14 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
   const editComment = async (commentId) => {
     if (!editText.trim()) return;
 
-    console.log('Editing comment:', {
-      commentId,
-      editText: editText.trim(),
-      userId,
-      userIdType: typeof userId
-    });
-
     setSubmitting(true);
     try {
-      const response = await commentsAPI.updateComment(commentId, editText.trim(), userId);
+      const response = await commentsAPI.updateComment(commentId, editText.trim());
       
-      // Update the comment in the list
       setComments(prev => prev.map(comment => {
         if (comment.id === commentId) {
           return { ...comment, content: response.content, updatedAt: response.updatedAt };
         }
-        // Also check replies
         if (comment.replies) {
           return {
             ...comment,
@@ -153,38 +170,83 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
       
       setEditingComment(null);
       setEditText("");
+      setNotification({
+        message: "Comment updated successfully",
+        type: "success"
+      });
     } catch (error) {
       console.error("Error editing comment:", error);
-      console.error("Error details:", error.message);
-      alert("Error editing comment. Please try again.");
+      setNotification({
+        message: "Error editing comment. Please try again.",
+        type: "error"
+      });
     } finally {
       setSubmitting(false);
     }
   };
 
   // Delete a comment
-  const deleteComment = async (commentId) => {
-    if (!window.confirm("Are you sure you want to delete this comment?")) return;
+  const deleteComment = async () => {
+    if (!commentToDelete) return;
 
     try {
-      await commentsAPI.deleteComment(commentId);
+      await commentsAPI.deleteComment(commentToDelete);
       
-      // Remove the comment from the list
       setComments(prev => {
-        // Remove from top-level comments
-        const filtered = prev.filter(comment => comment.id !== commentId);
-        // Remove from replies
+        const filtered = prev.filter(comment => comment.id !== commentToDelete);
         return filtered.map(comment => ({
           ...comment,
-          replies: comment.replies ? comment.replies.filter(reply => reply.id !== commentId) : comment.replies
+          replies: comment.replies ? comment.replies.filter(reply => reply.id !== commentToDelete) : comment.replies
         }));
       });
       
       setTotalComments(prev => prev - 1);
+      setNotification({
+        message: "Comment deleted successfully",
+        type: "success"
+      });
     } catch (error) {
       console.error("Error deleting comment:", error);
-      alert("Error deleting comment. Please try again.");
+      setNotification({
+        message: "Error deleting comment. Please try again.",
+        type: "error"
+      });
+    } finally {
+      setShowDeleteModal(false);
+      setCommentToDelete(null);
     }
+  };
+
+  // Confirmation Modal Component
+  const ConfirmationModal = () => {
+    if (!showDeleteModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full animate-fade-in">
+          <p className="text-gray-800 dark:text-gray-200 mb-4">
+            Are you sure you want to delete this comment?
+          </p>
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={() => {
+                setShowDeleteModal(false);
+                setCommentToDelete(null);
+              }}
+              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={deleteComment}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Load more comments
@@ -268,6 +330,16 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
 
   return (
     <section>
+      {notification && (
+        <ToastNotification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
+      
+      <ConfirmationModal />
+      
       <div>
         {/* Comment Form */}
         <div className="mb-8">
@@ -336,7 +408,10 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
                         </svg>
                       </button>
                       <button
-                        onClick={() => deleteComment(comment.id)}
+                        onClick={() => {
+                          setCommentToDelete(comment.id);
+                          setShowDeleteModal(true);
+                        }}
                         className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                       >
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -486,7 +561,10 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
                                 </svg>
                               </button>
                               <button
-                                onClick={() => deleteComment(reply.id)}
+                                onClick={() => {
+                                  setCommentToDelete(reply.id);
+                                  setShowDeleteModal(true);
+                                }}
                                 className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                               >
                                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
