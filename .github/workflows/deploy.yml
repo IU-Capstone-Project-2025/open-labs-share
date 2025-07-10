@@ -43,9 +43,30 @@ jobs:
           mkdir -p ml
           echo "${{ secrets.GROQ_API_KEYS }}" > ml/groq_keys.txt
 
+      - name: Ensure active_env file exists
+        run: |
+          if [ ! -f haproxy/active_env ]; then
+            echo "blue" > haproxy/active_env
+          fi
+
       - name: Deploy services
         run: |
           chmod +x ./scripts/*.sh
-          # Convert comma-separated list to space-separated list
-          services_to_deploy=$(echo ${{ github.event.inputs.services }} | tr ',' ' ')
-          ./scripts/deploy_green.sh $services_to_deploy
+          
+          # Determine target environment
+          CURRENT_ENV=$(cat haproxy/active_env)
+          if [ "$CURRENT_ENV" == "blue" ]; then
+            TARGET_ENV="green"
+          else
+            TARGET_ENV="blue"
+          fi
+          
+          echo "Current live environment is $CURRENT_ENV. Deploying to $TARGET_ENV."
+          
+          # Convert comma-separated list to space-separated list for deployment script
+          SERVICES_TO_DEPLOY=$(echo ${{ github.event.inputs.services }} | tr ',' ' ')
+          
+          # Run the deployment script for the target environment
+          "./scripts/deploy_${TARGET_ENV}.sh" $SERVICES_TO_DEPLOY
+          
+          # The deploy script will handle health checks and traffic switching

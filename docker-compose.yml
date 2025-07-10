@@ -225,6 +225,12 @@ services:
       - blue-network
     restart: unless-stopped
     profiles: ["test"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   api-gateway-test:
     build:
@@ -247,6 +253,12 @@ services:
       - blue-network
     restart: unless-stopped
     profiles: ["test"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   auth-service-test:
     build:
@@ -263,6 +275,12 @@ services:
       - blue-network
     restart: unless-stopped
     profiles: ["test"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   users-service-test:
     build:
@@ -278,6 +296,12 @@ services:
       - blue-network
     restart: unless-stopped
     profiles: ["test"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:9093"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   labs-service-test:
     build:
@@ -303,6 +327,12 @@ services:
       - blue-network
     restart: unless-stopped
     profiles: ["test"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:9091"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   articles-service-test:
     build:
@@ -323,6 +353,12 @@ services:
       - blue-network
     restart: unless-stopped
     profiles: ["test"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:50051"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   feedback-service-test:
     build:
@@ -347,6 +383,13 @@ services:
       - blue-network
     restart: unless-stopped
     profiles: ["test"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:9090"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
 
   # --- Green Environment ---
   frontend-green:

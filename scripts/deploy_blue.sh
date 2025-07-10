@@ -48,7 +48,9 @@ while [ $SECONDS -lt $HEALTH_CHECK_TIMEOUT ]; do
     done
 
     if $ALL_HEALTHY; then
-        echo "All specified services in $TARGET_ENV are healthy."
+        echo "$TARGET_ENV environment is healthy."
+        # If all services are healthy, switch traffic
+        ./scripts/switch_traffic.sh $TARGET_ENV
         exit 0
     fi
 
@@ -56,5 +58,7 @@ while [ $SECONDS -lt $HEALTH_CHECK_TIMEOUT ]; do
     SECONDS=$((SECONDS + 10))
 done
 
-echo "Timeout reached. Some services in the $TARGET_ENV environment are not healthy."
+echo "Timeout reached. $TARGET_ENV environment is not healthy."
+# If timeout is reached, rollback
+./scripts/rollback.sh $TARGET_ENV
 exit 1 

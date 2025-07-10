@@ -32,6 +32,11 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p /opt/app
 
+# Install grpc-health-probe
+RUN GRPC_HEALTH_PROBE_VERSION=v0.4.24 && \
+    wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 -O /usr/local/bin/grpc_health_probe && \
+    chmod +x /usr/local/bin/grpc_health_probe
+
 RUN groupadd -r appgroup && \
     useradd -r -g appgroup appuser && \
     chown appuser:appgroup /opt/app
@@ -48,9 +53,6 @@ ENV PATH="/opt/jre/bin:${PATH}" \
     JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom"
     
 EXPOSE 9093
-
-HEALTHCHECK --interval=30s --timeout=10s --retries=5 \
-  CMD nc -z localhost 9093 || exit 1
 
 ENTRYPOINT ["/opt/jre/bin/java", \
             "-XX:+UseContainerSupport", \

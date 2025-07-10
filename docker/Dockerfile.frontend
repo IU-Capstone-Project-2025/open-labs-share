@@ -1,5 +1,7 @@
 FROM node:18-alpine
 
+RUN apk add --no-cache curl
+
 WORKDIR /app/frontend
 
 COPY frontend/package*.json ./

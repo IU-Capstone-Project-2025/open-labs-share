@@ -2,7 +2,7 @@ FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache git protobuf protobuf-dev
+RUN apk add --no-cache git protobuf protobuf-dev wget
 
 COPY services/feedback-service/go.mod services/feedback-service/go.sum ./
 
@@ -25,17 +25,21 @@ RUN protoc --go_out=. --go_opt=paths=source_relative \
 # Use cache mount for building
 RUN --mount=type=cache,target=/go/pkg/mod CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o feedback-service ./cmd/
 
-FROM alpine:latest
-RUN apk --no-cache add ca-certificates netcat-openbsd
+# Final stage
+FROM debian:11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates wget && rm -rf /var/lib/apt/lists/*
+
+# Install grpc-health-probe
+RUN GRPC_HEALTH_PROBE_VERSION=v0.4.24 && \
+    wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 -O /usr/local/bin/grpc_health_probe && \
+    chmod +x /usr/local/bin/grpc_health_probe
 
 WORKDIR /app
 
-COPY --from=builder /app/feedback-service .
-COPY --from=builder /app/migrations ./migrations
+COPY --from=builder /app/feedback-service /app/
+COPY --from=builder /app/migrations /app/migrations
 
 EXPOSE 9090
 
-HEALTHCHECK --interval=30s --timeout=10s --retries=5 \
-  CMD nc -z localhost 9090 || exit 1
-
-CMD ["./feedback-service"] 
+ENTRYPOINT ["/app/feedback-service"] 

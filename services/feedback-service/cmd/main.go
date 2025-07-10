@@ -19,6 +19,8 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 )
@@ -110,6 +112,12 @@ func main() {
 	// Register services
 	server.RegisterFeedbackServer(grpcServer, feedbackService)
 	server.RegisterCommentServer(grpcServer, commentService)
+
+	// Create a new health server and register it
+	healthServer := health.NewServer()
+	healthpb.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("feedback.FeedbackService", healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("comment.CommentService", healthpb.HealthCheckResponse_SERVING)
 
 	// Enable reflection for easier debugging
 	reflection.Register(grpcServer)
