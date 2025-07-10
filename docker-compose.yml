@@ -45,6 +45,11 @@ services:
       - blue-network
       - green-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # --- Blue Environment ---
   frontend-blue:
@@ -844,6 +849,11 @@ services:
     networks:
       - blue-network
       - green-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   ml-celery-worker:
     build:
@@ -861,7 +871,14 @@ services:
     networks:
       - blue-network
       - green-network
-      
+    profiles:
+      - ml
+    healthcheck:
+      test: ["CMD", "celery", "-A", "celery_broker.worker.celery_app", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
@@ -895,6 +912,11 @@ services:
       - blue-network
       - green-network
     restart: unless-stopped
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   mongodb-feedback:
     image: mongo:latest
@@ -905,4 +927,9 @@ services:
     networks:
       - blue-network
       - green-network
-    restart: unless-stopped 
+    restart: unless-stopped
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      interval: 5s
+      timeout: 5s
+      retries: 5 
