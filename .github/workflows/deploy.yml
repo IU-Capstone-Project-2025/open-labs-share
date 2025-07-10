@@ -37,7 +37,7 @@ jobs:
           docker buildx bake --push production-build
 
   deploy:
-    # needs: build
+    needs: build
     runs-on: self-hosted
     permissions:
       contents: read
