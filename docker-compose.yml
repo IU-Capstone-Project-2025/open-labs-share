@@ -670,7 +670,7 @@ services:
 
   # --- Shared Services ---
   postgres-users:
-    image: postgres:16
+    image: postgres:15
     environment:
       - POSTGRES_DB=users_service
       - POSTGRES_USER=users_user
@@ -683,7 +683,7 @@ services:
     restart: unless-stopped
 
   postgres-feedback:
-    image: postgres:16
+    image: postgres:15
     environment:
       - POSTGRES_DB=feedback_db
       - POSTGRES_USER=feedback_user
@@ -696,7 +696,7 @@ services:
     restart: unless-stopped
 
   postgres-labs:
-    image: postgres:16
+    image: postgres:15
     environment:
       - POSTGRES_DB=labs_db
       - POSTGRES_USER=labs_user
@@ -709,7 +709,7 @@ services:
     restart: unless-stopped
 
   postgres-articles:
-    image: postgres:16
+    image: postgres:15
     environment:
       - POSTGRES_DB=articles_db
       - POSTGRES_USER=articles_user
@@ -757,7 +757,7 @@ services:
       - ml
 
   postgres-ml:
-    image: postgres:16
+    image: postgres:15
     environment:
       - POSTGRES_DB=chat_history_db
       - POSTGRES_USER=ml_user
