@@ -871,8 +871,6 @@ services:
     networks:
       - blue-network
       - green-network
-    profiles:
-      - ml
     healthcheck:
       test: ["CMD", "celery", "-A", "celery_broker.worker.celery_app", "status"]
       interval: 30s
