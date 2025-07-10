@@ -20,13 +20,11 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState(null);
 
-  // Validate props
   if (!['lab', 'article'].includes(contentType)) {
     console.error('CommentsSection: contentType must be "lab" or "article"');
     return null;
   }
 
-  // Fetch comments for the content
   const fetchComments = async (pageNum = 1, resetComments = false) => {
     try {
       setLoading(pageNum === 1);
@@ -52,7 +50,6 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
     }
   };
 
-  // Fetch replies for a specific comment
   const fetchReplies = async (commentId) => {
     try {
       setLoadingReplies(prev => new Set([...prev, commentId]));
@@ -80,7 +77,6 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
     }
   };
 
-  // Submit a new comment
   const submitComment = async () => {
     if (!newComment.trim() || !userId) return;
 
@@ -108,7 +104,6 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
     }
   };
 
-  // Submit a reply to a comment
   const submitReply = async (parentId) => {
     if (!replyText.trim() || !userId) return;
 
@@ -143,7 +138,6 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
     }
   };
 
-  // Edit a comment
   const editComment = async (commentId) => {
     if (!editText.trim()) return;
 
@@ -185,7 +179,6 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
     }
   };
 
-  // Delete a comment
   const deleteComment = async () => {
     if (!commentToDelete) return;
 
@@ -217,7 +210,6 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
     }
   };
 
-  // Confirmation Modal Component
   const ConfirmationModal = () => {
     if (!showDeleteModal) return null;
 
@@ -249,13 +241,11 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
     );
   };
 
-  // Load more comments
   const loadMoreComments = () => {
     const nextPage = page + 1;
     fetchComments(nextPage, false);
   };
 
-  // Toggle replies visibility
   const toggleReplies = (commentId) => {
     if (expandedReplies.has(commentId)) {
       setExpandedReplies(prev => {
@@ -268,13 +258,11 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
     }
   };
 
-  // Format date
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString() + " " + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
   };
 
-  // Get user display name
   const getUserDisplayName = (comment) => {
     if (comment.firstName && comment.lastName) {
       return `${comment.firstName} ${comment.lastName}`;
@@ -282,7 +270,6 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
     return `User ${comment.userId}`;
   };
 
-  // Get user initials
   const getUserInitials = (comment) => {
     if (comment.firstName && comment.lastName) {
       return `${comment.firstName.charAt(0)}${comment.lastName.charAt(0)}`;
@@ -290,10 +277,8 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
     return comment.userId?.toString().charAt(0) || 'U';
   };
 
-  // Check if user owns the comment
   const isOwner = (comment) => comment.userId === userId;
 
-  // Get appropriate labels based on content type
   const getLabels = () => {
     if (contentType === 'lab') {
       return {
@@ -341,7 +326,6 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
       <ConfirmationModal />
       
       <div>
-        {/* Comment Form */}
         <div className="mb-8">
           <textarea
             value={newComment}
@@ -365,7 +349,6 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
           </div>
         </div>
 
-        {/* Comments List */}
         {loading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-msc"></div>
@@ -374,7 +357,6 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
           <div className="space-y-6">
             {comments.map((comment) => (
               <div key={comment.id} className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-6">
-                {/* Comment Header */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-msc rounded-full flex items-center justify-center">
@@ -422,7 +404,6 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
                   )}
                 </div>
 
-                {/* Comment Content */}
                 <div className="mb-4">
                   {editingComment === comment.id ? (
                     <div className="space-y-3">
@@ -462,7 +443,6 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
                   )}
                 </div>
 
-                {/* Comment Actions */}
                 <div className="flex items-center space-x-4 text-sm">
                   <button
                     onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
@@ -488,7 +468,6 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
                   </button>
                 </div>
 
-                {/* Reply Form */}
                 {replyingTo === comment.id && (
                   <div className="mt-4 pl-4 border-l-2 border-gray-200 dark:border-gray-600">
                     <textarea
@@ -523,7 +502,6 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
                   </div>
                 )}
 
-                {/* Replies */}
                 {expandedReplies.has(comment.id) && comment.replies && (
                   <div className="mt-4 pl-4 border-l-2 border-gray-200 dark:border-gray-600 space-y-4">
                     {comment.replies.map((reply) => (
@@ -618,7 +596,6 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
               </div>
             ))}
 
-            {/* Load More Button */}
             {hasMore && (
               <div className="flex justify-center pt-4">
                 <button
