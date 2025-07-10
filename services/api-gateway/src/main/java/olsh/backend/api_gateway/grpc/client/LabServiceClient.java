@@ -69,14 +69,9 @@ public class LabServiceClient {
         }
     }
 
-    public LabList getLabs(Integer page, Integer limit) {
-        log.debug("Calling gRPC GetLabs for page: {}, limit: {}", page, limit);
+    public LabList getLabs(GetLabsRequest request) {
+        log.debug("Calling gRPC GetLabs for page: {}, limit: {}", request.getPageNumber(), request.getPageSize());
         try {
-            GetLabsRequest request = GetLabsRequest.newBuilder()
-                    .setPageNumber(page)
-                    .setPageSize(limit)
-                    .build();
-
             LabList response = blockingStub.getLabs(request);
             log.debug("Successfully retrieved {} labs via gRPC (total: {})",
                     response.getLabsCount(), response.getTotalCount());
@@ -84,6 +79,19 @@ public class LabServiceClient {
         } catch (Exception e) {
             log.error("Error calling GetLabs gRPC: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to get labs via gRPC", e);
+        }
+    }
+
+    public LabList getUsersLabs(GetLabsByUserIdRequest request){
+        log.debug("Calling gRPC GetUsersLabs for user ID: {}", request.getUserId());
+        try {
+            LabList response = blockingStub.getLabsByUserId(request);
+            log.debug("Successfully retrieved {} labs for user ID: {} via gRPC (total: {})",
+                    response.getLabsCount(), request.getUserId(), response.getTotalCount());
+            return response;
+        } catch (Exception e) {
+            log.error("Error calling GetUsersLabs gRPC for user ID {}: {}", request.getUserId(), e.getMessage(), e);
+            throw new RuntimeException("Failed to get user's labs via gRPC", e);
         }
     }
 

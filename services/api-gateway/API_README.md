@@ -134,6 +134,7 @@ Example response:
 | ---------------------------------------------------- | ------ | ------------------------------------- |
 | [`POST /articles`](#create-article)                | POST   | Creation of new article in PDF format |
 | [`GET /articles`](#get-articles-list)              | GET    | Get list of articles                  |
+| [`GET /articles/my`](#get-my-articles)             | GET    | Get list of articles for current user |
 | [`GET /articles/{article_id}`](#get-article-by-id)  | GET    | Get specified article by ID           |
 | [`DELETE /articles/{article_id}`](#delete-article) | DELETE | Delete specific article by its ID     |
 
@@ -146,11 +147,9 @@ Example response:
 - **Description:** Creation of new article in PDF format
 
 **Request Body (Form Data):**
-```json  
-title: string (required) - Article title
-short_desc: string (required) - Article description
-pdf_file: file (required) - PDF document file
-```
+- `title`: string (required, 10-255 chars) — Article title
+- `short_desc`: string (required, 20-1000 chars) — Article description
+- `pdf_file`: file (required) — PDF document file
 
 **Response:**
 - **Status:** `201 Created`
@@ -190,11 +189,12 @@ pdf_file: file (required) - PDF document file
 **Retrieve articles**
 - **Endpoint:** `GET /articles`
 - **Authentication:** Required
+- **Query Parameters:**
+  - `page` (integer, optional, default: 1) — Page number (min: 1)
+  - `limit` (integer, optional, default: 20, max: 100) — Items per page
+  - `text` (string, optional) — Search text to filter articles
+  - `tags` (string, optional) — Comma-separated list of tag IDs to filter by
 - **Description:** Get list of articles
-
-**Query Parameters:**
-- `page` (integer, optional) - Page number (default: 1)
-- `limit` (integer, optional) - Items per page (default: 20, max: 100)
 
 **Response:**
 - **Status:** `200 OK`
@@ -203,14 +203,14 @@ pdf_file: file (required) - PDF document file
 {
   "articles": [
     {
-      "id": "number",
-      "title": "string",
-      "short_desc": "string",
-      "created_at": "string (ISO 8601)",
-      "views": "number",
-      "author_id": "number",
-      "author_name": "string",
-      "author_surname": "string",
+      "id": 1,
+      "title": "Introduction to Machine Learning",
+      "shortDesc": "A comprehensive guide to machine learning basics",
+      "createdAt": "2024-03-15T14:30:00Z",
+      "views": 42,
+      "authorId": 123,
+      "authorName": "John",
+      "authorSurname": "Doe",
       "asset": {
         "assetId": 10,
         "articleId": 1,
@@ -220,16 +220,56 @@ pdf_file: file (required) - PDF document file
       }
     }
   ],
-  "pagination":
-    {
-      "current_page": "integer",
-      "total_pages": "integer",
-      "total_items": "integer"
-    }
+  "count": 1
 }
 ```
 
 **Error Responses:**
+- `400 Bad Request` - Invalid pagination parameters
+- `401 Unauthorized` - Authentication required
+
+---
+
+### Get My Articles
+
+**Retrieve articles for the current user**
+- **Endpoint:** `GET /articles/my`
+- **Authentication:** Required
+- **Query Parameters:**
+  - `page` (integer, optional, default: 1) — Page number (min: 1)
+  - `limit` (integer, optional, default: 20, max: 100) — Items per page
+- **Description:** Get paginated list of articles created by the authenticated user
+
+**Response:**
+- **Status:** `200 OK`
+- **Body:**
+```json
+{
+  "articles": [
+    {
+      "id": 1,
+      "title": "Introduction to Machine Learning",
+      "shortDesc": "A comprehensive guide to machine learning basics",
+      "createdAt": "2024-03-15T14:30:00Z",
+      "views": 42,
+      "authorId": 123,
+      "authorName": "John",
+      "authorSurname": "Doe",
+      "asset": {
+        "assetId": 10,
+        "articleId": 1,
+        "filename": "ml-guide.pdf",
+        "filesize": 1048576,
+        "uploadDate": "2024-03-15T14:31:00Z"
+      }
+    }
+  ],
+  "count": 1
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid pagination parameters
 - `401 Unauthorized` - Authentication required
 
 ---
@@ -246,15 +286,16 @@ pdf_file: file (required) - PDF document file
 - **Body:**
 ```json
 {
-  "id": "number",
-  "title": "string",
-  "short_desc": "string",
-  "created_at": "string (ISO 8601)",
-  "views": "number",
-  "author_id": "number",
-  "author_name": "string",
-  "author_surname": "string",
+  "id": 1,
+  "title": "Introduction to Machine Learning",
+  "shortDesc": "A comprehensive guide to machine learning basics",
+  "createdAt": "2024-03-15T14:30:00Z",
+  "views": 42,
+  "authorId": 123,
+  "authorName": "John",
+  "authorSurname": "Doe",
   "asset": {
+    "assetId": 10,
     "articleId": 1,
     "filename": "ml-guide.pdf",
     "filesize": 1048576,
@@ -279,11 +320,11 @@ pdf_file: file (required) - PDF document file
 **Response:**
 - **Status:** `200 OK`
 - **Body:**
-```json  
+```json
 {
   "message": "Article deleted successfully"
-}  
-```  
+}
+```
 
 **Error Responses:**
 - `401 Unauthorized` - Authentication required
@@ -298,6 +339,7 @@ pdf_file: file (required) - PDF document file
 | ---------------------------------------------------- | ------ | ------------------------------------- |
 | [`POST /labs`](#create-lab)                        | POST   | Creation of new lab                   |
 | [`GET /labs`](#get-labs-list)                      | GET    | Get list of labs                      |
+| [`GET /labs/my`](#get-my-labs)                     | GET    | Get labs created by the current user  |
 | [`GET /labs/{lab_id}`](#get-lab-by-id)            | GET    | Get specified lab by ID               |
 | [`POST /labs/{lab_id}/update`](#update-lab)        | POST   | Update the lab by its ID             |
 | [`DELETE /labs/{lab_id}`](#delete-lab)            | DELETE | Delete specific lab by its ID         |
@@ -321,24 +363,29 @@ pdf_file: file (required) - PDF document file
 **Response:**
 - **Status:** `201 Created`
 - **Body:**
-```json  
-{  
-  "id": number,
-  "message": "Lab created successfully"  
-}  
-```  
+```json
+{
+  "id": 1,
+  "message": "Lab created successfully!"
+}
+```
 
 **Error Responses:**
 - `400 Bad Request` - Invalid request data
 - `401 Unauthorized` - Authentication required
-  
----  
+
+---
 
 ### Get Labs List
 
 **Retrieve labs**
 - **Endpoint:** `GET /labs`
 - **Authentication:** Required
+- **Query Parameters:**
+  - `page` (integer, optional, default: 1) — Page number (min: 1)
+  - `limit` (integer, optional, default: 20, max: 100) — Items per page
+  - `text` (string, optional) — Search text to filter laboratory works
+  - `tags` (string, optional) — Comma-separated list of tag IDs to filter by
 - **Description:** Get list of labs
 
 **Query Parameters:**
@@ -348,7 +395,7 @@ pdf_file: file (required) - PDF document file
 **Response:**
 - **Status:** `200 OK`
 - **Body:**
-```json  
+```json
 {
   "labs": [
     {
@@ -365,7 +412,7 @@ pdf_file: file (required) - PDF document file
         {
           "assetId": 10,
           "labId": 1,
-          "filename": "diagram.png",
+          "filename": "diagram.md",
           "totalSize": 1048576,
           "uploadDate": "2024-03-15T14:31:00Z"
         }
@@ -380,17 +427,16 @@ pdf_file: file (required) - PDF document file
       "name": "Java",
       "description": "Java programming language",
       "labs_count": 5
-    },
-    ...
+    }
   ],
   "count": 1
 }
-```  
+```
 
 **Error Responses:**
 - `401 Unauthorized` - Authentication required
-  
----  
+
+---
 
 ### Get My Labs
 
@@ -459,7 +505,7 @@ pdf_file: file (required) - PDF document file
 **Response:**
 - **Status:** `200 OK`
 - **Body:**
-```json  
+```json
 {
   "id": 1,
   "title": "Introduction to Data Structures",
@@ -489,13 +535,13 @@ pdf_file: file (required) - PDF document file
     }
   ]
 }
-```  
+```
 
 **Error Responses:**
 - `401 Unauthorized` - Authentication required
 - `404 Not Found` - Lab not found
 
----  
+---
 
 ### Update Lab
 
@@ -521,7 +567,7 @@ pdf_file: file (required) - PDF document file
   "id": 1,
   "message": "Lab updated successfully"
 }
-```  
+```
 
 **Error Responses:**
 - `400 Bad Request` - Invalid request data
@@ -541,7 +587,7 @@ pdf_file: file (required) - PDF document file
 **Response:**
 - **Status:** `200 OK`
 - **Body:**
-```json  
+```json
 {
   "message": "Lab deleted successfully!"
 }
