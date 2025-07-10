@@ -22,7 +22,7 @@ export default function MyArticlesPage() {
     const fetchMyArticles = async () => {
       try {
         setLoading(true);
-        const response = await articlesAPI.getMyArticles();
+        const response = await articlesAPI.getMyArticles(1, 20); // page=1, limit=20
         setMyArticles(response.articles || []);
       } catch (err) {
         console.error('Error fetching my articles:', err);
