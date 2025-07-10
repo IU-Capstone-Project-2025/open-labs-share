@@ -9,13 +9,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import olsh.backend.api_gateway.dto.request.GetArticlesRequest;
+import olsh.backend.api_gateway.dto.request.ArticlesGetRequest;
 
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class GetArticlesRequestTest {
+class ArticlesGetRequestTest {
 
     private Validator validator;
     private ValidatorFactory validatorFactory;
@@ -40,10 +40,10 @@ class GetArticlesRequestTest {
     @Test
     void getArticlesRequest_ValidData_PassesValidation() {
         // Given - Create a valid DTO
-        GetArticlesRequest validRequest = createValidRequest();
+        ArticlesGetRequest validRequest = createValidRequest();
 
         // When - Validate the DTO
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(validRequest);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(validRequest);
 
         // Then - Should have no validation errors
         assertThat(violations).isEmpty();
@@ -52,10 +52,10 @@ class GetArticlesRequestTest {
     @Test
     void getArticlesRequest_DefaultValues_PassesValidation() {
         // Given - Using default constructor (should use default values)
-        GetArticlesRequest requestWithDefaults = new GetArticlesRequest();
+        ArticlesGetRequest requestWithDefaults = new ArticlesGetRequest();
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(requestWithDefaults);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(requestWithDefaults);
 
         // Then - Default values should be valid
         assertThat(violations).isEmpty();
@@ -67,11 +67,11 @@ class GetArticlesRequestTest {
     @Test
     void getArticlesRequest_ZeroPage_FailsValidation() {
         // Given
-        GetArticlesRequest request = createValidRequest();
+        ArticlesGetRequest request = createValidRequest();
         request.setPage(0); // Invalid - should be >= 1
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
 
         // Then
         assertThat(violations)
@@ -88,11 +88,11 @@ class GetArticlesRequestTest {
     @Test
     void getArticlesRequest_NegativePage_FailsValidation() {
         // Given
-        GetArticlesRequest request = createValidRequest();
+        ArticlesGetRequest request = createValidRequest();
         request.setPage(-1); // Invalid
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
 
         // Then
         assertThat(violations)
@@ -104,11 +104,11 @@ class GetArticlesRequestTest {
     @Test
     void getArticlesRequest_PageOne_PassesValidation() {
         // Given - Testing boundary condition (minimum valid value)
-        GetArticlesRequest request = createValidRequest();
+        ArticlesGetRequest request = createValidRequest();
         request.setPage(1); // Exactly the minimum allowed
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
 
         // Then
         assertThat(violations).isEmpty();
@@ -117,11 +117,11 @@ class GetArticlesRequestTest {
     @Test
     void getArticlesRequest_LargePage_PassesValidation() {
         // Given - Testing that there's no upper limit on page
-        GetArticlesRequest request = createValidRequest();
+        ArticlesGetRequest request = createValidRequest();
         request.setPage(Integer.MAX_VALUE); // Very large page number
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
 
         // Then - Should pass (no max constraint on page)
         assertThat(violations).isEmpty();
@@ -131,11 +131,11 @@ class GetArticlesRequestTest {
     @Test
     void getArticlesRequest_ZeroLimit_FailsValidation() {
         // Given
-        GetArticlesRequest request = createValidRequest();
+        ArticlesGetRequest request = createValidRequest();
         request.setLimit(0); // Invalid - should be >= 1
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
 
         // Then
         assertThat(violations)
@@ -147,11 +147,11 @@ class GetArticlesRequestTest {
     @Test
     void getArticlesRequest_NegativeLimit_FailsValidation() {
         // Given
-        GetArticlesRequest request = createValidRequest();
+        ArticlesGetRequest request = createValidRequest();
         request.setLimit(-5); // Invalid
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
 
         // Then
         assertThat(violations)
@@ -163,11 +163,11 @@ class GetArticlesRequestTest {
     @Test
     void getArticlesRequest_LimitExceedsMaximum_FailsValidation() {
         // Given
-        GetArticlesRequest request = createValidRequest();
+        ArticlesGetRequest request = createValidRequest();
         request.setLimit(101); // Invalid - max is 100
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
 
         // Then
         assertThat(violations)
@@ -179,11 +179,11 @@ class GetArticlesRequestTest {
     @Test
     void getArticlesRequest_LimitMinimumBoundary_PassesValidation() {
         // Given - Testing minimum boundary (exactly 1)
-        GetArticlesRequest request = createValidRequest();
+        ArticlesGetRequest request = createValidRequest();
         request.setLimit(1); // Exactly the minimum allowed
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
 
         // Then
         assertThat(violations).isEmpty();
@@ -192,11 +192,11 @@ class GetArticlesRequestTest {
     @Test
     void getArticlesRequest_LimitMaximumBoundary_PassesValidation() {
         // Given - Testing maximum boundary (exactly 100)
-        GetArticlesRequest request = createValidRequest();
+        ArticlesGetRequest request = createValidRequest();
         request.setLimit(100); // Exactly the maximum allowed
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
 
         // Then
         assertThat(violations).isEmpty();
@@ -206,12 +206,12 @@ class GetArticlesRequestTest {
     @Test
     void getArticlesRequest_BothFieldsInvalid_ReturnsAllErrors() {
         // Given - Both fields invalid
-        GetArticlesRequest request = new GetArticlesRequest();
+        ArticlesGetRequest request = new ArticlesGetRequest();
         request.setPage(0); // Invalid
         request.setLimit(101); // Invalid
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
 
         // Then - Should have both validation errors
         assertThat(violations).hasSize(2);
@@ -226,11 +226,11 @@ class GetArticlesRequestTest {
     @Test
     void getArticlesRequest_MultipleViolationsOnLimit_ReturnsAllErrors() {
         // Given - This tests what happens with overlapping constraints
-        GetArticlesRequest request = createValidRequest();
+        ArticlesGetRequest request = createValidRequest();
         request.setLimit(-1); // This violates @Min constraint
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
 
         // Then - Should only have one error (the @Min constraint)
         assertThat(violations)
@@ -244,11 +244,11 @@ class GetArticlesRequestTest {
     @ValueSource(ints = {-100, -1, 0})
     void getArticlesRequest_InvalidPageValues_FailsValidation(int invalidPage) {
         // Given
-        GetArticlesRequest request = createValidRequest();
+        ArticlesGetRequest request = createValidRequest();
         request.setPage(invalidPage);
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
 
         // Then
         assertThat(violations)
@@ -261,11 +261,11 @@ class GetArticlesRequestTest {
     @ValueSource(ints = {-50, -1, 0, 101, 150, 1000})
     void getArticlesRequest_InvalidLimitValues_FailsValidation(int invalidLimit) {
         // Given
-        GetArticlesRequest request = createValidRequest();
+        ArticlesGetRequest request = createValidRequest();
         request.setLimit(invalidLimit);
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
 
         // Then - Should have exactly one error (either min or max violation)
         assertThat(violations).hasSize(1);
@@ -280,11 +280,11 @@ class GetArticlesRequestTest {
     @ValueSource(ints = {1, 10, 20, 50, 99, 100})
     void getArticlesRequest_ValidLimitValues_PassesValidation(int validLimit) {
         // Given
-        GetArticlesRequest request = createValidRequest();
+        ArticlesGetRequest request = createValidRequest();
         request.setLimit(validLimit);
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
 
         // Then
         assertThat(violations).isEmpty();
@@ -298,21 +298,21 @@ class GetArticlesRequestTest {
         Integer expectedLimit = 50;
 
         // When
-        GetArticlesRequest request = new GetArticlesRequest(expectedPage, expectedLimit);
+        ArticlesGetRequest request = new ArticlesGetRequest(expectedPage, expectedLimit, "", "");
 
         // Then
         assertThat(request.getPage()).isEqualTo(expectedPage);
         assertThat(request.getLimit()).isEqualTo(expectedLimit);
 
         // Verify it passes validation
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
         assertThat(violations).isEmpty();
     }
 
     @Test
     void getArticlesRequest_NoArgsConstructor_UsesDefaults() {
         // Given & When
-        GetArticlesRequest request = new GetArticlesRequest();
+        ArticlesGetRequest request = new ArticlesGetRequest();
 
         // Then - Check default values are set
         assertThat(request.getPage()).isEqualTo(1);
@@ -323,11 +323,11 @@ class GetArticlesRequestTest {
     @Test
     void getArticlesRequest_NullPage_UsesDefault() {
         // Given
-        GetArticlesRequest request = new GetArticlesRequest();
+        ArticlesGetRequest request = new ArticlesGetRequest();
         request.setPage(null);
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
 
         // Then - Null should pass validation (primitives have default handling)
         assertThat(violations).isEmpty();
@@ -336,18 +336,18 @@ class GetArticlesRequestTest {
     @Test
     void getArticlesRequest_NullLimit_UsesDefault() {
         // Given
-        GetArticlesRequest request = new GetArticlesRequest();
+        ArticlesGetRequest request = new ArticlesGetRequest();
         request.setLimit(null);
 
         // When
-        Set<ConstraintViolation<GetArticlesRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<ArticlesGetRequest>> violations = validator.validate(request);
 
         // Then
         assertThat(violations).isEmpty();
     }
 
     // Helper method to create a valid request
-    private GetArticlesRequest createValidRequest() {
-        return new GetArticlesRequest(1, 20);
+    private ArticlesGetRequest createValidRequest() {
+        return new ArticlesGetRequest(1, 20, "", "");
     }
 }

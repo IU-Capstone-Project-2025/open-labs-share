@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.config.UploadFileConfiguration;
 import olsh.backend.api_gateway.dto.request.CreateArticleRequest;
-import olsh.backend.api_gateway.dto.request.GetArticlesRequest;
+import olsh.backend.api_gateway.dto.request.ArticlesGetRequest;
 import olsh.backend.api_gateway.dto.response.*;
 import olsh.backend.api_gateway.exception.ForbiddenAccessException;
 import olsh.backend.api_gateway.grpc.client.ArticleServiceClient;
@@ -45,7 +45,7 @@ public class ArticleService {
         try {
             ArticleProto.Asset asset = articleServiceClient.uploadAsset(articleId, pdfFile);
             log.debug("Successfully uploaded asset for article ID: {}", articleId);
-            return  asset;
+            return asset;
         } catch (Exception e) {
             // If asset upload fails, we must roll back the article creation.
             log.error("Asset upload failed for article ID: {}. Attempting to roll back article creation.", articleId,
@@ -105,71 +105,35 @@ public class ArticleService {
         return response;
     }
 
-    public ArticleListResponse getArticlesByAuthor(long authorId, GetArticlesRequest request) {
-        log.debug("Getting articles for author {} - page: {}, limit: {}", authorId, request.getPage(),
-                request.getLimit());
-        // TODO: This is a temporary fix. The articles-service needs to be fixed to properly implement this feature.
-        return ArticleListResponse.builder()
-                .articles(new ArrayList<>())
-                .pagination(ArticleListResponse.PaginationResponse.builder()
-                        .currentPage(request.getPage())
-                        .totalPages(0)
-                        .totalItems(0)
-                        .build())
+    public ArticleListResponse getUsersArticles(long id, int page, int limit) {
+        log.debug("Getting articles for author {} - page: {}, limit: {}", id, page, limit);
+        ArticleProto.GetArticlesByUserIdRequest grpcRequest = ArticleProto.GetArticlesByUserIdRequest
+                .newBuilder()
+                .setUserId(id)
+                .setPageNumber(page)
+                .setPageSize(limit)
                 .build();
+        ArticleProto.ArticleList grpcResponse = articleServiceClient.getUserArticles(grpcRequest);
+        ArticleListResponse response = buildArticleListResponse(grpcResponse.getArticlesList());
+        log.debug("Successfully retrieved {} articles out of {} total",
+                response.getArticles().size(), grpcResponse.getArticlesCount());
+        return response;
     }
 
-    public ArticleListResponse getArticles(GetArticlesRequest request) {
+    public ArticleListResponse getArticles(ArticlesGetRequest request) {
         log.debug("Getting articles list - page: {}, limit: {}", request.getPage(), request.getLimit());
-        try {
-            // Get articles from gRPC service
-            ArticleProto.ArticleList grpcResponse =
-                    articleServiceClient.getArticles(request.getPage(), request.getLimit());
-            // Convert articles to response DTOs
-            List<ArticleResponse> articleResponses = new ArrayList<>();
-            HashMap<Long, UserResponse> authorCache = new HashMap<>();
-            for (ArticleProto.Article article : grpcResponse.getArticlesList()) {
-                // TODO: Implement batch loading with caching for better performance
-                UserResponse author;
-                if (authorCache.containsKey(article.getOwnerId())) {
-                    author = authorCache.get(article.getOwnerId());
-                } else {
-                    author = userService.getUserById(article.getOwnerId());
-                    authorCache.put(article.getOwnerId(), author);
-                }
-                ArticleProto.Asset asset = articleServiceClient.getAssetByArticleId(article.getArticleId());
-                articleResponses.add(buildArticleResponse(article, author, asset));
-            }
-            // Calculate pagination
-            int totalItems = (int) grpcResponse.getTotalCount();
-            int totalPages = (int) Math.ceil((double) totalItems / request.getLimit());
-            ArticleListResponse.PaginationResponse pagination =
-                    ArticleListResponse.PaginationResponse.builder()
-                            .currentPage(request.getPage())
-                            .totalPages(totalPages)
-                            .totalItems(totalItems)
-                            .build();
-
-            log.debug("Successfully retrieved {} articles out of {} total",
-                    articleResponses.size(), totalItems);
-
-            return ArticleListResponse.builder()
-                    .articles(articleResponses)
-                    .pagination(pagination)
-                    .build();
-
-        } catch (Exception e) {
-            log.error("Error getting articles list: {}. Returning empty list as a fallback.", e.getMessage(), e);
-            // TODO: This is a temporary fix. The articles-service needs to be fixed to properly implement this feature.
-            return ArticleListResponse.builder()
-                    .articles(new ArrayList<>())
-                    .pagination(ArticleListResponse.PaginationResponse.builder()
-                            .currentPage(request.getPage())
-                            .totalPages(0)
-                            .totalItems(0)
-                            .build())
-                    .build();
+        ArticleProto.GetArticlesRequest.Builder builder = ArticleProto.GetArticlesRequest.newBuilder()
+                .setPageNumber(request.getPage())
+                .setPageSize(request.getLimit())
+                .addAllTagsIds(request.getTagsList());
+        if (!request.getText().isBlank()) {
+            builder.setText(request.getText());
         }
+        ArticleProto.ArticleList grpcResponse = articleServiceClient.getArticles(builder.build());
+        ArticleListResponse response = buildArticleListResponse(grpcResponse.getArticlesList());
+        log.debug("Successfully retrieved {} articles out of {} total",
+                response.getArticles().size(), grpcResponse.getArticlesCount());
+        return response;
     }
 
     public DeleteArticleResponse deleteArticle(Long articleId, Long requestingUserId) {
@@ -208,6 +172,21 @@ public class ArticleService {
                 .filename(asset.getFilename())
                 .filesize(asset.getFilesize())
                 .uploadDate(TimestampConverter.convertTimestampToIso(asset.getUploadDate()))
+                .build();
+    }
+
+    private ArticleListResponse buildArticleListResponse(List<ArticleProto.Article> articles) {
+        List<ArticleResponse> articleResponses = new ArrayList<>();
+        HashMap<Long, UserResponse> authorCache = new HashMap<>();
+        for (ArticleProto.Article article : articles) {
+            // TODO: Implement batch loading with caching for better performance
+            UserResponse author = authorCache.computeIfAbsent(article.getOwnerId(), userService::getUserByIdSafe);
+            ArticleProto.Asset asset = articleServiceClient.getAssetByArticleId(article.getArticleId());
+            articleResponses.add(buildArticleResponse(article, author, asset));
+        }
+        return ArticleListResponse.builder()
+                .articles(articleResponses)
+                .count(articleResponses.size())
                 .build();
     }
 
