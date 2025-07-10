@@ -92,6 +92,7 @@ public class CommentService {
         }
         CommentProto.UpdateCommentRequest grpcRequest = CommentProto.UpdateCommentRequest.newBuilder()
                 .setId(commentId)
+                .setUserId(userId)
                 .setContent(request.getContent())
                 .build();
         CommentProto.Comment comment = commentServiceClient.updateComment(grpcRequest);
