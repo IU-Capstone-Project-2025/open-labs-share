@@ -726,6 +726,11 @@ services:
       - blue-network
       - green-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U users_user -d users_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   postgres-feedback:
     image: postgres:15
@@ -739,6 +744,11 @@ services:
       - blue-network
       - green-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U feedback_user -d feedback_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   postgres-labs:
     image: postgres:15
@@ -752,6 +762,11 @@ services:
       - blue-network
       - green-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U labs_user -d labs_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   postgres-articles:
     image: postgres:15
@@ -764,6 +779,11 @@ services:
     networks:
       - blue-network
       - green-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U articles_user -d articles_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   ml-service:
     build:
@@ -810,6 +830,11 @@ services:
     networks:
       - blue-network
       - green-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ml_user -d chat_history_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
       
   ml-redis-broker:
     image: redis:7
