@@ -232,7 +232,7 @@ services:
       - POSTGRES_PORT=5432
       - POSTGRES_USER=feedback_user
       - POSTGRES_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD:-feedback_password}
-      - POSTGRES_NAME=feedback_db
+      - POSTGRES_DB=feedback_db
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -951,6 +951,8 @@ services:
   mongodb-feedback:
     image: mongo:latest
     environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER:-adminadmin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-adminadmin}
       - MONGO_INITDB_DATABASE=feedback
     volumes:
       - mongodb-feedback-data:/data/db
