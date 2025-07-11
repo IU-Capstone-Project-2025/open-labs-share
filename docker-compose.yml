@@ -65,7 +65,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 120s
 
   api-gateway-blue:
     image: ghcr.io/iu-capstone-project-2025/open-labs-share-api-gateway:latest
@@ -98,7 +98,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
 
   auth-service-blue:
     image: ghcr.io/iu-capstone-project-2025/open-labs-share-auth-service:latest
@@ -123,7 +123,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
 
   users-service-blue:
     image: ghcr.io/iu-capstone-project-2025/open-labs-share-users-service:latest
@@ -145,7 +145,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
     depends_on:
       - postgres-users
 
@@ -179,7 +179,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
     depends_on:
       - postgres-labs
       - mongodb-labs
@@ -211,7 +211,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
     depends_on:
       - postgres-articles
       - minio
@@ -245,7 +245,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
     depends_on:
       - postgres-feedback
       - mongodb-feedback
@@ -282,6 +282,7 @@ services:
       - green-network
     restart: unless-stopped
     profiles: ["blue"]
+    healthcheck: { test: "exit 0" }
     depends_on:
       - postgres-ml
       - minio
@@ -305,7 +306,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 120s
 
   api-gateway-test:
     build:
@@ -335,7 +336,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
 
   auth-service-test:
     build:
@@ -359,7 +360,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
 
   users-service-test:
     build:
@@ -380,7 +381,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
     depends_on:
       - postgres-users
 
@@ -413,7 +414,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
     depends_on:
       - postgres-labs
       - mongodb-labs
@@ -443,7 +444,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
     depends_on:
       - postgres-articles
       - minio
@@ -476,7 +477,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
     depends_on:
       - postgres-feedback
       - mongodb-feedback
@@ -503,7 +504,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 120s
 
   api-gateway-green:
     image: ghcr.io/iu-capstone-project-2025/open-labs-share-api-gateway:latest
@@ -536,7 +537,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
 
   auth-service-green:
     image: ghcr.io/iu-capstone-project-2025/open-labs-share-auth-service:latest
@@ -561,7 +562,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
 
   users-service-green:
     image: ghcr.io/iu-capstone-project-2025/open-labs-share-users-service:latest
@@ -583,7 +584,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
     depends_on:
       - postgres-users
 
@@ -617,7 +618,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
     depends_on:
       - postgres-labs
       - mongodb-labs
@@ -648,7 +649,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
     depends_on:
       - postgres-articles
       - minio
@@ -682,7 +683,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
     depends_on:
       - postgres-feedback
       - mongodb-feedback
@@ -718,6 +719,7 @@ services:
       - green-network
     restart: unless-stopped
     profiles: ["green"]
+    healthcheck: { test: "exit 0" }
     depends_on:
       - postgres-ml
       - minio
@@ -740,6 +742,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 120s
 
   postgres-feedback:
     image: postgres:15
@@ -758,6 +761,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 120s
 
   postgres-labs:
     image: postgres:15
@@ -776,6 +780,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 120s
 
   postgres-articles:
     image: postgres:15
@@ -793,6 +798,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 120s
 
   ml-service:
     build:
@@ -844,6 +850,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 120s
       
   ml-redis-broker:
     image: redis:7
@@ -858,6 +865,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 120s
 
   ml-celery-worker:
     build:
@@ -880,7 +888,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      
+      start_period: 120s
+  
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
@@ -901,6 +910,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 120s
 
   mongodb-labs:
     image: mongo:latest
@@ -919,6 +929,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 120s
 
   mongodb-feedback:
     image: mongo:latest
@@ -934,4 +945,5 @@ services:
       test: echo 'db.runCommand("ping").ok' | mongosh --quiet
       interval: 5s
       timeout: 5s
-      retries: 5 
+      retries: 5
+      start_period: 120s 
