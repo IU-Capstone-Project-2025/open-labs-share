@@ -261,6 +261,8 @@ export const commentsAPI = {
     method: 'DELETE',
   }),
 
+}
+
 // --- Tags API ---
 export const tagsAPI = {
   createTag: (tagData) => apiCall('/tags', {
