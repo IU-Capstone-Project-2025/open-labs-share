@@ -29,11 +29,6 @@ services:
       - blue-network
       - green-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8404/"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
 
 
   cadvisor:
