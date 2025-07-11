@@ -769,7 +769,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 300s
-      start_period: 300s
 
   postgres-feedback:
     image: postgres:15
@@ -788,7 +787,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 300s
       start_period: 300s
 
   postgres-labs:
@@ -809,7 +807,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 300s
-      start_period: 300s
 
   postgres-articles:
     image: postgres:15
@@ -828,7 +825,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 300s
       start_period: 300s
 
   ml-service:
@@ -881,7 +877,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 300s
       start_period: 300s
       
   ml-redis-broker:
