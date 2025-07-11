@@ -128,8 +128,7 @@ export const signUp = async (userData) => {
         lastName,
         username,
         email,
-        password,
-        role: 'ROLE_USER' // Default role
+        password
       })
     });
     
