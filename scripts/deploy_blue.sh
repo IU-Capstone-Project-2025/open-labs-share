@@ -30,7 +30,7 @@ else
 fi
 
 # The --build flag is removed to ensure we use the images from the registry.
-docker-compose --profile $TARGET_ENV up -d --build --force-recreate --no-deps ${SERVICES_TO_DEPLOY[@]}
+docker-compose --profile $TARGET_ENV up -d --force-recreate --no-deps ${SERVICES_TO_DEPLOY[@]}
 
 # Health check loop
 echo "Waiting for $TARGET_ENV environment to be healthy..."
