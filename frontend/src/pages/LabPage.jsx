@@ -103,13 +103,10 @@ export default function LabPage() {
       setUploading(true);
       await submissionsAPI.submitLabSolution(id, submissionText, files);
 
-      // Update user's balance locally after successful submission
       const updatedUser = { ...user, balance: user.balance - 1 };
 
-      // Store updated user data in localStorage
       localStorage.setItem("user", JSON.stringify(updatedUser));
 
-      // Notify all components about the user data update (including this component)
       notifyUserDataUpdate();
 
       setToast({ show: true, message: "Your solution was uploaded successfully!", type: "success" });
@@ -124,7 +121,6 @@ export default function LabPage() {
   };
 
 
-  // Функция для загрузки файла напрямую из MinIO
   const fetchAssetFromMinio = async (filename) => {
     try {
       const url = getMinioFileUrl(id, filename);
@@ -141,39 +137,11 @@ export default function LabPage() {
     }
   };
 
-  // Функция для предзагрузки изображений
-  const preloadImages = async () => {
-    if (!lab?.assets) return new Map();
-
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg', '.webp'];
-    const imageAssets = lab.assets.filter(asset => 
-      imageExtensions.some(ext => asset.filename.toLowerCase().endsWith(ext))
-    );
-
-    const urlMap = new Map();
-    
-    for (const asset of imageAssets) {
-      try {
-        const blob = await fetchAssetFromMinio(asset.filename);
-        const blobUrl = URL.createObjectURL(blob);
-        urlMap.set(asset.filename, blobUrl);
-        console.log(`Preloaded image: ${asset.filename}`);
-      } catch (error) {
-        console.error(`Failed to preload image ${asset.filename}:`, error);
-      }
-    }
-    
-    setImageUrls(urlMap);
-    return urlMap;
-  };
-
-  // Функция для получения URL из MinIO
   const getMinioFileUrl = (labId, filename) => {
     const minioEndpoint = import.meta.env.VITE_MINIO_ENDPOINT || 'http://localhost:9000';
     return `${minioEndpoint}/labs/${labId}/${filename}`;
   };
 
-  // Компонент для рендеринга изображений
   const ImageRenderer = ({ src, alt, ...props }) => {
     const [imgUrl, setImgUrl] = useState('');
     const [loading, setLoading] = useState(true);
@@ -181,6 +149,12 @@ export default function LabPage() {
 
     useEffect(() => {
       const checkImage = async () => {
+        if (src.startsWith('http://') || src.startsWith('https://')) {
+          setImgUrl(src);
+          setLoading(false);
+          return;
+        }
+
         try {
           const url = getMinioFileUrl(id, src);
           const response = await fetch(url, { method: 'HEAD' });
@@ -271,7 +245,6 @@ export default function LabPage() {
       fetchLabData();
     }
 
-    // Cleanup function для освобождения blob URLs
     return () => {
       imageUrls.forEach((url) => {
         URL.revokeObjectURL(url);
@@ -279,7 +252,6 @@ export default function LabPage() {
     };
   }, [id]);
 
-  // Helper function to generate placeholder content
   const getPlaceholderContent = (labResponse) => {
     return `# ${labResponse.title || 'Lab Content'}
 
@@ -459,7 +431,6 @@ Lab content delivery is currently being developed. The markdown content for this
                 h1: HeadingRenderer(1),
                 h2: HeadingRenderer(2),
                 h3: HeadingRenderer(3),
-                // Добавляем кастомный рендерер для изображений
                 img: ImageRenderer,
                 p: ({ node, ...props }) => (
                   <p {...props} className="my-4 leading-relaxed dark:text-gray-300" />
