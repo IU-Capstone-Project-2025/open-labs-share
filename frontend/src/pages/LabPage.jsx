@@ -50,8 +50,9 @@ export default function LabPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chatMode, setChatMode] = useState('floating'); // 'floating' or 'sidebar'
+  const [chatMode, setChatMode] = useState('floating');
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
+  const [imageUrls, setImageUrls] = useState(new Map());
   
   const user = useUser();
 
@@ -122,77 +123,144 @@ export default function LabPage() {
     }
   };
 
+
+  // Функция для загрузки файла напрямую из MinIO
+  const fetchAssetFromMinio = async (filename) => {
+    try {
+      const url = getMinioFileUrl(id, filename);
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch asset: HTTP ${response.status}`);
+      }
+      
+      return await response.blob();
+    } catch (error) {
+      console.error(`Error fetching asset ${filename}:`, error);
+      throw error;
+    }
+  };
+
+  // Функция для предзагрузки изображений
+  const preloadImages = async () => {
+    if (!lab?.assets) return new Map();
+
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg', '.webp'];
+    const imageAssets = lab.assets.filter(asset => 
+      imageExtensions.some(ext => asset.filename.toLowerCase().endsWith(ext))
+    );
+
+    const urlMap = new Map();
+    
+    for (const asset of imageAssets) {
+      try {
+        const blob = await fetchAssetFromMinio(asset.filename);
+        const blobUrl = URL.createObjectURL(blob);
+        urlMap.set(asset.filename, blobUrl);
+        console.log(`Preloaded image: ${asset.filename}`);
+      } catch (error) {
+        console.error(`Failed to preload image ${asset.filename}:`, error);
+      }
+    }
+    
+    setImageUrls(urlMap);
+    return urlMap;
+  };
+
+  // Функция для получения URL из MinIO
+  const getMinioFileUrl = (labId, filename) => {
+    const minioEndpoint = import.meta.env.VITE_MINIO_ENDPOINT || 'http://localhost:9000';
+    return `${minioEndpoint}/labs/${labId}/${filename}`;
+  };
+
+  // Компонент для рендеринга изображений
+  const ImageRenderer = ({ src, alt, ...props }) => {
+    const [imgUrl, setImgUrl] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+
+    useEffect(() => {
+      const checkImage = async () => {
+        try {
+          const url = getMinioFileUrl(id, src);
+          const response = await fetch(url, { method: 'HEAD' });
+          
+          if (response.ok) {
+            setImgUrl(url);
+          } else {
+            setError(true);
+          }
+        } catch (err) {
+          setError(true);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      checkImage();
+    }, [id, src]);
+
+    if (loading) {
+      return (
+        <div className="max-w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center my-4">
+          <span className="text-gray-500 dark:text-gray-400">Loading image...</span>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="max-w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center my-4">
+          <span className="text-gray-500 dark:text-gray-400">Image not found: {src}</span>
+        </div>
+      );
+    }
+
+    return (
+      <img 
+        src={imgUrl}
+        alt={alt}
+        {...props}
+        className="max-w-full h-auto rounded-lg shadow-md my-4"
+        onError={() => setError(true)}
+      />
+    );
+  };
+
   useEffect(() => {
     const fetchLabData = async () => {
       try {
         setLoading(true);
-        
-        // Fetch lab details
         const labResponse = await labsAPI.getLabById(id);
-        console.log('Lab response:', labResponse);
         setLab(labResponse);
-        
-        // Fetch lab assets to find the markdown file
-        try {
-          const assetsResponse = await labsAPI.getLabAssets(id);
-          console.log('Assets response:', assetsResponse);
-          console.log('Assets response type:', typeof assetsResponse);
-          console.log('Assets response keys:', Object.keys(assetsResponse));
+
+        if (labResponse.assets?.length > 0) {
+          const markdownAsset = labResponse.assets.find(a => 
+            a.filename && a.filename.toLowerCase().endsWith('.md')
+          );
           
-          // Check different possible property names for assets
-          const assetsList = assetsResponse.assets || assetsResponse.assetsList || assetsResponse.data || assetsResponse;
-          console.log('Parsed assets list:', assetsList);
-          console.log('Assets list type:', typeof assetsList);
-          console.log('Assets list is array:', Array.isArray(assetsList));
-          
-          if (assetsList && Array.isArray(assetsList) && assetsList.length > 0) {
-            console.log('Assets found, processing...');
-            console.log('First asset structure:', assetsList[0]);
-            console.log('First asset keys:', Object.keys(assetsList[0]));
-            
-            // Find the markdown file (usually the first .md file)
-            const markdownAsset = assetsList.find(asset => {
-              console.log('Checking asset:', asset);
-              const filename = asset.filename || asset.fileName || asset.name;
-              console.log('Asset filename:', filename);
-              return filename && filename.toLowerCase().endsWith('.md');
-            });
-            
-            if (markdownAsset) {
-              console.log('Found markdown asset:', markdownAsset);
-              console.log('Markdown asset keys:', Object.keys(markdownAsset));
+          if (markdownAsset) {
+            try {
+              const url = getMinioFileUrl(id, markdownAsset.filename);
+              const response = await fetch(url);
               
-              // Try different property names for asset ID
-              const assetId = markdownAsset.assetId || markdownAsset.asset_id || markdownAsset.id || markdownAsset.assetID;
-              console.log('Using asset ID:', assetId);
-              
-              // Download the markdown content
-              try {
-                const blob = await labsAPI.downloadLabAsset(id, assetId);
-                const text = await blob.text();
-                console.log('Downloaded markdown content:', text.substring(0, 200) + '...');
+              if (response.ok) {
+                const text = await response.text();
                 setMarkdown(text);
-              } catch (downloadError) {
-                console.error('Error downloading markdown:', downloadError);
-                setMarkdown(getPlaceholderContent(labResponse));
+              } else {
+                throw new Error('Markdown file not found');
               }
-            } else {
-              console.log('No markdown file found in assets');
-              console.log('Available files:', assetsList.map(a => a.filename || a.fileName || a.name || 'unknown'));
+            } catch (err) {
+              console.error('Error loading markdown:', err);
               setMarkdown(getPlaceholderContent(labResponse));
             }
           } else {
-            console.log('No assets found for this lab or assets is not an array');
-            console.log('Assets data:', assetsList);
             setMarkdown(getPlaceholderContent(labResponse));
           }
-        } catch (assetsError) {
-          console.error('Error fetching lab assets:', assetsError);
+        } else {
           setMarkdown(getPlaceholderContent(labResponse));
         }
-        
       } catch (err) {
-        console.error("Error fetching lab data:", err);
         setError(`Failed to load lab: ${err.message}`);
       } finally {
         setLoading(false);
@@ -202,6 +270,13 @@ export default function LabPage() {
     if (id) {
       fetchLabData();
     }
+
+    // Cleanup function для освобождения blob URLs
+    return () => {
+      imageUrls.forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+    };
   }, [id]);
 
   // Helper function to generate placeholder content
@@ -292,7 +367,6 @@ Lab content delivery is currently being developed. The markdown content for this
         </Tag>
       );
     };
-
 
   if (error) {
     return (
@@ -385,6 +459,8 @@ Lab content delivery is currently being developed. The markdown content for this
                 h1: HeadingRenderer(1),
                 h2: HeadingRenderer(2),
                 h3: HeadingRenderer(3),
+                // Добавляем кастомный рендерер для изображений
+                img: ImageRenderer,
                 p: ({ node, ...props }) => (
                   <p {...props} className="my-4 leading-relaxed dark:text-gray-300" />
                 ),
