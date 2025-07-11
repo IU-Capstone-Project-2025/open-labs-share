@@ -6,6 +6,7 @@ from sqlalchemy import select, func
 # Import built-in modules
 import os
 import logging
+import json
 
 # Import project files
 from utils.models import Lab, LabAsset, ArticleRelation, Tag, LabTag
@@ -29,6 +30,20 @@ class LabService(labs_service.LabServiceServicer):
 
         if not self.minio_client.bucket_exists("labs"):
             self.minio_client.make_bucket("labs")
+        
+        # Set bucket policy for public read access
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": "*",
+                    "Action": ["s3:GetObject"],
+                    "Resource": ["arn:aws:s3:::labs/*"],
+                },
+            ],
+        }
+        self.minio_client.set_bucket_policy("labs", json.dumps(policy))
 
         # Ensure the temporary files directory exists
         if not os.path.exists('files'):
