@@ -282,12 +282,6 @@ services:
       - green-network
     restart: unless-stopped
     profiles: ["blue"]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 120s
     depends_on:
       - postgres-ml
       - minio
@@ -724,12 +718,6 @@ services:
       - green-network
     restart: unless-stopped
     profiles: ["green"]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 120s
     depends_on:
       - postgres-ml
       - minio
