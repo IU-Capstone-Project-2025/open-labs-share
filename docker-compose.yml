@@ -29,7 +29,11 @@ services:
       - blue-network
       - green-network
     restart: unless-stopped
-
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8404/"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
 
   cadvisor:
@@ -893,7 +897,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
+      
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
@@ -942,7 +946,7 @@ services:
     networks:
       - blue-network
       - green-network
-    restart: unless-stopped
+    restart: unless-stopped 
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh --quiet
       interval: 5s
