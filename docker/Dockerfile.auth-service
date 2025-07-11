@@ -52,7 +52,7 @@ ENV PATH="/opt/jre/bin:${PATH}" \
     JAVA_HOME="/opt/jre" \
     JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom"
 
-EXPOSE 8081 9092
+EXPOSE 8081
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=5 \
   CMD curl -f http://localhost:8081/actuator/health || exit 1
@@ -64,4 +64,5 @@ ENTRYPOINT ["/opt/jre/bin/java", \
             "-XX:+UseStringDeduplication", \
             "-XX:+ExitOnOutOfMemoryError", \
             "-Djava.security.egd=file:/dev/./urandom", \
-            "-jar", "/opt/app/app.jar"] 
+            "-jar", "/opt/app/app.jar", \
+            "--server.address=0.0.0.0"]

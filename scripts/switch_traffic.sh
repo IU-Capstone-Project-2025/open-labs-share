@@ -13,7 +13,19 @@ echo "Switching traffic to $TARGET_ENV environment"
 # Update the main haproxy.cfg
 cp "haproxy/haproxy.$TARGET_ENV.cfg" "haproxy/haproxy.cfg"
 
-# Send a HUP signal to the haproxy container to gracefully reload the config
-docker-compose kill -s HUP haproxy
+# Gracefully reload the HAProxy configuration
+# Add a retry loop to give haproxy time to start and get a pid
+for i in {1..5}; do
+    # Use the PID file for a more reliable way to get the process ID
+    HAPROXY_PID=$(docker-compose exec haproxy cat /var/run/haproxy.pid 2>/dev/null)
+    if [ -n "$HAPROXY_PID" ]; then
+        docker-compose exec haproxy haproxy -sf $HAPROXY_PID
+        echo "HAProxy reloaded successfully."
+        exit 0
+    fi
+    echo "Waiting for HAProxy PID file... (attempt $i)"
+    sleep 2
+done
 
-echo "Traffic switched to $TARGET_ENV"
+echo "Error: Could not get HAProxy PID after several attempts."
+exit 1
