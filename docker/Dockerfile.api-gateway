@@ -59,4 +59,5 @@ ENTRYPOINT ["/opt/jre/bin/java", \
             "-XX:+UseStringDeduplication", \
             "-XX:+ExitOnOutOfMemoryError", \
             "-Djava.security.egd=file:/dev/./urandom", \
-            "-jar", "/opt/app/app.jar"] 
+            "-jar", "/opt/app/app.jar", \
+            "--server.address=0.0.0.0"]

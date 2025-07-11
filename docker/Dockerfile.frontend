@@ -1,15 +1,37 @@
-FROM node:18-alpine
+# Stage 1: Build the React application
+FROM node:18-alpine AS builder
 
-RUN apk add --no-cache curl
+WORKDIR /app
 
-WORKDIR /app/frontend
-
+# Copy package.json and package-lock.json first to leverage Docker caching
 COPY frontend/package*.json ./
-
 RUN npm install
 
+# Copy the rest of the frontend application code
 COPY frontend/ ./
 
-EXPOSE 5173
+# Accept build arguments for environment variables
+ARG VITE_API_GATEWAY_ENDPOINT
+ARG VITE_AUTH_API_ENDPOINT
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Create a .env file for the build process
+RUN echo "VITE_API_GATEWAY_ENDPOINT=${VITE_API_GATEWAY_ENDPOINT}" > .env
+RUN echo "VITE_AUTH_API_ENDPOINT=${VITE_AUTH_API_ENDPOINT}" >> .env
+
+# Build the application
+RUN npm run build
+
+# Stage 2: Serve the application with NGINX
+FROM nginx:1.25-alpine
+
+# Copy the build output from the builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy the NGINX configuration template
+COPY frontend/nginx.conf /etc/nginx/templates/default.conf.template
+
+# Expose the standard web port
+EXPOSE 80
+
+# Start NGINX
+CMD ["nginx", "-g", "daemon off;"]

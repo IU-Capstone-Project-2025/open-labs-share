@@ -19,7 +19,7 @@ services:
   haproxy:
     image: haproxy:2.8
     volumes:
-      - ./haproxy/haproxy.blue.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./haproxy:/usr/local/etc/haproxy:ro
     environment:
       - ACTIVE_ENV=blue
     ports:
@@ -29,7 +29,6 @@ services:
       - blue-network
       - green-network
     restart: unless-stopped
-
 
 
   cadvisor:
@@ -52,11 +51,16 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
+      args:
+        - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
+        - VITE_AUTH_API_ENDPOINT=http://localhost/api/v1/auth
     environment:
       - NODE_ENV=production
       - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
+      - AUTH_SERVICE_HOST_NGINX=auth-service-blue
+      - API_GATEWAY_HOST_NGINX=api-gateway-blue
     expose:
-      - "5173"
+      - "80"
     networks:
       - blue-network
     restart: unless-stopped
@@ -228,7 +232,7 @@ services:
       - POSTGRES_PORT=5432
       - POSTGRES_USER=feedback_user
       - POSTGRES_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD:-feedback_password}
-      - POSTGRES_NAME=feedback_db
+      - POSTGRES_DB=feedback_db
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -298,11 +302,16 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
+      args:
+        - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
+        - VITE_AUTH_API_ENDPOINT=http://localhost/api/v1/auth
     environment:
       - NODE_ENV=production
       - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
+      - AUTH_SERVICE_HOST_NGINX=auth-service-test
+      - API_GATEWAY_HOST_NGINX=api-gateway-test
     expose:
-      - "5173"
+      - "80"
     networks:
       - blue-network
     restart: unless-stopped
@@ -496,11 +505,16 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
+      args:
+        - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
+        - VITE_AUTH_API_ENDPOINT=http://localhost/api/v1/auth
     environment:
       - NODE_ENV=production
       - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
+      - AUTH_SERVICE_HOST_NGINX=auth-service-green
+      - API_GATEWAY_HOST_NGINX=api-gateway-green
     expose:
-      - "5173"
+      - "80"
     networks:
       - green-network
     restart: unless-stopped
@@ -714,8 +728,9 @@ services:
       - POSTGRES_HOST=postgres-ml
       - POSTGRES_PORT=5432
       - POSTGRES_DB=chat_history_db
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - REDIS_BROKER_URL=${REDIS_BROKER_URL:-redis://ml-redis-broker:6379/0}
     expose:
       - "8082"
     volumes:
@@ -754,6 +769,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 300s
+      start_period: 300s
 
   postgres-feedback:
     image: postgres:15
@@ -772,6 +788,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 300s
       start_period: 300s
 
   postgres-labs:
@@ -792,6 +809,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 300s
+      start_period: 300s
 
   postgres-articles:
     image: postgres:15
@@ -804,11 +822,13 @@ services:
     networks:
       - blue-network
       - green-network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U articles_user -d articles_db"]
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 300s
       start_period: 300s
 
   ml-service:
@@ -832,7 +852,7 @@ services:
       - POSTGRES_DB=chat_history_db
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
-      - REDIS_BROKER_URL=${REDIS_BROKER_URL}
+      - REDIS_BROKER_URL=${REDIS_BROKER_URL:-redis://ml-redis-broker:6379/0}
     volumes:
       - ./ml:/app/ml
       - ml-models:/app/models
@@ -861,6 +881,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 300s
       start_period: 300s
       
   ml-redis-broker:
@@ -945,13 +966,15 @@ services:
   mongodb-feedback:
     image: mongo:latest
     environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER:-adminadmin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-adminadmin}
       - MONGO_INITDB_DATABASE=feedback
     volumes:
       - mongodb-feedback-data:/data/db
     networks:
       - blue-network
       - green-network
-    restart: unless-stopped
+    restart: unless-stopped 
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh --quiet
       interval: 5s

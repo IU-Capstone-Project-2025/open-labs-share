@@ -1,38 +1,31 @@
 #!/bin/bash
 set -e
 
-NEW_COLOR=$1
-if [ -z "$NEW_COLOR" ]; then
-    echo "Usage: $0 <blue|green>"
+TARGET_ENV=$1
+
+if [ -z "$TARGET_ENV" ]; then
+    echo "Usage: ./scripts/switch_traffic.sh <blue|green>"
     exit 1
 fi
 
-if [ "$NEW_COLOR" != "blue" ] && [ "$NEW_COLOR" != "green" ]; then
-    echo "Invalid color: $NEW_COLOR. Must be 'blue' or 'green'."
-    exit 1
-fi
+echo "Switching traffic to $TARGET_ENV environment"
 
-OLD_COLOR=$(cat haproxy/active_env)
+# Update the main haproxy.cfg
+cp "haproxy/haproxy.$TARGET_ENV.cfg" "haproxy/haproxy.cfg"
 
-echo "Switching traffic from $OLD_COLOR to $NEW_COLOR"
-
-# Copy the new configuration and reload HAProxy
-cp "haproxy/haproxy.${NEW_COLOR}.cfg" "haproxy/haproxy.cfg"
-docker-compose exec haproxy haproxy -sf $(cat /var/run/haproxy.pid)
-
-# Update the active environment state
-echo "$NEW_COLOR" > haproxy/active_env
-
-echo "Traffic switched to $NEW_COLOR"
-
-# Stop the old environment's services
-if [ -n "$OLD_COLOR" ] && [ "$OLD_COLOR" != "$NEW_COLOR" ]; then
-echo "Stopping old environment: $OLD_COLOR"
-    SERVICES_TO_STOP=($(docker-compose --profile "$OLD_COLOR" config --services))
-    if [ ${#SERVICES_TO_STOP[@]} -gt 0 ]; then
-        docker-compose --profile "$OLD_COLOR" stop
-echo "Old environment $OLD_COLOR stopped."
-    else
-        echo "No services found for the old environment: $OLD_COLOR. Nothing to stop."
+# Gracefully reload the HAProxy configuration
+# Add a retry loop to give haproxy time to start and get a pid
+for i in {1..5}; do
+    # Use the PID file for a more reliable way to get the process ID
+    HAPROXY_PID=$(docker-compose exec haproxy cat /var/run/haproxy.pid 2>/dev/null)
+    if [ -n "$HAPROXY_PID" ]; then
+        docker-compose exec haproxy haproxy -sf $HAPROXY_PID
+        echo "HAProxy reloaded successfully."
+        exit 0
     fi
-fi
+    echo "Waiting for HAProxy PID file... (attempt $i)"
+    sleep 2
+done
+
+echo "Error: Could not get HAProxy PID after several attempts."
+exit 1
