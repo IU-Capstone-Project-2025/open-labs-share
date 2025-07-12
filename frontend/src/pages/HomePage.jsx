@@ -90,6 +90,15 @@ export default function Home() {
     fetchHomeData();
   }, []);
 
+  // Show loading state if user data is not yet available
+  if (!user) {
+    return (
+      <div className="flex justify-center items-center h-screen dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-msc"></div>
+      </div>
+    );
+  }
+
   const features = [
     {
       icon: BeakerIcon,
@@ -130,7 +139,9 @@ export default function Home() {
             </div>
             
             <h1 className="text-4xl font-extrabold font-display text-gray-900 dark:text-white tracking-tight sm:text-5xl md:text-6xl">
-              Welcome back, <span className="text-blue-600 dark:text-blue-400">{user?.firstName || user?.username || 'Student'}!</span>
+              Welcome back, <span className="text-blue-600 dark:text-blue-400">
+                {user?.firstName || user?.username || 'Student'}!
+              </span>
             </h1>
             
             <p className="mt-6 max-w-3xl mx-auto text-lg text-gray-600 dark:text-gray-300">
