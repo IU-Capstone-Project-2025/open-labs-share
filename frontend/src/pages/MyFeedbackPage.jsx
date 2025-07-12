@@ -5,6 +5,22 @@ import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
 import { DocumentTextIcon, ClockIcon, UserIcon } from '@heroicons/react/24/outline';
 
+// Helper function to safely format dates
+const formatDate = (dateString) => {
+  if (!dateString) return 'Unknown date';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    return date.toLocaleDateString();
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
+};
+
 const FeedbackCard = ({ feedback }) => {
   const { id, submissionId, student, createdAt, content } = feedback;
 
@@ -36,7 +52,7 @@ const FeedbackCard = ({ feedback }) => {
         <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
           <div className="flex items-center">
             <ClockIcon className="w-4 h-4 mr-1" />
-            <span>Given on: {new Date(createdAt).toLocaleDateString()}</span>
+            <span>Given on: {formatDate(createdAt)}</span>
           </div>
         </div>
       </div>

@@ -244,8 +244,8 @@ public class SubmissionService {
                 .labId(submission.getLabId())
                 .owner(owner)
                 .text(submission.getText())
-                .createdAt(submission.getCreatedAt().toString())
-                .updatedAt(submission.getUpdatedAt().toString())
+                .createdAt(TimestampConverter.convertTimestampToIso(submission.getCreatedAt()))
+                .updatedAt(TimestampConverter.convertTimestampToIso(submission.getUpdatedAt()))
                 .status(submission.getStatus().name())
                 .assets(assets)
                 .build();
@@ -257,7 +257,7 @@ public class SubmissionService {
                 .submissionId(asset.getSubmissionId())
                 .filename(asset.getFilename())
                 .totalSize(asset.getFilesize())
-                .uploadDate(asset.getUploadDate().toString())
+                .uploadDate(TimestampConverter.convertTimestampToIso(asset.getUploadDate()))
                 .build();
     }
 
