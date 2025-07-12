@@ -388,7 +388,7 @@ export default function ProfilePage() {
                         id="firstName"
                         value={formData.firstName}
                         onChange={handleChange}
-                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-msc focus:border-msc"
                       />
                     </div>
                     <div>
@@ -401,7 +401,7 @@ export default function ProfilePage() {
                         id="lastName"
                         value={formData.lastName}
                         onChange={handleChange}
-                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-msc focus:border-msc"
                       />
                     </div>
                     <div>
@@ -414,7 +414,7 @@ export default function ProfilePage() {
                         id="username"
                         value={formData.username}
                         onChange={handleChange}
-                        className={`mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border ${errors.username ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                        className={`mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border ${errors.username ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-msc focus:border-msc`}
                       />
                       {errors.username && <p className="mt-1 text-sm text-red-500">{errors.username}</p>}
                     </div>
@@ -428,7 +428,7 @@ export default function ProfilePage() {
                         id="email"
                         value={formData.email}
                         onChange={handleChange}
-                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-msc focus:border-msc"
                       />
                     </div>
                     <div>
@@ -441,7 +441,7 @@ export default function ProfilePage() {
                         id="password"
                         value={formData.password}
                         onChange={handleChange}
-                        className={`mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border ${errors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                        className={`mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border ${errors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-msc focus:border-msc`}
                       />
                       {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
                     </div>
@@ -455,7 +455,7 @@ export default function ProfilePage() {
                         id="confirmPassword"
                         value={formData.confirmPassword}
                         onChange={handleChange}
-                        className={`mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                        className={`mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-msc focus:border-msc`}
                       />
                       {errors.confirmPassword && <p className="mt-1 text-sm text-red-500">{errors.confirmPassword}</p>}
                     </div>
@@ -470,7 +470,7 @@ export default function ProfilePage() {
                       <button
                         type="submit"
                         disabled={saving}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                        className="mt-6 w-full px-4 py-2 bg-msc text-white rounded-lg hover:bg-msc-hover transition-colors"
                       >
                         {saving ? "Saving..." : "Save Changes"}
                       </button>
@@ -497,7 +497,7 @@ export default function ProfilePage() {
                   <div className="flex space-x-2">
                     <button 
                       onClick={handleUploadClick}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="px-4 py-2 bg-msc text-white rounded-lg hover:bg-msc-hover transition-colors"
                     >
                       Upload New
                     </button>
@@ -596,7 +596,7 @@ export default function ProfilePage() {
                 <button
                   onClick={handleFileUpload}
                   disabled={!uploadFile || uploading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:opacity-50"
+                  className="px-4 py-2 bg-msc text-white rounded-md disabled:opacity-50"
                 >
                   {uploading ? 'Uploading...' : 'Upload'}
                 </button>

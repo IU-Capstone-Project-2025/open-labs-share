@@ -203,8 +203,21 @@ export const signOut = async () => {
 // Event-based mechanism for components to listen for user data changes
 // ---
 
+// Rate limiting for user data updates
+let lastUpdateTime = 0;
+const UPDATE_THROTTLE_MS = 200; // Minimum 200ms between updates
+
 // Function to dispatch a custom event when user data is updated
 export const notifyUserDataUpdate = () => {
+  const now = Date.now();
+  if (now - lastUpdateTime < UPDATE_THROTTLE_MS) {
+    // Skip this update if it's too soon after the last one
+    console.log('User data update throttled - too soon after last update');
+    return;
+  }
+  
+  lastUpdateTime = now;
+  console.log('Dispatching userDataUpdated event at:', new Date().toISOString());
   const event = new Event('userDataUpdated');
   window.dispatchEvent(event);
 };
@@ -261,10 +274,20 @@ export const refreshToken = async () => {
         labsSolved: userInfo.labsSolved,
         labsReviewed: userInfo.labsReviewed,
       };
+      
+      // Check if user data actually changed before notifying
+      const currentUser = getCurrentUser();
+      const hasChanged = !currentUser || 
+        currentUser.balance !== userData.balance ||
+        currentUser.labsSolved !== userData.labsSolved ||
+        currentUser.labsReviewed !== userData.labsReviewed;
+      
       localStorage.setItem('user', JSON.stringify(userData));
       
-      // Notify all parts of the app about the update
-      notifyUserDataUpdate();
+      // Only notify if user data actually changed
+      if (hasChanged) {
+        notifyUserDataUpdate();
+      }
     }
     
     return accessToken;
@@ -338,8 +361,8 @@ export const getUserProfile = async () => {
       // Update local storage
       localStorage.setItem('user', JSON.stringify(userData));
 
-      // Notify all parts of the app that user data has been updated
-      notifyUserDataUpdate();
+      // Don't notify here to prevent infinite loops - App.jsx handles this
+      // notifyUserDataUpdate();
       
       return userData;
     }

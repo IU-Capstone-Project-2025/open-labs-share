@@ -37,7 +37,6 @@ import FeedbackViewPage from './pages/FeedbackViewPage';
 import SearchResultsPage from './pages/SearchResultsPage';
 
 
-// Component to protect routes that require authentication
 function ProtectedRoute({ children }) {
   const authenticated = isAuthenticated();
   
@@ -49,7 +48,6 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
-// Component for routes that should only be accessible to unauthenticated users
 function PublicOnlyRoute({ children }) {
   const authenticated = isAuthenticated();
   
@@ -61,9 +59,7 @@ function PublicOnlyRoute({ children }) {
   return children;
 }
 
-// Component for the landing page (accessible to everyone)
 function LandingRoute({ children }) {
-  // This route is accessible to both authenticated and unauthenticated users
   return children;
 }
 
@@ -74,11 +70,13 @@ function AppContent() {
   const [userLoading, setUserLoading] = useState(true);
   const sidebarRef = useRef();
   const location = useLocation();
+  const updateTimeoutRef = useRef(null);
 
   const showSidebar = !["/signup", "/signin"].includes(location.pathname) && 
                    !(location.pathname === "/" && !isAuthenticated());
   
   const updateUserState = useCallback(async () => {
+    console.log('updateUserState called at:', new Date().toISOString());
     if (isAuthenticated()) {
       try {
         setUserLoading(true);
@@ -96,6 +94,15 @@ function AppContent() {
       setUserLoading(false);
     }
   }, []);
+
+  const debouncedUpdateUserState = useCallback(() => {
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+    updateTimeoutRef.current = setTimeout(() => {
+      updateUserState();
+    }, 100);
+  }, [updateUserState]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -120,20 +127,19 @@ function AppContent() {
     document.documentElement.classList.toggle("dark", savedTheme === "dark");
   }, []);
 
-  // Centralized user data fetching and state management
   useEffect(() => {
-    // Initial fetch
     updateUserState();
 
-    // Listen for custom event to re-fetch user data
-    window.addEventListener('userDataUpdated', updateUserState);
+    window.addEventListener('userDataUpdated', debouncedUpdateUserState);
 
     return () => {
-      window.removeEventListener('userDataUpdated', updateUserState);
+      window.removeEventListener('userDataUpdated', debouncedUpdateUserState);
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
     };
-  }, [updateUserState]);
+  }, [updateUserState, debouncedUpdateUserState]);
 
-  // Start/stop token refresh based on authentication state
   useEffect(() => {
     if (isAuthenticated()) {
       startTokenRefresh();
@@ -150,7 +156,6 @@ function AppContent() {
     document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
-  // Get user initials for profile avatar
   const getUserInitials = () => {
     if (!user) return "?";
     const firstInitial = user.firstName?.charAt(0)?.toUpperCase() || "";
