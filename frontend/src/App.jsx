@@ -71,6 +71,7 @@ function AppContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [theme, setTheme] = useState("light");
   const [user, setUser] = useState(null);
+  const [userLoading, setUserLoading] = useState(true);
   const sidebarRef = useRef();
   const location = useLocation();
 
@@ -80,14 +81,19 @@ function AppContent() {
   const updateUserState = useCallback(async () => {
     if (isAuthenticated()) {
       try {
+        setUserLoading(true);
         const freshUserData = await getUserProfile();
         setUser(freshUserData);
       } catch (error) {
         console.error('Failed to fetch user profile, using cached data:', error);
-        setUser(getCurrentUser());
+        const cachedUser = getCurrentUser();
+        setUser(cachedUser);
+      } finally {
+        setUserLoading(false);
       }
     } else {
       setUser(null);
+      setUserLoading(false);
     }
   }, []);
 
@@ -177,7 +183,7 @@ function AppContent() {
               </div>
 
               <div className="flex items-center space-x-3">
-                {user && (
+                {user && !userLoading ? (
                   <div className="text-right hidden sm:block">
                     <div className="text-sm text-gray-600 dark:text-gray-300">
                       Welcome, {user.firstName} {user.lastName}!
@@ -187,7 +193,17 @@ function AppContent() {
                       <span>{user.balance || 0} points</span>
                     </div>
                   </div>
-                )}
+                ) : userLoading ? (
+                  <div className="text-right hidden sm:block">
+                    <div className="text-sm text-gray-600 dark:text-gray-300">
+                      Loading...
+                    </div>
+                    <div className="flex items-center justify-end space-x-1 text-xs text-msc dark:text-gray-400">
+                      <GemIcon className="h-4 w-4" color="#101e5a" />
+                      <span>...</span>
+                    </div>
+                  </div>
+                ) : null}
                 <Link to="/profile" className="flex items-center">
                   <div className="w-10 h-10 rounded-full bg-msc flex items-center justify-center text-white text-sm cursor-pointer hover:bg-msc-hover transition-colors">
                     <span>{getUserInitials()}</span>

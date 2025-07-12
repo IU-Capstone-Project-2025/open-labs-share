@@ -97,12 +97,18 @@ export const signIn = async (emailOrUsername, password) => {
       lastName: userInfo.lastName,
       username: userInfo.username,
       email: userInfo.email,
-      role: userInfo.role
+      role: userInfo.role,
+      balance: userInfo.balance,
+      labsSolved: userInfo.labsSolved,
+      labsReviewed: userInfo.labsReviewed,
     };
     
     localStorage.setItem('authToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('user', JSON.stringify(userData));
+    
+    // Immediately notify all components about the user data update
+    notifyUserDataUpdate();
     
     return { user: userData, token: accessToken };
   } catch (error) {
@@ -141,12 +147,18 @@ export const signUp = async (userData) => {
       lastName: userInfo.lastName,
       username: userInfo.username,
       email: userInfo.email,
-      role: userInfo.role
+      role: userInfo.role,
+      balance: userInfo.balance,
+      labsSolved: userInfo.labsSolved,
+      labsReviewed: userInfo.labsReviewed,
     };
     
     localStorage.setItem('authToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('user', JSON.stringify(userDataToStore));
+    
+    // Immediately notify all components about the user data update
+    notifyUserDataUpdate();
     
     return { user: userDataToStore, token: accessToken };
   } catch (error) {
@@ -181,6 +193,9 @@ export const signOut = async () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
+    
+    // Immediately notify all components about the user data update
+    notifyUserDataUpdate();
   }
 };
 
@@ -324,7 +339,7 @@ export const getUserProfile = async () => {
       localStorage.setItem('user', JSON.stringify(userData));
 
       // Notify all parts of the app that user data has been updated
-      // notifyUserDataUpdate();
+      notifyUserDataUpdate();
       
       return userData;
     }
