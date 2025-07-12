@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { feedbackAPI } from '../utils/api';
+import { feedbackAPI, submissionsAPI, labsAPI } from '../utils/api';
 import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
-import { DocumentTextIcon, ClockIcon, UserIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, ClockIcon, UserIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 // Helper function to safely format dates
 const formatDate = (dateString) => {
@@ -21,42 +21,58 @@ const formatDate = (dateString) => {
   }
 };
 
-const FeedbackCard = ({ feedback }) => {
-  const { id, submissionId, student, createdAt, content } = feedback;
+const FeedbackCard = ({ feedback, onDelete }) => {
+  const { id, submissionId, labTitle, student, createdAt, content } = feedback;
 
   if (!feedback.id || typeof feedback.id !== 'string') {
     console.error('Invalid feedback ID:', feedback.id);
     return null;
   }
 
+  const handleDeleteClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDelete(feedback);
+  };
+
   return (
-    <Link to={`/feedback/view/${feedback.id}`} className="block group">
-      <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center mb-4">
-          <DocumentTextIcon className="w-8 h-8 text-blue-500 dark:text-blue-400 mr-4" />
-          <div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              Feedback for submission #{submissionId}
-            </h3>
-            <div className="flex items-center mt-1">
-              <UserIcon className="w-4 h-4 text-gray-500 mr-1" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Student: {student.name} {student.surname}
-              </p>
+    <div className="relative group">
+      <Link to={`/feedback/view/${feedback.id}`} className="block group">
+        <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center mb-4">
+            <DocumentTextIcon className="w-8 h-8 text-blue-500 dark:text-blue-400 mr-4" />
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                Feedback for submission to "{labTitle || `Lab #${submissionId}`}"
+              </h3>
+              <div className="flex items-center mt-1">
+                <UserIcon className="w-4 h-4 text-gray-500 mr-1" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Student: {student.name} {student.surname}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-2">
+            {content}
+          </div>
+          <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
+            <div className="flex items-center">
+              <ClockIcon className="w-4 h-4 mr-1" />
+              <span>Given on: {formatDate(createdAt)}</span>
             </div>
           </div>
         </div>
-        <div className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-2">
-          {content}
-        </div>
-        <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
-          <div className="flex items-center">
-            <ClockIcon className="w-4 h-4 mr-1" />
-            <span>Given on: {formatDate(createdAt)}</span>
-          </div>
-        </div>
-      </div>
-    </Link>
+      </Link>
+      
+      <button
+        onClick={handleDeleteClick}
+        className="absolute top-2 right-2 p-1.5 bg-gray-200 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300 hover:bg-red-200 dark:hover:bg-red-800 hover:text-red-600 dark:hover:text-red-200 transition-colors opacity-0 group-hover:opacity-100"
+        aria-label="Delete feedback"
+      >
+        <TrashIcon className="w-5 h-5" />
+      </button>
+    </div>
   );
 };
 
@@ -69,6 +85,8 @@ const MyFeedbackPage = () => {
     limit: 10,
     totalCount: 0
   });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [feedbackToDelete, setFeedbackToDelete] = useState(null);
   const user = useUser();
 
   useEffect(() => {
@@ -80,7 +98,33 @@ const MyFeedbackPage = () => {
       try {
         setLoading(true);
         const response = await feedbackAPI.listMyCreatedFeedbacks(user.id, pagination.page, pagination.limit);
-        setFeedbacks(response.feedbacks || []);
+        const feedbacksData = response.feedbacks || [];
+        
+        // Fetch lab titles for all feedbacks
+        const enrichedFeedbacks = await Promise.all(
+          feedbacksData.map(async (feedback) => {
+            try {
+              // Get submission to find labId
+              const submission = await submissionsAPI.getSubmissionById(feedback.submissionId);
+              const labId = submission.labId || submission.data?.labId;
+              
+              if (labId) {
+                // Get lab title
+                const lab = await labsAPI.getLabById(labId);
+                return {
+                  ...feedback,
+                  labTitle: lab?.title
+                };
+              }
+              return feedback;
+            } catch (err) {
+              console.error(`Failed to fetch lab data for submission ${feedback.submissionId}:`, err);
+              return feedback;
+            }
+          })
+        );
+        
+        setFeedbacks(enrichedFeedbacks);
         setPagination(prev => ({
           ...prev,
           totalCount: response.totalCount || 0
@@ -95,6 +139,62 @@ const MyFeedbackPage = () => {
 
     fetchMyCreatedFeedbacks();
   }, [user, pagination.page, pagination.limit]);
+
+  const handleDeleteClick = (feedback) => {
+    setFeedbackToDelete(feedback);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!feedbackToDelete) return;
+
+    try {
+      await feedbackAPI.deleteFeedback(feedbackToDelete.id);
+      setFeedbacks(prev => prev.filter(feedback => feedback.id !== feedbackToDelete.id));
+      setPagination(prev => ({
+        ...prev,
+        totalCount: prev.totalCount - 1
+      }));
+      setShowDeleteModal(false);
+      setFeedbackToDelete(null);
+    } catch (error) {
+      console.error('Error deleting feedback:', error);
+      setError('Failed to delete feedback. Please try again.');
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setFeedbackToDelete(null);
+  };
+
+  const ConfirmationModal = () => {
+    if (!showDeleteModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full animate-fade-in">
+          <p className="text-gray-800 dark:text-gray-200 mb-4">
+            Are you sure you want to delete this feedback for submission to "{feedbackToDelete?.labTitle || `Lab #${feedbackToDelete?.submissionId}`}"?
+          </p>
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={handleCancelDelete}
+              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const handlePageChange = (newPage) => {
     setPagination(prev => ({ ...prev, page: newPage }));
@@ -118,7 +218,7 @@ const MyFeedbackPage = () => {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {feedbacks.map(feedback => (
-              <FeedbackCard key={feedback.id} feedback={feedback} />
+              <FeedbackCard key={feedback.id} feedback={feedback} onDelete={handleDeleteClick} />
             ))}
           </div>
           
@@ -148,6 +248,8 @@ const MyFeedbackPage = () => {
           <p>You haven't given any feedback yet.</p>
         </div>
       )}
+      
+      <ConfirmationModal />
     </div>
   );
 };
