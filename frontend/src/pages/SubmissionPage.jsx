@@ -5,6 +5,38 @@ import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
 import { DocumentTextIcon, ClockIcon, UserIcon, PaperClipIcon } from '@heroicons/react/24/outline';
 
+// Helper function to safely format dates
+const formatDate = (dateString) => {
+  if (!dateString) return 'Unknown date';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    return date.toLocaleDateString();
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
+};
+
+// Helper function to safely format date and time
+const formatDateTime = (dateString) => {
+  if (!dateString) return 'Unknown date';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    return date.toLocaleString();
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
+};
+
 const FeedbackCard = ({ feedback }) => {
   return (
     <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-4">
@@ -20,7 +52,7 @@ const FeedbackCard = ({ feedback }) => {
         </div>
         <div className="flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">
           <ClockIcon className="w-4 h-4" />
-          <span>{new Date(feedback.createdAt).toLocaleDateString()}</span>
+          <span>{formatDate(feedback.createdAt)}</span>
         </div>
       </div>
       
@@ -134,7 +166,7 @@ const SubmissionPage = () => {
         Submission for: {lab?.title || `Lab #${submission.labId}`}
       </h1>
       <p className="text-gray-600 dark:text-gray-400 mb-8">
-        Submitted on: {new Date(submission.createdAt).toLocaleString()} by {submission.owner?.username || 'Unknown User'}
+        Submitted on: {formatDateTime(submission.createdAt)} by {submission.owner?.username || 'Unknown User'}
       </p>
 
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-8">
