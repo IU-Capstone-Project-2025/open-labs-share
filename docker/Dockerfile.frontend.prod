@@ -24,7 +24,7 @@ RUN echo "VITE_AUTH_API_ENDPOINT=${VITE_AUTH_API_ENDPOINT}" >> .env.production
 RUN echo "--- Verifying .env.production contents ---" && cat .env.production
 # --- END DEBUGGING STEP ---
 
-# Build the application for production
+# Build the application for production 
 RUN npm run build
 
 # Stage 2: Serve the static files with Nginx

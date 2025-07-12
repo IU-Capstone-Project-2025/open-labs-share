@@ -15,7 +15,7 @@ COPY ./services/articles-service/app .
 
 # Generate protobuf files
 RUN touch proto/__init__.py utils/__init__.py
-RUN python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto proto/articles_service.proto
+RUN python -m grpc_tools.protoc -I./prot o --python_out=./proto --grpc_python_out=./proto proto/articles_service.proto
 
 # --- Final Stage ---
 FROM python:3.12-slim

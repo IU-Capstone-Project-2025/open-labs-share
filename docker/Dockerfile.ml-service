@@ -21,7 +21,7 @@ WORKDIR /home/appuser/app
 
 # Install runtime dependencies and netcat
 RUN apt-get update && apt-get install -y --no-install-recommends dos2unix curl netcat-openbsd && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/*  
 
 # Copy dependencies and application code with correct permissions
 COPY --from=builder --chown=appuser:appuser /app/deps /home/appuser/app/deps

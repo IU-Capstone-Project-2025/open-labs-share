@@ -21,7 +21,7 @@ RUN jlink --verbose \
           --add-modules java.base,java.logging,java.naming,java.desktop,\
 java.management,java.security.jgss,java.instrument,java.sql,\
 jdk.unsupported,java.xml,jdk.crypto.ec,java.net.http,jdk.httpserver \
-          --output /custom-jre
+          --output /custom-jre 
 
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
