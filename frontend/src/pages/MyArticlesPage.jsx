@@ -3,12 +3,15 @@ import { useNavigate } from "react-router-dom";
 import ArticleCard from "../components/ArticleCard";
 import { articlesAPI } from "../utils/api";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
+import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function MyArticlesPage() {
   const [myArticles, setMyArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [articleToDelete, setArticleToDelete] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -45,6 +48,61 @@ export default function MyArticlesPage() {
     navigate('/create-article');
   };
 
+  const handleDeleteClick = (e, article) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setArticleToDelete(article);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!articleToDelete) return;
+
+    try {
+      const deletedArticleId = articleToDelete.id || articleToDelete.article_id;
+      await articlesAPI.deleteArticle(deletedArticleId);
+      setMyArticles(prev => prev.filter(article => (article.id || article.article_id) !== deletedArticleId));
+      setShowDeleteModal(false);
+      setArticleToDelete(null);
+    } catch (error) {
+      console.error('Error deleting article:', error);
+      setError('Failed to delete article. Please try again.');
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setArticleToDelete(null);
+  };
+
+  const ConfirmationModal = () => {
+    if (!showDeleteModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full animate-fade-in">
+          <p className="text-gray-800 dark:text-gray-200 mb-4">
+            Are you sure you want to delete the article "{articleToDelete?.title}"?
+          </p>
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={handleCancelDelete}
+              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (!isAuthenticated()) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -65,6 +123,7 @@ export default function MyArticlesPage() {
             </div>
           </div>
         </div>
+        <ConfirmationModal />
       </div>
     );
   }
@@ -95,6 +154,7 @@ export default function MyArticlesPage() {
             </div>
           </div>
         </div>
+        <ConfirmationModal />
       </div>
     );
   }
@@ -139,11 +199,21 @@ export default function MyArticlesPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {myArticles.map((article) => (
-              <ArticleCard key={article.id || article.article_id} article={article} />
+              <div key={article.id || article.article_id} className="relative group">
+                <ArticleCard article={article} />
+                <button
+                  onClick={(e) => handleDeleteClick(e, article)}
+                  className="absolute top-2 right-2 p-1.5 bg-gray-200 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300 hover:bg-red-200 dark:hover:bg-red-800 hover:text-red-600 dark:hover:text-red-200 transition-colors opacity-0 group-hover:opacity-100"
+                  aria-label="Delete article"
+                >
+                  <TrashIcon className="w-5 h-5" />
+                </button>
+              </div>
             ))}
           </div>
         )}
       </div>
+      <ConfirmationModal />
     </div>
   );
 }

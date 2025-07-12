@@ -172,7 +172,6 @@ const SubmissionPage = () => {
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-8">
         <h2 className="text-2xl font-semibold mb-4">Submission Details</h2>
         <div className="prose dark:prose-invert max-w-none">
-          <p><strong>Status:</strong> {submission.status}</p>
           <p><strong>Comment/Solution:</strong></p>
           <pre className="bg-gray-100 dark:bg-gray-700 p-4 rounded-md">
             <code>{submission.text}</code>

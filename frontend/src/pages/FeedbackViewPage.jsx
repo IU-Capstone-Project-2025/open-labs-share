@@ -1,13 +1,30 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { feedbackAPI } from '../utils/api';
+import { feedbackAPI, submissionsAPI, labsAPI } from '../utils/api';
 import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
+
+// Helper function to safely format dates
+const formatDateTime = (dateString) => {
+  if (!dateString) return 'Unknown date';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    return date.toLocaleString();
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
+};
 
 const FeedbackViewPage = () => {
   const { feedbackId } = useParams();
   const navigate = useNavigate();
   const [feedback, setFeedback] = useState(null);
+  const [labTitle, setLabTitle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const user = useUser();
@@ -28,6 +45,20 @@ const FeedbackViewPage = () => {
         }
         
         setFeedback(response);
+        
+        // Fetch lab title
+        try {
+          const submission = await submissionsAPI.getSubmissionById(response.submissionId);
+          const labId = submission.labId || submission.data?.labId;
+          
+          if (labId) {
+            const lab = await labsAPI.getLabById(labId);
+            setLabTitle(lab?.title);
+          }
+        } catch (labErr) {
+          console.error('Failed to fetch lab data:', labErr);
+          // Continue without lab title
+        }
       } catch (err) {
         setError(err.message || 'Feedback details could not be uploaded.');
         console.error(err);
@@ -68,7 +99,7 @@ const FeedbackViewPage = () => {
       </div>
 
       <h1 className="text-3xl font-bold mb-4">
-        Feedback for submission #{feedback.submissionId}
+        Feedback for submission to "{labTitle || `Lab #${feedback.submissionId}`}"
       </h1>
 
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
@@ -77,10 +108,7 @@ const FeedbackViewPage = () => {
           <strong>Student:</strong> {feedback.student.name} {feedback.student.surname} ({feedback.student.username})
         </div>
         <div className="mb-4">
-          <strong>Student's email address:</strong> {feedback.student.email}
-        </div>
-        <div className="mb-4">
-          <strong>Date of creation:</strong> {new Date(feedback.createdAt).toLocaleString()}
+          <strong>Date of creation:</strong> {formatDateTime(feedback.createdAt)}
         </div>
         
         <h2 className="text-xl font-semibold mb-2 mt-6">Your feedback</h2>
@@ -111,7 +139,7 @@ const FeedbackViewPage = () => {
         
         <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-600">
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            <p>Last update: {new Date(feedback.updatedAt).toLocaleString()}</p>
+            <p>Last update: {formatDateTime(feedback.updatedAt)}</p>
           </div>
         </div>
       </div>
