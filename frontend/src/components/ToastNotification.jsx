@@ -9,16 +9,16 @@ export default function ToastNotification({ message, type, onClose }) {
     return () => clearTimeout(timer);
   }, [onClose]);
 
-  const bgColor = {
-    success: "bg-green-700",
+  const toastStyles = {
+    success: "bg-green-600",
     error: "bg-red-600",
     warning: "bg-yellow-600",
-    info: "bg-blue-600"
-  }[type];
+    info: "bg-msc"
+  };
 
   return (
     <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
-      <div className={`${bgColor} text-white px-6 py-3 rounded-md shadow-lg flex items-center animate-fade-in`}>
+      <div className={`${toastStyles[type]} text-white px-6 py-3 rounded-md shadow-lg flex items-center animate-fade-in`}>
         <svg 
           xmlns="http://www.w3.org/2000/svg" 
           className="h-5 w-5 mr-2" 

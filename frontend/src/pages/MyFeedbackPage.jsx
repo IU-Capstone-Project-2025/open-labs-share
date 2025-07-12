@@ -38,25 +38,25 @@ const FeedbackCard = ({ feedback, onDelete }) => {
   return (
     <div className="relative group">
       <Link to={`/feedback/view/${feedback.id}`} className="block group">
-        <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center mb-4">
-            <DocumentTextIcon className="w-8 h-8 text-blue-500 dark:text-blue-400 mr-4" />
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+        <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-200 dark:border-gray-700 h-48 flex flex-col">
+          <div className="flex items-start mb-4 flex-1">
+            <DocumentTextIcon className="w-8 h-8 text-blue-500 dark:text-blue-400 mr-4 mt-1 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2">
                 Feedback for submission to "{labTitle || `Lab #${submissionId}`}"
               </h3>
-              <div className="flex items-center mt-1">
-                <UserIcon className="w-4 h-4 text-gray-500 mr-1" />
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+              <div className="flex items-center mt-2">
+                <UserIcon className="w-4 h-4 text-gray-500 mr-1 flex-shrink-0" />
+                <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">
                   Student: {student.name} {student.surname}
                 </p>
               </div>
             </div>
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-2">
+          <div className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-2 flex-1">
             {content}
           </div>
-          <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
+          <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400 mt-auto">
             <div className="flex items-center">
               <ClockIcon className="w-4 h-4 mr-1" />
               <span>Given on: {formatDate(createdAt)}</span>

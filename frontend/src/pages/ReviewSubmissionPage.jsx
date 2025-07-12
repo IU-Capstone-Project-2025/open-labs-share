@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { submissionsAPI, feedbackAPI, labsAPI } from '../utils/api';
 import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
-import { PaperClipIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
+import { PaperClipIcon, ExclamationCircleIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import ToastNotification from "../components/ToastNotification";
 
 
@@ -17,11 +17,85 @@ const ReviewSubmissionPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [toast, setToast] = useState({ show: false, message: "", type: "" });
+    const [downloadingFiles, setDownloadingFiles] = useState(new Set());
 
     const [feedbackContent, setFeedbackContent] = useState('');
     const [files, setFiles] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef(null);
+
+    const getSubmissionFileUrl = (submissionId, filename) => {
+        const minioEndpoint = import.meta.env.VITE_MINIO_ENDPOINT || 'http://localhost:9000';
+        return `${minioEndpoint}/submissions/${submissionId}/${filename}`;
+    };
+
+    const downloadFile = async (filename) => {
+        if (!submissionId || !filename) return;
+
+        try {
+            setDownloadingFiles(prev => new Set(prev).add(filename));
+            
+            const url = getSubmissionFileUrl(submissionId, filename);
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`Failed to download file: HTTP ${response.status}`);
+            }
+            
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            window.URL.revokeObjectURL(downloadUrl);
+            
+            setToast({ show: true, message: `Downloaded ${filename} successfully!`, type: 'success' });
+        } catch (error) {
+            console.error(`Error downloading file ${filename}:`, error);
+            setToast({ show: true, message: `Failed to download ${filename}: ${error.message}`, type: 'error' });
+        } finally {
+            setDownloadingFiles(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(filename);
+                return newSet;
+            });
+        }
+    };
+
+    const downloadAllFiles = async () => {
+        if (!submission?.assets || submission.assets.length === 0) return;
+
+        try {
+            setDownloadingFiles(prev => new Set([...prev, 'all']));
+            
+            if (submission.assets.length === 1) {
+                // If only one file, download it directly
+                await downloadFile(submission.assets[0].filename);
+                return;
+            }
+
+            for (const asset of submission.assets) {
+                await downloadFile(asset.filename);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            setToast({ show: true, message: 'All files downloaded successfully!', type: 'success' });
+        } catch (error) {
+            console.error('Error downloading all files:', error);
+            setToast({ show: true, message: `Failed to download all files: ${error.message}`, type: 'error' });
+        } finally {
+            setDownloadingFiles(prev => {
+                const newSet = new Set(prev);
+                newSet.delete('all');
+                return newSet;
+            });
+        }
+    };
 
     useEffect(() => {
         const fetchSubmission = async () => {
@@ -30,7 +104,6 @@ const ReviewSubmissionPage = () => {
                 const sub = await submissionsAPI.getSubmissionById(submissionId);
                 setSubmission(sub.data || sub);
 
-                // Fetch lab data separately if we have labId
                 if (sub.data?.labId || sub.labId) {
                     const labId = sub.data?.labId || sub.labId;
                     try {
@@ -38,7 +111,6 @@ const ReviewSubmissionPage = () => {
                         setLab(labData);
                     } catch (labErr) {
                         console.error('Failed to fetch lab data:', labErr);
-                        // Continue without lab data
                     }
                 }
             } catch (err) {
@@ -114,14 +186,59 @@ const ReviewSubmissionPage = () => {
                 </div>
                 {submission.assets && submission.assets.length > 0 && (
                     <div className="mt-6">
-                        <h3 className="text-xl font-semibold">Attachments:</h3>
-                        <ul className="list-disc list-inside mt-2">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-semibold">Attachments ({submission.assets.length}):</h3>
+                            {submission.assets.length > 1 && (
+                                <button
+                                    onClick={downloadAllFiles}
+                                    disabled={downloadingFiles.has('all')}
+                                    className="flex items-center px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 disabled:bg-green-400 transition-colors"
+                                >
+                                    {downloadingFiles.has('all') ? (
+                                        <>
+                                            <Spinner className="w-4 h-4 mr-2" />
+                                            Downloading...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+                                            Download All
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                        </div>
+                        <div className="space-y-2">
                             {submission.assets.map(asset => (
-                                <li key={asset.assetId}>
-                                    <a href="#" className="text-blue-600 hover:underline">{asset.filename} ({Math.round(asset.totalSize / 1024)} KB)</a>
-                                </li>
+                                <div key={asset.assetId} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                    <div className="flex items-center">
+                                        <PaperClipIcon className="w-5 h-5 text-gray-500 mr-3" />
+                                        <div>
+                                            <div className="font-medium text-gray-900 dark:text-white">
+                                                {asset.filename}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => downloadFile(asset.filename)}
+                                        disabled={downloadingFiles.has(asset.filename)}
+                                        className="flex items-center px-3 py-1.5 bg-msc text-white text-sm rounded-md hover:bg-msc-hover disabled:bg-blue-400 transition-colors"
+                                    >
+                                        {downloadingFiles.has(asset.filename) ? (
+                                            <>
+                                                <Spinner className="w-4 h-4 mr-2" />
+                                                Downloading...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+                                                Download
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
                             ))}
-                        </ul>
+                        </div>
                     </div>
                 )}
             </div>
@@ -136,24 +253,21 @@ const ReviewSubmissionPage = () => {
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
                 <h2 className="text-2xl font-semibold mb-4">Your Feedback</h2>
                 
-                {/* Отображение ошибок */}
                 {error && (
                     <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-100 rounded-md">
                     {error}
                     </div>
                 )}
 
-                {/* Поле для текста фидбэка */}
                 <div className="mb-4">
                     <textarea
                     value={feedbackContent}
                     onChange={(e) => setFeedbackContent(e.target.value)}
-                    className="w-full h-48 p-3 border rounded-md dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full h-48 p-3 border rounded-md dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-msc"
                     placeholder="Provide your detailed feedback here..."
                     />
                 </div>
 
-                {/* Поле для загрузки файлов */}
                 <div className="mb-6">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Attach Files (optional)
@@ -169,12 +283,11 @@ const ReviewSubmissionPage = () => {
                     </div>
                 </div>
 
-                {/* Кнопка отправки */}
                 <div className="flex justify-end">
                     <button
                     onClick={handleSubmitFeedback}
                     disabled={isSubmitting}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300 dark:disabled:bg-blue-900 transition-colors flex items-center"
+                    className="px-4 py-2 bg-msc text-white rounded-md hover:bg-msc-hover disabled:bg-blue-300 dark:disabled:bg-blue-900 transition-colors flex items-center"
                     >
                     {isSubmitting ? (
                         <>
