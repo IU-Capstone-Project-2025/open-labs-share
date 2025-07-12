@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { submissionsAPI, feedbackAPI } from '../utils/api';
+import { submissionsAPI, feedbackAPI, labsAPI } from '../utils/api';
 import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
 import { PaperClipIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
@@ -13,6 +13,7 @@ const ReviewSubmissionPage = () => {
     const user = useUser();
 
     const [submission, setSubmission] = useState(null);
+    const [lab, setLab] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [toast, setToast] = useState({ show: false, message: "", type: "" });
@@ -27,13 +28,19 @@ const ReviewSubmissionPage = () => {
             try {
                 setLoading(true);
                 const sub = await submissionsAPI.getSubmissionById(submissionId);
-                // Добавляем проверку на наличие данных о лабораторной работе
-                if (!sub.data?.lab && sub.data?.labId) {
-                    // Если есть labId, но нет данных о лабораторной, можно сделать дополнительный запрос
-                    // или использовать данные из submission.labTitle, если они есть
-                    sub.data.lab = { title: sub.data.labTitle || `Lab #${sub.data.labId}` };
-                }
                 setSubmission(sub.data || sub);
+
+                // Fetch lab data separately if we have labId
+                if (sub.data?.labId || sub.labId) {
+                    const labId = sub.data?.labId || sub.labId;
+                    try {
+                        const labData = await labsAPI.getLabById(labId);
+                        setLab(labData);
+                    } catch (labErr) {
+                        console.error('Failed to fetch lab data:', labErr);
+                        // Continue without lab data
+                    }
+                }
             } catch (err) {
                 setError('Failed to fetch submission details.');
                 console.error(err);
@@ -98,7 +105,7 @@ const ReviewSubmissionPage = () => {
 
     return (
         <div className="container mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold mb-4">Reviewing Submission for: {submission.lab?.title || 'Unknown Lab'}</h1>
+            <h1 className="text-3xl font-bold mb-4">Reviewing Submission for: {lab?.title || `Lab #${submission?.labId}` || 'Unknown Lab'}</h1>
             <p className="text-lg mb-6">Submitted by: {submission.owner.name} {submission.owner.surname} ({submission.owner.username})</p>
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
                 <h2 className="text-2xl font-semibold mb-4">Submission Details</h2>
