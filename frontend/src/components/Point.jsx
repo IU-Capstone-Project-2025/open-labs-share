@@ -1,14 +1,7 @@
 import React from "react";
 
 function Point() {
-  const pointStyle = {
-    width: "5px",
-    height: "5px",
-    backgroundColor: "#5D80B6",
-    borderRadius: "50%",
-  };
-
-  return <div style={pointStyle}></div>;
+  return <div className="w-[5px] h-[5px] bg-[#5D80B6] dark:bg-blue-400 rounded-full"></div>;
 }
 
 export default Point;

@@ -67,12 +67,12 @@ export default function SearchResultsPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search labs and articles..."
-                className="block w-full pl-10 pr-3 py-2 border border-light-blue border-opacity-55 rounded-md leading-5 bg-light-blue bg-opacity-55 dark:bg-gray-800 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-msc focus:border-msc sm:text-sm"
+                className="block w-full pl-10 pr-3 py-2 border border-light-blue border-opacity-55 rounded-md leading-5 bg-light-blue bg-opacity-55 dark:bg-gray-800 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-msc focus:border-msc sm:text-sm"
               />
             </div>
             <button
               type="submit"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-msc hover:bg-msc-hover focus:outline-none focus:ring-2 focus:ring-offset-2"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-msc dark:bg-white dark:text-msc hover:bg-msc-hover focus:outline-none focus:ring-2 focus:ring-offset-2"
             >
               Search
             </button>

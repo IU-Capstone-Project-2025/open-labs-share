@@ -103,7 +103,7 @@ export const TagsInput = ({
         onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
         onKeyDown={handleKeyDown}
         placeholder="Add tags..."
-        className="text-sm border border-gray-300 rounded-md px-3 py-2 w-full"
+        className="text-sm border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
       />
       
       {showDropdown && (filteredTags.length > 0 || (inputValue.trim() && onCreateTag)) && (

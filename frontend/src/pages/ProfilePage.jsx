@@ -421,7 +421,7 @@ export default function ProfilePage() {
                     </div>
                     <button
                       onClick={() => setEditMode(true)}
-                      className="mt-6 w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="mt-6 w-full px-4 py-2 bg-msc text-white dark:bg-white dark:text-msc rounded-lg hover:bg-blue-700 transition-colors"
                     >
                       Edit Profile
                     </button>
@@ -548,7 +548,7 @@ export default function ProfilePage() {
                   <div className="flex space-x-2">
                     <button 
                       onClick={handleUploadClick}
-                      className="px-4 py-2 bg-msc text-white rounded-lg hover:bg-msc-hover transition-colors"
+                      className="px-4 py-2 bg-msc text-white dark:bg-white dark:text-msc rounded-lg hover:bg-msc-hover transition-colors"
                     >
                       Upload New
                     </button>
