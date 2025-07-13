@@ -32,11 +32,11 @@ export const Tooltip = ({ children, content, position = 'top', delay = 0 }) => {
       {children}
       {visible && (
         <div 
-          className={`absolute z-50 w-max max-w-xs px-3 py-2 text-sm text-white bg-blue-hover rounded-md shadow-lg ${positionClasses[position]}`}
+          className={`absolute z-50 w-max max-w-xs px-3 py-2 text-sm text-white dark:text-gray-100 bg-blue-hover dark:bg-gray-800 rounded-md shadow-lg ${positionClasses[position]}`}
         >
           {content}
           <div 
-            className={`absolute w-2 h-2 bg-blue-hover transform rotate-45 ${
+            className={`absolute w-2 h-2 bg-blue-hover dark:bg-gray-800 transform rotate-45 ${
               position === 'top' ? 'bottom-0 left-1/2 -mb-1 -translate-x-1/2' :
               position === 'bottom' ? 'top-0 left-1/2 -mt-1 -translate-x-1/2' :
               position === 'left' ? 'right-0 top-1/2 -mr-1 -translate-y-1/2' :

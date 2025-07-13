@@ -159,7 +159,7 @@ export default function Home() {
               
               <Link 
                 to="/all-articles" 
-                className="px-8 py-4 bg-light-blue text-msc rounded-lg font-semibold hover:bg-light-blue-hover transition-colors"
+                className="px-8 py-4 bg-white dark:bg-gray-100 text-msc dark:text-gray-900 rounded-lg font-semibold hover:bg-gray-100 dark:hover:bg-white transition-colors border border-gray-200 dark:border-gray-300"
               >
                 Browse Articles
               </Link>

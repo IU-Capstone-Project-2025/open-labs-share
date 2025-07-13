@@ -171,28 +171,28 @@ const FeedbackViewPage = () => {
         </Link>
       </div>
 
-      <h1 className="text-3xl font-bold mb-4">
+      <h1 className="text-3xl font-bold mb-4 dark:text-white">
         Feedback for submission to "{labTitle || `Lab #${feedback.submissionId}`}"
       </h1>
 
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
-        <h2 className="text-xl font-semibold mb-2">Feedback details</h2>
-        <div className="mb-4">
+        <h2 className="text-xl font-semibold mb-2 dark:text-white">Feedback details</h2>
+        <div className="mb-4 dark:text-white">
           <strong>Student:</strong> {feedback.student.name} {feedback.student.surname} ({feedback.student.username})
         </div>
-        <div className="mb-4">
+        <div className="mb-4 dark:text-white">
           <strong>Date of creation:</strong> {formatDateTime(feedback.createdAt)}
         </div>
         
-        <h2 className="text-xl font-semibold mb-2 mt-6">Your feedback</h2>
+        <h2 className="text-xl font-semibold mb-2 mt-6 dark:text-white">Your feedback</h2>
         <div className="prose dark:prose-invert max-w-none bg-gray-50 dark:bg-gray-700 p-4 rounded-md">
-          <p className="whitespace-pre-wrap">{feedback.content}</p>
+          <p className="whitespace-pre-wrap dark:text-white">{feedback.content}</p>
         </div>
 
         {feedback.attachments && feedback.attachments.length > 0 && (
           <div className="mt-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Attached Files ({feedback.attachments.length}):</h3>
+              <h3 className="text-lg font-semibold dark:text-white">Attached Files ({feedback.attachments.length}):</h3>
               {feedback.attachments.length > 1 && (
                 <button
                   onClick={downloadAllFiles}

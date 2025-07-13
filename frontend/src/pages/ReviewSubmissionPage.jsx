@@ -177,17 +177,17 @@ const ReviewSubmissionPage = () => {
 
     return (
         <div className="container mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold mb-4">Reviewing Submission for: {lab?.title || `Lab #${submission?.labId}` || 'Unknown Lab'}</h1>
-            <p className="text-lg mb-6">Submitted by: {submission.owner.name} {submission.owner.surname} ({submission.owner.username})</p>
+            <h1 className="text-3xl font-bold mb-4 dark:text-white">Reviewing Submission for: {lab?.title || `Lab #${submission?.labId}` || 'Unknown Lab'}</h1>
+            <p className="text-lg mb-6 dark:text-white">Submitted by: {submission.owner.name} {submission.owner.surname} ({submission.owner.username})</p>
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
-                <h2 className="text-2xl font-semibold mb-4">Submission Details</h2>
-                <div className="prose dark:prose-invert max-w-none">
+                <h2 className="text-2xl font-semibold mb-4 dark:text-white">Submission Details</h2>
+                <div className="prose dark:prose-invert max-w-none dark:text-white">
                     <p>{submission.text}</p>
                 </div>
                 {submission.assets && submission.assets.length > 0 && (
                     <div className="mt-6">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-xl font-semibold">Attachments ({submission.assets.length}):</h3>
+                            <h3 className="text-xl font-semibold dark:text-white">Attachments ({submission.assets.length}):</h3>
                             {submission.assets.length > 1 && (
                                 <button
                                     onClick={downloadAllFiles}
@@ -251,7 +251,7 @@ const ReviewSubmissionPage = () => {
             )}
 
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-                <h2 className="text-2xl font-semibold mb-4">Your Feedback</h2>
+                <h2 className="text-2xl font-semibold mb-4 dark:text-white">Your Feedback</h2>
                 
                 {error && (
                     <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-100 rounded-md">

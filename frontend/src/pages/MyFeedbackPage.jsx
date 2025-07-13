@@ -38,8 +38,8 @@ const FeedbackCard = ({ feedback, onDelete }) => {
   return (
     <div className="relative group">
       <Link to={`/feedback/view/${feedback.id}`} className="block group">
-        <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-200 dark:border-gray-700 h-48 flex flex-col">
-          <div className="flex items-start mb-4 flex-1">
+        <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-200 dark:border-gray-700 h-64 flex flex-col">
+          <div className="flex mt-2 items-start mb-4 flex-1">
             <DocumentTextIcon className="w-8 h-8 text-blue-500 dark:text-blue-400 mr-4 mt-1 flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2">
