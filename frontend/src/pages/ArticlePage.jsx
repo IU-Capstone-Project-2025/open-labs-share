@@ -4,12 +4,13 @@ import { Viewer, Worker } from '@react-pdf-viewer/core';
 import { defaultLayoutPlugin } from '@react-pdf-viewer/default-layout';
 import { toolbarPlugin } from '@react-pdf-viewer/toolbar';
 
-// Import the styles
+
 import '@react-pdf-viewer/core/lib/styles/index.css';
 import '@react-pdf-viewer/default-layout/lib/styles/index.css';
 import '@react-pdf-viewer/toolbar/lib/styles/index.css';
 
 import { articlesAPI } from "../utils/api";
+import ToastNotification from "../components/ToastNotification";
 
 export default function ArticlePage() {
   const { id } = useParams();
@@ -21,8 +22,9 @@ export default function ArticlePage() {
   const fileInputRef = useRef(null);
   const dropzoneRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
 
-  // Create plugins for react-pdf-viewer
+  
   const defaultLayoutPluginInstance = defaultLayoutPlugin();
   const toolbarPluginInstance = toolbarPlugin();
 
@@ -51,7 +53,7 @@ export default function ArticlePage() {
     e.preventDefault();
     
     if (!file) {
-      alert('Please select a PDF file for your review.');
+      setToast({ show: true, message: 'Please select a PDF file for your review.', type: 'warning' });
       return;
     }
 
@@ -59,14 +61,14 @@ export default function ArticlePage() {
     formData.append('review_file', file);
 
     try {
-      // TODO: Replace with actual review submission API
+      
       console.log('Submitting review...', file.name);
-      alert('Review submitted successfully! (This is a placeholder)');
+      setToast({ show: true, message: 'Review submitted successfully! (This is a placeholder)', type: 'success' });
       setFile(null);
       fileInputRef.current.value = '';
     } catch (error) {
       console.error('Error submitting review:', error);
-      alert('Failed to submit review. Please try again.');
+      setToast({ show: true, message: 'Failed to submit review. Please try again.', type: 'error' });
     }
   };
 
@@ -78,15 +80,14 @@ export default function ArticlePage() {
         setLoading(true);
         setError(null);
 
-        // Step 1: Fetch article metadata (remains the same)
+        
         const articleData = await articlesAPI.getArticleById(id);
         setArticle(articleData);
 
-        // Step 2: Construct direct URL to Minio and fetch the PDF.
-        // This requires the VITE_MINIO_ENDPOINT to be set in the frontend's .env file.
+        
         const minioEndpoint = import.meta.env.VITE_MINIO_ENDPOINT || 'http://localhost:9000';
         
-        // The filename 'article.pdf' is assumed based on backend documentation.
+        
         const pdfUrl = `${minioEndpoint}/articles/${id}/article.pdf`;
 
         const pdfResponse = await fetch(pdfUrl, {
@@ -175,6 +176,13 @@ export default function ArticlePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {toast.show && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ show: false, message: '', type: 'info' })}
+        />
+      )}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Article Header */}
         <div className="max-w-4xl mx-auto mb-12 text-center">

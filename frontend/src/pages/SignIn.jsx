@@ -12,7 +12,7 @@ export default function SignIn() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  // Redirect if already authenticated
+  
   if (isAuthenticated()) {
     navigate("/home", { replace: true });
     return null;
@@ -21,7 +21,7 @@ export default function SignIn() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error when user starts typing
+    
     if (error) {
       setError("");
     }

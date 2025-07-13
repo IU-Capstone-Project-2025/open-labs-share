@@ -13,7 +13,7 @@ import {
 import BackgroundCircles from "../components/BackgroundCircles";
 
 export default function LandingPage() {
-  // Hardcoded stats for the landing page
+  
   const stats = {
     totalLabs: 12,
     totalArticles: 8,

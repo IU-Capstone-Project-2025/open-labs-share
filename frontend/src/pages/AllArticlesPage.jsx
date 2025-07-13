@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ArticleCard from "../components/ArticleCard";
-// Note: articlesAPI is currently commented out in api.js
-// This code is prepared for when articles service is connected
+
 import { articlesAPI } from "../utils/api";
 
 export default function AllArticlesPage() {
@@ -15,7 +14,7 @@ export default function AllArticlesPage() {
     const fetchArticles = async () => {
       try {
         setLoading(true);
-        const response = await articlesAPI.getArticles(1, 100); // page=1, limit=100
+        const response = await articlesAPI.getArticles(1, 100);
         setArticles(response.articles || []);
         
       } catch (err) {

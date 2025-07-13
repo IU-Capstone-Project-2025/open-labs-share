@@ -5,7 +5,7 @@ import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
 import { DocumentTextIcon, ClockIcon, UserIcon, TrashIcon } from '@heroicons/react/24/outline';
 
-// Helper function to safely format dates
+
 const formatDate = (dateString) => {
   if (!dateString) return 'Unknown date';
   
@@ -100,16 +100,16 @@ const MyFeedbackPage = () => {
         const response = await feedbackAPI.listMyCreatedFeedbacks(user.id, pagination.page, pagination.limit);
         const feedbacksData = response.feedbacks || [];
         
-        // Fetch lab titles for all feedbacks
+        
         const enrichedFeedbacks = await Promise.all(
           feedbacksData.map(async (feedback) => {
             try {
-              // Get submission to find labId
+              
               const submission = await submissionsAPI.getSubmissionById(feedback.submissionId);
               const labId = submission.labId || submission.data?.labId;
               
               if (labId) {
-                // Get lab title
+                
                 const lab = await labsAPI.getLabById(labId);
                 return {
                   ...feedback,

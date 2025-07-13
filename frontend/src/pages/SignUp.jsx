@@ -17,7 +17,7 @@ export default function SignUp() {
   const [serverError, setServerError] = useState("");
   const navigate = useNavigate();
 
-  // Redirect if already authenticated
+  
   if (isAuthenticated()) {
     navigate("/home", { replace: true });
     return null;
@@ -27,12 +27,12 @@ export default function SignUp() {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
 
-    // Clear specific field error when user starts typing
+    
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
     
-    // Clear server error when user makes changes
+    
     if (serverError) {
       setServerError("");
     }
@@ -43,7 +43,7 @@ export default function SignUp() {
     setLoading(true);
     setServerError("");
 
-    // Validate form data
+    
     const validation = validateSignUpData(formData);
     
     if (!validation.isValid) {

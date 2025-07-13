@@ -63,25 +63,25 @@ export default function Sidebar({
   const handleLogout = async () => {
     try {
       await signOut();
-      // The user state will be updated automatically by the App component's listener
+      
       toggleSidebar();
-      navigate("/", { replace: true }); // Redirect to landing page
+      navigate("/", { replace: true });
     } catch (error) {
       console.error('Logout error:', error);
-      // Still clear local state and redirect even if server logout fails
+      
       toggleSidebar();
       navigate("/", { replace: true });
     }
   };
 
-  // Get user display name
+  
   const getUserDisplayName = () => {
     if (!user) return "User";
     const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
     return fullName || user.username || "User";
   };
   
-  // Get user initials for avatar
+  
   const getUserInitials = () => {
     if (!user) return "?";
     const firstInitial = user.firstName?.charAt(0)?.toUpperCase() || "";
@@ -131,7 +131,7 @@ export default function Sidebar({
             {navItems.map((item) => (
               <li key={item.name}>
                 {item.dropdown ? (
-                  // Render dropdown menu
+                  
                   <>
                     <button
                       onClick={handleCreateClick}
@@ -169,7 +169,7 @@ export default function Sidebar({
                     )}
                   </>
                 ) : (
-                  // Render regular nav link
+                  
                   <NavLink
                     to={item.path}
                     className={`block px-4 py-3 rounded-lg transition-colors font-inter ${

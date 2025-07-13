@@ -13,7 +13,7 @@ export default function AllLabsPage() {
     const fetchLabs = async () => {
       try {
         setLoading(true);
-        const response = await labsAPI.getLabs(1, 100); // page=1, limit=100
+        const response = await labsAPI.getLabs(1, 100);
         setLabsData(response.labs || []);
         
       } catch (err) {
