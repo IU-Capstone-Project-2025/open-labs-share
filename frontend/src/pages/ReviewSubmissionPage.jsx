@@ -74,7 +74,7 @@ const ReviewSubmissionPage = () => {
             setDownloadingFiles(prev => new Set([...prev, 'all']));
             
             if (submission.assets.length === 1) {
-                // If only one file, download it directly
+                
                 await downloadFile(submission.assets[0].filename);
                 return;
             }

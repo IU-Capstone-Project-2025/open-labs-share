@@ -9,7 +9,7 @@ import {
   PaperClipIcon
 } from '@heroicons/react/24/outline';
 
-// Helper function to safely format dates
+
 const formatDate = (dateString) => {
   if (!dateString) return 'Unknown date';
   

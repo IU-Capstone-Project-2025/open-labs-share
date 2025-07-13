@@ -25,7 +25,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
     const fetchTags = async () => {
       try {
         setLoadingTags(true);
-        const response = await tagsAPI.getTags(1, 100); // Получаем больше тегов
+        const response = await tagsAPI.getTags(1, 100);
         setAvailableTags(response.tags || []);
       } catch (err) {
         console.error('Error fetching tags:', err);
@@ -47,7 +47,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
   };
 
   const handleAddTag = (tagId) => {
-    // Добавляем тег только если его еще нет в списке
+    
     if (!labData.tags.includes(tagId)) {
       setLabData(prev => ({
         ...prev,
@@ -77,13 +77,13 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
         description: newTagData.description.trim()
       });
       
-      // Добавляем новый тег к списку доступных
+      
       setAvailableTags(prev => [...prev, createdTag]);
       
-      // Автоматически добавляем новый тег к лабе
+      
       handleAddTag(createdTag.id);
       
-      // Очищаем форму и закрываем модальное окно
+      
       setNewTagData({ name: '', description: '' });
       setShowCreateTag(false);
       setError(null);

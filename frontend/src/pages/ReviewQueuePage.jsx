@@ -5,7 +5,7 @@ import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
 import { DocumentTextIcon, ClockIcon, UserIcon } from '@heroicons/react/24/outline';
 
-// Helper function to safely format dates
+
 const formatDate = (dateString) => {
   if (!dateString) return 'Unknown date';
   
@@ -74,7 +74,7 @@ const ReviewQueuePage = () => {
         const submissionsData = response.submissions || [];
         const total = response.totalCount || 0;
         
-        // Fetch lab titles for all submissions
+        
         const labIds = [...new Set(submissionsData.map(s => s.labId))];
         const labsResponse = await Promise.all(
           labIds.map(id => labsAPI.getLabById(id).catch(() => null))
@@ -85,7 +85,7 @@ const ReviewQueuePage = () => {
           return acc;
         }, {});
 
-        // Enrich submissions with lab titles
+        
         const enrichedSubmissions = submissionsData.map(sub => ({
           ...sub,
           labTitle: labsMap[sub.labId]?.title

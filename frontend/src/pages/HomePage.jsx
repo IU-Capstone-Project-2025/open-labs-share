@@ -18,8 +18,7 @@ import { isAuthenticated, getCurrentUser } from "../utils/auth";
 import { useUser } from "../hooks/useUser";
 
 export default function Home() {
-  // Check authentication - if not authenticated, redirect will be handled by ProtectedRoute
-  // This component should only render for authenticated users
+  
   const user = useUser();
   const navigate = useNavigate();
   
@@ -33,7 +32,7 @@ export default function Home() {
   const [featuredArticles, setFeaturedArticles] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Function to get random items from an array
+  
   const getRandomItems = (array, count) => {
     const shuffled = [...array].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, count);
@@ -44,17 +43,17 @@ export default function Home() {
       try {
         setLoading(true);
         
-        // Fetch labs data
+        
         const labsResponse = await labsAPI.getLabs();
         const allLabs = labsResponse.labs || [];
         setFeaturedLabs(getRandomItems(allLabs, 3));
 
-        // Fetch articles data
+        
         const articlesResponse = await articlesAPI.getArticles();
         const allArticles = articlesResponse.articles || [];
         setFeaturedArticles(getRandomItems(allArticles, 3));
 
-        // Fetch users count
+        
         let totalUsers = 0;
         try {
           const usersResponse = await usersAPI.getAllUsers();
@@ -63,7 +62,7 @@ export default function Home() {
           console.warn('Could not fetch users count:', err);
         }
 
-        // Fetch submissions count
+        
         let totalSubmissions = 0;
         try {
           const submissionsResponse = await submissionsAPI.getAllSubmissions();
@@ -72,7 +71,7 @@ export default function Home() {
           console.warn('Could not fetch submissions count:', err);
         }
 
-        // Update stats
+        
         setStats({
           totalLabs: allLabs.length,
           totalArticles: allArticles.length,
@@ -90,7 +89,7 @@ export default function Home() {
     fetchHomeData();
   }, []);
 
-  // Show loading state if user data is not yet available
+  
   if (!user) {
     return (
       <div className="flex justify-center items-center h-screen dark:bg-gray-900">

@@ -1,34 +1,87 @@
 # Open Labs Share - Frontend
 
-The frontend is part of the Open Labs Share project.
+A React-based frontend application for the Open Labs Share platform, built with Vite, Tailwind CSS, and React Router.
 
-## Project structure
+## Project Structure
 
-- `public/` - Static files to be copied as-is (favicon, images)
-- `src/`
-  - `assets/` - Web application resources (styles, images, fonts)
-  - `components/` - Reusable UI components (buttons, cards, etc.)
-  - `pages/` - Web application pages (each page is a separate component)
-  - `services/` - API clients and services for working with the backend (in the future)
-  - `App.jsx` - The main component of the web application (routing)
-  - `main.jsx` - JavaScript entry point that initializes the React application
-  - `index.css` - Global styles
-- `index.html` - The entry point of web application (static template)
+```
+frontend/
+├── public/                 # Static assets
+├── src/
+│   ├── components/         # Reusable UI components
+│   ├── pages/             # Page components and routing
+│   ├── hooks/             # Custom React hooks
+│   ├── utils/             # Utility functions and API clients
+│   ├── App.jsx            # Main application component
+│   ├── main.jsx           # Application entry point
+│   └── index.css          # Global styles
+├── package.json           # Dependencies and scripts
+├── vite.config.js         # Vite configuration
+├── tailwind.config.js     # Tailwind CSS configuration
+├── postcss.config.js      # PostCSS configuration
+├── nginx.conf             # Nginx configuration for production
+└── index.html             # HTML template
+```
 
-## Run the frontend
+## Getting Started
 
-1. Make sure that you are in the folder `frontend/`
-2. Install the dependencies: `npm install`
-3. Start the dev server: `npm run dev`
+### Prerequisites
 
-   The project will be available at `http://localhost:5173`
+- Node.js (v16 or higher)
+- npm or yarn
 
-### Username and password to sign in to the account
+### Installation
 
-Go to `http://localhost:5173/signin` and use suggested data such as login `ryanGosling1980` and password `password123`.
-Then, you will be redirected to the home page.
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
 
-## Configuration files
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+4. Open your browser and navigate to `http://localhost:5173`
+
+
+
+## Architecture
+
+### Technology Stack
+
+- **React 18** - UI library
+- **Vite** - Build tool and dev server
+- **React Router** - Client-side routing
+- **Tailwind CSS** - Utility-first CSS framework
+- **Heroicons** - Icon library
+
+### Key Features
+
+- **Authentication System** - JWT-based auth with automatic token refresh
+- **Dark Mode Support** - Built-in theme switching
+- **Real-time Updates** - Event-driven user data synchronization
+- **File Upload** - Support for lab and article submissions
+- **Search & Filtering** - Advanced search capabilities
+- **Review System** - Submission review and feedback
+
+## Documentation
+
+### [Components](./docs/components.md)
+Reusable UI components used throughout the application.
+
+### [Pages](./docs/pages.md)
+Page components and routing structure.
+
+
+## Configuration
+
+### Configuration files
 
 - `vite.config.js` - Vite Importer Settings
 - `tailwind.config.js` - TailwindCSS Configuration

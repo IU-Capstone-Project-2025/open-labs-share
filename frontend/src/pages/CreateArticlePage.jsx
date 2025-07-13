@@ -14,7 +14,7 @@ export default function CreateArticlePage() {
   };
 
   const handleCancel = () => {
-    navigate(-1); // Go back to previous page
+    navigate(-1);
   };
 
   return (
