@@ -8,9 +8,15 @@ from rag_backend.schemas import \
     AutoGradingRequest,\
     AutoGradingTaskResponse
 from rag_backend.services import AskService, ChatHistoryService, TasksService
-from rag_backend.dependencies import get_ask_service, get_chat_history_service, get_tasks_service
+from rag_backend.dependencies import(
+    get_ask_service,
+    get_chat_history_service,
+    get_tasks_service,
+    get_qdrant_repository
+)
 from rag_backend.services.auto_grading_service import AutoGradingService
 from celery_broker.tasks.grade import grade_submission_task
+from rag_backend.repositories import QdrantRepository
 
 router = APIRouter(tags=["Model"])
 
@@ -90,5 +96,16 @@ async def get_auto_grade_status(
         return response
     except HTTPException as e:
         raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.post("/index_assignment")
+async def index_assignment(
+    assignment_id: str = Form(...),
+    qdrant_repo: QdrantRepository = Depends(get_qdrant_repository)
+):
+    try:
+        qdrant_repo.index_assignment(assignment_id)
+        return Response(status_code=204)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

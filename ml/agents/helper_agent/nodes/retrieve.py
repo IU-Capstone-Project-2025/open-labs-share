@@ -12,4 +12,5 @@ def retrieve(state: RAGState, retriever: BaseRetriever) -> dict[str, str]:
         (f"{doc.page_content}\n")
         for doc in retrieved_docs
     )
+    print(serialized)
     return {"docs": serialized}
