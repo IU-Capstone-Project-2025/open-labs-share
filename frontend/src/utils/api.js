@@ -239,6 +239,7 @@ export const feedbackAPI = {
     }
     return apiCall(url);
   },
+  getAttachmentLocations: (feedbackId) => apiCall(`/feedback/${feedbackId}/attachments/location`),
 };
 
 // --- Comments API ---

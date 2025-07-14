@@ -39,8 +39,8 @@ func (r *attachmentRepository) Upload(ctx context.Context, feedbackID uuid.UUID,
 	default:
 	}
 
-	// Create object name: feedback{feedbackID}/filename
-	objectName := fmt.Sprintf("feedback%s/%s", feedbackID.String(), filename)
+	// Create object name: {feedbackID}/{filename}
+	objectName := fmt.Sprintf("%s/%s", feedbackID.String(), filename)
 	
 	fmt.Printf("MinIO Upload: Starting upload - Object: %s, Size: %d, ContentType: %s\n", objectName, size, contentType)
 
@@ -72,8 +72,8 @@ func (r *attachmentRepository) Upload(ctx context.Context, feedbackID uuid.UUID,
 
 // Download downloads an attachment file from MinIO
 func (r *attachmentRepository) Download(ctx context.Context, feedbackID uuid.UUID, filename string) (io.ReadCloser, *models.AttachmentInfo, error) {
-	// Create object name: feedback{feedbackID}/filename
-	objectName := fmt.Sprintf("feedback%s/%s", feedbackID.String(), filename)
+	// Create object name: {feedbackID}/{filename}
+	objectName := fmt.Sprintf("%s/%s", feedbackID.String(), filename)
 
 	// Get object info first
 	objInfo, err := r.minioClient.StatObject(ctx, r.bucketName, objectName, minio.StatObjectOptions{})
@@ -107,8 +107,8 @@ func (r *attachmentRepository) Download(ctx context.Context, feedbackID uuid.UUI
 
 // List lists all attachments for a specific feedback
 func (r *attachmentRepository) List(ctx context.Context, feedbackID uuid.UUID) ([]*models.AttachmentInfo, error) {
-	// Create prefix for this feedback: feedback{feedbackID}/
-	prefix := fmt.Sprintf("feedback%s/", feedbackID.String())
+	// Create prefix for this feedback: {feedbackID}/
+	prefix := fmt.Sprintf("%s/", feedbackID.String())
 
 	// List objects with the prefix
 	objectCh := r.minioClient.ListObjects(ctx, r.bucketName, minio.ListObjectsOptions{
@@ -157,8 +157,8 @@ func (r *attachmentRepository) List(ctx context.Context, feedbackID uuid.UUID) (
 
 // Delete deletes a specific attachment
 func (r *attachmentRepository) Delete(ctx context.Context, feedbackID uuid.UUID, filename string) error {
-	// Create object name: feedback{feedbackID}/filename
-	objectName := fmt.Sprintf("feedback%s/%s", feedbackID.String(), filename)
+	// Create object name: {feedbackID}/{filename}
+	objectName := fmt.Sprintf("%s/%s", feedbackID.String(), filename)
 
 	// Remove object
 	err := r.minioClient.RemoveObject(ctx, r.bucketName, objectName, minio.RemoveObjectOptions{})
@@ -171,8 +171,8 @@ func (r *attachmentRepository) Delete(ctx context.Context, feedbackID uuid.UUID,
 
 // DeleteAll deletes all attachments for a specific feedback
 func (r *attachmentRepository) DeleteAll(ctx context.Context, feedbackID uuid.UUID) error {
-	// Create prefix for this feedback: feedback{feedbackID}/
-	prefix := fmt.Sprintf("feedback%s/", feedbackID.String())
+	// Create prefix for this feedback: {feedbackID}/
+	prefix := fmt.Sprintf("%s/", feedbackID.String())
 
 	// List all objects with the prefix
 	objectCh := r.minioClient.ListObjects(ctx, r.bucketName, minio.ListObjectsOptions{
@@ -202,8 +202,8 @@ func (r *attachmentRepository) DeleteAll(ctx context.Context, feedbackID uuid.UU
 
 // GetLocationInfo returns location information for a specific attachment
 func (r *attachmentRepository) GetLocationInfo(ctx context.Context, feedbackID uuid.UUID, filename string) (*models.AttachmentLocationInfo, error) {
-	// Create object name: feedback{feedbackID}/filename
-	objectName := fmt.Sprintf("feedback%s/%s", feedbackID.String(), filename)
+	// Create object name: {feedbackID}/{filename}
+	objectName := fmt.Sprintf("%s/%s", feedbackID.String(), filename)
 
 	// Get object info
 	objInfo, err := r.minioClient.StatObject(ctx, r.bucketName, objectName, minio.StatObjectOptions{})
@@ -235,8 +235,8 @@ func (r *attachmentRepository) GetLocationInfo(ctx context.Context, feedbackID u
 
 // ListLocationInfo returns location information for all attachments of a specific feedback
 func (r *attachmentRepository) ListLocationInfo(ctx context.Context, feedbackID uuid.UUID) ([]*models.AttachmentLocationInfo, error) {
-	// Create prefix for this feedback: feedback{feedbackID}/
-	prefix := fmt.Sprintf("feedback%s/", feedbackID.String())
+	// Create prefix for this feedback: {feedbackID}/
+	prefix := fmt.Sprintf("%s/", feedbackID.String())
 
 	// List objects with the prefix
 	objectCh := r.minioClient.ListObjects(ctx, r.bucketName, minio.ListObjectsOptions{
