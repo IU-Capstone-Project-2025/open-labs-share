@@ -255,6 +255,7 @@ services:
       - labs-service-test
       - articles-service-test
       - feedback-service-test
+      - ml-service
     profiles: ["test"]
 
   auth-service-test:
@@ -587,8 +588,9 @@ services:
       context: .
       dockerfile: docker/Dockerfile.ml-service
     ports:
-      - "8083:8081"
+      - "8081:8081"
     environment:
+      - SERVICE_PORT=8081
       - DEVICE=cpu
       - RAG_DB_PATH=/app/ml/faiss
       - SCORE_THRESHOLD=1.0
