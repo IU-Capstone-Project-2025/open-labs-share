@@ -42,28 +42,26 @@ export default function SignIn() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-white font-inter">
-      {/* Hero section - reduced padding and smaller text on mobile */}
-      <div className="relative w-full bg-msc flex flex-col justify-center items-center text-white p-6 sm:p-12">
+    <div className="flex flex-col md:flex-row min-h-screen bg-white font-inter">
+      {/* Hero section - responsive layout */}
+      <div className="relative w-full md:w-1/2 bg-msc flex flex-col justify-center items-center text-white p-6 sm:p-12 md:p-12 overflow-hidden mb-0">
         <div className="absolute bottom-1/5 left-2/3 w-48 h-48 rounded-full bg-blue-blue opacity-15 blur-sm hidden sm:block"></div>
         <div className="absolute -bottom-48 -left-48 w-[600px] h-[600px] rounded-full bg-blue-blue opacity-15 blur-sm hidden sm:block"></div>
         <div className="absolute bottom-3/4 left-80 w-96 h-96 rounded-full bg-blue-blue opacity-15 blur-sm hidden sm:block"></div>
 
-        <div className="relative z-10 text-center bg-msc/90 p-4 rounded-xl max-w-xs mx-auto sm:bg-transparent sm:p-0 sm:max-w-md">
-          <h1 className="text-3xl sm:text-6xl mb-3 sm:mb-6">Open Labs Share</h1>
-          <p className="text-base sm:text-xl mx-auto max-w-xs sm:max-w-md text-balance">
+        <div className="relative z-10 text-center bg-msc/90 p-4 sm:p-6 md:p-0 rounded-xl max-w-xs sm:max-w-md md:max-w-lg mx-auto md:bg-transparent md:p-0">
+          <h1 className="text-3xl sm:text-6xl md:text-6xl mb-3 sm:mb-6 md:mb-6">Open Labs Share</h1>
+          <p className="text-base sm:text-xl md:text-xl mx-auto max-w-xs sm:max-w-md md:max-w-lg text-balance">
             A social knowledge network with peer review and personalized
             recommendations
           </p>
         </div>
       </div>
 
-      {/* Form section - adjusted padding and spacing */}
-      <div className="w-full flex items-center justify-center p-4 sm:p-8 md:p-12">
-        <div className="w-full max-w-md">
-          <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">
-            Welcome back
-          </h1>
+      {/* Form section - responsive layout */}
+      <div className="w-full md:w-1/2 flex items-center justify-center p-4 sm:p-8 md:p-12">
+        <div className="w-full max-w-md md:max-w-lg">
+          <h1 className="text-2xl sm:text-3xl md:text-3xl font-bold mb-6 md:mb-8 text-gray-800">Welcome back</h1>
           
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
