@@ -241,12 +241,20 @@ services:
       - LAB_SERVICE_PORT=9091
       - ARTICLE_SERVICE_HOST=articles-service-test
       - ARTICLE_SERVICE_PORT=50051
+      - ML_SERVICE_HOST=ml-service
+      - ML_SERVICE_PORT=8081
       - SPRING_PROFILES_ACTIVE=docker
       - FEEDBACK_SERVICE_HOST=feedback-service-test
       - FEEDBACK_SERVICE_PORT=9090
     networks:
       - blue-network
     restart: unless-stopped
+    depends_on:
+      - auth-service-test
+      - users-service-test
+      - labs-service-test
+      - articles-service-test
+      - feedback-service-test
     profiles: ["test"]
 
   auth-service-test:
@@ -278,6 +286,8 @@ services:
     networks:
       - blue-network
     restart: unless-stopped
+    depends_on:
+      - postgres-users
     profiles: ["test"]
 
   labs-service-test:
@@ -303,6 +313,8 @@ services:
     networks:
       - blue-network
     restart: unless-stopped
+    depends_on:
+      - postgres-labs
     profiles: ["test"]
 
   articles-service-test:
@@ -323,6 +335,8 @@ services:
     networks:
       - blue-network
     restart: unless-stopped
+    depends_on:
+      - postgres-articles
     profiles: ["test"]
 
   feedback-service-test:
@@ -347,6 +361,8 @@ services:
     networks:
       - blue-network
     restart: unless-stopped
+    depends_on:
+      - postgres-feedback
     profiles: ["test"]
 
   # --- Green Environment ---
@@ -595,10 +611,14 @@ services:
       - ml-models:/app/models
     restart: unless-stopped
     depends_on:
-      - postgres-ml
-      - minio
-      - ml-celery-worker
-      - ml-qdrant
+      postgres-ml:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      ml-celery-worker:
+        condition: service_started
+      ml-qdrant:
+        condition: service_started
     networks:
       - blue-network
       - green-network
@@ -613,6 +633,11 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD:-password}
     volumes:
       - postgres-ml-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ml_user -d chat_history_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - blue-network
       - green-network
