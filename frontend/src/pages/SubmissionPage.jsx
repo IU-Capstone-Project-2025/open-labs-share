@@ -40,16 +40,19 @@ const FeedbackCard = ({ feedback }) => {
   const [downloadingFeedbackFiles, setDownloadingFeedbackFiles] = useState(new Set());
   const [feedbackToast, setFeedbackToast] = useState({ show: false, message: "", type: "" });
 
-  const downloadFeedbackFile = async (attachment) => {
-    if (!feedback.id || !attachment.id || !attachment.filename) {
-      setFeedbackToast({ show: true, message: `Cannot download file due to missing data.`, type: 'error' });
-      return;
-    }
+  const getFeedbackFileUrl = (feedbackId, filename) => {
+    const minioEndpoint = import.meta.env.VITE_MINIO_ENDPOINT || 'http://localhost:9000';
+    return `${minioEndpoint}/feedback/${feedbackId}/${filename}`;
+  };
+
+  const downloadFeedbackFile = async (filename) => {
+    if (!feedback.id || !filename) return;
 
     try {
-      setDownloadingFeedbackFiles(prev => new Set(prev).add(attachment.id));
+      setDownloadingFeedbackFiles(prev => new Set(prev).add(filename));
       
-      const response = await feedbackAPI.downloadFeedbackFile(feedback.id, attachment.id);
+      const url = getFeedbackFileUrl(feedback.id, filename);
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error(`Failed to download file: HTTP ${response.status}`);
@@ -60,21 +63,21 @@ const FeedbackCard = ({ feedback }) => {
       
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = attachment.filename;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
       window.URL.revokeObjectURL(downloadUrl);
       
-      setFeedbackToast({ show: true, message: `Downloaded ${attachment.filename} successfully!`, type: 'success' });
+      setFeedbackToast({ show: true, message: `Downloaded ${filename} successfully!`, type: 'success' });
     } catch (error) {
-      console.error(`Error downloading feedback file ${attachment.filename}:`, error);
-      setFeedbackToast({ show: true, message: `Failed to download ${attachment.filename}: ${error.message}`, type: 'error' });
+      console.error(`Error downloading feedback file ${filename}:`, error);
+      setFeedbackToast({ show: true, message: `Failed to download ${filename}: ${error.message}`, type: 'error' });
     } finally {
       setDownloadingFeedbackFiles(prev => {
         const newSet = new Set(prev);
-        newSet.delete(attachment.id);
+        newSet.delete(filename);
         return newSet;
       });
     }
@@ -87,12 +90,12 @@ const FeedbackCard = ({ feedback }) => {
       setDownloadingFeedbackFiles(prev => new Set([...prev, 'all']));
       
       if (feedback.attachments.length === 1) {
-        await downloadFeedbackFile(feedback.attachments[0]);
+        await downloadFeedbackFile(feedback.attachments[0].filename);
         return;
       }
 
       for (const attachment of feedback.attachments) {
-        await downloadFeedbackFile(attachment);
+        await downloadFeedbackFile(attachment.filename);
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
@@ -174,11 +177,11 @@ const FeedbackCard = ({ feedback }) => {
                   </div>
                 </div>
                 <button
-                  onClick={() => downloadFeedbackFile(attachment)}
-                  disabled={downloadingFeedbackFiles.has(attachment.id)}
+                  onClick={() => downloadFeedbackFile(attachment.filename)}
+                  disabled={downloadingFeedbackFiles.has(attachment.filename)}
                   className="flex items-center px-2 py-1 bg-msc text-white text-xs rounded-md hover:bg-msc-hover disabled:bg-blue-400 transition-colors"
                 >
-                  {downloadingFeedbackFiles.has(attachment.id) ? (
+                  {downloadingFeedbackFiles.has(attachment.filename) ? (
                     <>
                       <Spinner className="w-3 h-3 mr-1" />
                       Downloading...
@@ -220,18 +223,19 @@ const SubmissionPage = () => {
   const [downloadingFiles, setDownloadingFiles] = useState(new Set());
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
 
-  const downloadFile = async (asset) => {
-    if (!id || !asset || !asset.assetId || !asset.filename) {
-      setToast({ show: true, message: 'File asset is invalid.', type: 'error' });
-      return;
-    }
+  const getSubmissionFileUrl = (submissionId, filename) => {
+    const minioEndpoint = import.meta.env.VITE_MINIO_ENDPOINT || 'http://localhost:9000';
+    return `${minioEndpoint}/submissions/${submissionId}/${filename}`;
+  };
 
-    const { assetId, filename } = asset;
+  const downloadFile = async (filename) => {
+    if (!id || !filename) return;
 
     try {
-      setDownloadingFiles(prev => new Set(prev).add(assetId));
+      setDownloadingFiles(prev => new Set(prev).add(filename));
       
-      const response = await submissionsAPI.downloadSubmissionFile(id, assetId);
+      const url = getSubmissionFileUrl(id, filename);
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error(`Failed to download file: HTTP ${response.status}`);
@@ -256,7 +260,7 @@ const SubmissionPage = () => {
     } finally {
       setDownloadingFiles(prev => {
         const newSet = new Set(prev);
-        newSet.delete(assetId);
+        newSet.delete(filename);
         return newSet;
       });
     }
@@ -269,13 +273,12 @@ const SubmissionPage = () => {
       setDownloadingFiles(prev => new Set([...prev, 'all']));
       
       if (submission.assets.length === 1) {
-        await downloadFile(submission.assets[0]);
+        await downloadFile(submission.assets[0].filename);
         return;
       }
 
       for (const asset of submission.assets) {
-        await downloadFile(asset);
-        // Add a small delay between downloads to avoid overwhelming the browser/server
+        await downloadFile(asset.filename);
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
@@ -404,11 +407,11 @@ const SubmissionPage = () => {
                       </div>
                     </div>
                     <button
-                      onClick={() => downloadFile(asset)}
-                      disabled={downloadingFiles.has(asset.assetId)}
+                      onClick={() => downloadFile(asset.filename)}
+                      disabled={downloadingFiles.has(asset.filename)}
                       className="flex items-center px-3 py-1.5 bg-msc text-white text-sm rounded-md hover:bg-msc-hover disabled:bg-blue-400 transition-colors"
                     >
-                      {downloadingFiles.has(asset.assetId) ? (
+                      {downloadingFiles.has(asset.filename) ? (
                         <>
                           <Spinner className="w-4 h-4 mr-2" />
                           Downloading...

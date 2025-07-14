@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { feedbackAPI, submissionsAPI, labsAPI } from '../utils/api';
 import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
-import { DocumentTextIcon, ClockIcon, UserIcon, TrashIcon, PaperClipIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, ClockIcon, UserIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 
 const formatDate = (dateString) => {
@@ -23,26 +23,6 @@ const formatDate = (dateString) => {
 
 const FeedbackCard = ({ feedback, onDelete }) => {
   const { id, submissionId, labTitle, student, createdAt, content } = feedback;
-  const [attachments, setAttachments] = useState([]);
-  const [loadingAttachments, setLoadingAttachments] = useState(false);
-
-  useEffect(() => {
-    const fetchAttachments = async () => {
-      if (!id) return;
-      setLoadingAttachments(true);
-      try {
-        const response = await feedbackAPI.getAttachmentLocations(id);
-        setAttachments(response.attachments || []);
-      } catch (error) {
-        console.error(`Failed to fetch attachments for feedback ${id}:`, error);
-      } finally {
-        setLoadingAttachments(false);
-      }
-    };
-
-    fetchAttachments();
-  }, [id]);
-
 
   if (!feedback.id || typeof feedback.id !== 'string') {
     console.error('Invalid feedback ID:', feedback.id);
@@ -55,21 +35,10 @@ const FeedbackCard = ({ feedback, onDelete }) => {
     onDelete(feedback);
   };
 
-  const constructAttachmentUrl = (attachment) => {
-    if (!attachment || !attachment.minioEndpoint || !attachment.minioBucket || !attachment.minioObjectPath) {
-      return '#';
-    }
-    const protocol = attachment.useSsl ? 'https' : 'http';
-    const pathParts = attachment.minioObjectPath.split('/');
-    const encodedPath = pathParts.map(encodeURIComponent).join('/');
-    return `${protocol}://${attachment.minioEndpoint}/${attachment.minioBucket}/${encodedPath}`;
-  };
-
-
   return (
     <div className="relative group">
       <Link to={`/feedback/view/${feedback.id}`} className="block group">
-        <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-200 dark:border-gray-700 h-full flex flex-col">
+        <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-200 dark:border-gray-700 h-64 flex flex-col">
           <div className="flex mt-2 items-start mb-4 flex-1">
             <DocumentTextIcon className="w-8 h-8 text-blue-500 dark:text-blue-400 mr-4 mt-1 flex-shrink-0" />
             <div className="flex-1 min-w-0">
@@ -87,30 +56,7 @@ const FeedbackCard = ({ feedback, onDelete }) => {
           <div className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-2 flex-1">
             {content}
           </div>
-          {attachments.length > 0 && (
-            <div className="mt-4 pt-2 border-t border-gray-200 dark:border-gray-700">
-               <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center mb-2">
-                <PaperClipIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
-                Attachments
-              </h4>
-              <ul className="space-y-1">
-                {attachments.map((att, index) => (
-                  <li key={index} className="flex items-center">
-                    <a
-                      href={constructAttachmentUrl(att)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-sm text-blue-600 dark:text-blue-400 hover:underline truncate"
-                    >
-                      {att.filename}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400 mt-auto pt-4">
+          <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400 mt-auto">
             <div className="flex items-center">
               <ClockIcon className="w-4 h-4 mr-1" />
               <span>Given on: {formatDate(createdAt)}</span>
