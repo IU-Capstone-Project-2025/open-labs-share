@@ -112,12 +112,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.service }}-${{ hashFiles(format('{0}/requirements.txt', matrix.path)) }}
+          key: ${{ runner.os }}-pip-${{ matrix.service }}-${{ hashFiles(format('{0}/app/requirements.txt', matrix.path)) }}
           restore-keys: |
             ${{ runner.os }}-pip-${{ matrix.service }}-
 
       - name: Install dependencies
-        working-directory: ${{ matrix.path }}
+        working-directory: ${{ matrix.path }}/app
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then
@@ -125,7 +125,7 @@ jobs:
           fi
 
       - name: Run tests
-        working-directory: ${{ matrix.path }}
+        working-directory: ${{ matrix.path }}/app
         run: |
           if [ -f requirements.txt ] && grep -q pytest requirements.txt; then
             pytest
