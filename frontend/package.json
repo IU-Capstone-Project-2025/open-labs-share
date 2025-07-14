@@ -27,7 +27,8 @@
     "remark-math": "5.1.1",
     "rehype-katex": "6.0.3",
     "katex": "0.16.9",
-    "remark-gfm": "3.0.1"
+    "remark-gfm": "3.0.1",
+    "js-yaml": "^4.1.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.5.2",

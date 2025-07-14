@@ -477,7 +477,7 @@ Lab content delivery is currently being developed. The markdown content for this
               >
                 {markdown}
               </ReactMarkdown>
-            </article>)};
+            </article>)}
         </section>
 
         {/* Homework Submission Section */}
