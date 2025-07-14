@@ -17,25 +17,39 @@ import proto.articles_service_pb2_grpc as cf_grpc
 def CreateArticle(stub, number):
     response = stub.CreateArticle(cf.CreateArticleRequest(
         owner_id=1,
-        title=f"Article {number}",
-        abstract=f"Article {number}."
+        title=f"Article{number}",
+        abstract=f"Article{number}"
     ))
-    print(response)
+    return response
 
 
 def GetArticle(stub, article_id):
     response = stub.GetArticle(cf.GetArticleRequest(
         article_id=article_id
     ))
-    print(response)
+    return response
 
 
-def GetArticles(stub, page_number, page_size):
+def GetArticles(stub, page_number, page_size, text, tags_ids):
     response = stub.GetArticles(cf.GetArticlesRequest(
+        page_number=page_number,
+        page_size=page_size,
+        tags_ids=tags_ids
+    ))
+
+    if text:
+        response.text = text
+        
+    return response
+
+
+def GetArticlesByUserId(stub, user_id, page_number, page_size):
+    response = stub.GetArticlesByUserId(cf.GetArticlesByUserIdRequest(
+        user_id=user_id,
         page_number=page_number,
         page_size=page_size
     ))
-    print(response)
+    return response
 
 
 def UpdateArticle(stub, article_id, title=None, abstract=None):
@@ -49,14 +63,14 @@ def UpdateArticle(stub, article_id, title=None, abstract=None):
 
     response = stub.UpdateArticle(update_article)
 
-    print(response)
+    return response
 
 
 def DeleteArticle(stub, article_id):
     response = stub.DeleteArticle(cf.DeleteArticleRequest(
         article_id=article_id
     ))
-    print(response)
+    return response
 
 
 def UploadAsset(stub, article_id, filename):
