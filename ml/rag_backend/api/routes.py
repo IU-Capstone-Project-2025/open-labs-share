@@ -15,6 +15,11 @@ from celery_broker.tasks.grade import grade_submission_task
 router = APIRouter(tags=["Model"])
 
 
+@router.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
+
 @router.post("/ask", response_model=AgentResponse)
 async def ask(
     request: AskRequest,

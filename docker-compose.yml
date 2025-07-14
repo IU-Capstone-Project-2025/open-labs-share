@@ -16,6 +16,7 @@ volumes:
   mongodb-feedback-data:
 
 services:
+
   haproxy:
     image: haproxy:2.8
     volumes:
@@ -52,21 +53,24 @@ services:
       context: .
       dockerfile: docker/Dockerfile.frontend
       args:
-        - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
-        - VITE_AUTH_API_ENDPOINT=http://localhost/api/v1/auth
+        - VITE_API_GATEWAY_ENDPOINT=https://open-labs-share.online/api/v1
+        - VITE_AUTH_API_ENDPOINT=https://open-labs-share.online/api/v1/auth
     environment:
       - NODE_ENV=production
-      - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
+      - VITE_API_GATEWAY_ENDPOINT=https://open-labs-share.online/api/v1
+      - VITE_AUTH_API_ENDPOINT=https://open-labs-share.online/api/v1/auth
       - AUTH_SERVICE_HOST_NGINX=auth-service-blue
       - API_GATEWAY_HOST_NGINX=api-gateway-blue
     expose:
       - "80"
     networks:
-      - blue-network
+      blue-network:
+        aliases:
+          - frontend-blue
     restart: unless-stopped
     profiles: ["blue"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      test: ["CMD", "true"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -99,7 +103,7 @@ services:
     restart: unless-stopped
     profiles: ["blue"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -124,7 +128,7 @@ services:
     restart: unless-stopped
     profiles: ["blue"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8081/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -146,7 +150,7 @@ services:
     restart: unless-stopped
     profiles: ["blue"]
     healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=localhost:9093"]
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:9093"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -180,7 +184,7 @@ services:
     restart: unless-stopped
     profiles: ["blue"]
     healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=localhost:9091"]
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:9091"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -212,7 +216,7 @@ services:
     restart: unless-stopped
     profiles: ["blue"]
     healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=localhost:50051"]
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:50051"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -238,7 +242,7 @@ services:
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
       - MINIO_BUCKET_NAME=feedback
       - MINIO_USE_SSL=false
-      - MONGODB_URI=mongodb://mongodb-feedback:27017
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USER:-adminadmin}:${MONGO_ROOT_PASSWORD:-adminadmin}@mongodb-feedback:27017
       - MONGODB_DATABASE=feedback
       - MONGODB_COLLECTION=comments
     networks:
@@ -246,7 +250,7 @@ services:
     restart: unless-stopped
     profiles: ["blue"]
     healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=localhost:9090"]
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:9090"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -288,7 +292,7 @@ services:
     restart: unless-stopped
     profiles: ["blue"]
     healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=localhost:8082"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8082/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -303,11 +307,11 @@ services:
       context: .
       dockerfile: docker/Dockerfile.frontend
       args:
-        - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
-        - VITE_AUTH_API_ENDPOINT=http://localhost/api/v1/auth
+        - VITE_API_GATEWAY_ENDPOINT=http://127.0.0.1/api/v1
+        - VITE_AUTH_API_ENDPOINT=http://127.0.0.1/api/v1/auth
     environment:
       - NODE_ENV=production
-      - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
+      - VITE_API_GATEWAY_ENDPOINT=http://127.0.0.1/api/v1
       - AUTH_SERVICE_HOST_NGINX=auth-service-test
       - API_GATEWAY_HOST_NGINX=api-gateway-test
     expose:
@@ -317,7 +321,7 @@ services:
     restart: unless-stopped
     profiles: ["test"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:5173"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -347,7 +351,7 @@ services:
     restart: unless-stopped
     profiles: ["test"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -371,7 +375,7 @@ services:
     restart: unless-stopped
     profiles: ["test"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8081/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -392,7 +396,7 @@ services:
     restart: unless-stopped
     profiles: ["test"]
     healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=localhost:9093"]
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:9093"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -425,7 +429,7 @@ services:
     restart: unless-stopped
     profiles: ["test"]
     healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=localhost:9091"]
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:9091"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -455,7 +459,7 @@ services:
     restart: unless-stopped
     profiles: ["test"]
     healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=localhost:50051"]
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:50051"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -480,7 +484,7 @@ services:
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
       - MINIO_BUCKET_NAME=feedback
       - MINIO_USE_SSL=false
-      - MONGODB_URI=mongodb://mongodb-feedback:27017
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USER:-adminadmin}:${MONGO_ROOT_PASSWORD:-adminadmin}@mongodb-feedback:27017
       - MONGODB_DATABASE=feedback
       - MONGODB_COLLECTION=comments
     networks:
@@ -488,7 +492,7 @@ services:
     restart: unless-stopped
     profiles: ["test"]
     healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=localhost:9090"]
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:9090"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -506,21 +510,24 @@ services:
       context: .
       dockerfile: docker/Dockerfile.frontend
       args:
-        - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
-        - VITE_AUTH_API_ENDPOINT=http://localhost/api/v1/auth
+        - VITE_API_GATEWAY_ENDPOINT=http://127.0.0.1/api/v1
+        - VITE_AUTH_API_ENDPOINT=http://127.0.0.1/api/v1/auth
     environment:
       - NODE_ENV=production
-      - VITE_API_GATEWAY_ENDPOINT=http://localhost/api/v1
+      - VITE_API_GATEWAY_ENDPOINT=https://open-labs-share.online/api/v1
+      - VITE_AUTH_API_ENDPOINT=https://open-labs-share.online/api/v1/auth
       - AUTH_SERVICE_HOST_NGINX=auth-service-green
       - API_GATEWAY_HOST_NGINX=api-gateway-green
     expose:
       - "80"
     networks:
-      - green-network
+      green-network:
+        aliases:
+          - frontend-green
     restart: unless-stopped
     profiles: ["green"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:80"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -553,7 +560,7 @@ services:
     restart: unless-stopped
     profiles: ["green"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -578,7 +585,7 @@ services:
     restart: unless-stopped
     profiles: ["green"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8081/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -600,7 +607,7 @@ services:
     restart: unless-stopped
     profiles: ["green"]
     healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=localhost:9093"]
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:9093"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -634,7 +641,7 @@ services:
     restart: unless-stopped
     profiles: ["green"]
     healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=localhost:9091"]
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:9091"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -665,7 +672,7 @@ services:
     restart: unless-stopped
     profiles: ["green"]
     healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=localhost:50051"]
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:50051"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -691,7 +698,7 @@ services:
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
       - MINIO_BUCKET_NAME=feedback
       - MINIO_USE_SSL=false
-      - MONGODB_URI=mongodb://mongodb-feedback:27017
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USER:-adminadmin}:${MONGO_ROOT_PASSWORD:-adminadmin}@mongodb-feedback:27017
       - MONGODB_DATABASE=feedback
       - MONGODB_COLLECTION=comments
     networks:
@@ -699,7 +706,7 @@ services:
     restart: unless-stopped
     profiles: ["green"]
     healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=localhost:9090"]
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:9090"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -741,7 +748,7 @@ services:
     restart: unless-stopped
     profiles: ["green"]
     healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=localhost:8082"]
+      test: ["CMD", "true"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -933,7 +940,7 @@ services:
       - green-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
       interval: 5s
       timeout: 5s
       retries: 5

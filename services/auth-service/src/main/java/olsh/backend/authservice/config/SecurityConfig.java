@@ -62,8 +62,8 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         // Use setAllowedOriginPatterns for more flexibility with credentials
         configuration.setAllowedOriginPatterns(List.of(
-                "http://localhost:[*]",
-                "https://localhost:[*]",
+                "http://127.0.0.1:[*]",
+                "https://127.0.0.1:[*]",
                 "https://open-labs-share.online"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));

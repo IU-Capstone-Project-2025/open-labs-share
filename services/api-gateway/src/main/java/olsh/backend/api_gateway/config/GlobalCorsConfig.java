@@ -16,7 +16,7 @@ public class GlobalCorsConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
         config.setAllowedOriginPatterns(List.of(
-                "http://localhost:[*]",
+                "http://127.0.0.1:[*]",
                 "https://localhost:[*]",
                 "https://open-labs-share.online"
         ));

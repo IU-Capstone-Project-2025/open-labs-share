@@ -49,8 +49,8 @@ Check out the [**DEPLOY.md**](DEPLOY.md) file with all instructions.
 
 Once the application is running, you can access the interactive Swagger UI to explore and test the API endpoints.
 
-- **Swagger UI URL**: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
-- **OpenAPI Spec (JSON)**: [http://localhost:8080/api-docs](http://localhost:8080/api-docs)
+- **Swagger UI URL**: [http://127.0.0.1:8080/swagger-ui.html](http://127.0.0.1:8080/swagger-ui.html)
+- **OpenAPI Spec (JSON)**: [http://127.0.0.1:8080/api-docs](http://127.0.0.1:8080/api-docs)
 
 ## Architecture & Service Connections
 
@@ -101,15 +101,15 @@ The service can be configured using environment variables, which are imported fr
 | Variable                | Description                                        | Default       |
 | ----------------------- | -------------------------------------------------- | ------------- |
 | `SPRING_APP_PORT`       | The port on which the API Gateway will run.        | `8080`        |
-| `AUTH_SERVICE_HOST`     | Hostname for the Authentication gRPC service.      | `localhost`   |
+| `AUTH_SERVICE_HOST`     | Hostname for the Authentication gRPC service.      | `127.0.0.1`   |
 | `AUTH_SERVICE_PORT`     | Port for the Authentication gRPC service.          | `9090`        |
-| `USER_SERVICE_HOST`     | Hostname for the User gRPC service.                | `localhost`   |
+| `USER_SERVICE_HOST`     | Hostname for the User gRPC service.                | `127.0.0.1`   |
 | `USER_SERVICE_PORT`     | Port for the User gRPC service.                    | `9091`        |
-| `ARTICLE_SERVICE_HOST`  | Hostname for the Article gRPC service.             | `localhost`   |
+| `ARTICLE_SERVICE_HOST`  | Hostname for the Article gRPC service.             | `127.0.0.1`   |
 | `ARTICLE_SERVICE_PORT`  | Port for the Article gRPC service.                 | `9092`        |
-| `LAB_SERVICE_HOST`      | Hostname for the Lab gRPC service.                 | `localhost`   |
+| `LAB_SERVICE_HOST`      | Hostname for the Lab gRPC service.                 | `127.0.0.1`   |
 | `LAB_SERVICE_PORT`      | Port for the Lab gRPC service.                     | `9093`        |
-| `FEEDBACK_SERVICE_HOST` | Hostname for the Feedback gRPC service.            | `localhost`   |
+| `FEEDBACK_SERVICE_HOST` | Hostname for the Feedback gRPC service.            | `127.0.0.1`   |
 | `FEEDBACK_SERVICE_PORT` | Port for the Feedback gRPC service.                | `9094`        |
 | `GRPC_NEGOTIATION_TYPE` | gRPC negotiation type (e.g., `plaintext` or `tls`).| `plaintext`   |
 

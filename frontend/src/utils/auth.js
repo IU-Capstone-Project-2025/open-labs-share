@@ -3,7 +3,8 @@
 
 import { authAPI } from './api';
 
-const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_ENDPOINT || (import.meta.env.PROD ? '' : 'http://localhost/api/v1');
+// Use API Gateway for all authentication requests in production
+const AUTH_API_ENDPOINT = `${import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080'}/api/v1/auth`;
 
 // Helper function to make API calls
 const makeAuthRequest = async (endpoint, options = {}) => {
@@ -411,4 +412,4 @@ function handleCrossTabUpdate(event) {
 }
 
 // Listen for storage changes in other tabs
-window.addEventListener('storage', handleCrossTabUpdate); 
+window.addEventListener('storage', handleCrossTabUpdate);

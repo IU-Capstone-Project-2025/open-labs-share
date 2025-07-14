@@ -1,6 +1,7 @@
-// In production, all API calls are sent to the same origin, and Nginx proxies them.
-// In development, we explicitly target the API gateway's exposed port.
-const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_ENDPOINT || (import.meta.env.PROD ? '' : 'http://localhost/api/v1');
+// API configuration for different environments
+const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL ? 
+                     `${import.meta.env.VITE_API_GATEWAY_URL}/api/v1` :
+                     'http://localhost:8080/api/v1';
 
 /**
  * A unified function for making API calls to the backend gateway.

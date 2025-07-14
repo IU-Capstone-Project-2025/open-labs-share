@@ -9,7 +9,7 @@ on:
         default: ''
   push:
     branches:
-      - "*" # TODO: Change to main
+      - "213-auto-deploy-2"
 
 permissions:
   contents: read
