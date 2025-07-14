@@ -205,6 +205,8 @@ export const submissionsAPI = {
     body: JSON.stringify(submissionData),
   }),
   deleteSubmission: (submissionId) => apiCall(`/submissions/${submissionId}`, { method: 'DELETE' }),
+  getAttachmentLocations: (submissionId) => apiCall(`/submissions/${submissionId}/attachments/location`),
+  downloadSubmissionFile: (submissionId, fileId) => apiCall(`/submissions/${submissionId}/files/${fileId}`, {}),
 };
 
 // --- ML API ---
@@ -240,6 +242,7 @@ export const feedbackAPI = {
     return apiCall(url);
   },
   getAttachmentLocations: (feedbackId) => apiCall(`/feedback/${feedbackId}/attachments/location`),
+  downloadFeedbackFile: (feedbackId, fileId) => apiCall(`/feedback/${feedbackId}/files/${fileId}`, {}),
 };
 
 // --- Comments API ---
