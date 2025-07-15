@@ -23,18 +23,20 @@ public class AuthServiceClient {
         this.authServiceStub = AuthServiceGrpc.newBlockingStub(channel);
     }
 
+    /**
+     * Validates a JWT token by calling the auth service.
+     *
+     * @param token The JWT token to validate
+     * @return AuthValidationResponse containing validation result and user info
+     */
     public AuthValidationResponse validateToken(String token) {
         log.debug("Validating token via gRPC call to auth service");
-
         ValidateTokenRequest request = ValidateTokenRequest.newBuilder()
                 .setToken(token)
                 .build();
-
         ValidateTokenResponse response = authServiceStub.validateToken(request);
-
         log.debug("Token validation response received for user {} with result {}",
                 response.getUserInfo().getUsername(), response.getValid());
-
         // Convert gRPC response to our model
         UserInfo userInfo = null;
         if (response.hasUserInfo()) {
@@ -53,7 +55,6 @@ public class AuthServiceClient {
                     grpcUserInfo.getBalance()
             );
         }
-
         return new AuthValidationResponse(
                 response.getValid(),
                 userInfo,
