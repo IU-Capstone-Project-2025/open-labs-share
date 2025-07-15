@@ -137,15 +137,15 @@ The service can be configured using environment variables, which are imported fr
 | Variable                  | Description                                        | Default         |
 |---------------------------|----------------------------------------------------|-----------------|
 | `SPRING_APP_PORT`         | Port for the API Gateway HTTP server               | `8080`          |
-| `AUTH_SERVICE_HOST`       | Hostname for the Authentication gRPC service       | `auth-service-blue`     |
+| `AUTH_SERVICE_HOST`       | Hostname for the Authentication gRPC service       | `localhost`     |
 | `AUTH_SERVICE_PORT`       | Port for the Authentication gRPC service           | `9092`          |
-| `USER_SERVICE_HOST`       | Hostname for the User gRPC service                 | `users-service-blue`     |
+| `USER_SERVICE_HOST`       | Hostname for the User gRPC service                 | `localhost`     |
 | `USER_SERVICE_PORT`       | Port for the User gRPC service                     | `9093`          |
-| `ARTICLE_SERVICE_HOST`    | Hostname for the Article gRPC service              | `articles-service-blue`     |
+| `ARTICLE_SERVICE_HOST`    | Hostname for the Article gRPC service              | `localhost`     |
 | `ARTICLE_SERVICE_PORT`    | Port for the Article gRPC service                  | `50051`         |
-| `LAB_SERVICE_HOST`        | Hostname for the Lab gRPC service                  | `labs-service-blue`     |
+| `LAB_SERVICE_HOST`        | Hostname for the Lab gRPC service                  | `localhost`     |
 | `LAB_SERVICE_PORT`        | Port for the Lab gRPC service                      | `9091`          |
-| `FEEDBACK_SERVICE_HOST`   | Hostname for the Feedback gRPC service             | `feedback-service-blue`     |
+| `FEEDBACK_SERVICE_HOST`   | Hostname for the Feedback gRPC service             | `localhost`     |
 | `FEEDBACK_SERVICE_PORT`   | Port for the Feedback gRPC service                 | `9090`          |
 | `GRPC_NEGOTIATION_TYPE`   | gRPC negotiation type (`plaintext` or `tls`)       | `plaintext`     |
 
