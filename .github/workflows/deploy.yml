@@ -36,7 +36,8 @@ jobs:
         run: |
           docker buildx bake --push production-build
 
-  
+
+
   deploy:
     needs: build
     runs-on: self-hosted
