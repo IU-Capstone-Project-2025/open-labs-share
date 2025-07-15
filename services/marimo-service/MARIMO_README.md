@@ -1,414 +1,144 @@
-# Marimo Interactive Components Service - Simplified Architecture
+# Marimo Service Documentation
 
-## Overview
+## 1. Description and Purpose
 
-The Marimo service provides interactive notebook capabilities for labs and articles through a two-service architecture:
+The **Marimo Service** is a stateful microservice designed to provide an interactive, real-time code execution environment within the Open Labs Share platform. It enables users to create, manage, and execute scientific notebooks powered by the [marimo](https://github.com/marimo-team/marimo) library.
 
-- **Java Service**: Business logic, data management, and integration with other services
-- **Python Service**: Direct Marimo execution, notebook management, and interactive component serving
+The service is architected as a dual-component system:
+- **Marimo Java Service**: A Java/Spring Boot application that provides a REST API for the frontend. It manages orchestration, persistence, and communication with other backend services.
+- **Marimo Python Service**: A Python gRPC service that acts as the execution engine. It manages the lifecycle of marimo notebooks and executes code in isolated user sessions.
 
+This separation was made to separate metadata of marimo components and connections of it with other backend entites (users, labs, articles) from execution of native Python code since marimo uses exactly its syntax.
 
-## Architecture
+## 2. Architecture
 
-### High-Level Service Interaction
+### System Diagram
 
 ```mermaid
-graph TB
-    FE[Frontend React App]
-    AG[API Gateway]
-    
-    subgraph "Marimo Services"
-        JS[Java Marimo Service<br/>Port: 8094]
-        PS[Python Marimo Service<br/>Port: 5000]
+graph TD
+    subgraph "Frontend "
+        Frontend[App]
+    end
+
+    subgraph "Marimo Service"
+        A[marimo-manager-service<br/>REST API]
+        B[marimo-executor-service<br/>gRPC Execution Engine]
     end
     
-    subgraph "Storage"
-        PG[(PostgreSQL<br/>marimo_service)]
-        MINIO[(MinIO<br/>marimo/ bucket)]
+    subgraph "Core Services"
+        Users[users-service]
+        Labs[labs-service]
+        Articles[articles-service]
     end
-    
-    subgraph "External Services"
-        AS[Articles Service]
-        LS[Labs Service]
+
+    subgraph "Data Stores"
+        DB[(PostgreSQL)]
+        S3[(MinIO)]
     end
-    
-    FE --> AG
-    AG --> JS
-    JS --> PS
-    JS --> PG
-    JS --> MINIO
-    PS --> MINIO
-    JS <--> AS
-    JS <--> LS
+
+    Frontend -- "REST API" --> A
+    A -- "gRPC" --> B
+    A -- "gRPC" --> Users
+    A -- "gRPC" --> Labs
+    A -- "gRPC" --> Articles
+    A -- "JDBC" --> DB
+    A -- "S3 API" --> S3
+    B -- "S3 API" --> S3
 ```
 
-### Service Responsibilities
+### Components
 
-#### Java Marimo Service (Port: 8094)
+- **Marimo Java Service (Orchestrator)**:
+  - Exposes a REST API for clients (e.g., the frontend).
+  - Handles all business logic related to components, sessions, and assets.
+  - Validates user and content ownership by communicating with `users-service`, `labs-service`, and `articles-service`.
+  - Stores all metadata (components, sessions, assets) in a PostgreSQL database.
+  - Stores notebook files and user-uploaded assets in MinIO.
+  - Communicates with the Python service via gRPC to manage execution sessions and run code.
 
-- **REST API**: Provides endpoints for frontend integration
-- **Business Logic**: Component lifecycle, permissions, validation
-- **Data Management**: PostgreSQL operations, metadata management
-- **Service Integration**: Communication with articles-service and labs-service
-- **File Management**: MinIO operations for notebook files
-- **Security**: Authentication, authorization, input validation
+- **Marimo Python Service (Executor)**:
+  - Exposes a gRPC API for the Java service.
+  - Manages a pool of `marimo` kernel processes.
+  - Handles the lifecycle of interactive sessions (`start`, `execute`, `end`).
+  - Reads notebook files directly from MinIO to initialize sessions.
+  - Returns execution results, outputs, and errors to the Java service.
 
-#### Python Marimo Service (Port: 5000)
 
-- **Marimo Execution**: Direct notebook execution using Marimo APIs
-- **Component Serving**: Serves interactive Marimo components as web apps
-- **Notebook Management**: Create, update, delete Marimo notebook files
-- **Live Sessions**: Manages active notebook sessions and state
-- **WebAssembly**: Embedding support for static components
+### Data Storage
 
-## Database Schema
+- **PostgreSQL**: The primary database for storing all metadata related to the Marimo service, including:
+  - `components`: Information about each notebook, its owner, and its link to other content.
+  - `component_sessions`: Active and inactive user sessions for each component.
+  - `component_assets`: Metadata about user-uploaded files (e.g., datasets).
+  - `execution_records`: A history of executed code cells within sessions.
 
-### Simplified Entity Model
+- **MinIO**: Object storage used for file-based data. The service uses a single bucket (defaulting to `marimo`) and organizes files within it using path prefixes:
+  - `marimo/components/{component-id}/notebook.py`: Stores the actual `.py` notebook files.
+  - `marimo/components/{component-id}/assets/...`: Stores user-uploaded assets for use within notebooks.
 
-```mermaid
-erDiagram
-    COMPONENT {
-        varchar id PK
-        varchar name
-        text description
-        varchar content_type
-        varchar content_id
-        varchar owner_id
-        varchar notebook_path
-        jsonb metadata
-        timestamp created_at
-        timestamp updated_at
-        boolean is_active
-    }
-    
-    COMPONENT_SESSION {
-        varchar id PK
-        varchar component_id FK
-        varchar session_token
-        varchar status
-        jsonb state_data
-        varchar python_process_id
-        timestamp created_at
-        timestamp last_accessed
-        timestamp expires_at
-    }
-    
-    COMPONENT_ASSET {
-        varchar id PK
-        varchar component_id FK
-        varchar asset_type
-        varchar file_path
-        varchar mime_type
-        bigint file_size
-        timestamp created_at
-    }
-    
-    COMPONENT ||--o{ COMPONENT_SESSION : "has sessions"
-    COMPONENT ||--o{ COMPONENT_ASSET : "has assets"
-```
+## 3. Business Logic
 
-### Database Tables
+### Core Services
 
-#### `components`
+- **ComponentService**: Manages the CRUD operations for Marimo components (notebooks). Ensures that the `owner_id` and `content_id` are valid by querying other microservices.
+- **SessionService**: Handles the lifecycle of user sessions. Starts, stops, and retrieves the status of interactive sessions by calling the Python service.
+- **ExecutionService**: Orchestrates code execution requests, forwarding them to the appropriate session in the Python service and recording the results.
+- **AssetService**: Manages the upload, download, and deletion of user assets associated with a component.
 
-```sql
--- PostgreSQL-compatible table definition
-CREATE TABLE components (
-    id VARCHAR(255) PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    content_type VARCHAR(50) NOT NULL CHECK (content_type IN ('article', 'lab')),
-    content_id VARCHAR(255) NOT NULL,
-    owner_id VARCHAR(255) NOT NULL,
-    notebook_path VARCHAR(500) NOT NULL,
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_active BOOLEAN DEFAULT true,
-    
-    UNIQUE(content_type, content_id, name)
-);
+## 4. API
 
--- Indexes created separately for PostgreSQL compatibility
-CREATE INDEX idx_content ON components(content_type, content_id);
-CREATE INDEX idx_owner ON components(owner_id);
-CREATE INDEX idx_active ON components(is_active);
-```
+### REST API (Provided by Java Service)
 
-#### `component_sessions`
+The Java service exposes a RESTful API for the frontend. All endpoints are rooted under `/api/v1/marimo`.
 
-```sql
--- PostgreSQL-compatible table definition
-CREATE TABLE component_sessions (
-    id VARCHAR(255) PRIMARY KEY,
-    component_id VARCHAR(255) NOT NULL,
-    session_token VARCHAR(500) NOT NULL UNIQUE,
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'idle', 'expired')),
-    state_data JSONB DEFAULT '{}',
-    python_process_id VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP,
-    
-    FOREIGN KEY (component_id) REFERENCES components(id) ON DELETE CASCADE
-);
+**Key Endpoints:**
+- `POST /components`: Create a new notebook component.
+- `GET /components/{id}`: Retrieve a component's details.
+- `POST /sessions`: Start a new interactive session for a component.
+- `GET /sessions/{id}`: Get the status of a session.
+- `POST /sessions/{id}/execute`: Execute a code cell within a session.
+- `POST /components/{id}/assets`: Upload an asset for a component.
 
--- Indexes created separately for PostgreSQL compatibility
-CREATE INDEX idx_session_token ON component_sessions(session_token);
-CREATE INDEX idx_component ON component_sessions(component_id);
-CREATE INDEX idx_status ON component_sessions(status);
-CREATE INDEX idx_expires ON component_sessions(expires_at);
+### gRPC API (Internal, Python Service)
 
--- Trigger for automatically updating last_accessed timestamp
-CREATE OR REPLACE FUNCTION update_last_accessed() RETURNS TRIGGER AS $$
-BEGIN
-    NEW.last_accessed = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+The Python service exposes a gRPC API for internal use by the Java service.
 
-CREATE TRIGGER update_sessions_last_accessed
-    BEFORE UPDATE ON component_sessions
-    FOR EACH ROW
-    EXECUTE FUNCTION update_last_accessed();
-```
+**Key RPCs:**
+- `StartSession`: Initializes a new marimo kernel and loads a notebook.
+- `ExecuteCell`: Runs code within an existing session.
+- `EndSession`: Shuts down a marimo kernel and cleans up resources.
+- `GetSessionState`: Retrieves the current state (e.g., variables) from a running session.
 
-#### `component_assets`
+## 5. gRPC Integration with Other Services
 
-```sql
--- PostgreSQL-compatible table definition
-CREATE TABLE component_assets (
-    id VARCHAR(255) PRIMARY KEY,
-    component_id VARCHAR(255) NOT NULL,
-    asset_type VARCHAR(50) NOT NULL CHECK (asset_type IN ('data', 'image', 'notebook', 'config')),
-    file_path VARCHAR(500) NOT NULL,
-    mime_type VARCHAR(100),
-    file_size BIGINT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (component_id) REFERENCES components(id) ON DELETE CASCADE
-);
+The `marimo-manager-service` acts as a gRPC client to other core services for validation purposes.
 
--- Indexes created separately for PostgreSQL compatibility
-CREATE INDEX idx_component ON component_assets(component_id);
-CREATE INDEX idx_asset_type ON component_assets(asset_type);
-```
+- **`users-service`**: Used to validate that the `owner_id` provided during component creation corresponds to an existing user.
+- **`labs-service`**: Used to validate that the `content_id` (for `content_type: "lab"`) corresponds to an existing lab.
+- **`articles-service`**: Used to validate that the `content_id` (for `content_type: "article"`) corresponds to an existing article.
 
-## Technology Stack
+## 6. Environment Configuration
 
-### Java Service
+### Marimo Java Service (`application.yml`)
 
-- **Framework**: Spring Boot 3.5.0
-- **Language**: Java 21
-- **Database**: Spring Data JPA with PostgreSQL
-- **Storage**: MinIO Java SDK
-- **Communication**: gRPC server (API Gateway) + gRPC client (Python service)
-- **Dependencies**: 
-  - spring-boot-starter-data-jpa
-  - postgresql
-  - minio
-  - grpc-spring-boot-starter
-  - spring-boot-starter-actuator
+| Variable                        | Description                                     | Default                   |
+|---------------------------------|-------------------------------------------------|---------------------------|
+| `SERVER_PORT`                   | HTTP port for the REST API.                     | `8084`                    |
+| `DB_URL`                        | PostgreSQL connection URL.                      | `jdbc:postgresql://...`   |
+| `DB_USER` / `DB_PASS`           | Database credentials.                           | `admin` / `password`      |
+| `MINIO_URL` / `ACCESS_KEY` / `SECRET_KEY` | MinIO connection details.               | `http://minio:9000`       |
+| `PYTHON_SERVICE_HOST`           | Hostname of the Python gRPC service.            | `marimo-executor-service`   |
+| `PYTHON_SERVICE_PORT`           | Port of the Python gRPC service.                | `50052`                   |
+| `USERS_SERVICE_HOST/PORT`       | `users-service` gRPC location.                  | `users-service:9093`      |
+| `LABS_SERVICE_HOST/PORT`        | `labs-service` gRPC location.                   | `labs-service:50053`      |
+| `ARTICLES_SERVICE_HOST/PORT`    | `articles-service` gRPC location.               | `articles-service:50051`  |
 
-### Python Service
+### Marimo Python Service
 
-- **Framework**: FastAPI
-- **Language**: Python 3.11+
-- **Notebook Engine**: Marimo
-- **Communication**: gRPC server
-- **Process Management**: multiprocessing, subprocess
-- **Dependencies**:
-  - fastapi
-  - marimo
-  - grpcio
-  - minio
-  - uvicorn
-
-## API Design
-
-### Java Service gRPC Interface (exposed to API Gateway)
-
-```protobuf
-service MarimoService {
-    // Component Management
-    rpc ListComponents(ListComponentsRequest) returns (ListComponentsResponse);
-    rpc CreateComponent(CreateComponentRequest) returns (CreateComponentResponse);
-    rpc GetComponent(GetComponentRequest) returns (GetComponentResponse);
-    rpc UpdateComponent(UpdateComponentRequest) returns (UpdateComponentResponse);
-    rpc DeleteComponent(DeleteComponentRequest) returns (DeleteComponentResponse);
-    
-    // Session Management
-    rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
-    rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
-    rpc CloseSession(CloseSessionRequest) returns (CloseSessionResponse);
-    
-    // Component Integration
-    rpc GetComponentsByContent(GetComponentsByContentRequest) returns (GetComponentsByContentResponse);
-    rpc GetEmbedInfo(GetEmbedInfoRequest) returns (GetEmbedInfoResponse);
-    
-    // Asset Management
-    rpc ListAssets(ListAssetsRequest) returns (ListAssetsResponse);
-    rpc UploadAsset(UploadAssetRequest) returns (UploadAssetResponse);
-    rpc DeleteAsset(DeleteAssetRequest) returns (DeleteAssetResponse);
-}
-```
-
-### Python Service gRPC Interface
-
-```protobuf
-service MarimoExecutionService {
-    rpc CreateNotebook(CreateNotebookRequest) returns (CreateNotebookResponse);
-    rpc UpdateNotebook(UpdateNotebookRequest) returns (UpdateNotebookResponse);
-    rpc DeleteNotebook(DeleteNotebookRequest) returns (DeleteNotebookResponse);
-    
-    rpc StartSession(StartSessionRequest) returns (StartSessionResponse);
-    rpc GetSessionStatus(GetSessionStatusRequest) returns (GetSessionStatusResponse);
-    rpc StopSession(StopSessionRequest) returns (StopSessionResponse);
-    
-    rpc GetEmbedUrl(GetEmbedUrlRequest) returns (GetEmbedUrlResponse);
-    rpc GetNotebookContent(GetNotebookContentRequest) returns (GetNotebookContentResponse);
-}
-```
-
-## Component Workflows
-
-### 1. Component Creation Flow
-
-```mermaid
-sequenceDiagram
-    participant F as Frontend
-    participant GW as API Gateway
-    participant J as Java Service
-    participant P as Python Service
-    participant DB as PostgreSQL
-    participant M as MinIO
-    
-    F->>GW: POST /api/v1/components
-    GW->>J: CreateComponent gRPC
-    J->>J: Validate request
-    J->>P: CreateNotebook gRPC
-    P->>M: Store notebook file
-    P-->>J: NotebookCreated
-    J->>DB: Insert component record
-    J-->>GW: ComponentCreated {id, embed_url}
-    GW-->>F: ComponentCreated {id, embed_url}
-```
-
-### 2. Component Execution Flow
-
-```mermaid
-sequenceDiagram
-    participant F as Frontend
-    participant GW as API Gateway
-    participant J as Java Service
-    participant P as Python Service
-    participant DB as PostgreSQL
-    
-    F->>GW: POST /api/v1/components/{id}/sessions
-    GW->>J: CreateSession gRPC
-    J->>DB: Create session record
-    J->>P: StartSession gRPC
-    P->>P: Launch marimo process
-    P-->>J: SessionStarted {session_url}
-    J->>DB: Update session status
-    J-->>GW: SessionCreated {session_url}
-    GW-->>F: SessionCreated {session_url}
-    
-    Note over F: User interacts with embedded component
-    
-    F->>GW: GET /api/v1/components/{id}/sessions/{sessionId}
-    GW->>J: GetSession gRPC
-    J->>P: GetSessionStatus gRPC
-    P-->>J: SessionStatus
-    J-->>GW: Session details
-    GW-->>F: Session details
-```
-
-### 3. Component Embedding Flow
-
-```mermaid
-sequenceDiagram
-    participant F as Frontend
-    participant GW as API Gateway
-    participant J as Java Service
-    participant P as Python Service
-    
-    F->>GW: POST /api/v1/components/{id}/embed
-    GW->>J: GetEmbedInfo gRPC
-    J->>P: GetEmbedUrl gRPC
-    P->>P: Generate Marimo app URL
-    P-->>J: EmbedUrl {url, iframe_params}
-    J-->>GW: EmbedResponse {embed_url, width, height}
-    GW-->>F: EmbedResponse {embed_url, width, height}
-    
-    Note over F: Frontend renders iframe with embed_url
-```
-
-## Use Cases
-
-### Interactive Data Visualization
-
-```python
-# Marimo notebook: data_viz.py
-import marimo as mo
-import plotly.express as px
-import pandas as pd
-
-# Load data from lab submission
-data = load_lab_data()
-
-# Interactive controls
-date_range = mo.ui.date_range()
-metric_selector = mo.ui.dropdown(["accuracy", "loss", "f1_score"])
-
-# Reactive plot
-filtered_data = data[
-    (data.date >= date_range.value[0]) & 
-    (data.date <= date_range.value[1])
-]
-
-fig = px.line(filtered_data, x="date", y=metric_selector.value)
-mo.ui.plotly(fig)
-```
-
-### Real-time Lab Feedback
-
-```python
-# Marimo notebook: lab_feedback.py
-import marimo as mo
-
-# Student code input
-code_input = mo.ui.code_editor(language="python")
-run_button = mo.ui.button("Run Code")
-
-# When button clicked, execute and show results
-if run_button.value:
-    try:
-        result = execute_student_code(code_input.value)
-        mo.md(f"✅ **Success**: {result}")
-    except Exception as e:
-        mo.md(f"❌ **Error**: {str(e)}")
-```
-
-### Article Interactive Examples
-
-```python
-# Marimo notebook: algorithm_demo.py
-import marimo as mo
-import numpy as np
-
-# Interactive algorithm parameters
-algorithm = mo.ui.dropdown(["bubble_sort", "quick_sort", "merge_sort"])
-array_size = mo.ui.slider(10, 100, value=20)
-speed = mo.ui.slider(0.1, 2.0, value=1.0)
-
-# Generate random array
-arr = np.random.randint(1, 100, array_size.value)
-
-# Visualize sorting algorithm
-if algorithm.value == "bubble_sort":
-    visualize_bubble_sort(arr, speed.value)
-elif algorithm.value == "quick_sort":
-    visualize_quick_sort(arr, speed.value)
-# etc...
-```
+| Variable                | Description                       | Default                 |
+|-------------------------|-----------------------------------|-------------------------|
+| `GRPC_PORT`             | Port for the internal gRPC server.| `50052`                 |
+| `MINIO_URL`             | MinIO endpoint URL.               | `http://minio:9000`     |
+| `MINIO_ACCESS_KEY`      | MinIO access key.                 | `minioadmin`            |
+| `MINIO_SECRET_KEY`      | MinIO secret key.                 | `minioadmin`            |
+| `NOTEBOOK_BUCKET`       | Bucket for notebook files.        | `marimo-notebooks`      | 
