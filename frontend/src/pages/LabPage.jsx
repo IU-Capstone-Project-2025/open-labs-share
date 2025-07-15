@@ -2,12 +2,16 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
+import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
-import "highlight.js/styles/github-dark.css";
+import rehypeKatex from "rehype-katex";
+import 'katex/dist/katex.min.css';
+import 'highlight.js/styles/github-dark.css';
 import GemIcon from "../components/GemIcon";
 import CommentsSection from "../components/CommentsSection";
 import ChatWindow from "../components/ChatWindow";
 import ToastNotification from "../components/ToastNotification";
+import MarpRenderer from '../components/MarpRenderer';
 import { getCurrentUser, isAuthenticated, notifyUserDataUpdate } from "../utils/auth";
 import { labsAPI, submissionsAPI } from "../utils/api";
 import { useUser } from "../hooks/useUser";
@@ -47,10 +51,10 @@ export default function LabPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chatMode, setChatMode] = useState('floating'); // 'floating' or 'sidebar'
+  const [chatMode, setChatMode] = useState('floating');
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
+  const [imageUrls, setImageUrls] = useState(new Map());
   
-  // Use the custom hook for user state management
   const user = useUser();
 
   const scrollToSubmit = useCallback(() => {
@@ -100,13 +104,10 @@ export default function LabPage() {
       setUploading(true);
       await submissionsAPI.submitLabSolution(id, submissionText, files);
 
-      // Update user's balance locally after successful submission
       const updatedUser = { ...user, balance: user.balance - 1 };
 
-      // Store updated user data in localStorage
       localStorage.setItem("user", JSON.stringify(updatedUser));
 
-      // Notify all components about the user data update (including this component)
       notifyUserDataUpdate();
 
       setToast({ show: true, message: "Your solution was uploaded successfully!", type: "success" });
@@ -120,77 +121,116 @@ export default function LabPage() {
     }
   };
 
+
+  const isMarpPresentation = (markdown) => {
+    console.log('Full markdown content:', markdown)
+    console.log('First 10 lines:', markdown.split('\n').slice(0, 10))
+    
+    const result = markdown.trim().startsWith('---\nmarp: true') || 
+          markdown.includes('\nmarp: true\n') ||
+          markdown.includes('marp: true');
+    console.log('isMarpPresentation check:', result, 'Content preview:', markdown.substring(0, 200) + '...')
+    return result;
+  };
+
+  const getMinioFileUrl = (labId, filename) => {
+    const minioEndpoint = import.meta.env.VITE_MINIO_ENDPOINT || 'http://localhost:9000';
+    return `${minioEndpoint}/labs/${labId}/${filename}`;
+  };
+
+  const ImageRenderer = ({ src, alt, ...props }) => {
+    const [imgUrl, setImgUrl] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+
+    useEffect(() => {
+      const checkImage = async () => {
+        if (src.startsWith('http://') || src.startsWith('https://')) {
+          setImgUrl(src);
+          setLoading(false);
+          return;
+        }
+
+        try {
+          const url = getMinioFileUrl(id, src);
+          const response = await fetch(url, { method: 'HEAD' });
+          
+          if (response.ok) {
+            setImgUrl(url);
+          } else {
+            setError(true);
+          }
+        } catch (err) {
+          setError(true);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      checkImage();
+    }, [id, src]);
+
+    if (loading) {
+      return (
+        <div className="max-w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center my-4">
+          <span className="text-gray-500 dark:text-gray-400">Loading image...</span>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="max-w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center my-4">
+          <span className="text-gray-500 dark:text-gray-400">Image not found: {src}</span>
+        </div>
+      );
+    }
+
+    return (
+      <img 
+        src={imgUrl}
+        alt={alt}
+        {...props}
+        className="max-w-full h-auto rounded-lg shadow-md my-4"
+        onError={() => setError(true)}
+      />
+    );
+  };
+
   useEffect(() => {
     const fetchLabData = async () => {
       try {
         setLoading(true);
-        
-        // Fetch lab details
         const labResponse = await labsAPI.getLabById(id);
-        console.log('Lab response:', labResponse);
         setLab(labResponse);
-        
-        // Fetch lab assets to find the markdown file
-        try {
-          const assetsResponse = await labsAPI.getLabAssets(id);
-          console.log('Assets response:', assetsResponse);
-          console.log('Assets response type:', typeof assetsResponse);
-          console.log('Assets response keys:', Object.keys(assetsResponse));
+
+        if (labResponse.assets?.length > 0) {
+          const markdownAsset = labResponse.assets.find(a => 
+            a.filename && a.filename.toLowerCase().endsWith('.md')
+          );
           
-          // Check different possible property names for assets
-          const assetsList = assetsResponse.assets || assetsResponse.assetsList || assetsResponse.data || assetsResponse;
-          console.log('Parsed assets list:', assetsList);
-          console.log('Assets list type:', typeof assetsList);
-          console.log('Assets list is array:', Array.isArray(assetsList));
-          
-          if (assetsList && Array.isArray(assetsList) && assetsList.length > 0) {
-            console.log('Assets found, processing...');
-            console.log('First asset structure:', assetsList[0]);
-            console.log('First asset keys:', Object.keys(assetsList[0]));
-            
-            // Find the markdown file (usually the first .md file)
-            const markdownAsset = assetsList.find(asset => {
-              console.log('Checking asset:', asset);
-              const filename = asset.filename || asset.fileName || asset.name;
-              console.log('Asset filename:', filename);
-              return filename && filename.toLowerCase().endsWith('.md');
-            });
-            
-            if (markdownAsset) {
-              console.log('Found markdown asset:', markdownAsset);
-              console.log('Markdown asset keys:', Object.keys(markdownAsset));
+          if (markdownAsset) {
+            try {
+              const url = getMinioFileUrl(id, markdownAsset.filename);
+              const response = await fetch(url);
               
-              // Try different property names for asset ID
-              const assetId = markdownAsset.assetId || markdownAsset.asset_id || markdownAsset.id || markdownAsset.assetID;
-              console.log('Using asset ID:', assetId);
-              
-              // Download the markdown content
-              try {
-                const blob = await labsAPI.downloadLabAsset(id, assetId);
-                const text = await blob.text();
-                console.log('Downloaded markdown content:', text.substring(0, 200) + '...');
+              if (response.ok) {
+                const text = await response.text();
                 setMarkdown(text);
-              } catch (downloadError) {
-                console.error('Error downloading markdown:', downloadError);
-                setMarkdown(getPlaceholderContent(labResponse));
+              } else {
+                throw new Error('Markdown file not found');
               }
-            } else {
-              console.log('No markdown file found in assets');
-              console.log('Available files:', assetsList.map(a => a.filename || a.fileName || a.name || 'unknown'));
+            } catch (err) {
+              console.error('Error loading markdown:', err);
               setMarkdown(getPlaceholderContent(labResponse));
             }
           } else {
-            console.log('No assets found for this lab or assets is not an array');
-            console.log('Assets data:', assetsList);
             setMarkdown(getPlaceholderContent(labResponse));
           }
-        } catch (assetsError) {
-          console.error('Error fetching lab assets:', assetsError);
+        } else {
           setMarkdown(getPlaceholderContent(labResponse));
         }
-        
       } catch (err) {
-        console.error("Error fetching lab data:", err);
         setError(`Failed to load lab: ${err.message}`);
       } finally {
         setLoading(false);
@@ -200,9 +240,14 @@ export default function LabPage() {
     if (id) {
       fetchLabData();
     }
+
+    return () => {
+      imageUrls.forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+    };
   }, [id]);
 
-  // Helper function to generate placeholder content
   const getPlaceholderContent = (labResponse) => {
     return `# ${labResponse.title || 'Lab Content'}
 
@@ -291,73 +336,6 @@ Lab content delivery is currently being developed. The markdown content for this
       );
     };
 
-  const components = {
-    h1: HeadingRenderer(1),
-    h2: HeadingRenderer(2),
-    h3: HeadingRenderer(3),
-    ul: ({ node, ...props }) => (
-      <ul
-        {...props}
-        className="list-disc pl-6 my-4 space-y-1 dark:text-gray-300"
-      />
-    ),
-    ol: ({ node, ...props }) => (
-      <ol
-        {...props}
-        className="list-decimal pl-6 my-4 space-y-1 dark:text-gray-300"
-      />
-    ),
-    li: ({ node, ...props }) => <li {...props} className="pl-2" />,
-    pre: ({ node, ...props }) => (
-      <pre
-        {...props}
-        className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 overflow-x-auto my-4"
-      />
-    ),
-    code: ({ node, className, children, ...props }) => {
-      const match = /language-(\w+)/.exec(className || "");
-      const isInline = !match;
-
-      return isInline ? (
-        <code
-          className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm"
-          {...props}
-        >
-          {children}
-        </code>
-      ) : (
-        <code className={className} {...props}>
-          {children}
-        </code>
-      );
-    },
-    p: ({ node, ...props }) => (
-      <p {...props} className="my-4 leading-relaxed dark:text-gray-300" />
-    ),
-    blockquote: ({ node, ...props }) => (
-      <blockquote
-        {...props}
-        className="border-l-4 border-msc pl-4 my-4 italic dark:text-gray-300"
-      />
-    ),
-    a: ({ node, ...props }) => (
-      <a
-        {...props}
-        className="text-msc hover:text-msc-hover underline"
-        target="_blank"
-        rel="noopener noreferrer"
-      />
-    ),
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-msc"></div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="flex items-center justify-center h-screen dark:bg-gray-900">
@@ -403,6 +381,24 @@ Lab content delivery is currently being developed. The markdown content for this
                 <span>•</span>
                 <span>{lab.views} views</span>
               </div>
+              {lab.tags && lab.tags.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {lab.tags.map((tag, index) => (
+                    <span
+                      key={tag.id || tag}
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 relative group"
+                      title={typeof tag === 'object' ? tag.description : ''}
+                    >
+                      {typeof tag === 'object' ? tag.name : `Tag ${tag}`}
+                      {typeof tag === 'object' && tag.description && (
+                        <span className="absolute z-10 hidden group-hover:block w-64 px-2 py-1 mt-6 -ml-4 text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 rounded shadow-lg">
+                          {tag.description}
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         )}
@@ -417,15 +413,71 @@ Lab content delivery is currently being developed. The markdown content for this
 
         {/* Lab Content Section */}
         <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-8">
-          <article className="prose dark:prose-invert max-w-none">
-            <ReactMarkdown
-              rehypePlugins={[rehypeHighlight]}
-              remarkPlugins={[remarkGfm]}
-              components={components}
-            >
-              {markdown}
-            </ReactMarkdown>
-          </article>
+          {isMarpPresentation(markdown) ? (
+            <MarpRenderer content={markdown} labId={id} />
+          ) : (
+            <article className="prose dark:prose-invert max-w-none">
+              <ReactMarkdown
+                remarkPlugins={[
+                  remarkGfm,
+                  remarkMath
+                ]}
+                rehypePlugins={[
+                  rehypeKatex,
+                  rehypeHighlight
+                ]}
+                components={{
+                  h1: HeadingRenderer(1),
+                  h2: HeadingRenderer(2),
+                  h3: HeadingRenderer(3),
+                  img: ImageRenderer,
+                  p: ({ node, ...props }) => (
+                    <p {...props} className="my-4 leading-relaxed dark:text-gray-300" />
+                  ),
+                  ul: ({ node, ...props }) => (
+                    <ul {...props} className="list-disc pl-6 my-4 space-y-2 dark:text-gray-300" />
+                  ),
+                  ol: ({ node, ...props }) => (
+                    <ol {...props} className="list-decimal pl-6 my-4 space-y-2 dark:text-gray-300" />
+                  ),
+                  li: ({ node, ...props }) => <li {...props} className="pl-2 my-1" />,
+                  pre: ({ node, ...props }) => (
+                    <pre {...props} className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 overflow-x-auto my-6" />
+                  ),
+                  code: ({ node, className, children, ...props }) => {
+                    const match = /language-(\w+)/.exec(className || "");
+                    const isInline = !match;
+
+                    return isInline ? (
+                      <code
+                        className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm"
+                        {...props}
+                      >
+                        {children}
+                      </code>
+                    ) : (
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                  
+                  table: ({ node, ...props }) => (
+                    <div className="overflow-x-auto">
+                      <table {...props} className="min-w-full divide-y divide-gray-700 my-4 border border-gray-700" />
+                    </div>
+                  ),
+                  th: ({ node, ...props }) => (
+                    <th {...props} className="px-4 py-2 bg-gray-800 text-left text-sm font-semibold text-white border-b border-gray-700" />
+                  ),
+                  td: ({ node, ...props }) => (
+                    <td {...props} className="px-4 py-2 text-sm text-black border-b border-gray-700" />
+                  ),
+                }}
+              >
+                {markdown}
+              </ReactMarkdown>
+            </article>)}
         </section>
 
         {/* Homework Submission Section */}
@@ -621,7 +673,12 @@ Lab content delivery is currently being developed. The markdown content for this
             </div>
           </div>
           
-          <CommentsSection contentType="lab" contentId={id} userId={user?.id} />
+          <CommentsSection 
+            contentType="lab" 
+            contentId={id} 
+            userId={user?.id}
+            userName={`${user?.firstName} ${user?.lastName}`}
+          />
         </section>
         </div>
 

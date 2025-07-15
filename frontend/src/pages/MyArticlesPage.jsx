@@ -3,12 +3,15 @@ import { useNavigate } from "react-router-dom";
 import ArticleCard from "../components/ArticleCard";
 import { articlesAPI } from "../utils/api";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
+import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function MyArticlesPage() {
   const [myArticles, setMyArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [articleToDelete, setArticleToDelete] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,7 +25,7 @@ export default function MyArticlesPage() {
     const fetchMyArticles = async () => {
       try {
         setLoading(true);
-        const response = await articlesAPI.getMyArticles();
+        const response = await articlesAPI.getMyArticles(1, 20);
         setMyArticles(response.articles || []);
       } catch (err) {
         console.error('Error fetching my articles:', err);
@@ -45,6 +48,61 @@ export default function MyArticlesPage() {
     navigate('/create-article');
   };
 
+  const handleDeleteClick = (e, article) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setArticleToDelete(article);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!articleToDelete) return;
+
+    try {
+      const deletedArticleId = articleToDelete.id || articleToDelete.article_id;
+      await articlesAPI.deleteArticle(deletedArticleId);
+      setMyArticles(prev => prev.filter(article => (article.id || article.article_id) !== deletedArticleId));
+      setShowDeleteModal(false);
+      setArticleToDelete(null);
+    } catch (error) {
+      console.error('Error deleting article:', error);
+      setError('Failed to delete article. Please try again.');
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setArticleToDelete(null);
+  };
+
+  const ConfirmationModal = () => {
+    if (!showDeleteModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full animate-fade-in">
+          <p className="text-gray-800 dark:text-gray-200 mb-4">
+            Are you sure you want to delete the article "{articleToDelete?.title}"?
+          </p>
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={handleCancelDelete}
+              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (!isAuthenticated()) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -58,13 +116,14 @@ export default function MyArticlesPage() {
               </p>
               <button 
                 onClick={() => navigate('/login')}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-msc text-white rounded-lg hover:bg-msc-hover transition-colors"
               >
                 Sign In
               </button>
             </div>
           </div>
         </div>
+        <ConfirmationModal />
       </div>
     );
   }
@@ -95,6 +154,7 @@ export default function MyArticlesPage() {
             </div>
           </div>
         </div>
+        <ConfirmationModal />
       </div>
     );
   }
@@ -108,7 +168,7 @@ export default function MyArticlesPage() {
           </h1>
           <button
             onClick={handleCreateArticle}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            className="inline-flex items-center px-4 py-2 bg-msc text-white dark:bg-white dark:text-msc text-sm font-medium rounded-lg hover:bg-msc-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-msc transition-colors"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -127,7 +187,7 @@ export default function MyArticlesPage() {
               </p>
               <button
                 onClick={handleCreateArticle}
-                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                className="inline-flex items-center px-6 py-3 bg-msc text-white dark:bg-white dark:text-msc font-medium rounded-lg hover:bg-msc-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-msc transition-colors"
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -139,11 +199,21 @@ export default function MyArticlesPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {myArticles.map((article) => (
-              <ArticleCard key={article.id || article.article_id} article={article} />
+              <div key={article.id || article.article_id} className="relative group">
+                <ArticleCard article={article} />
+                <button
+                  onClick={(e) => handleDeleteClick(e, article)}
+                  className="absolute top-2 right-2 p-1.5 bg-gray-200 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300 hover:bg-red-200 dark:hover:bg-red-800 hover:text-red-600 dark:hover:text-red-200 transition-colors opacity-0 group-hover:opacity-100"
+                  aria-label="Delete article"
+                >
+                  <TrashIcon className="w-5 h-5" />
+                </button>
+              </div>
             ))}
           </div>
         )}
       </div>
+      <ConfirmationModal />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import olsh.backend.api_gateway.dto.StringMapper;
 import org.springframework.web.multipart.MultipartFile;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -37,27 +38,13 @@ public class LabCreateRequest {
     @Schema(description = "Comma-separated list of tag IDs", example = "[5,6,7]", required = false)
     private String tags;
 
-    // Add a helper method to convert to Long[]
-    private List<Long> getStrAsArray(String str) {
-        if (str == null || str.trim().isEmpty()) {
-            return Collections.emptyList();
-        }
-        // Handle both "[6,5,4]" and "6,5,4" formats
-        String cleanTags = str.replaceAll("[\\[\\]]", "").trim();
-        if (cleanTags.isEmpty()) {
-            return Collections.emptyList();
-        }
-        return Arrays.stream(cleanTags.split(","))
-                .map(String::trim)
-                .map(Long::parseLong).toList();
+
+    public List<Long> getArticlesList() {
+        return StringMapper.mapToLongList(this.articles);
     }
 
-    public List<Long> getArticlesAsArray() {
-        return getStrAsArray(this.articles);
-    }
-
-    public List<Long> getTagsAsArray() {
-        return getStrAsArray(this.tags);
+    public List<Integer> getTagsList() {
+        return StringMapper.mapToIntegerList(this.tags);
     }
 }
 

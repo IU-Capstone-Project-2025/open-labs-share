@@ -17,23 +17,8 @@ public class ArticleListResponse {
     @Schema(description = "List of articles on the current page")
     private List<ArticleResponse> articles;
 
-    @Schema(description = "Pagination information")
-    private PaginationResponse pagination;
+    @Schema(description = "Total number of items across all pages", example = "100")
+    private Integer count;
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    @Schema(description = "Pagination details")
-    public static class PaginationResponse {
-        @Schema(description = "Current page number", example = "1")
-        private Integer currentPage;
-
-        @Schema(description = "Total number of pages", example = "5")
-        private Integer totalPages;
-
-        @Schema(description = "Total number of items across all pages", example = "100")
-        private Integer totalItems;
-    }
 }
 

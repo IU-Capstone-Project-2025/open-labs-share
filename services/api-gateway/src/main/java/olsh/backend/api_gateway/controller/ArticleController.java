@@ -5,7 +5,7 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.annotation.RequireAuth;
 import olsh.backend.api_gateway.dto.request.CreateArticleRequest;
-import olsh.backend.api_gateway.dto.request.GetArticlesRequest;
+import olsh.backend.api_gateway.dto.request.ArticlesGetRequest;
 import olsh.backend.api_gateway.dto.response.ArticleListResponse;
 import olsh.backend.api_gateway.dto.response.ArticleResponse;
 import olsh.backend.api_gateway.dto.response.CreateArticleResponse;
@@ -43,23 +43,25 @@ public class ArticleController {
     }
 
     @Operation(
-        summary = "Create new article",
-        description = "Creates a new article with PDF file upload. Requires authentication."
+            summary = "Create new article",
+            description = "Creates a new article with PDF file upload. Requires authentication."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "201",
-            description = "Article created successfully",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = CreateArticleResponse.class))
-        ),
-        @ApiResponse(responseCode = "400", description = "Invalid request data"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
-        @ApiResponse(responseCode = "403", description = "Forbidden - Access denied")
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Article created successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                            CreateArticleResponse.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Invalid request data"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - Access denied")
     })
     @RequireAuth
     @PostMapping
     public ResponseEntity<CreateArticleResponse> createArticle(
-            @Valid @ModelAttribute @Parameter(description = "Article creation data including title, description, and PDF file") CreateArticleRequest request,
+            @Valid @ModelAttribute @Parameter(description = "Article creation data including title, description, and " +
+                    "PDF file") CreateArticleRequest request,
             HttpServletRequest httpRequest) {
 
         log.debug("Received request to create article with title: {}", request.getTitle());
@@ -72,17 +74,18 @@ public class ArticleController {
     }
 
     @Operation(
-        summary = "Get article by ID",
-        description = "Retrieves detailed information about a specific article by its ID. Requires authentication."
+            summary = "Get article by ID",
+            description = "Retrieves detailed information about a specific article by its ID. Requires authentication."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Article found and returned successfully",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ArticleResponse.class))
-        ),
-        @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
-        @ApiResponse(responseCode = "404", description = "Article not found")
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Article found and returned successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                            ArticleResponse.class))
+            ),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
+            @ApiResponse(responseCode = "404", description = "Article not found")
     })
     @RequireAuth
     @GetMapping("/{article_id}")
@@ -99,22 +102,23 @@ public class ArticleController {
     }
 
     @Operation(
-        summary = "Get list of articles",
-        description = "Retrieves a paginated list of articles. Requires authentication."
+            summary = "Get list of articles",
+            description = "Retrieves a paginated list of articles. Requires authentication."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Articles retrieved successfully",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ArticleListResponse.class))
-        ),
-        @ApiResponse(responseCode = "400", description = "Invalid pagination parameters"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required")
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Articles retrieved successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                            ArticleListResponse.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Invalid pagination parameters"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required")
     })
     @RequireAuth
     @GetMapping
     public ResponseEntity<ArticleListResponse> getArticles(
-            @Valid @ParameterObject @Parameter(description = "Pagination parameters") GetArticlesRequest request,
+            @Valid @ParameterObject @Parameter(description = "Pagination parameters") ArticlesGetRequest request,
             HttpServletRequest httpRequest) {
 
         log.debug("Received request to get articles with page: {}, limit: {}", request.getPage(), request.getLimit());
@@ -133,7 +137,8 @@ public class ArticleController {
             @ApiResponse(
                     responseCode = "200",
                     description = "User's articles retrieved successfully",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ArticleListResponse.class))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                            ArticleListResponse.class))
             ),
             @ApiResponse(responseCode = "400", description = "Invalid pagination parameters"),
             @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required")
@@ -141,31 +146,34 @@ public class ArticleController {
     @RequireAuth
     @GetMapping("/my")
     public ResponseEntity<ArticleListResponse> getMyArticles(
-            @Valid @ParameterObject @Parameter(description = "Pagination parameters") GetArticlesRequest request,
-            HttpServletRequest httpRequest) {
+            HttpServletRequest httpRequest,
+            @RequestParam(defaultValue = "1") @Parameter(description = "Page number (starts from 1)", example = "1") Integer page,
+            @RequestParam(defaultValue = "20") @Parameter(description = "Page size", example = "20") Integer limit) {
 
         long userId = attributesProvider.extractUserIdFromRequest(httpRequest);
         log.debug("Received request to get articles for user: {}", userId);
 
-        ArticleListResponse response = articleService.getArticlesByAuthor(userId, request);
+        ArticleListResponse response = articleService.getUsersArticles(userId, page, limit);
 
         log.debug("Successfully retrieved {} articles for user {}", response.getArticles().size(), userId);
         return ResponseEntity.ok(response);
     }
 
     @Operation(
-        summary = "Delete article",
-        description = "Deletes a specific article by its ID. Only the article owner can delete it. Requires authentication."
+            summary = "Delete article",
+            description = "Deletes a specific article by its ID. Only the article owner can delete it. Requires " +
+                    "authentication."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Article deleted successfully",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = DeleteArticleResponse.class))
-        ),
-        @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
-        @ApiResponse(responseCode = "403", description = "Forbidden - No access to delete the article"),
-        @ApiResponse(responseCode = "404", description = "Article not found")
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Article deleted successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                            DeleteArticleResponse.class))
+            ),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - No access to delete the article"),
+            @ApiResponse(responseCode = "404", description = "Article not found")
     })
     @RequireAuth
     @DeleteMapping("/{article_id}")

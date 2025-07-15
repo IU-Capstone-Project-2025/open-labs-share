@@ -26,6 +26,12 @@ public class CommentServiceClient {
         this.commentBlockingStub = CommentServiceGrpc.newBlockingStub(channel);
     }
 
+    /**
+     * Creates a new comment for a specific content item.
+     *
+     * @param request Contains content ID, user ID, and comment text
+     * @return Created Comment object with all details
+     */
     public Comment createComment(CreateCommentRequest request) {
         try {
             log.debug("Creating comment for content ID: {} by user ID: {}", request.getContentId(),
@@ -43,6 +49,13 @@ public class CommentServiceClient {
         }
     }
 
+    /**
+     * Retrieves a comment by its ID.
+     *
+     * @param request Contains the ID of the comment to retrieve
+     * @return Comment object with all details
+     * @throws CommentNotFoundException if the comment does not exist
+     */
     public Comment getCommentById(GetCommentRequest request) {
         try {
             log.debug("Fetching comment with ID: {}", request.getId());
@@ -59,6 +72,12 @@ public class CommentServiceClient {
         }
     }
 
+    /**
+     * Lists comments for a specific content item with pagination.
+     *
+     * @param request Contains content ID, page number, and limit
+     * @return ListCommentsResponse containing comments and total count
+     */
     public ListCommentsResponse getComments(ListCommentsRequest request) {
         try {
             log.debug("Listing comments for content ID: {} on page: {}, limit: {}", request.getContentId(),
@@ -72,6 +91,13 @@ public class CommentServiceClient {
         }
     }
 
+    /**
+     * Lists replies for a specific comment with pagination.
+     *
+     * @param request Contains comment ID, page number, and limit
+     * @return GetCommentRepliesResponse containing replies and total count
+     * @throws CommentNotFoundException if the parent comment does not exist
+     */
     public GetCommentRepliesResponse getCommentReplies(GetCommentRepliesRequest request) {
         try {
             log.debug("Listing replies for comment ID: {} on page: {}, limit: {}", request.getCommentId(),
@@ -89,6 +115,13 @@ public class CommentServiceClient {
         }
     }
 
+    /**
+     * Updates an existing comment.
+     *
+     * @param request Contains the ID of the comment to update and new text
+     * @return Updated Comment object with all details
+     * @throws CommentNotFoundException if the comment does not exist
+     */
     public Comment updateComment(UpdateCommentRequest request) {
         try {
             log.debug("Updating comment with ID: {}", request.getId());
@@ -107,6 +140,13 @@ public class CommentServiceClient {
         }
     }
 
+    /**
+     * Deletes a comment by its ID.
+     *
+     * @param request Contains the ID of the comment to delete
+     * @return true if deletion was successful, false otherwise
+     * @throws CommentNotFoundException if the comment does not exist
+     */
     public boolean deleteComment(DeleteCommentRequest request) {
         try {
             log.debug("Deleting comment with ID: {}", request.getId());
@@ -125,10 +165,4 @@ public class CommentServiceClient {
         }
     }
 
-
-    private String formatTimestamp(Timestamp timestamp) {
-        return Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos())
-                .atOffset(ZoneOffset.UTC)
-                .format(DateTimeFormatter.ISO_INSTANT);
-    }
 } 

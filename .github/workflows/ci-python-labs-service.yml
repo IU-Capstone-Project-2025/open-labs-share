@@ -5,7 +5,6 @@ on:
     branches:
       - main
       - master
-      - "**" # this is for testing purposes
     paths:
       - 'services/labs-service/**'
       - 'docker/Dockerfile.labs-service'

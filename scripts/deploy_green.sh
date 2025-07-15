@@ -90,3 +90,4 @@ echo "Timeout reached. $TARGET_ENV environment is not healthy."
 # If timeout is reached, rollback
 ./scripts/rollback.sh $TARGET_ENV
 exit 1
+

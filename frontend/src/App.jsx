@@ -27,13 +27,16 @@ import CreateArticlePage from "./pages/CreateArticlePage";
 import MySubmissionsPage from "./pages/MySubmissionsPage";
 import SubmissionPage from "./pages/SubmissionPage";
 import BackgroundCircles from "./components/BackgroundCircles";
+import Search from "./components/Search";
 import { UserContext } from './hooks/useUser';
 import ReviewQueuePage from './pages/ReviewQueuePage';
 import ReviewSubmissionPage from './pages/ReviewSubmissionPage';
 import MyFeedbackPage from './pages/MyFeedbackPage';
 import FeedbackViewPage from './pages/FeedbackViewPage';
 
-// Component to protect routes that require authentication
+import SearchResultsPage from './pages/SearchResultsPage';
+
+
 function ProtectedRoute({ children }) {
   const authenticated = isAuthenticated();
   
@@ -45,7 +48,6 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
-// Component for routes that should only be accessible to unauthenticated users
 function PublicOnlyRoute({ children }) {
   const authenticated = isAuthenticated();
   
@@ -57,9 +59,7 @@ function PublicOnlyRoute({ children }) {
   return children;
 }
 
-// Component for the landing page (accessible to everyone)
 function LandingRoute({ children }) {
-  // This route is accessible to both authenticated and unauthenticated users
   return children;
 }
 
@@ -67,25 +67,42 @@ function AppContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [theme, setTheme] = useState("light");
   const [user, setUser] = useState(null);
+  const [userLoading, setUserLoading] = useState(true);
   const sidebarRef = useRef();
   const location = useLocation();
+  const updateTimeoutRef = useRef(null);
 
   const showSidebar = !["/signup", "/signin"].includes(location.pathname) && 
                    !(location.pathname === "/" && !isAuthenticated());
   
   const updateUserState = useCallback(async () => {
+    console.log('updateUserState called at:', new Date().toISOString());
     if (isAuthenticated()) {
       try {
+        setUserLoading(true);
         const freshUserData = await getUserProfile();
         setUser(freshUserData);
       } catch (error) {
         console.error('Failed to fetch user profile, using cached data:', error);
-        setUser(getCurrentUser());
+        const cachedUser = getCurrentUser();
+        setUser(cachedUser);
+      } finally {
+        setUserLoading(false);
       }
     } else {
       setUser(null);
+      setUserLoading(false);
     }
   }, []);
+
+  const debouncedUpdateUserState = useCallback(() => {
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+    updateTimeoutRef.current = setTimeout(() => {
+      updateUserState();
+    }, 100);
+  }, [updateUserState]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -110,20 +127,19 @@ function AppContent() {
     document.documentElement.classList.toggle("dark", savedTheme === "dark");
   }, []);
 
-  // Centralized user data fetching and state management
   useEffect(() => {
-    // Initial fetch
     updateUserState();
 
-    // Listen for custom event to re-fetch user data
-    window.addEventListener('userDataUpdated', updateUserState);
+    window.addEventListener('userDataUpdated', debouncedUpdateUserState);
 
     return () => {
-      window.removeEventListener('userDataUpdated', updateUserState);
+      window.removeEventListener('userDataUpdated', debouncedUpdateUserState);
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
     };
-  }, [updateUserState]);
+  }, [updateUserState, debouncedUpdateUserState]);
 
-  // Start/stop token refresh based on authentication state
   useEffect(() => {
     if (isAuthenticated()) {
       startTokenRefresh();
@@ -140,7 +156,6 @@ function AppContent() {
     document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
-  // Get user initials for profile avatar
   const getUserInitials = () => {
     if (!user) return "?";
     const firstInitial = user.firstName?.charAt(0)?.toUpperCase() || "";
@@ -168,35 +183,12 @@ function AppContent() {
                 </button>
 
                 <div className="relative w-64">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg
-                      className="w-4 h-4 text-msc"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
-                    </svg>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md text-sm 
-                              placeholder:text-light-blue
-                              text-msc
-                              bg-light-blue bg-opacity-55
-                              focus:outline-none focus:ring-1 focus:ring-msc"
-                  />
+                  <Search />
                 </div>
               </div>
 
               <div className="flex items-center space-x-3">
-                {user && (
+                {user && !userLoading ? (
                   <div className="text-right hidden sm:block">
                     <div className="text-sm text-gray-600 dark:text-gray-300">
                       Welcome, {user.firstName} {user.lastName}!
@@ -206,7 +198,17 @@ function AppContent() {
                       <span>{user.balance || 0} points</span>
                     </div>
                   </div>
-                )}
+                ) : userLoading ? (
+                  <div className="text-right hidden sm:block">
+                    <div className="text-sm text-gray-600 dark:text-gray-300">
+                      Loading...
+                    </div>
+                    <div className="flex items-center justify-end space-x-1 text-xs text-msc dark:text-gray-400">
+                      <GemIcon className="h-4 w-4" color="#101e5a" />
+                      <span>...</span>
+                    </div>
+                  </div>
+                ) : null}
                 <Link to="/profile" className="flex items-center">
                   <div className="w-10 h-10 rounded-full bg-msc flex items-center justify-center text-white text-sm cursor-pointer hover:bg-msc-hover transition-colors">
                     <span>{getUserInitials()}</span>
@@ -253,6 +255,8 @@ function AppContent() {
             <Route path="/feedback/:submissionId" element={<ReviewSubmissionPage />} />
             <Route path="/feedback/my" element={<ProtectedRoute><MyFeedbackPage /></ProtectedRoute>} />
             <Route path="/feedback/view/:feedbackId" element={<ProtectedRoute><FeedbackViewPage /></ProtectedRoute>} />
+            <Route path="/search" element={<ProtectedRoute><SearchResultsPage /></ProtectedRoute>} />
+
             {/* Catch-all route for undefined paths */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

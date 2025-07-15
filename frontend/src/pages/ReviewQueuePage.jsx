@@ -1,13 +1,30 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { submissionsAPI } from '../utils/api';
+import { submissionsAPI, labsAPI } from '../utils/api';
 import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
 import { DocumentTextIcon, ClockIcon, UserIcon } from '@heroicons/react/24/outline';
 
-const SubmissionCard = ({ submission }) => {
-  const { submissionId, labId, owner, createdAt } = submission;
+
+const formatDate = (dateString) => {
+  if (!dateString) return 'Unknown date';
   
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    return date.toLocaleDateString();
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
+};
+
+const SubmissionCard = ({ submission }) => {
+
+  const { submissionId, labId, labTitle, owner, createdAt } = submission;
+
   return (
     <Link to={`/feedback/${submissionId}`} className="block group">
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-200 dark:border-gray-700">
@@ -15,15 +32,15 @@ const SubmissionCard = ({ submission }) => {
           <DocumentTextIcon className="w-8 h-8 text-blue-500 dark:text-blue-400 mr-4" />
           <div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              Lab #{labId}
+              {`Submission to: ${labTitle}` || `Submission to Lab #${labId}`}
             </h3>
           </div>
         </div>
         <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
-          {/* <div className="flex items-center">
+          <div className="flex items-center">
             <ClockIcon className="w-4 h-4 mr-1" />
-            <span>Submitted: {new Date(createdAt).toLocaleDateString()}</span>
-          </div> */}
+            <span>Submitted: {formatDate(createdAt)}</span>
+          </div>
           <div className="flex items-center">
             <UserIcon className="w-4 h-4 text-gray-500 mr-1" />
             <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -52,15 +69,31 @@ const ReviewQueuePage = () => {
       
       try {
         setLoading(true);
-        // Используем новую ручку для получения сабмишенов для ревью
+
         const response = await submissionsAPI.getSubmissionsForReview();
-        
-        // Извлекаем данные согласно новой структуре API
         const submissionsData = response.submissions || [];
         const total = response.totalCount || 0;
         
-        setSubmissions(submissionsData);
+        
+        const labIds = [...new Set(submissionsData.map(s => s.labId))];
+        const labsResponse = await Promise.all(
+          labIds.map(id => labsAPI.getLabById(id).catch(() => null))
+        );
+        
+        const labsMap = labsResponse.reduce((acc, lab) => {
+          if (lab) acc[lab.id] = lab;
+          return acc;
+        }, {});
+
+        
+        const enrichedSubmissions = submissionsData.map(sub => ({
+          ...sub,
+          labTitle: labsMap[sub.labId]?.title
+        }));
+        
+        setSubmissions(enrichedSubmissions);
         setTotalCount(total);
+
       } catch (err) {
         setError('Failed to fetch submissions for review.');
         console.error(err);

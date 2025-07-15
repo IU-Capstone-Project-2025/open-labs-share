@@ -29,7 +29,13 @@ public class FeedbackService {
     private final UploadFileConfiguration uploadConfig;
 
     /**
-     * Creates a new feedback with optional file attachments.
+     * Creates feedback for a student's submission.
+     * Validates the submission status and user access before creating feedback.
+     * Uploads attachments if provided.
+     *
+     * @param request    The request containing feedback details and attachments.
+     * @param reviewerId The ID of the reviewer creating the feedback.
+     * @return The created feedback response.
      */
     public FeedbackResponse createFeedback(CreateFeedbackRequest request, Long reviewerId) {
         log.info("Creating feedback for submission {} by reviewer {}", request.getSubmissionId(), reviewerId);
@@ -71,7 +77,12 @@ public class FeedbackService {
     }
 
     /**
-     * Registers feedback in the system (without attachments).
+     * Registers feedback in the system.
+     * This method is responsible for creating the feedback entry in the database.
+     *
+     * @param request    The request containing feedback details.
+     * @param reviewerId The ID of the reviewer creating the feedback.
+     * @return The created feedback object.
      */
     private FeedbackProto.Feedback registerFeedback(CreateFeedbackRequest request, Long reviewerId) {
         FeedbackProto.CreateFeedbackRequest protoRequest = FeedbackProto.CreateFeedbackRequest.newBuilder()
@@ -87,7 +98,12 @@ public class FeedbackService {
     }
 
     /**
-     * Uploads attachments for a feedback if present.
+     * Uploads assets (attachments) for the feedback.
+     * This method iterates through the provided files and uploads each one.
+     *
+     * @param reviewerId The ID of the reviewer uploading the assets.
+     * @param feedbackId The ID of the feedback to which the assets are being uploaded.
+     * @param files      The list of files to upload.
      */
     private void uploadAssetsForFeedback(Long reviewerId, String feedbackId, List<MultipartFile> files) {
         if (files == null || files.isEmpty()) {
@@ -120,7 +136,12 @@ public class FeedbackService {
     }
 
     /**
-     * Gets feedback for a specific student's submission. Use if you do not know the feedback ID.
+     * Retrieves feedback for a specific student and submission.
+     * Validates the submission ID before fetching feedback.
+     *
+     * @param studentId   The ID of the student.
+     * @param submissionId The ID of the submission.
+     * @return The feedback response for the specified student and submission.
      */
     public FeedbackResponse getStudentFeedback(Long studentId, Long submissionId) {
         log.info("Retrieving feedback for student {} and submission {}", studentId, submissionId);
@@ -141,6 +162,13 @@ public class FeedbackService {
 
     /**
      * Lists all feedbacks for a student with pagination.
+     * Optionally filters by submission ID if provided.
+     *
+     * @param studentId   The ID of the student.
+     * @param submissionId The ID of the submission (optional).
+     * @param page        The page number for pagination.
+     * @param limit       The number of items per page.
+     * @return A response containing the list of feedbacks and total count.
      */
     public FeedbackListResponse listStudentFeedbacks(Long studentId, Long submissionId, Integer page, Integer limit) {
         log.info("Listing feedbacks for student {} (page: {}, limit: {})", studentId, page, limit);
@@ -165,7 +193,14 @@ public class FeedbackService {
     }
 
     /**
-     * Lists all feedbacks created by a reviewer with pagination.
+     * Lists all feedbacks created by a specific reviewer.
+     * Optionally filters by submission ID if provided.
+     *
+     * @param reviewerId  The ID of the reviewer.
+     * @param submissionId The ID of the submission (optional).
+     * @param page        The page number for pagination.
+     * @param limit       The number of items per page.
+     * @return A response containing the list of feedbacks and total count.
      */
     public FeedbackListResponse listReviewerFeedbacks(Long reviewerId, Long submissionId, Integer page, Integer limit) {
         log.info("Listing feedbacks by reviewer {} (page: {}, limit: {})", reviewerId, page, limit);
@@ -190,8 +225,12 @@ public class FeedbackService {
     }
 
     /**
-     * Deletes a feedback and its attachments.
+     * Deletes feedback by its ID.
      * Only the reviewer who created the feedback can delete it.
+     *
+     * @param feedbackId The ID of the feedback to delete.
+     * @param reviewerId The ID of the reviewer attempting to delete the feedback.
+     * @return A response indicating success or failure of the deletion.
      */
     public DeleteFeedbackResponse deleteFeedback(String feedbackId, Long reviewerId) {
         log.info("Attempting to delete feedback {} by reviewer {}", feedbackId, reviewerId);
@@ -217,6 +256,7 @@ public class FeedbackService {
     /**
      * Downloads a feedback attachment file.
      */
+    @Deprecated
     public byte[] downloadAttachment(String feedbackId, String filename) {
         log.info("Downloading attachment {} from feedback {}", filename, feedbackId);
 
@@ -234,6 +274,7 @@ public class FeedbackService {
     /**
      * Lists all attachments for a feedback.
      */
+    @Deprecated
     public List<FeedbackAssetResponse> listAttachments(String feedbackId) {
         log.info("Listing attachments for feedback {}", feedbackId);
 
@@ -254,6 +295,7 @@ public class FeedbackService {
      * Deletes an attachment from a feedback.
      * Only the reviewer who created the feedback can delete its attachments.
      */
+    @Deprecated
     public void deleteAttachment(Long reviewerId, String feedbackId, String filename) {
         log.info("Attempting to delete attachment {} from feedback {} by reviewer {}",
                 filename, feedbackId, reviewerId);
@@ -283,6 +325,13 @@ public class FeedbackService {
 
     // ========== Private Helper Methods ==========
 
+    /**
+     * Validates the files provided in the feedback request.
+     * Checks for file size limits and returns a list of valid files.
+     *
+     * @param request The request containing files to validate.
+     * @return A list of validated files.
+     */
     private List<MultipartFile> validateFiles(CreateFeedbackRequest request) {
         List<MultipartFile> files;
         if (request.getFiles() == null) {
@@ -312,6 +361,13 @@ public class FeedbackService {
         return files;
     }
 
+    /**
+     * Maps a list of FeedbackProto.Feedback objects to a list of FeedbackResponse objects.
+     * This method handles user data retrieval and attachment mapping.
+     *
+     * @param feedbackList The list of FeedbackProto.Feedback objects to map.
+     * @return A list of FeedbackResponse objects.
+     */
     private List<FeedbackResponse> mapToFeedbackResponses(List<FeedbackProto.Feedback> feedbackList) {
         Map<Long, UserResponse> userCache = new HashMap<>();
         List<FeedbackResponse> responses = new ArrayList<>();
@@ -340,6 +396,14 @@ public class FeedbackService {
         return responses;
     }
 
+    /**
+     * Maps a FeedbackProto.Feedback object to a FeedbackResponse object.
+     * This method retrieves user data and builds the response with attachments.
+     *
+     * @param feedback    The FeedbackProto.Feedback object to map.
+     * @param attachments The list of attachments associated with the feedback.
+     * @return A FeedbackResponse object containing the mapped data.
+     */
     private FeedbackResponse mapToFeedbackResponse(FeedbackProto.Feedback feedback,
                                                    List<FeedbackProto.AttachmentInfo> attachments) {
         log.debug("Building feedback response for feedback {}", feedback.getId());
@@ -361,8 +425,11 @@ public class FeedbackService {
     }
 
     /**
-     * Builds a list of asset responses for the feedback attachments.
-     * If there are no attachments, returns an empty list.
+     * Builds a list of FeedbackAssetResponse objects from a list of AttachmentInfo objects.
+     *
+     * @param attachments The list of AttachmentInfo objects containing attachment details.
+     * @param feedbackId  The ID of the feedback to which these attachments belong.
+     * @return A list of FeedbackAssetResponse objects with attachment details.
      */
     private List<FeedbackAssetResponse> buildAssetResponse(List<FeedbackProto.AttachmentInfo> attachments,
                                                            String feedbackId) {
@@ -375,7 +442,11 @@ public class FeedbackService {
     }
 
     /**
-     * Builds a single asset response for a feedback attachment.
+     * Builds a single FeedbackAssetResponse from an AttachmentInfo object.
+     *
+     * @param info        The AttachmentInfo object containing attachment details.
+     * @param feedbackId  The ID of the feedback to which this attachment belongs.
+     * @return A FeedbackAssetResponse object with the attachment details.
      */
     private FeedbackAssetResponse buildAssetResponse(FeedbackProto.AttachmentInfo info, String feedbackId) {
         return FeedbackAssetResponse.builder()
@@ -386,6 +457,14 @@ public class FeedbackService {
                 .build();
     }
 
+    /**
+     * Retrieves feedback by its ID.
+     * Validates the UUID format and fetches the feedback from the client.
+     *
+     * @param feedbackId The ID of the feedback to retrieve.
+     * @return The FeedbackProto.Feedback object if found.
+     * @throws FeedbackNotFoundException if the feedback is not found.
+     */
     private FeedbackProto.Feedback getFeedbackById(String feedbackId) {
         log.debug("Retrieving feedback by ID: {}", feedbackId);
         try {

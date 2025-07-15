@@ -143,11 +143,8 @@ export const usersAPI = {
 
 // --- Labs API ---
 export const labsAPI = {
-  getLabs: (page = 1, limit = 20) => apiCall(`/labs?page=${page}&limit=${limit}`),
-  getMyLabs: (page = 1, limit = 20) => apiCall('/labs/my', {
-    // Add a cache-busting parameter to ensure fresh data
-    params: { _: new Date().getTime() },
-  }),
+  getLabs: (page = 1, limit = 20, search = "", tags = "") => apiCall(`/labs?page=${page}&limit=${limit}&text=${encodeURIComponent(search)}&tags=${tags}`),
+  getMyLabs: (page = 1, limit = 20) => apiCall(`/labs/my?page=${page}&limit=${limit}`),
   getLabById: (labId) => apiCall(`/labs/${labId}`),
   createLab: (formData) => apiCall('/labs', {
     method: 'POST',
@@ -164,18 +161,22 @@ export const labsAPI = {
     body: formData,
   }),
   downloadLabAsset: (labId, assetId) => apiCall(`/labs/${labId}/assets/${assetId}/download`),
+  searchLabs: (query, page = 1, limit = 20, tags = '') => 
+    apiCall(`/labs?text=${encodeURIComponent(query)}&page=${page}&limit=${limit}&tags=${tags}`),
 };
 
 // --- Articles API ---
 export const articlesAPI = {
-  getArticles: (page = 1, limit = 20) => apiCall(`/articles?page=${page}&limit=${limit}`),
-  getMyArticles: (page = 1, limit = 20) => apiCall('/articles/my'),
+  getArticles: (page = 1, limit = 20, search = "", tags = "") => apiCall(`/articles?page=${page}&limit=${limit}&text=${encodeURIComponent(search)}&tags=${tags}`),
+  getMyArticles: (page = 1, limit = 20) => apiCall(`/articles/my?page=${page}&limit=${limit}`),
   getArticleById: (articleId) => apiCall(`/articles/${articleId}`),
   createArticle: (formData) => apiCall('/articles', {
     method: 'POST',
     body: formData,
   }),
   deleteArticle: (articleId) => apiCall(`/articles/${articleId}`, { method: 'DELETE' }),
+  searchArticles: (query, page = 1, limit = 20, tags = '') => 
+    apiCall(`/articles?text=${encodeURIComponent(query)}&page=${page}&limit=${limit}&tags=${tags}`),
 };
 
 // --- Submissions API ---
@@ -239,4 +240,46 @@ export const feedbackAPI = {
     }
     return apiCall(url);
   },
+};
+
+// --- Comments API ---
+export const commentsAPI = {
+  createComment: (labId, commentData) => apiCall(`/labs/${labId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify(commentData),
+  }),
+  getLabComments: (labId, page = 1, limit = 20) => apiCall(`/labs/${labId}/comments?page=${page}&limit=${limit}`),
+  getCommentById: (commentId) => apiCall(`/comments/${commentId}`),
+  getCommentReplies: (commentId, page = 1, size = 20) => apiCall(`/comments/${commentId}/replies?page=${page}&size=${size}`),
+  updateComment: (commentId, content) => {
+  const payload = { content };
+  return apiCall(`/comments/${commentId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+},
+  deleteComment: (commentId) => apiCall(`/comments/${commentId}`, {
+    method: 'DELETE',
+  }),
+
+}
+
+// --- Tags API ---
+export const tagsAPI = {
+  createTag: (tagData) => apiCall('/tags', {
+    method: 'POST',
+    body: JSON.stringify(tagData),
+  }),
+  getTagById: (tagId) => apiCall(`/tags/${tagId}`),
+  getTagsByIds: (ids) => apiCall('/tags/by-ids', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  }),
+  getTags: (page = 0, limit = 50) => apiCall(`/tags?page=${page}&limit=${limit}`),
+  updateTag: (tagData) => apiCall('/tags/update', {
+    method: 'PUT',
+    body: JSON.stringify(tagData),
+  }),
+  deleteTag: (tagId) => apiCall(`/tags/${tagId}`, { method: 'DELETE' }),
+
 };

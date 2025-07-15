@@ -1,0 +1,206 @@
+spring:
+  application:
+    name: marimo-service
+  
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:marimo_service}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    schemas: public
+
+  # Cache Configuration - Using Caffeine for local caching
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=3600s
+
+# gRPC Configuration
+grpc:
+  server:
+    port: ${GRPC_PORT:9094}
+    enable-reflection: true
+  client:
+    python-service:
+      address: ${PYTHON_SERVICE_GRPC:static://localhost:5000}
+      enable-keep-alive: true
+      keep-alive-without-calls: true
+
+# MinIO Configuration for asset storage
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket-name: ${MINIO_BUCKET:marimo}
+
+# Marimo Service Configuration
+marimo:
+
+  python-service:
+    host: ${PYTHON_SERVICE_HOST:localhost}
+    port: ${PYTHON_SERVICE_PORT:5000}
+    timeout-seconds: ${PYTHON_SERVICE_TIMEOUT:30}
+
+  # Session management via PostgreSQL (component_sessions table)
+  session:
+    ttl-hours: ${SESSION_TTL_HOURS:4}  # 4 hours default session timeout
+    cleanup-interval-minutes: ${SESSION_CLEANUP_INTERVAL:15}
+    max-sessions-per-user: ${MAX_SESSIONS_PER_USER:3}
+
+  security:
+    allowed-imports:
+      - numpy
+      - pandas
+      - matplotlib
+      - plotly
+      - marimo
+      - math
+      - statistics
+      - random
+      - datetime
+      - json
+      - scipy
+      - seaborn
+    blocked-modules:
+      - os
+      - subprocess
+      - sys
+      - socket
+      - urllib
+      - requests
+      - http
+      - builtins
+    code-validation:
+      max-code-length: ${MAX_CODE_LENGTH:25000}
+      max-component-count: ${MAX_COMPONENT_COUNT:20}
+      enable-ast-validation: ${ENABLE_AST_VALIDATION:true}
+
+  cache:
+    component-definitions:
+      ttl-hours: ${COMPONENT_CACHE_TTL:2}
+      max-size: ${COMPONENT_CACHE_SIZE:500}
+    execution-results:
+      ttl-minutes: ${EXECUTION_CACHE_TTL:15}
+      max-size: ${EXECUTION_CACHE_SIZE:1000}
+
+# Management & Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: ${HEALTH_SHOW_DETAILS:when_authorized}
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: ${PROMETHEUS_ENABLED:true}
+    tags:
+      service: marimo-service
+      environment: ${ENVIRONMENT:development}
+
+# Logging Configuration
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    olsh.backend.marimoservice: ${LOG_LEVEL_APP:INFO}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:WARN}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}
+    io.grpc: ${LOG_LEVEL_GRPC:WARN}
+
+# Profile-specific configurations
+---
+spring:
+  config:
+    activate:
+      on-profile: development
+
+# Development profile
+marimo:
+  session:
+    ttl-hours: 8
+    cleanup-interval-minutes: 30
+  security:
+    code-validation:
+      enable-ast-validation: false
+      max-code-length: 50000
+
+logging:
+  level:
+    olsh.backend.marimoservice: DEBUG
+    org.hibernate.SQL: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+
+# Test profile for automated testing
+  datasource:
+    url: jdbc:postgresql://localhost:5432/marimo_service_test
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+marimo:
+  python-service:
+    timeout-seconds: 10
+  session:
+    ttl-hours: 1
+    max-sessions-per-user: 2
+  security:
+    code-validation:
+      max-code-length: 10000
+      max-component-count: 5
+
+logging:
+  level:
+    root: WARN
+    olsh.backend.marimoservice: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: production
+
+# Production profile for performance and security
+  jpa:
+    show-sql: false
+
+marimo:
+  session:
+    ttl-hours: 2
+    cleanup-interval-minutes: 5
+    max-sessions-per-user: 2
+  security:
+    code-validation:
+      enable-ast-validation: true
+      max-code-length: 15000
+      max-component-count: 10
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: WARN
+    olsh.backend.marimoservice: INFO 

@@ -26,6 +26,14 @@ public class CommentService {
     private final LabService labService;
     private final UserService userService;
 
+    /**
+     * Creates a new comment for a lab.
+     *
+     * @param labId the ID of the lab
+     * @param userId the ID of the user creating the comment
+     * @param request the request containing comment details
+     * @return the created comment response
+     */
     public CommentResponse createComment(Long labId, Long userId, CreateCommentRequest request) {
         validateLabExists(labId);
         CommentProto.CreateCommentRequest grpcRequest = CommentProto.CreateCommentRequest.newBuilder()
@@ -41,6 +49,12 @@ public class CommentService {
         return response;
     }
 
+    /**
+     * Retrieves a comment by its ID.
+     *
+     * @param commentId the ID of the comment
+     * @return the comment response
+     */
     public CommentResponse getCommentById(String commentId) {
         CommentProto.GetCommentRequest grpcRequest = CommentProto.GetCommentRequest.newBuilder()
                 .setId(commentId)
@@ -52,6 +66,13 @@ public class CommentService {
         return response;
     }
 
+    /**
+     * Retrieves comments for a specific lab.
+     *
+     * @param labId the ID of the lab
+     * @param request the request containing pagination details
+     * @return the list of comments for the lab
+     */
     public CommentListResponse getLabComments(long labId, GetCommentsRequest request) {
         validateLabExists(labId);
         CommentProto.ListCommentsRequest grpcRequest = CommentProto.ListCommentsRequest.newBuilder()
@@ -68,6 +89,13 @@ public class CommentService {
         return response;
     }
 
+    /**
+     * Retrieves replies for a specific comment.
+     *
+     * @param commentId the ID of the comment
+     * @param request the request containing pagination details
+     * @return the list of replies for the comment
+     */
     public CommentListResponse getCommentReplies(String commentId, GetCommentsRequest request) {
         CommentProto.GetCommentRepliesRequest grpcRequest = CommentProto.GetCommentRepliesRequest.newBuilder()
                 .setCommentId(commentId)
@@ -83,6 +111,14 @@ public class CommentService {
         return response;
     }
 
+    /**
+     * Updates an existing comment.
+     *
+     * @param commentId the ID of the comment to update
+     * @param userId the ID of the user updating the comment
+     * @param request the request containing updated comment details
+     * @return the updated comment response
+     */
     public CommentResponse updateComment(String commentId, long userId, UpdateCommentRequest request) {
         CommentResponse oldComment = getCommentById(commentId);
         if (userId != oldComment.getUserId()) {
@@ -92,6 +128,7 @@ public class CommentService {
         }
         CommentProto.UpdateCommentRequest grpcRequest = CommentProto.UpdateCommentRequest.newBuilder()
                 .setId(commentId)
+                .setUserId(userId)
                 .setContent(request.getContent())
                 .build();
         CommentProto.Comment comment = commentServiceClient.updateComment(grpcRequest);
@@ -101,6 +138,13 @@ public class CommentService {
         return response;
     }
 
+    /**
+     * Deletes a comment.
+     *
+     * @param commentId the ID of the comment to delete
+     * @param userId the ID of the user deleting the comment
+     * @return true if deletion was successful, false otherwise
+     */
     public boolean deleteComment(String commentId, long userId) {
         log.debug("Attempting to delete comment ID: {} by user ID: {}", commentId, userId);
         CommentResponse comment = getCommentById(commentId);
@@ -127,6 +171,12 @@ public class CommentService {
         }
     }
 
+    /**
+     * Maps a CommentProto.Comment to CommentResponse.
+     *
+     * @param Comment the gRPC comment object
+     * @return the mapped CommentResponse
+     */
     private CommentResponse mapCommentToResponse(CommentProto.Comment Comment) {
         return CommentResponse.builder()
                 .id(Comment.getId())
@@ -139,6 +189,14 @@ public class CommentService {
                 .build();
     }
 
+    /**
+     * Maps a list of CommentProto.Comment to CommentListResponse.
+     *
+     * @param list the list of gRPC comments
+     * @param totalCount the total number of comments
+     * @param page the current page number
+     * @return the mapped CommentListResponse
+     */
     private CommentListResponse mapCommentsToResponse(List<CommentProto.Comment> list, int totalCount, int page) {
         var comments = list.stream()
                 .map(this::mapCommentToResponse)
@@ -153,12 +211,22 @@ public class CommentService {
                 .build();
     }
 
+    /**
+     * Enriches a single comment with user information.
+     *
+     * @param comment the comment to enrich
+     */
     private void enrichCommentWithUserInfo(CommentResponse comment) {
         UserResponse user = userService.getUserByIdSafe(comment.getUserId());
         comment.setFirstName(user.getName());
         comment.setLastName(user.getSurname());
     }
 
+    /**
+     * Enriches a list of comments with user information.
+     *
+     * @param response the response containing the list of comments
+     */
     private void enrichCommentsWithUserInfo(CommentListResponse response) {
         HashMap<Long, UserResponse> cache = new HashMap<>();
         response.getComments().forEach(comment -> {

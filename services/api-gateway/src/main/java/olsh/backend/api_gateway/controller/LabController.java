@@ -5,7 +5,7 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.annotation.RequireAuth;
 import olsh.backend.api_gateway.dto.request.LabCreateRequest;
-import olsh.backend.api_gateway.dto.request.GetLabsRequest;
+import olsh.backend.api_gateway.dto.request.LabsGetRequest;
 import olsh.backend.api_gateway.dto.response.*;
 import olsh.backend.api_gateway.service.LabService;
 import org.springdoc.core.annotations.ParameterObject;
@@ -37,22 +37,24 @@ public class LabController {
     @Autowired
     public LabController(LabService labService, RequestAttributesExtractor attributesProvider) {
         this.labService = labService;
-        this.attributesProvider  = attributesProvider;
+        this.attributesProvider = attributesProvider;
     }
 
     @Operation(
-        summary = "Create new lab",
-        description = "Creates a new laboratory work with markdown file and optional supporting assets. Requires authentication."
+            summary = "Create new lab",
+            description = "Creates a new laboratory work with markdown file and optional supporting assets. Requires " +
+                    "authentication."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "201",
-            description = "Lab created successfully",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = LabCreateResponse.class))
-        ),
-        @ApiResponse(responseCode = "400", description = "Invalid request data"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
-        @ApiResponse(responseCode = "403", description = "Forbidden - Access denied")
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Lab created successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                            LabCreateResponse.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Invalid request data"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - Access denied")
     })
     @RequireAuth
     @PostMapping
@@ -67,17 +69,19 @@ public class LabController {
     }
 
     @Operation(
-        summary = "Get lab by ID",
-        description = "Retrieves detailed information about a specific laboratory work by its ID. Requires authentication."
+            summary = "Get lab by ID",
+            description = "Retrieves detailed information about a specific laboratory work by its ID. Requires " +
+                    "authentication."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Lab found and returned successfully",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = LabResponse.class))
-        ),
-        @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
-        @ApiResponse(responseCode = "404", description = "Lab not found")
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Lab found and returned successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                            LabResponse.class))
+            ),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
+            @ApiResponse(responseCode = "404", description = "Lab not found")
     })
     @RequireAuth
     @GetMapping("/{lab_id}")
@@ -93,13 +97,15 @@ public class LabController {
 
     @Operation(
             summary = "Get my labs",
-            description = "Retrieves a paginated list of laboratory works created by the current user. Requires authentication."
+            description = "Retrieves a paginated list of laboratory works created by the current user. Requires " +
+                    "authentication."
     )
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
                     description = "User's labs retrieved successfully",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = LabListResponse.class))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                            LabListResponse.class))
             ),
             @ApiResponse(responseCode = "400", description = "Invalid pagination parameters"),
             @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required")
@@ -107,14 +113,15 @@ public class LabController {
     @RequireAuth
     @GetMapping("/my")
     public ResponseEntity<LabListResponse> getMyLabs(
-            @ParameterObject @Valid GetLabsRequest request,
-            HttpServletRequest httpRequest) {
+            HttpServletRequest httpRequest,
+            @RequestParam(defaultValue = "1") @Parameter(description = "Page number (starts from 1)", example = "1") Integer page,
+            @RequestParam(defaultValue = "20") @Parameter(description = "Page size", example = "20") Integer limit) {
         log.debug("Received request to get my labs with page: {}, limit: {}",
-                request.getPage(), request.getLimit());
+                page, limit);
 
         Long userId = attributesProvider.extractUserIdFromRequest(httpRequest);
         log.debug("Getting labs for user ID: {}", userId);
-        LabListResponse response = labService.getMyLabs(request, userId);
+        LabListResponse response = labService.getMyLabs(userId, page, limit);
         return ResponseEntity.ok(response);
     }
 
@@ -126,7 +133,8 @@ public class LabController {
             @ApiResponse(
                     responseCode = "200",
                     description = "Labs retrieved successfully",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = LabListResponse.class))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                            LabListResponse.class))
             ),
             @ApiResponse(responseCode = "400", description = "Invalid pagination parameters"),
             @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required")
@@ -134,30 +142,28 @@ public class LabController {
     @RequireAuth
     @GetMapping
     public ResponseEntity<LabListResponse> getLabs(
-            @ParameterObject @Valid GetLabsRequest request,
+            @ParameterObject @Valid LabsGetRequest request,
             HttpServletRequest httpRequest) {
-
-        log.debug("Received request to get labs with page: {}, limit: {}",
-                request.getPage(), request.getLimit());
-
+        log.debug("Received request to get labs with page: {}, limit: {}", request.getPage(), request.getLimit());
         LabListResponse response = labService.getLabs(request);
         log.debug("Successfully retrieved labs list with {} labs", response.getLabs().size());
         return ResponseEntity.ok(response);
     }
 
     @Operation(
-        summary = "Delete lab",
-        description = "Deletes a specific laboratory work by its ID. Only the lab owner can delete it. Requires authentication."
+            summary = "Delete lab",
+            description = "Deletes a specific lab by its ID. Only the lab owner can delete it. Requires authentication."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Lab deleted successfully",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = LabDeleteResponse.class))
-        ),
-        @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
-        @ApiResponse(responseCode = "403", description = "Forbidden - No access to delete the lab"),
-        @ApiResponse(responseCode = "404", description = "Lab not found")
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Lab deleted successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation =
+                            LabDeleteResponse.class))
+            ),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - No access to delete the lab"),
+            @ApiResponse(responseCode = "404", description = "Lab not found")
     })
     @RequireAuth
     @DeleteMapping("/{lab_id}")
@@ -171,6 +177,7 @@ public class LabController {
         log.debug("Successfully deleted lab with ID: {}", labId);
         return ResponseEntity.ok(response);
     }
+
     @RequireAuth
     @GetMapping("/{lab_id}/assets")
     public ResponseEntity<AssetListResponse> getLabAssets(

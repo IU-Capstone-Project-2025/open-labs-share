@@ -1,0 +1,158 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.0'
+    id 'io.spring.dependency-management' version '1.1.6'
+    id 'com.google.protobuf' version '0.9.4'
+}
+
+group = 'olsh.backend'
+version = '1.0.0'
+java.sourceCompatibility = JavaVersion.VERSION_21
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    grpcVersion = '1.65.1'
+    protocVersion = '3.24.4'
+    lombokVersion = '1.18.30'
+    jjwtVersion = '0.12.3'
+    marimoClientVersion = '1.0.0'
+    minioVersion = '8.5.7'
+    testcontainersVersion = '1.19.3'
+}
+
+dependencies {
+    // Spring Boot Starters
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    
+    // Database
+    implementation 'org.postgresql:postgresql'
+    implementation 'org.flywaydb:flyway-core'
+    
+    // Object Storage
+    implementation "io.minio:minio:${minioVersion}"
+    
+    // gRPC - Server and Client
+    implementation "io.grpc:grpc-netty-shaded:${grpcVersion}"
+    implementation "io.grpc:grpc-protobuf:${grpcVersion}"
+    implementation "io.grpc:grpc-stub:${grpcVersion}"
+    implementation "io.grpc:grpc-services:${grpcVersion}"
+    implementation 'net.devh:grpc-spring-boot-starter:3.1.0.RELEASE'
+    
+    // Cache support
+    implementation 'com.github.ben-manes.caffeine:caffeine'
+    
+    // Protocol Buffers
+    implementation "com.google.protobuf:protobuf-java:${protocVersion}"
+    
+    // JWT Token handling
+    implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+    runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+    runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+    
+    // Utilities
+    implementation "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+    
+    // JSON Processing
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+    
+    // HTTP Client for external service calls
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    
+    // Development & Testing
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation "org.testcontainers:junit-jupiter:${testcontainersVersion}"
+    testImplementation "org.testcontainers:postgresql:${testcontainersVersion}"
+    testImplementation "io.grpc:grpc-testing:${grpcVersion}"
+    
+    // Test utilities
+    testImplementation 'org.awaitility:awaitility'
+    testImplementation 'org.mockito:mockito-core'
+    testImplementation 'org.assertj:assertj-core'
+}
+
+// gRPC and Protocol Buffers configuration
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:${protocVersion}"
+    }
+    plugins {
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
+        }
+    }
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {}
+        }
+    }
+}
+
+// Ensure proto generated classes are in source sets
+sourceSets {
+    main {
+        java {
+            srcDirs 'build/generated/source/proto/main/grpc'
+            srcDirs 'build/generated/source/proto/main/java'
+        }
+    }
+}
+
+// Spring Boot configuration
+springBoot {
+    mainClass = 'olsh.backend.marimoservice.MarimoServiceApplication'
+}
+
+// Testing configuration
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+    systemProperty 'spring.profiles.active', 'test'
+}
+
+// Jar configuration
+jar {
+    enabled = false
+    archiveClassifier = ''
+}
+
+// Build optimization
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += [
+        '-Xlint:unchecked',
+        '-Xlint:deprecation',
+        '-parameters'
+    ]
+}
+
+// Documentation
+javadoc {
+    if(JavaVersion.current().isJava9Compatible()) {
+        options.addBooleanOption('html5', true)
+    }
+    options.encoding = 'UTF-8'
+}
+
+// Clean task enhancement
+clean {
+    delete 'build/generated'
+}
+
+// Build order
+compileJava.dependsOn processResources
+classes.dependsOn generateProto 

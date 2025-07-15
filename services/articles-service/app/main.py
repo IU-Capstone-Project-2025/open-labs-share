@@ -261,7 +261,6 @@ class ArticleService(service.ArticleServiceServicer):
 
             return article_list
 
-
     def GetArticlesByUserId(self, request, context) -> stub.ArticleList:
         """
         Retrieve a paginated list of articles by user ID.
@@ -498,8 +497,6 @@ class ArticleService(service.ArticleServiceServicer):
 
             return stub.Asset(**new_asset.get_attrs())
 
-
-
     def UpdateAsset(self, request_iterator, context) -> stub.Asset:
         """
         Update an existing asset file using streaming.
@@ -597,7 +594,6 @@ class ArticleService(service.ArticleServiceServicer):
             self.logger.info(f"Updated asset with ID {article_asset.id} for article with ID {article_asset.article_id}")
 
             return stub.Asset(**article_asset.get_attrs())
-
 
     def DownloadAsset(self, request, context) -> stub.DownloadAssetResponse:
         """
