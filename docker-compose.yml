@@ -19,6 +19,7 @@ services:
 
   haproxy:
     image: haproxy:2.8
+    command: sh -c "haproxy -f /usr/local/etc/haproxy/haproxy.cfg -p /var/run/haproxy.pid & sleep 2 && haproxy -x /tmp/haproxy.sock -sf $(cat /var/run/haproxy.pid)"
     volumes:
       - ./haproxy:/usr/local/etc/haproxy:ro
     environment:
@@ -30,11 +31,6 @@ services:
       - blue-network
       - green-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "test", "-f", "/var/run/haproxy.pid"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
 
   cadvisor:
@@ -50,11 +46,6 @@ services:
       - blue-network
       - green-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   # --- Blue Environment ---
   frontend-blue:

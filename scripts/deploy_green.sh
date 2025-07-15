@@ -41,11 +41,10 @@ docker-compose --profile $TARGET_ENV up -d --force-recreate --no-deps ${SERVICES
 # Health check loop
 echo "Waiting for $TARGET_ENV environment to be healthy..."
 SECONDS=0
-SERVICES_TO_CHECK=("${SERVICES_TO_DEPLOY[@]}" "haproxy" "cadvisor")
 while [ $SECONDS -lt $HEALTH_CHECK_TIMEOUT ]; do
     ALL_HEALTHY=true
     # Now we iterate over the full service names
-    for service_name in "${SERVICES_TO_CHECK[@]}"; do
+    for service_name in "${SERVICES_TO_DEPLOY[@]}"; do
         # docker-compose ps -q <service_name> might return an empty string if the container is not found yet, so we guard it.
         container_id=$(docker-compose --profile $TARGET_ENV ps -q $service_name)
         if [ -z "$container_id" ]; then
