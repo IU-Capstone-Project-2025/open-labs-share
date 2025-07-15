@@ -34,13 +34,16 @@ fi
 # The --build flag will rebuild only the specified services
 docker-compose --profile $TARGET_ENV up -d --no-deps --build ${SERVICES_TO_DEPLOY[@]}
 
+# After starting services, get all running services for the project to ensure we check them all
+SERVICES_TO_CHECK=($(docker-compose ps --services))
+
 # Health check loop
 echo "Waiting for $TARGET_ENV environment to be healthy..."
 SECONDS=0
 while [ $SECONDS -lt $HEALTH_CHECK_TIMEOUT ]; do
     ALL_HEALTHY=true
-    # Now we iterate over the full service names
-    for service_name in "${SERVICES_TO_DEPLOY[@]}"; do
+    # Now we iterate over all running services for the compose project
+    for service_name in "${SERVICES_TO_CHECK[@]}"; do
         # docker-compose ps -q <service_name> might return an empty string if the container is not found yet, so we guard it.
         container_id=$(docker-compose ps -q $service_name)
         if [ -z "$container_id" ]; then
@@ -49,7 +52,7 @@ while [ $SECONDS -lt $HEALTH_CHECK_TIMEOUT ]; do
             break
         fi
 
-        HEALTH_STATUS=$(docker inspect --format '{{.State.Health.Status}}' $container_id 2>/dev/null || echo "unhealthy")
+        HEALTH_STATUS=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}healthy{{end}}' $container_id 2>/dev/null || echo "unhealthy")
 
         if [ "$HEALTH_STATUS" != "healthy" ]; then
             ALL_HEALTHY=false
