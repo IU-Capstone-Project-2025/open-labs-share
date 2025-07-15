@@ -21,13 +21,18 @@ public class UserServiceClient {
         this.userServiceStub = UsersServiceGrpc.newBlockingStub(channel);
     }
 
+    /**
+     * Retrieves user information by user ID.
+     *
+     * @param userId The ID of the user to retrieve
+     * @return UserInfo object containing user details
+     * @throws UserNotFoundException if the user does not exist
+     */
     public UserInfo getUser(Long userId) {
         log.debug("Getting user data via gRPC call to user service for userId: {}", userId);
-
         GetUserInfoRequest request = GetUserInfoRequest.newBuilder()
                 .setUserId(userId)
                 .build();
-
         UserInfoResponse response;
         try {
             response = userServiceStub.getUserInfo(request);
@@ -37,12 +42,16 @@ public class UserServiceClient {
             }
             throw e;
         }
-
         log.debug("User data response received: userId={}", response.getUserInfo().getUserId());
-
         return response.getUserInfo();
     }
 
+    /**
+     * Increments the number of labs solved for a user.
+     *
+     * @param id The ID of the user
+     * @return OperationResponse indicating success or failure
+     */
     public OperationResponse incrementLabsSolvedRequest(Long id) {
         log.debug("Incrementing labs solved for userId: {}", id);
         IncrementLabsSolvedRequest request = IncrementLabsSolvedRequest.newBuilder().setUserId(id).build();
@@ -52,6 +61,12 @@ public class UserServiceClient {
         return response;
     }
 
+    /**
+     * Increments the number of labs reviewed for a user.
+     *
+     * @param id The ID of the user
+     * @return OperationResponse indicating success or failure
+     */
     public OperationResponse incrementLabsReviewedRequest(Long id) {
         log.debug("Incrementing labs reviewed for userId: {}", id);
         IncrementLabsReviewedRequest request = IncrementLabsReviewedRequest.newBuilder().setUserId(id).build();

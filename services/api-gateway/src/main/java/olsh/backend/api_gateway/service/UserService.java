@@ -19,6 +19,11 @@ public class UserService {
         this.userServiceClient = userServiceClient;
     }
 
+    /**
+     * Retrieves user data by user ID. Fetches user info from the gRPC user service and maps to a DTO.
+     * @param id User ID
+     * @return User response with user details
+     */
     public UserResponse getUserById(Long id) {
         log.debug("Getting user data for userId: {}", id);
 
@@ -29,6 +34,11 @@ public class UserService {
         return mapUserInfoToUserResponse(user);
     }
 
+    /**
+     * Retrieves user data by user ID, returning a default user if not found. Handles exceptions gracefully.
+     * @param id User ID
+     * @return User response with user details
+     */
     public UserResponse getUserByIdSafe(Long id) {
         log.debug("Getting user data for userId: {}", id);
 
@@ -41,6 +51,11 @@ public class UserService {
         }
     }
 
+    /**
+     * Increments the number of labs solved for a user. Sends the request to the gRPC user service and returns the updated user.
+     * @param id User ID
+     * @return User response with user details
+     */
     public UserResponse incrementLabsSolved(Long id) {
         UsersServiceProto.OperationResponse response = userServiceClient.incrementLabsSolvedRequest(id);
         if (!response.getSuccess()) {
@@ -50,6 +65,11 @@ public class UserService {
         return getUserById(id);
     }
 
+    /**
+     * Increments the number of labs reviewed for a user. Sends the request to the gRPC user service and returns the updated user.
+     * @param id User ID
+     * @return User response with user details
+     */
     public UserResponse incrementLabsReviewed(Long id) {
         UsersServiceProto.OperationResponse response = userServiceClient.incrementLabsReviewedRequest(id);
         if (!response.getSuccess()) {
