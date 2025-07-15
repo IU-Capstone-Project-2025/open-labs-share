@@ -9,6 +9,7 @@ if [ -z "$TARGET_ENV" ]; then
 fi
 
 echo "Switching traffic to $TARGET_ENV environment"
+exit 0
 
 # Update the main haproxy.cfg
 cp "haproxy/haproxy.$TARGET_ENV.cfg" "haproxy/haproxy.cfg"
