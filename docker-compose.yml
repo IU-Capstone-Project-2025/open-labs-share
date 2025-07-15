@@ -30,6 +30,11 @@ services:
       - blue-network
       - green-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "test", "-f", "/var/run/haproxy.pid"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 
   cadvisor:
@@ -45,6 +50,11 @@ services:
       - blue-network
       - green-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # --- Blue Environment ---
   frontend-blue:
