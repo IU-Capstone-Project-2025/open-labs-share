@@ -57,27 +57,7 @@ cp .env.example .env
 
 ### Environment Variables Configuration
 
-Edit the `.env` file and update these key variables as needed:
-
-#### Service Connectivity
-```env
-# Update these if your gRPC services have different names
-AUTH_SERVICE_HOST=grpc-auth-service
-USER_SERVICE_HOST=grpc-user-service
-
-# Update ports if your services run on different ports
-AUTH_SERVICE_PORT=9090
-USER_SERVICE_PORT=9091
-```
-
-#### Application Settings
-```env
-# Change application port if needed (default: 8080)
-SPRING_APP_PORT=8080
-
-# Set environment profile
-PROFILE=docker  # Options: docker, dev, prod
-```
+Edit the `.env` file based on the [README](./README.md) and update these key variables as needed:
 
 #### Logging Configuration
 ```env

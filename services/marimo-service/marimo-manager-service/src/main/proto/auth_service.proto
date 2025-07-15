@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.olsh.auth.proto";
+option java_outer_classname = "AuthServiceProto";
+
+package auth;
+
+service AuthService {
+  // Validate JWT token and return user information - used by API Gateway
+  rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse) {}
+  
+  // Health check endpoint
+  rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse) {}
+}
+
+// Request to validate JWT token
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+// Response containing validation result and user information
+message ValidateTokenResponse {
+  bool valid = 1;
+  UserInfo user_info = 2;
+  int64 expiration_time = 3;
+  string error_message = 4;
+}
+
+// User information model
+message UserInfo {
+  int64 user_id = 1;
+  string username = 2;
+  string first_name = 3;
+  string last_name = 4;
+  string role = 5;
+  string email = 6;
+  int32 labs_solved = 7;
+  int32 labs_reviewed = 8;
+  int32 balance = 9;
+}
+
+// Health check request
+message HealthCheckRequest {
+  // Empty request
+}
+
+// Health check response
+message HealthCheckResponse {
+  bool success = 1;
+  string message = 2;
+  HealthData data = 3;
+
+  message HealthData {
+    string timestamp = 1;
+    string service = 2;
+    string version = 3;
+  }
+} 

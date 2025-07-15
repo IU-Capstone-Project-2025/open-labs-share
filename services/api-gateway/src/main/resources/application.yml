@@ -53,7 +53,7 @@ spring:
           max-inbound-metadata-size: 16KB
           negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
         lab-service:
-          address: "${LAB_SERVICE_HOST:localhost}:${LAB_SERVICE_PORT:9093}"
+          address: "${LAB_SERVICE_HOST:localhost}:${LAB_SERVICE_PORT:9091}"
           keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
           keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
           keep-alive-without-calls: true
@@ -62,7 +62,7 @@ spring:
           max-inbound-metadata-size: 16KB
           negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
         feedback-service:
-          address: "${FEEDBACK_SERVICE_HOST:localhost}:${FEEDBACK_SERVICE_PORT:9094}"
+          address: "${FEEDBACK_SERVICE_HOST:localhost}:${FEEDBACK_SERVICE_PORT:9090}"
           keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
           keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
           keep-alive-without-calls: true
