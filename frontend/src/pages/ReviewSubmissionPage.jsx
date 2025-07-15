@@ -98,8 +98,8 @@ const ReviewSubmissionPage = () => {
 
     return (
         <div className="container mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold mb-4">Reviewing Submission for: {submission.lab?.title || 'Unknown Lab'}</h1>
-            <p className="text-lg mb-6">Submitted by: {submission.owner.name} {submission.owner.surname} ({submission.owner.username})</p>
+            <h1 className="text-3xl font-bold mb-4 dark:text-white">Reviewing Submission for: "{lab?.title || `Lab #${submission?.labId}` || 'Unknown Lab'}"</h1>
+            <p className="text-lg mb-6 dark:text-white">Submitted by: {submission.owner.name} {submission.owner.surname} ({submission.owner.username})</p>
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
                 <h2 className="text-2xl font-semibold mb-4">Submission Details</h2>
                 <div className="prose dark:prose-invert max-w-none">

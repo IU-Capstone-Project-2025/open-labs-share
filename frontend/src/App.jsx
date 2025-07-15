@@ -91,6 +91,28 @@ function AppContent() {
     }
   }, []);
 
+  const debouncedUpdateUserState = useCallback(() => {
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+    updateTimeoutRef.current = setTimeout(() => {
+      updateUserState();
+    }, 100);
+  }, [updateUserState]);
+
+  // useEffect(() => {
+  //   const handleWebhook = async (event) => {
+  //     if (event.data?.type === 'grading_completed' && 
+  //         event.data?.submissionId === submission?.submissionId) {
+  //       const result = await mlAPI.getGradingResult(event.data.submissionId);
+  //       setAutoGradeResult(result);
+  //     }
+  //   };
+
+  //   window.addEventListener('message', handleWebhook);
+  //   return () => window.removeEventListener('message', handleWebhook);
+  // }, [submission]);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
