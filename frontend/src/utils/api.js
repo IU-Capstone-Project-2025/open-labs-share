@@ -45,7 +45,11 @@ const apiCall = async (path, options = {}) => {
           message: `API call failed with status ${response.status}. Server response: ${shortText}` 
         };
       }
-      throw new Error(errorData.message || `API error: ${response.statusText}`);
+      // Throw the full error object, not just a string
+      const error = new Error(errorData.message || `API error: ${response.statusText}`);
+      error.data = errorData;
+      error.status = response.status;
+      throw error;
     }
 
     // Handle responses that might not have a JSON body

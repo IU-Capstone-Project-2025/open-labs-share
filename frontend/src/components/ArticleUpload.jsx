@@ -9,6 +9,7 @@ export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
   });
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -16,6 +17,7 @@ export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
       ...prev,
       [name]: value
     }));
+    setFieldErrors(prev => ({ ...prev, [name]: undefined }));
   };
 
   const handleFileChange = (e) => {
@@ -31,19 +33,20 @@ export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
     
     if (!articleData.title.trim()) {
-      setError('Title is required');
+      setFieldErrors(prev => ({ ...prev, title: 'Title is required' }));
       return;
     }
     
     if (!articleData.short_desc.trim()) {
-      setError('Short description is required');
+      setFieldErrors(prev => ({ ...prev, short_desc: 'Short description is required' }));
       return;
     }
     
     if (!articleData.pdf_file) {
-      setError('PDF file is required');
+      setFieldErrors(prev => ({ ...prev, pdf_file: 'PDF file is required' }));
       return;
     }
 
@@ -58,7 +61,13 @@ export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
       onSuccess && onSuccess(result);
     } catch (err) {
       console.error('Error creating article:', err);
-      setError(err.message || 'Failed to create article');
+      if (err.data && typeof err.data === 'object') {
+        const { message, ...fields } = err.data;
+        setFieldErrors(fields);
+        setError(message || 'Failed to create article');
+      } else {
+        setError(err.message || 'Failed to create article');
+      }
     } finally {
       setUploading(false);
     }
@@ -88,9 +97,12 @@ export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
             value={articleData.title}
             onChange={handleInputChange}
             placeholder="Enter article title..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            className={`w-full px-3 py-2 border ${fieldErrors.title ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white`}
             required
           />
+          {fieldErrors.title && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.title}</p>
+          )}
         </div>
 
         {/* Short Description */}
@@ -104,9 +116,12 @@ export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
             onChange={handleInputChange}
             placeholder="Brief description of the article..."
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            className={`w-full px-3 py-2 border ${fieldErrors.short_desc ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white`}
             required
           />
+          {fieldErrors.short_desc && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.short_desc}</p>
+          )}
         </div>
 
         {/* PDF File Upload */}
@@ -119,13 +134,16 @@ export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
             name="pdf_file"
             accept=".pdf"
             onChange={handleFileChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            className={`w-full px-3 py-2 border ${fieldErrors.pdf_file ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white`}
             required
           />
           {articleData.pdf_file && (
             <p className="mt-1 text-sm text-green-600">
               Selected: {articleData.pdf_file.name}
             </p>
+          )}
+          {fieldErrors.pdf_file && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.pdf_file}</p>
           )}
         </div>
 
