@@ -14,6 +14,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
   });
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [dragActive, setDragActive] = useState(false);
   const [availableTags, setAvailableTags] = useState([]);
   const [loadingTags, setLoadingTags] = useState(false);
@@ -44,6 +45,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
       ...prev,
       [name]: value
     }));
+    setFieldErrors(prev => ({ ...prev, [name]: undefined }));
   };
 
   const handleAddTag = (tagId) => {
@@ -148,19 +150,20 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
     
     if (!labData.title.trim()) {
-      setError('Title is required');
+      setFieldErrors(prev => ({ ...prev, title: 'Title is required' }));
       return;
     }
     
     if (!labData.short_desc.trim()) {
-      setError('Short description is required');
+      setFieldErrors(prev => ({ ...prev, short_desc: 'Short description is required' }));
       return;
     }
     
     if (!labData.md_file) {
-      setError('Markdown file is required');
+      setFieldErrors(prev => ({ ...prev, md_file: 'Markdown file is required' }));
       return;
     }
 
@@ -185,7 +188,13 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
       onSuccess && onSuccess(result);
     } catch (err) {
       console.error('Error creating lab:', err);
-      setError(err.message || 'Failed to create lab');
+      if (err.data && typeof err.data === 'object') {
+        const { message, ...fields } = err.data;
+        setFieldErrors(fields);
+        setError(message || 'Failed to create lab');
+      } else {
+        setError(err.message || 'Failed to create lab');
+      }
     } finally {
       setUploading(false);
     }
@@ -221,9 +230,12 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
             value={labData.title}
             onChange={handleInputChange}
             placeholder="Enter lab title..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            className={`w-full px-3 py-2 border ${fieldErrors.title ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white`}
             required
           />
+          {fieldErrors.title && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.title}</p>
+          )}
         </div>
 
         {/* Short Description */}
@@ -237,9 +249,12 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
             onChange={handleInputChange}
             placeholder="Brief description of the lab..."
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            className={`w-full px-3 py-2 border ${fieldErrors.short_desc ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white`}
             required
           />
+          {fieldErrors.short_desc && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.short_desc}</p>
+          )}
         </div>
 
         {/* Tags Section */}
@@ -362,13 +377,16 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
             name="md_file"
             accept=".md,.markdown"
             onChange={handleFileChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            className={`w-full px-3 py-2 border ${fieldErrors.md_file ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white`}
             required
           />
           {labData.md_file && (
             <p className="mt-1 text-sm text-green-600">
               Selected: {labData.md_file.name}
             </p>
+          )}
+          {fieldErrors.md_file && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.md_file}</p>
           )}
         </div>
 
