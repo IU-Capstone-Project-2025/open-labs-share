@@ -255,7 +255,7 @@ services:
       - labs-service-test
       - articles-service-test
       - feedback-service-test
-      - ml-service
+      # - ml-service
     profiles: ["test"]
 
   auth-service-test:

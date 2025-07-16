@@ -73,7 +73,7 @@ async def webhook_listener(request: Request):
 
 @router.get("/get_auto_grade_result", response_model=AutoGradingResponse)
 async def get_auto_grade_result(
-    request: AutoGradingRequest,
+    request: AutoGradingRequest = Depends(),
     tasks_service: TasksService = Depends(get_tasks_service)
 ):
     try:
@@ -86,7 +86,7 @@ async def get_auto_grade_result(
     
 @router.get("/get_auto_grade_status", response_model=AutoGradingTaskResponse)
 async def get_auto_grade_status(
-    request: AutoGradingRequest,
+    request: AutoGradingRequest = Depends(),
     tasks_service: TasksService = Depends(get_tasks_service)
 ):
     try:
