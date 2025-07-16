@@ -17,7 +17,7 @@ RUN rm -f proto/*_pb2.py proto/*_pb2_grpc.py
 RUN touch proto/__init__.py utils/__init__.py
 RUN python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto proto/*.proto
 
-# --- Final Stage ---
+# --- Final Stage --- 
 FROM python:3.12-slim
 WORKDIR /app
 

@@ -5,12 +5,14 @@ COPY services/users-service/gradle/ gradle/
 COPY services/users-service/gradlew services/users-service/build.gradle services/users-service/settings.gradle ./
 
 # Use cache mount for gradle dependencies
-RUN --mount=type=cache,target=/root/.gradle gradle dependencies --no-daemon || true
+RUN --mount=type=cache,target=/root/.gradle-users \
+    GRADLE_USER_HOME=/root/.gradle-users gradle dependencies --no-daemon || true
 
 COPY services/users-service/src/ src/
 
 # Use cache mount for building
-RUN --mount=type=cache,target=/root/.gradle gradle clean generateProto build -x test bootJar --no-daemon
+RUN --mount=type=cache,target=/root/.gradle-users \
+    GRADLE_USER_HOME=/root/.gradle-users gradle clean generateProto build -x test bootJar --no-daemon
 
 RUN jlink --verbose \
           --module-path $JAVA_HOME/jmods \
@@ -21,7 +23,7 @@ RUN jlink --verbose \
           --add-modules java.base,java.logging,java.naming,java.desktop,\
 java.management,java.security.jgss,java.instrument,java.sql,\
 jdk.unsupported,java.xml,jdk.crypto.ec,java.net.http,jdk.httpserver \
-          --output /custom-jre
+          --output /custom-jre 
 
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app

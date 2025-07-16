@@ -18,4 +18,4 @@ COPY ml/groq_keys.txt ./
 
 RUN pip install --no-cache-dir tqdm minio groq langchain langgraph langchain-community httpx celery[redis] langchain-groq fastapi
 
-CMD ["celery", "-A", "celery_broker.worker.celery_app", "worker", "--loglevel=info"]
+CMD ["celery", "-A", "celery_broker.worker.celery_app", "worker", "--loglevel=info"] 

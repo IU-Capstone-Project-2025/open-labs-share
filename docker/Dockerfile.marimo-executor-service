@@ -1,0 +1,53 @@
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+
+# Install build dependencies, ensuring the tools match the runtime version
+RUN pip install --no-cache-dir grpcio-tools==1.62.0
+
+# Install application dependencies into a separate directory for better caching
+COPY ./services/marimo-service/marimo-executor-service/requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip pip install --no-cache-dir -r requirements.txt -t /app/deps
+RUN --mount=type=cache,target=/root/.cache/pip pip install --no-cache-dir --upgrade --force-reinstall "protobuf>=4.21.6" -t /app/deps
+
+# Copy application code and proto files
+COPY ./services/marimo-service/marimo-executor-service/main.py /app/
+COPY ./services/marimo-service/marimo-executor-service/config.py /app/
+COPY ./services/marimo-service/marimo-executor-service/service /app/service
+COPY ./services/marimo-service/marimo-executor-service/proto /app/proto
+
+# Generate protobuf files
+RUN python -m grpc_tools.protoc -I./proto --python_out=. --grpc_python_out=. proto/marimo_executor_service.proto
+
+# --- Final Stage ---
+FROM python:3.12-slim
+WORKDIR /app
+
+# Create a non-root user for security
+RUN useradd --create-home appuser
+WORKDIR /home/appuser/app
+
+# Install runtime dependencies and netcat for health checks
+RUN apt-get update && apt-get install -y --no-install-recommends netcat-openbsd && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy dependencies and application code from the builder stage
+COPY --from=builder /app/deps /home/appuser/app/deps
+COPY --from=builder /app .
+
+# Set permissions for the app user
+RUN chown -R appuser:appuser .
+USER appuser
+
+# Add the dependencies to the Python path
+ENV PYTHONPATH=/home/appuser/app/deps
+
+# Expose the gRPC port
+EXPOSE 9095
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 \
+  CMD nc -z localhost 9095 || exit 1
+
+# Start the service
+# This assumes the main entrypoint script is named main.py
+CMD ["python", "-u", "main.py"] 

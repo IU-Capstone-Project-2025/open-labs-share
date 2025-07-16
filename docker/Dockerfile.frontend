@@ -33,5 +33,4 @@ COPY frontend/nginx.conf /etc/nginx/templates/default.conf.template
 # Expose the standard web port
 EXPOSE 80
 
-# Start NGINX
 CMD ["nginx", "-g", "daemon off;"]

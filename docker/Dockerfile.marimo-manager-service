@@ -1,0 +1,65 @@
+FROM gradle:8-jdk21 AS build
+WORKDIR /app
+
+COPY services/marimo-service/marimo-manager-service/gradle/ gradle/
+COPY services/marimo-service/marimo-manager-service/gradlew services/marimo-service/marimo-manager-service/build.gradle services/marimo-service/marimo-manager-service/settings.gradle ./
+
+# Use cache mount for gradle dependencies to speed up subsequent builds
+RUN --mount=type=cache,target=/root/.gradle-marimo-java \
+    GRADLE_USER_HOME=/root/.gradle-marimo-java gradle dependencies --no-daemon || true
+
+COPY services/marimo-service/marimo-manager-service/src/ src/
+
+# Use cache mount for building the application
+RUN --mount=type=cache,target=/root/.gradle-marimo-java \
+    GRADLE_USER_HOME=/root/.gradle-marimo-java gradle clean generateProto build -x test bootJar --no-daemon
+
+RUN jlink --verbose \
+          --module-path $JAVA_HOME/jmods \
+          --strip-debug \
+          --no-header-files \
+          --no-man-pages \
+          --compress=2 \
+          --add-modules java.base,java.logging,java.naming,java.desktop,\
+java.management,java.security.jgss,java.instrument,java.sql,\
+jdk.unsupported,java.xml,jdk.crypto.ec,java.net.http,jdk.httpserver \
+          --output /custom-jre
+
+# --- Final Stage ---
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /app
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget ca-certificates netcat-openbsd && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    mkdir -p /opt/app
+
+RUN groupadd -r appgroup && \
+    useradd -r -g appgroup appuser && \
+    chown appuser:appgroup /opt/app
+
+COPY --from=build /custom-jre /opt/jre
+COPY --from=build /app/build/libs/*.jar /opt/app/app.jar
+
+RUN chown -R appuser:appgroup /opt/app /opt/jre
+
+USER appuser
+
+ENV PATH="/opt/jre/bin:${PATH}" \
+    JAVA_HOME="/opt/jre" \
+    JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom"
+    
+EXPOSE 8084 9084
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 \
+  CMD curl -f http://localhost:8084/actuator/health || exit 1
+
+ENTRYPOINT ["/opt/jre/bin/java", \
+            "-XX:+UseContainerSupport", \
+            "-XX:MaxRAMPercentage=75.0", \
+            "-XX:+UseG1GC", \
+            "-XX:+UseStringDeduplication", \
+            "-XX:+ExitOnOutOfMemoryError", \
+            "-Djava.security.egd=file:/dev/./urandom", \
+            "-jar", "/opt/app/app.jar"] 
