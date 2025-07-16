@@ -7,9 +7,9 @@ on:
         description: 'Comma-separated list of services to deploy (e.g., api-gateway,auth-service). Leave empty to deploy all.'
         required: false
         default: ''
-  push:
-    branches:
-      - "213-auto-deploy-2"
+  # push:
+  #   branches:
+  #     - "213-auto-deploy-2"
 
 permissions:
   contents: read
