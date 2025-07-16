@@ -11,6 +11,7 @@ import GemIcon from "../components/GemIcon";
 import CommentsSection from "../components/CommentsSection";
 import ChatWindow from "../components/ChatWindow";
 import ToastNotification from "../components/ToastNotification";
+import MarpRenderer from '../components/MarpRenderer';
 import { getCurrentUser, isAuthenticated, notifyUserDataUpdate } from "../utils/auth";
 import { labsAPI, submissionsAPI } from "../utils/api";
 import { useUser } from "../hooks/useUser";
@@ -121,20 +122,15 @@ export default function LabPage() {
   };
 
 
-  const fetchAssetFromMinio = async (filename) => {
-    try {
-      const url = getMinioFileUrl(id, filename);
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch asset: HTTP ${response.status}`);
-      }
-      
-      return await response.blob();
-    } catch (error) {
-      console.error(`Error fetching asset ${filename}:`, error);
-      throw error;
-    }
+  const isMarpPresentation = (markdown) => {
+    console.log('Full markdown content:', markdown)
+    console.log('First 10 lines:', markdown.split('\n').slice(0, 10))
+    
+    const result = markdown.trim().startsWith('---\nmarp: true') || 
+          markdown.includes('\nmarp: true\n') ||
+          markdown.includes('marp: true');
+    console.log('isMarpPresentation check:', result, 'Content preview:', markdown.substring(0, 200) + '...')
+    return result;
   };
 
   const getMinioFileUrl = (labId, filename) => {
@@ -417,68 +413,71 @@ Lab content delivery is currently being developed. The markdown content for this
 
         {/* Lab Content Section */}
         <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-8">
-          <article className="prose dark:prose-invert max-w-none">
-            <ReactMarkdown
-              remarkPlugins={[
-                remarkGfm,
-                remarkMath
-              ]}
-              rehypePlugins={[
-                rehypeKatex,
-                rehypeHighlight
-              ]}
-              components={{
-                h1: HeadingRenderer(1),
-                h2: HeadingRenderer(2),
-                h3: HeadingRenderer(3),
-                img: ImageRenderer,
-                p: ({ node, ...props }) => (
-                  <p {...props} className="my-4 leading-relaxed dark:text-gray-300" />
-                ),
-                ul: ({ node, ...props }) => (
-                  <ul {...props} className="list-disc pl-6 my-4 space-y-2 dark:text-gray-300" />
-                ),
-                ol: ({ node, ...props }) => (
-                  <ol {...props} className="list-decimal pl-6 my-4 space-y-2 dark:text-gray-300" />
-                ),
-                li: ({ node, ...props }) => <li {...props} className="pl-2 my-1" />,
-                pre: ({ node, ...props }) => (
-                  <pre {...props} className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 overflow-x-auto my-6" />
-                ),
-                code: ({ node, className, children, ...props }) => {
-                  const match = /language-(\w+)/.exec(className || "");
-                  const isInline = !match;
+          {isMarpPresentation(markdown) ? (
+            <MarpRenderer content={markdown} labId={id} />
+          ) : (
+            <article className="prose dark:prose-invert max-w-none">
+              <ReactMarkdown
+                remarkPlugins={[
+                  remarkGfm,
+                  remarkMath
+                ]}
+                rehypePlugins={[
+                  rehypeKatex,
+                  rehypeHighlight
+                ]}
+                components={{
+                  h1: HeadingRenderer(1),
+                  h2: HeadingRenderer(2),
+                  h3: HeadingRenderer(3),
+                  img: ImageRenderer,
+                  p: ({ node, ...props }) => (
+                    <p {...props} className="my-4 leading-relaxed dark:text-gray-300" />
+                  ),
+                  ul: ({ node, ...props }) => (
+                    <ul {...props} className="list-disc pl-6 my-4 space-y-2 dark:text-gray-300" />
+                  ),
+                  ol: ({ node, ...props }) => (
+                    <ol {...props} className="list-decimal pl-6 my-4 space-y-2 dark:text-gray-300" />
+                  ),
+                  li: ({ node, ...props }) => <li {...props} className="pl-2 my-1" />,
+                  pre: ({ node, ...props }) => (
+                    <pre {...props} className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 overflow-x-auto my-6" />
+                  ),
+                  code: ({ node, className, children, ...props }) => {
+                    const match = /language-(\w+)/.exec(className || "");
+                    const isInline = !match;
 
-                  return isInline ? (
-                    <code
-                      className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm"
-                      {...props}
-                    >
-                      {children}
-                    </code>
-                  ) : (
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
-                  );
-                },
-                
-                table: ({ node, ...props }) => (
-                  <div className="overflow-x-auto">
-                    <table {...props} className="min-w-full divide-y divide-gray-700 my-4 border border-gray-700" />
-                  </div>
-                ),
-                th: ({ node, ...props }) => (
-                  <th {...props} className="px-4 py-2 bg-gray-800 text-left text-sm font-semibold text-white border-b border-gray-700" />
-                ),
-                td: ({ node, ...props }) => (
-                  <td {...props} className="px-4 py-2 text-sm text-black border-b border-gray-700" />
-                ),
-              }}
-            >
-              {markdown}
-            </ReactMarkdown>
-          </article>
+                    return isInline ? (
+                      <code
+                        className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm"
+                        {...props}
+                      >
+                        {children}
+                      </code>
+                    ) : (
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                  
+                  table: ({ node, ...props }) => (
+                    <div className="overflow-x-auto">
+                      <table {...props} className="min-w-full divide-y divide-gray-700 my-4 border border-gray-700" />
+                    </div>
+                  ),
+                  th: ({ node, ...props }) => (
+                    <th {...props} className="px-4 py-2 bg-gray-800 text-left text-sm font-semibold text-white border-b border-gray-700" />
+                  ),
+                  td: ({ node, ...props }) => (
+                    <td {...props} className="px-4 py-2 text-sm text-black border-b border-gray-700" />
+                  ),
+                }}
+              >
+                {markdown}
+              </ReactMarkdown>
+            </article>)}
         </section>
 
         {/* Homework Submission Section */}

@@ -24,10 +24,10 @@ const Search = () => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search labs and articles..."
-          className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md text-sm 
-                    placeholder:text-light-blue
-                    text-msc
-                    bg-light-blue bg-opacity-55
+          className="block w-full pl-10 pr-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md text-sm 
+                    placeholder:text-light-blue dark:placeholder-gray-400
+                    text-msc dark:text-white
+                    bg-light-blue bg-opacity-55 dark:bg-gray-800
                     focus:outline-none focus:ring-1 focus:ring-msc"
         />
       </div>

@@ -14,6 +14,9 @@ public class AuthService {
 
     private final AuthServiceClient authServiceClient;
 
+    /**
+     * Validates a JWT token by sending it to the gRPC auth service. Throws if the token is missing or invalid.
+     */
     public AuthValidationResponse validateToken(String token) {
         if (token == null || token.isBlank()) {
             throw new AuthenticationException("Token is required");

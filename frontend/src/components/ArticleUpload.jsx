@@ -144,7 +144,7 @@ export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
           <button
             type="submit"
             disabled={uploading}
-            className="px-6 py-2 bg-msc text-white rounded-md hover:bg-msc-hover disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            className="px-6 py-2 bg-msc text-white dark:bg-white dark:text-msc rounded-md hover:bg-msc-hover disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
             {uploading ? (
               <>

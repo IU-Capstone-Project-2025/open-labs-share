@@ -27,6 +27,13 @@ public class LabService {
     private final UserService userService;
     private final TagService tagService;
 
+    /**
+     * Creates a new lab with the provided request and owner ID.
+     *
+     * @param request  the LabCreateRequest containing lab details
+     * @param ownerId  the ID of the user creating the lab
+     * @return LabCreateResponse containing the created lab ID and success message
+     */
     public LabCreateResponse createLab(LabCreateRequest request, Long ownerId) {
         log.debug("Creating lab with title: {} for owner: {}", request.getTitle(), ownerId);
         validateMarkdownFile(request.getMd_file());
@@ -45,6 +52,12 @@ public class LabService {
                 .build();
     }
 
+    /**
+     * Validates the provided Markdown file for lab creation.
+     *
+     * @param file the MultipartFile representing the Markdown file
+     * @throws IllegalArgumentException if the file is invalid
+     */
     protected void validateMarkdownFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Markdown file is required");
@@ -61,6 +74,12 @@ public class LabService {
         }
     }
 
+    /**
+     * Validates the provided assets for lab creation.
+     *
+     * @param assets the array of MultipartFile representing the assets
+     * @return a list of valid MultipartFile assets
+     */
     protected List<MultipartFile> validateAssets(MultipartFile[] assets) {
         if (assets == null) {
             return Collections.emptyList();
@@ -78,6 +97,13 @@ public class LabService {
         return validAssets;
     }
 
+    /**
+     * Validates a single asset file for lab creation.
+     *
+     * @param asset the MultipartFile representing the asset
+     * @return the validated MultipartFile if valid, null otherwise
+     * @throws IllegalArgumentException if the asset is invalid
+     */
     protected MultipartFile validateAsset(MultipartFile asset) {
         if (asset == null || asset.isEmpty()) {
             return null;
@@ -96,6 +122,13 @@ public class LabService {
         return asset;
     }
 
+    /**
+     * Registers a new lab with the provided request and owner ID.
+     *
+     * @param request  the LabCreateRequest containing lab details
+     * @param ownerId  the ID of the user creating the lab
+     * @return LabProto.Lab containing the created lab details
+     */
     private LabProto.Lab registerLab(LabCreateRequest request, Long ownerId) {
         log.debug("Registering lab with title: {} for owner: {}", request.getTitle(), ownerId);
         LabProto.CreateLabRequest.Builder builder =
@@ -113,6 +146,13 @@ public class LabService {
         return lab;
     }
 
+    /**
+     * Retrieves a lab by its ID, including its author and assets.
+     *
+     * @param labId the ID of the lab to retrieve
+     * @return LabAndTagsResponse containing the lab details, author, assets, and tags
+     * @throws IllegalArgumentException if labId is null or invalid
+     */
     public LabAndTagsResponse getLabById(Long labId) {
         if (labId == null || labId <= 0) {
             throw new IllegalArgumentException("LabId should be provided");
@@ -127,6 +167,12 @@ public class LabService {
         return response;
     }
 
+    /**
+     * Retrieves a list of labs based on the provided request parameters.
+     *
+     * @param request the LabsGetRequest containing pagination and filtering options
+     * @return LabListResponse containing the list of labs, total count, and associated tags
+     */
     public LabListResponse getLabs(LabsGetRequest request) {
         log.debug("Getting labs list - page: {}, limit: {}", request.getPage(), request.getLimit());
         LabProto.GetLabsRequest.Builder grpcRequest = LabProto.GetLabsRequest.newBuilder()
@@ -143,6 +189,14 @@ public class LabService {
         return response;
     }
 
+    /**
+     * Retrieves a list of labs created by a specific user.
+     *
+     * @param id    the ID of the user whose labs are to be retrieved
+     * @param page  the page number for pagination
+     * @param limit the number of labs per page
+     * @return LabListResponse containing the user's labs, total count, and associated tags
+     */
     public LabListResponse getMyLabs(Long id, Integer page, Integer limit) {
         log.debug("Getting articles for author {} - page: {}, limit: {}", id, page, limit);
         LabProto.GetLabsByUserIdRequest request = LabProto.GetLabsByUserIdRequest.newBuilder()
@@ -157,6 +211,14 @@ public class LabService {
         return response;
     }
 
+    /**
+     * Deletes a lab by its ID, ensuring the user has permission to delete it.
+     *
+     * @param labId  the ID of the lab to delete
+     * @param userId the ID of the user attempting to delete the lab
+     * @return LabDeleteResponse containing a success message
+     * @throws ForbiddenAccessException if the user does not own the lab
+     */
     public LabDeleteResponse deleteLab(Long labId, Long userId) {
         log.debug("Deleting lab with ID: {} by user: {}", labId, userId);
 
@@ -175,17 +237,36 @@ public class LabService {
                 .build();
     }
 
+    /**
+     * Validates the existence of a lab by its ID.
+     *
+     * @param labId the ID of the lab to validate
+     * @throws LabNotFoundException if the lab does not exist
+     */
     protected void validateLabExists(Long labId) throws LabNotFoundException {
         log.debug("Validating existence of lab with ID: {}", labId);
         LabProto.Lab lab = labServiceClient.getLab(labId);
     }
 
+    /**
+     * Validates if the user is the author of the lab.
+     *
+     * @param labId  the ID of the lab
+     * @param userId the ID of the user to check
+     * @return true if the user is the author, false otherwise
+     */
     protected boolean validateLabAuthorId(Long labId, Long userId) {
         log.debug("Checking if user {} is the author of lab with ID: {}", userId, labId);
         LabProto.Lab lab = labServiceClient.getLab(labId);
         return lab.getOwnerId() == userId;
     }
 
+    /**
+     * Retrieves a list of assets associated with a specific lab.
+     *
+     * @param labId the ID of the lab for which to retrieve assets
+     * @return AssetListResponse containing the list of assets and total count
+     */
     public AssetListResponse getLabAssets(Long labId) {
         log.debug("Getting assets for lab ID: {}", labId);
         LabProto.AssetList assetList = labServiceClient.listAssets(labId);
@@ -201,11 +282,23 @@ public class LabService {
                 .build();
     }
 
+    /**
+     * Downloads a specific asset by its ID.
+     *
+     * @param assetId the ID of the asset to download
+     * @return byte array containing the asset data
+     */
     public byte[] downloadLabAsset(Long assetId) {
         log.debug("Downloading asset with ID: {}", assetId);
         return labServiceClient.downloadAsset(assetId);
     }
 
+    /**
+     * Maps a LabProto.Asset to AssetResponse.
+     *
+     * @param asset the LabProto.Asset to map
+     * @return AssetResponse containing the mapped fields
+     */
     private AssetResponse mapAssetToResponse(LabProto.Asset asset) {
         return AssetResponse.builder()
                 .assetId(asset.getAssetId())
@@ -216,6 +309,12 @@ public class LabService {
                 .build();
     }
 
+    /**
+     * Builds a list of AssetResponse from LabProto.AssetList.
+     *
+     * @param assets the LabProto.AssetList containing assets
+     * @return List of AssetResponse mapped from the assets
+     */
     private List<AssetResponse> buildAssetResponse(LabProto.AssetList assets) {
         return assets.getAssetsList().stream()
                 .map(this::mapAssetToResponse)
@@ -273,6 +372,12 @@ public class LabService {
                 .build();
     }
 
+    /**
+     * Builds a LabListResponse from a list of LabProto.Lab objects.
+     *
+     * @param labs the list of LabProto.Lab objects
+     * @return LabListResponse containing the list of labs and associated tags
+     */
     private LabListResponse buildLabListResponseFromProto(List<LabProto.Lab> labs){
         List<LabResponse> labResponses = new ArrayList<>();
         HashMap<Long, UserResponse> authorCache = new HashMap<>();
@@ -288,6 +393,13 @@ public class LabService {
         }
         return buildLabListResponse(labResponses);
     }
+
+    /**
+     * Builds a LabListResponse from a list of LabResponse objects.
+     *
+     * @param labResponses the list of LabResponse objects
+     * @return LabListResponse containing the list of labs and associated tags
+     */
     private LabListResponse buildLabListResponse(List<LabResponse> labResponses) {
         List<Integer> tagsIdsList = labResponses.stream()
                 .flatMap(labResponse -> labResponse.getTags().stream())

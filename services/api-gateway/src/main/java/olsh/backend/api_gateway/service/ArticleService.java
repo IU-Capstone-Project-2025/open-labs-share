@@ -16,6 +16,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+/**
+ * Service for managing articles, including creation, retrieval, listing, and deletion.
+ * Handles business logic and communication with the Article gRPC service.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -25,6 +29,12 @@ public class ArticleService {
     private final UploadFileConfiguration uploadConfig;
     private final UserService userService;
 
+    /**
+     * Creates a new article and uploads its PDF asset.
+     * @param request Article creation request data
+     * @param authorId ID of the author
+     * @return Response with created article details
+     */
     public CreateArticleResponse createArticle(CreateArticleRequest request, Long authorId) {
         log.debug("Creating article with title: {} for author: {}", request.getTitle(), authorId);
         validatePdfFile(request.getPdf_file());
@@ -64,6 +74,10 @@ public class ArticleService {
         }
     }
 
+    /**
+     * Validates the uploaded PDF file for article creation.
+     * @param file Multipart PDF file
+     */
     protected void validatePdfFile(MultipartFile file) {
         if (file == null || file.isEmpty() || file.getOriginalFilename() == null) {
             throw new IllegalArgumentException("PDF file is required");
@@ -91,6 +105,11 @@ public class ArticleService {
         return article;
     }
 
+    /**
+     * Retrieves an article by its ID.
+     * @param articleId Article ID
+     * @return Article response with details
+     */
     public ArticleResponse getArticleById(Long articleId) {
         if (articleId == null || articleId == 0) {
             throw new IllegalArgumentException("ArticleId should be provided");
@@ -105,6 +124,13 @@ public class ArticleService {
         return response;
     }
 
+    /**
+     * Retrieves articles for a specific user (author).
+     * @param id Author/user ID
+     * @param page Page number
+     * @param limit Page size
+     * @return List response with user's articles
+     */
     public ArticleListResponse getUsersArticles(long id, int page, int limit) {
         log.debug("Getting articles for author {} - page: {}, limit: {}", id, page, limit);
         ArticleProto.GetArticlesByUserIdRequest grpcRequest = ArticleProto.GetArticlesByUserIdRequest
@@ -120,6 +146,11 @@ public class ArticleService {
         return response;
     }
 
+    /**
+     * Retrieves a paginated list of articles, optionally filtered by tags or text.
+     * @param request Articles list request with filters
+     * @return List response with articles
+     */
     public ArticleListResponse getArticles(ArticlesGetRequest request) {
         log.debug("Getting articles list - page: {}, limit: {}", request.getPage(), request.getLimit());
         ArticleProto.GetArticlesRequest.Builder builder = ArticleProto.GetArticlesRequest.newBuilder()
@@ -136,6 +167,12 @@ public class ArticleService {
         return response;
     }
 
+    /**
+     * Deletes an article if the requesting user is the owner.
+     * @param articleId Article ID
+     * @param requestingUserId User ID requesting deletion
+     * @return Response indicating deletion status
+     */
     public DeleteArticleResponse deleteArticle(Long articleId, Long requestingUserId) {
         log.debug("Deleting article with ID: {} for user: {}", articleId, requestingUserId);
 
@@ -165,6 +202,11 @@ public class ArticleService {
 
     }
 
+    /**
+     * Maps a gRPC Asset to an ArticleAssetResponse DTO.
+     * @param asset gRPC asset object
+     * @return Asset response DTO
+     */
     public ArticleAssetResponse mapToAssetResponse(ArticleProto.Asset asset) {
         return ArticleAssetResponse.builder()
                 .assetId(asset.getAssetId())

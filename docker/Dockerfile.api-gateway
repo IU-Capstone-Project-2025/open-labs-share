@@ -5,12 +5,14 @@ COPY services/api-gateway/gradle/ gradle/
 COPY services/api-gateway/gradlew services/api-gateway/build.gradle services/api-gateway/settings.gradle ./
 
 # Use cache mount for gradle dependencies
-RUN --mount=type=cache,target=/root/.gradle gradle dependencies --no-daemon || true
+RUN --mount=type=cache,target=/root/.gradle-gateway \
+    GRADLE_USER_HOME=/root/.gradle-gateway gradle dependencies --no-daemon || true
 
 COPY services/api-gateway/src/ src/
 
-# Use cache mount for building 
-RUN --mount=type=cache,target=/root/.gradle gradle clean generateProto build -x test bootJar --no-daemon
+# Use cache mount for building
+RUN --mount=type=cache,target=/root/.gradle-gateway \
+    GRADLE_USER_HOME=/root/.gradle-gateway gradle clean generateProto build -x test bootJar --no-daemon
 
 RUN jlink --verbose \
           --module-path $JAVA_HOME/jmods \

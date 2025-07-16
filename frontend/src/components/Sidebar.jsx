@@ -15,12 +15,36 @@ export default function Sidebar({
   const [activePath, setActivePath] = useState("");
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isCreateDropdownOpen, setIsCreateDropdownOpen] = useState(false);
+  const [isHoveringSidebar, setIsHoveringSidebar] = useState(false);
   const navigate = useNavigate();
   const user = useUser();
 
   useEffect(() => {
     setActivePath(window.location.pathname);
   }, []);
+
+  useEffect(() => {
+    const handleWheel = (e) => {
+      if (isHoveringSidebar) {
+        // Prevent page scroll when hovering sidebar
+        e.preventDefault();
+        
+        // Get the sidebar content element
+        const sidebarContent = document.querySelector('.sidebar-content');
+        if (sidebarContent) {
+          const scrollAmount = e.deltaY;
+          sidebarContent.scrollTop += scrollAmount;
+        }
+      }
+    };
+
+    // Add wheel event listener with passive: false to allow preventDefault
+    document.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      document.removeEventListener('wheel', handleWheel);
+    };
+  }, [isHoveringSidebar]);
 
   const navItems = [
     { path: "/home", name: "Home" },
@@ -63,25 +87,25 @@ export default function Sidebar({
   const handleLogout = async () => {
     try {
       await signOut();
-      // The user state will be updated automatically by the App component's listener
+      
       toggleSidebar();
-      navigate("/", { replace: true }); // Redirect to landing page
+      navigate("/", { replace: true });
     } catch (error) {
       console.error('Logout error:', error);
-      // Still clear local state and redirect even if server logout fails
+      
       toggleSidebar();
       navigate("/", { replace: true });
     }
   };
 
-  // Get user display name
+  
   const getUserDisplayName = () => {
     if (!user) return "User";
     const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
     return fullName || user.username || "User";
   };
   
-  // Get user initials for avatar
+  
   const getUserInitials = () => {
     if (!user) return "?";
     const firstInitial = user.firstName?.charAt(0)?.toUpperCase() || "";
@@ -95,8 +119,10 @@ export default function Sidebar({
         isOpen ? "translate-x-0" : "-translate-x-full"
       } 
       w-64 bg-msc shadow-lg rounded-r-md transition-transform duration-300 ease-in-out z-50`}
+      onMouseEnter={() => setIsHoveringSidebar(true)}
+      onMouseLeave={() => setIsHoveringSidebar(false)}
     >
-      <div className="flex flex-col h-full p-4">
+      <div className="flex flex-col h-full p-4 sidebar-content overflow-y-auto">
         <div className="flex justify-between items-center mb-8 p-4">
           <h1 className="text-2xl font-semibold text-white text-center font-inter font-light">
             Open Labs Share
@@ -131,7 +157,7 @@ export default function Sidebar({
             {navItems.map((item) => (
               <li key={item.name}>
                 {item.dropdown ? (
-                  // Render dropdown menu
+                  
                   <>
                     <button
                       onClick={handleCreateClick}
@@ -169,7 +195,7 @@ export default function Sidebar({
                     )}
                   </>
                 ) : (
-                  // Render regular nav link
+                  
                   <NavLink
                     to={item.path}
                     className={`block px-4 py-3 rounded-lg transition-colors font-inter ${
@@ -243,10 +269,10 @@ export default function Sidebar({
           <div className="p-2 flex justify-center">
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-full bg-white bg-opacity-10 hover:bg-opacity-20 transition-colors"
+              className="p-2 rounded-full bg-white dark:bg-gray-100 bg-opacity-10 dark:bg-opacity-100 hover:bg-opacity-20 dark:hover:bg-opacity-80 transition-colors"
             >
               {currentTheme === "dark" ? (
-                <SunIcon className="h-6 w-6 text-white" />
+                <SunIcon className="h-6 w-6 text-gray-900" />
               ) : (
                 <MoonIcon className="h-6 w-6 text-white" />
               )}

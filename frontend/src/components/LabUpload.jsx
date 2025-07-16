@@ -25,7 +25,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
     const fetchTags = async () => {
       try {
         setLoadingTags(true);
-        const response = await tagsAPI.getTags(1, 100); // Получаем больше тегов
+        const response = await tagsAPI.getTags(1, 100);
         setAvailableTags(response.tags || []);
       } catch (err) {
         console.error('Error fetching tags:', err);
@@ -47,7 +47,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
   };
 
   const handleAddTag = (tagId) => {
-    // Добавляем тег только если его еще нет в списке
+    
     if (!labData.tags.includes(tagId)) {
       setLabData(prev => ({
         ...prev,
@@ -77,13 +77,13 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
         description: newTagData.description.trim()
       });
       
-      // Добавляем новый тег к списку доступных
+      
       setAvailableTags(prev => [...prev, createdTag]);
       
-      // Автоматически добавляем новый тег к лабе
+      
       handleAddTag(createdTag.id);
       
-      // Очищаем форму и закрываем модальное окно
+      
       setNewTagData({ name: '', description: '' });
       setShowCreateTag(false);
       setError(null);
@@ -251,7 +251,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
             <button
               type="button"
               onClick={() => setShowCreateTag(true)}
-              className="text-sm text-msc hover:text-msc-hover font-medium"
+              className="text-sm text-msc hover:text-msc-hover font-medium dark:text-white"
             >
               + Create New Tag
             </button>
@@ -448,7 +448,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
           <button
             type="submit"
             disabled={uploading}
-            className="px-6 py-2 bg-msc text-white rounded-md hover:bg-msc-hover disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            className="px-6 py-2 bg-msc text-white dark:bg-white dark:text-msc rounded-md hover:bg-msc-hover disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
             {uploading ? (
               <>
@@ -469,7 +469,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
       {showCreateTag && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 ">
               Create New Tag
             </h3>
             <form onSubmit={handleCreateTag} className="space-y-4">
@@ -514,7 +514,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
                 <button
                   type="submit"
                   disabled={creatingTag}
-                  className="px-4 py-2 bg-msc text-white rounded-md hover:bg-msc-hover disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  className="px-4 py-2 bg-msc text-white dark:bg-white dark:text-msc rounded-md hover:bg-msc-hover disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                 >
                   {creatingTag ? (
                     <>

@@ -23,6 +23,13 @@ public class SubmissionService {
     private final UserService userService;
     private final LabService labService;
 
+    /**
+     * Creates a new submission for a lab.
+     *
+     * @param request  the request containing submission details
+     * @param ownerId  the ID of the user creating the submission
+     * @return response containing submission metadata and status
+     */
     public CreateSubmissionResponse createSubmission(CreateSubmissionRequest request, Long ownerId) {
         log.debug("Creating submission for lab ID: {} by owner: {}", request.getLabId(), ownerId);
         validateSubmissionFiles(request.getFiles());
@@ -46,6 +53,13 @@ public class SubmissionService {
                 .build();
     }
 
+    /**
+     * Registers a new submission in the system.
+     *
+     * @param request  the request containing submission details
+     * @param ownerId  the ID of the user creating the submission
+     * @return response containing submission metadata
+     */
     private SubmissionResponse register(CreateSubmissionRequest request, Long ownerId) {
         SubmissionProto.CreateSubmissionRequest protoRequest = SubmissionProto.CreateSubmissionRequest.newBuilder()
                 .setLabId(request.getLabId())
@@ -59,6 +73,13 @@ public class SubmissionService {
         return mapSubmissionToResponse(submission, owner, new ArrayList<>());
     }
 
+    /**
+     * Uploads assets for a submission.
+     *
+     * @param submissionId the ID of the submission
+     * @param files        the files to upload
+     * @return list of uploaded asset responses
+     */
     private List<SubmissionAssetResponse> uploadAssets(Long submissionId, MultipartFile[] files) {
         List<SubmissionAssetResponse> assetResponses = new ArrayList<>();
         log.debug("Uploading assets for submission ID: {}", submissionId);
@@ -74,6 +95,12 @@ public class SubmissionService {
         return assetResponses;
     }
 
+    /**
+     * Retrieves a submission by its ID.
+     *
+     * @param submissionId the ID of the submission
+     * @return response containing submission metadata and assets
+     */
     public SubmissionResponse getById(Long submissionId) {
         if (submissionId == null || submissionId <= 0) {
             throw new IllegalArgumentException("Submission ID should be provided and positive");
@@ -92,6 +119,14 @@ public class SubmissionService {
         return mapSubmissionToResponse(submission, owner, assets);
     }
 
+    /**
+     * Retrieves a list of submissions for a specific lab.
+     *
+     * @param labId    the ID of the lab
+     * @param pageNum  the page number for pagination
+     * @param pageSize the number of submissions per page
+     * @return response containing a list of submissions and total count
+     */
     public SubmissionListResponse getByLabId(Long labId, Integer pageNum, Integer pageSize) {
         if (labId == null || labId <= 0) {
             throw new IllegalArgumentException("Lab ID should be provided and positive");
@@ -111,6 +146,14 @@ public class SubmissionService {
         return response;
     }
 
+    /**
+     * Retrieves a list of submissions by a specific user.
+     *
+     * @param userId   the ID of the user
+     * @param pageNum  the page number for pagination
+     * @param pageSize the number of submissions per page
+     * @return response containing a list of submissions and total count
+     */
     public SubmissionListResponse getByUserId(Long userId, Integer pageNum, Integer pageSize) {
         if (userId == null || userId <= 0) {
             throw new IllegalArgumentException("User ID should be provided and positive");
@@ -130,6 +173,14 @@ public class SubmissionService {
         return response;
     }
 
+    /**
+     * Retrieves a list of submissions for review by a specific user.
+     *
+     * @param userId   the ID of the user
+     * @param pageNum  the page number for pagination
+     * @param pageSize the number of submissions per page
+     * @return response containing a list of submissions and total count
+     */
     public SubmissionListResponse getForReview(Long userId, Integer pageNum, Integer pageSize) {
         if (pageNum < 1) {
             throw new IllegalArgumentException("Page number should be natural");
@@ -147,6 +198,13 @@ public class SubmissionService {
         return response;
     }
 
+    /**
+     * Deletes a submission by its ID.
+     *
+     * @param submissionId the ID of the submission to delete
+     * @param userId       the ID of the user requesting deletion
+     * @return response indicating success or failure
+     */
     public DeleteSubmissionResponse deleteSubmission(Long submissionId, Long userId) {
         log.debug("Deleting submission with ID: {} by user: {}", submissionId, userId);
 
@@ -171,6 +229,12 @@ public class SubmissionService {
                 .build();
     }
 
+    /**
+     * Sets the status of a submission.
+     *
+     * @param submissionId the ID of the submission
+     * @param status       the new status to set
+     */
     protected void setSubmissionStatus(Long submissionId, SubmissionProto.Status status) {
         log.debug("Setting submission ID: {} status to {}", submissionId, status);
         SubmissionProto.Submission submission = submissionServiceClient.getSubmission(submissionId);
@@ -188,6 +252,12 @@ public class SubmissionService {
         log.info("Successfully set submission ID: {} status to {}", submissionId, status);
     }
 
+    /**
+     * Gets the status of a submission.
+     *
+     * @param submissionId the ID of the submission
+     * @return the status of the submission
+     */
     protected SubmissionProto.Status getSubmissionStatus(Long submissionId) {
         log.debug("Getting status for submission ID: {}", submissionId);
         SubmissionProto.Submission submission = submissionServiceClient.getSubmission(submissionId);
@@ -197,6 +267,13 @@ public class SubmissionService {
         log.info("Submission ID: {} has status: {}", submissionId, submission.getStatus());
         return  submission.getStatus();
     }
+
+    /**
+     * Gets the owner ID of a submission.
+     *
+     * @param submissionId the ID of the submission
+     * @return the ID of the user who owns the submission
+     */
     protected Long getSubmissionOwnerId(Long submissionId) {
         log.debug("Getting owner ID for submission ID: {}", submissionId);
         SubmissionProto.Submission submission = submissionServiceClient.getSubmission(submissionId);
@@ -207,7 +284,11 @@ public class SubmissionService {
         return submission.getOwnerId();
     }
 
-    // File validation methods
+    /**
+     * Validates the files in a submission request.
+     *
+     * @param files the files to validate
+     */
     private void validateSubmissionFiles(MultipartFile[] files) {
         if (files == null || files.length == 0) {
             return; // Skip validation for empty file arrays
@@ -218,6 +299,12 @@ public class SubmissionService {
         }
     }
 
+    /**
+     * Validates a single submission file.
+     *
+     * @param file the file to validate
+     * @throws IllegalArgumentException if the file is invalid
+     */
     protected void validateSubmissionFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             return; // Skip validation for empty files
@@ -235,6 +322,14 @@ public class SubmissionService {
         log.debug("File validation passed for: {}", file.getOriginalFilename());
     }
 
+    /**
+     * Maps a SubmissionProto.Submission to a SubmissionResponse.
+     *
+     * @param submission the submission proto object
+     * @param owner      the owner of the submission
+     * @param assets     the list of assets associated with the submission
+     * @return a SubmissionResponse object
+     */
     private SubmissionResponse mapSubmissionToResponse(
             SubmissionProto.Submission submission,
             UserResponse owner,
@@ -244,23 +339,35 @@ public class SubmissionService {
                 .labId(submission.getLabId())
                 .owner(owner)
                 .text(submission.getText())
-                .createdAt(submission.getCreatedAt().toString())
-                .updatedAt(submission.getUpdatedAt().toString())
+                .createdAt(TimestampConverter.convertTimestampToIso(submission.getCreatedAt()))
+                .updatedAt(TimestampConverter.convertTimestampToIso(submission.getUpdatedAt()))
                 .status(submission.getStatus().name())
                 .assets(assets)
                 .build();
     }
 
+    /**
+     * Maps a SubmissionProto.Asset to a SubmissionAssetResponse.
+     *
+     * @param asset the asset proto object
+     * @return a SubmissionAssetResponse object
+     */
     private SubmissionAssetResponse mapAssetToResponse(SubmissionProto.Asset asset) {
         return SubmissionAssetResponse.builder()
                 .assetId(asset.getAssetId())
                 .submissionId(asset.getSubmissionId())
                 .filename(asset.getFilename())
                 .totalSize(asset.getFilesize())
-                .uploadDate(asset.getUploadDate().toString())
+                .uploadDate(TimestampConverter.convertTimestampToIso(asset.getUploadDate()))
                 .build();
     }
 
+    /**
+     * Builds a SubmissionListResponse from a SubmissionProto.SubmissionList.
+     *
+     * @param submissionList the submission list proto object
+     * @return a SubmissionListResponse object
+     */
     private SubmissionListResponse buildSubmissionListResponse(
             SubmissionProto.SubmissionList submissionList) {
         List<SubmissionResponse> submissions = submissionList.getSubmissionsList().stream()

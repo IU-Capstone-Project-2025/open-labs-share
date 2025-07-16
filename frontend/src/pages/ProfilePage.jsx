@@ -6,6 +6,7 @@ import { usersAPI, labsAPI, articlesAPI } from "../utils/api";
 import { BeakerIcon, EyeIcon } from "@heroicons/react/24/outline";
 import GemIcon from "../components/GemIcon";
 import ActivityBalance from "../components/ActivityBalance";
+import ToastNotification from "../components/ToastNotification";
 
 export default function ProfilePage() {
   const [editMode, setEditMode] = useState(false);
@@ -33,6 +34,8 @@ export default function ProfilePage() {
     labsSolved: 0,
     labsReviewed: 0,
   });
+  const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -40,12 +43,11 @@ export default function ProfilePage() {
         setLoading(true);
         
         if (isAuthenticated()) {
-          // Fetch fresh profile data from auth service for consistency
+          
           try {
             const userData = await getUserProfile();
             setUser(userData);
 
-            // Set user stats
             setUserStats({
               pointsBalance: userData.balance || 0,
               labsSolved: userData.labsSolved || 0,
@@ -65,11 +67,11 @@ export default function ProfilePage() {
             setOriginalData(profileData);
           } catch (err) {
             console.error("Could not fetch user profile:", err);
-            // Fallback to current user data from localStorage
+
             const currentUser = getCurrentUser();
             setUser(currentUser);
 
-            // Set user stats from cached data
+
             setUserStats({
               pointsBalance: currentUser.balance || 0,
               labsSolved: currentUser.labsSolved || 0,
@@ -89,7 +91,7 @@ export default function ProfilePage() {
             setOriginalData(profileData);
           }
           
-          // Fetch user's content (labs)
+
           try {
             const labsResponse = await labsAPI.getMyLabs();
             console.log('ProfilePage: My labs response:', labsResponse);
@@ -97,11 +99,11 @@ export default function ProfilePage() {
             const myLabs = labsResponse.labs || labsResponse || [];
             console.log('ProfilePage: My labs:', myLabs);
             
-            // For articles - try to fetch real articles if available, otherwise use empty array
+
             const articlesResponse = await articlesAPI.getMyArticles();
             const myArticles = articlesResponse.articles || [];
             
-            // Add type field to distinguish between labs and articles
+
             const labsWithType = myLabs.map(lab => ({ ...lab, type: "lab" }));
             const articlesWithType = myArticles.map(article => ({ ...article, type: "article" }));
             
@@ -178,7 +180,7 @@ export default function ProfilePage() {
         email: formData.email,
       };
       
-      // Only include password if it's provided
+
       if (formData.password) {
         updateData.password = formData.password;
       }
@@ -186,12 +188,12 @@ export default function ProfilePage() {
       if (user && user.id) {
         const response = await updateProfile(updateData);
         
-        // After successful update, fetch fresh data from auth service
+
         try {
           const freshUserData = await getUserProfile();
           setUser(freshUserData);
           
-          // Notify all components about the user data update
+
           notifyUserDataUpdate();
           
           const refreshedProfileData = {
@@ -207,11 +209,11 @@ export default function ProfilePage() {
           setOriginalData(refreshedProfileData);
         } catch (err) {
           console.warn("Could not fetch fresh profile data after update:", err);
-          // Fallback to response data
+
           const updatedUser = response.user;
           setUser(updatedUser);
           
-          // Store updated user data in localStorage and notify
+
           localStorage.setItem('user', JSON.stringify(updatedUser));
           notifyUserDataUpdate();
           
@@ -222,14 +224,14 @@ export default function ProfilePage() {
         setEditMode(false);
         
         if (response.usernameChanged) {
-          alert("Profile updated successfully! New authentication tokens have been issued due to username change.");
+          setToast({ show: true, message: "Profile updated successfully! New authentication tokens have been issued due to username change.", type: 'success' });
         } else {
-          alert("Profile updated successfully! Your current login session remains active.");
+          setToast({ show: true, message: "Profile updated successfully! Your current login session remains active.", type: 'success' });
         }
       }
     } catch (err) {
       console.error("Error updating profile:", err);
-      alert("Failed to update profile: " + err.message);
+      setToast({ show: true, message: "Failed to update profile: " + err.message, type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -241,25 +243,63 @@ export default function ProfilePage() {
     setEditMode(false);
   };
 
-  const handleDeleteProfile = async () => {
-    if (window.confirm("Are you sure you want to delete your profile? This action cannot be undone.")) {
-      try {
-        if (user && user.id) {
-          await usersAPI.deleteUser(user.id);
-          
-          // Clear local storage and redirect to signin
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('user');
-          
-          alert("Profile deleted successfully");
+  const handleDeleteProfile = () => {
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      if (user && user.id) {
+        await usersAPI.deleteUser(user.id);
+        
+
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        
+        setToast({ show: true, message: "Profile deleted successfully", type: 'success' });
+        setTimeout(() => {
           window.location.href = '/signin';
-        }
-      } catch (err) {
-        console.error("Error deleting profile:", err);
-        alert("Failed to delete profile: " + err.message);
+        }, 2000);
       }
+    } catch (err) {
+      console.error("Error deleting profile:", err);
+      setToast({ show: true, message: "Failed to delete profile: " + err.message, type: 'error' });
+    } finally {
+      setShowDeleteModal(false);
     }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+  };
+
+  const ConfirmationModal = () => {
+    if (!showDeleteModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full animate-fade-in">
+          <p className="text-gray-800 dark:text-gray-200 mb-4">
+            Are you sure you want to delete your profile? This action cannot be undone.
+          </p>
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={handleCancelDelete}
+              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const handleUploadClick = () => {
@@ -273,21 +313,23 @@ export default function ProfilePage() {
       setUploading(true);
       
       if (uploadFileType === 'lab') {
-        // Redirect to lab creation page with the file
-        alert('To upload a lab, please use the "Create Lab" feature. Redirecting you now...');
-        window.location.href = '/create-lab';
+
+        setToast({ show: true, message: 'To upload a lab, please use the "Create Lab" feature. Redirecting you now...', type: 'info' });
+        setTimeout(() => {
+          window.location.href = '/create-lab';
+        }, 2000);
       } else if (uploadFileType === 'article') {
-        // For articles, show message that articles service needs to be implemented
-        alert('Article upload functionality will be available when the Articles Service is fully integrated.');
+
+        setToast({ show: true, message: 'Article upload functionality will be available when the Articles Service is fully integrated.', type: 'warning' });
       }
       
-      // Reset form
+
       setUploadFile(null);
       setUploadFileType('lab');
       setShowUploadModal(false);
     } catch (err) {
       console.error("Upload error:", err);
-      alert("Upload failed: " + err.message);
+      setToast({ show: true, message: "Upload failed: " + err.message, type: 'error' });
     } finally {
       setUploading(false);
     }
@@ -330,6 +372,15 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {toast.show && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ show: false, message: '', type: 'info' })}
+        />
+      )}
+      
+      <ConfirmationModal />
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <header className="mb-8">
           <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">
@@ -370,7 +421,7 @@ export default function ProfilePage() {
                     </div>
                     <button
                       onClick={() => setEditMode(true)}
-                      className="mt-6 w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="mt-6 w-full px-4 py-2 bg-msc text-white dark:bg-white dark:text-msc rounded-lg hover:bg-blue-700 transition-colors"
                     >
                       Edit Profile
                     </button>
@@ -388,7 +439,7 @@ export default function ProfilePage() {
                         id="firstName"
                         value={formData.firstName}
                         onChange={handleChange}
-                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-msc focus:border-msc"
                       />
                     </div>
                     <div>
@@ -401,7 +452,7 @@ export default function ProfilePage() {
                         id="lastName"
                         value={formData.lastName}
                         onChange={handleChange}
-                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-msc focus:border-msc"
                       />
                     </div>
                     <div>
@@ -414,7 +465,7 @@ export default function ProfilePage() {
                         id="username"
                         value={formData.username}
                         onChange={handleChange}
-                        className={`mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border ${errors.username ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                        className={`mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border ${errors.username ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-msc focus:border-msc`}
                       />
                       {errors.username && <p className="mt-1 text-sm text-red-500">{errors.username}</p>}
                     </div>
@@ -428,7 +479,7 @@ export default function ProfilePage() {
                         id="email"
                         value={formData.email}
                         onChange={handleChange}
-                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-msc focus:border-msc"
                       />
                     </div>
                     <div>
@@ -441,7 +492,7 @@ export default function ProfilePage() {
                         id="password"
                         value={formData.password}
                         onChange={handleChange}
-                        className={`mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border ${errors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                        className={`mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border ${errors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-msc focus:border-msc`}
                       />
                       {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
                     </div>
@@ -455,7 +506,7 @@ export default function ProfilePage() {
                         id="confirmPassword"
                         value={formData.confirmPassword}
                         onChange={handleChange}
-                        className={`mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                        className={`mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-msc focus:border-msc`}
                       />
                       {errors.confirmPassword && <p className="mt-1 text-sm text-red-500">{errors.confirmPassword}</p>}
                     </div>
@@ -470,7 +521,7 @@ export default function ProfilePage() {
                       <button
                         type="submit"
                         disabled={saving}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                        className="mt-6 w-full px-4 py-2 bg-msc text-white rounded-lg hover:bg-msc-hover transition-colors"
                       >
                         {saving ? "Saving..." : "Save Changes"}
                       </button>
@@ -497,7 +548,7 @@ export default function ProfilePage() {
                   <div className="flex space-x-2">
                     <button 
                       onClick={handleUploadClick}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="px-4 py-2 bg-msc text-white dark:bg-white dark:text-msc rounded-lg hover:bg-msc-hover transition-colors"
                     >
                       Upload New
                     </button>
@@ -596,7 +647,7 @@ export default function ProfilePage() {
                 <button
                   onClick={handleFileUpload}
                   disabled={!uploadFile || uploading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:opacity-50"
+                  className="px-4 py-2 bg-msc text-white rounded-md disabled:opacity-50"
                 >
                   {uploading ? 'Uploading...' : 'Upload'}
                 </button>

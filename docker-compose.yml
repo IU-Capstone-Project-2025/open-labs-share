@@ -10,6 +10,7 @@ volumes:
   postgres-labs-data:
   postgres-articles-data:
   postgres-ml-data:
+  postgres-marimo-data:
   ml-models:
   minio-data:
   mongodb-labs-data:
@@ -213,6 +214,49 @@ services:
     restart: unless-stopped
     profiles: ["blue"]
 
+  marimo-manager-service-blue:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.marimo-manager-service
+    environment:
+      - SERVER_PORT=8084
+      - DB_URL=jdbc:postgresql://postgres-marimo:5432/marimo_service
+      - DB_USERNAME=${POSTGRES_MARIMO_USER:-marimo_user}
+      - DB_PASSWORD=${POSTGRES_MARIMO_PASSWORD:-password}
+      - PYTHON_SERVICE_HOST=marimo-executor-service-blue
+      - PYTHON_SERVICE_PORT=9095
+      - AUTH_SERVICE_HOST=auth-service-blue
+      - AUTH_SERVICE_PORT=9092
+      - USERS_SERVICE_HOST=users-service-blue
+      - USERS_SERVICE_PORT=9093
+      - ARTICLES_SERVICE_HOST=articles-service-blue
+      - ARTICLES_SERVICE_PORT=50051
+      - LABS_SERVICE_HOST=labs-service-blue
+      - LABS_SERVICE_PORT=9091
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BUCKET=marimo
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - postgres-marimo
+      - marimo-executor-service-blue
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["blue"]
+
+  marimo-executor-service-blue:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.marimo-executor-service
+    environment:
+      - GRPC_PORT=9095
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["blue"]
+
   # --- Test Environment ---
   frontend-test:
     build:
@@ -334,7 +378,7 @@ services:
       - POSTGRES_PORT=5432
       - POSTGRES_USER=feedback_user
       - POSTGRES_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD:-feedback_password}
-      - POSTGRES_NAME=feedback_db
+      - POSTGRES_DB=feedback_db
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -343,6 +387,49 @@ services:
       - MONGODB_URI=mongodb://mongodb-feedback:27017
       - MONGODB_DATABASE=feedback
       - MONGODB_COLLECTION=comments
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
+
+  marimo-manager-service-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.marimo-manager-service
+    environment:
+      - SERVER_PORT=8084
+      - DB_URL=jdbc:postgresql://postgres-marimo:5432/marimo_service
+      - DB_USERNAME=${POSTGRES_MARIMO_USER:-marimo_user}
+      - DB_PASSWORD=${POSTGRES_MARIMO_PASSWORD:-password}
+      - PYTHON_SERVICE_HOST=marimo-executor-service-test
+      - PYTHON_SERVICE_PORT=9095
+      - AUTH_SERVICE_HOST=auth-service-test
+      - AUTH_SERVICE_PORT=9092
+      - USERS_SERVICE_HOST=users-service-test
+      - USERS_SERVICE_PORT=9093
+      - ARTICLES_SERVICE_HOST=articles-service-test
+      - ARTICLES_SERVICE_PORT=50051
+      - LABS_SERVICE_HOST=labs-service-test
+      - LABS_SERVICE_PORT=9091
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BUCKET=marimo
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - postgres-marimo
+      - marimo-executor-service-test
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
+
+  marimo-executor-service-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.marimo-executor-service
+    environment:
+      - GRPC_PORT=9095
     networks:
       - blue-network
     restart: unless-stopped
@@ -508,6 +595,49 @@ services:
     volumes:
       - ./ml:/app/ml
       - ml-models:/app/models
+    networks:
+      - green-network
+    restart: unless-stopped
+    profiles: ["green"]
+
+  marimo-manager-service-green:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.marimo-manager-service
+    environment:
+      - SERVER_PORT=8084
+      - DB_URL=jdbc:postgresql://postgres-marimo:5432/marimo_service
+      - DB_USERNAME=${POSTGRES_MARIMO_USER:-marimo_user}
+      - DB_PASSWORD=${POSTGRES_MARIMO_PASSWORD:-password}
+      - PYTHON_SERVICE_HOST=marimo-executor-service-green
+      - PYTHON_SERVICE_PORT=9095
+      - AUTH_SERVICE_HOST=auth-service-green
+      - AUTH_SERVICE_PORT=9092
+      - USERS_SERVICE_HOST=users-service-green
+      - USERS_SERVICE_PORT=9093
+      - ARTICLES_SERVICE_HOST=articles-service-green
+      - ARTICLES_SERVICE_PORT=50051
+      - LABS_SERVICE_HOST=labs-service-green
+      - LABS_SERVICE_PORT=9091
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BUCKET=marimo
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - postgres-marimo
+      - marimo-executor-service-green
+    networks:
+      - green-network
+    restart: unless-stopped
+    profiles: ["green"]
+
+  marimo-executor-service-green:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.marimo-executor-service
+    environment:
+      - GRPC_PORT=9095
     networks:
       - green-network
     restart: unless-stopped
@@ -680,6 +810,19 @@ services:
       - MONGO_INITDB_DATABASE=feedback
     volumes:
       - mongodb-feedback-data:/data/db
+    networks:
+      - blue-network
+      - green-network
+    restart: unless-stopped 
+
+  postgres-marimo:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=marimo_service
+      - POSTGRES_USER=${POSTGRES_MARIMO_USER:-marimo_user}
+      - POSTGRES_PASSWORD=${POSTGRES_MARIMO_PASSWORD:-password}
+    volumes:
+      - postgres-marimo-data:/var/lib/postgresql/data
     networks:
       - blue-network
       - green-network
