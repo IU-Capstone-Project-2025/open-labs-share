@@ -7,3 +7,4 @@ psycopg2-binary==2.9.9
 minio==7.2.10
 pytest==8.4.1
 pymongo==4.13.2
+grpcio-health-checking 

@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/feedback")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true", maxAge = 3600)
+@CrossOrigin(origins = {"http://localhost:5173", "https://open-labs-share.online"}, allowCredentials = "true", maxAge = 3600)
 @Tag(name = "Feedback", description = "Feedback management endpoints")
 @SecurityRequirement(name = "bearerAuth")
 public class FeedbackController {

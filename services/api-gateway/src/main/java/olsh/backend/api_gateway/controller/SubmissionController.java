@@ -24,7 +24,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/submissions")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true", maxAge = 3600)
+@CrossOrigin(origins = {"http://localhost:5173", "https://open-labs-share.online"}, allowCredentials = "true", maxAge = 3600)
 @Tag(name = "Submissions", description = "Endpoints for managing lab submissions with text comments and file " +
         "attachments")
 @SecurityRequirement(name = "bearerAuth")

@@ -26,8 +26,8 @@ This is a "cold" start of your system, which is performed once before you begin 
     This command will build all the necessary Docker images for the first time (this may take a while) and run the containers in the background.
 
 3.  **Launch Verification:**
-    *   **Frontend:** Open `http://localhost/` in your browser. You should see your interface.
-    *   **HAProxy Stats:** Open `http://localhost:8404/` and make sure that traffic (session) is active on the `blue` backends.
+    *   **Frontend:** Open `http://127.0.0.1/` in your browser. You should see your interface.
+    *   **HAProxy Stats:** Open `http://127.0.0.1:8404/` and make sure that traffic (session) is active on the `blue` backends.
 
 ## Step 3.1: Full Cleanup (Local Testing)
 

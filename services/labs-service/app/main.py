@@ -20,6 +20,9 @@ from services.tags_service import TagService
 import proto.labs_service_pb2_grpc as labs_service # Generated from labs.proto
 import proto.submissions_service_pb2_grpc as submissions_service  # Generated from submissions_service.proto
 import proto.tags_service_pb2_grpc as tags_service  # Generated from tags.proto
+from grpc_health.v1 import health
+from grpc_health.v1 import health_pb2
+from grpc_health.v1 import health_pb2_grpc
 
 
 logging.basicConfig(
@@ -34,6 +37,13 @@ if __name__ == "__main__":
     labs_service.add_LabServiceServicer_to_server(LabService(), server)
     submissions_service.add_SubmissionServiceServicer_to_server(SubmissionService(), server)
     tags_service.add_TagServiceServicer_to_server(TagService(), server)
+
+    # Add HealthServicer to the server
+    health_servicer = health.HealthServicer()
+    health_pb2_grpc.add_HealthServicer_to_server(health_servicer, server)
+    health_servicer.set("labs.LabService", health_pb2.HealthCheckResponse.SERVING)
+    health_servicer.set("submissions.SubmissionService", health_pb2.HealthCheckResponse.SERVING)
+    health_servicer.set("tags.TagService", health_pb2.HealthCheckResponse.SERVING)
 
 
     server_address = f"{Config.SERVICE_HOST}:{Config.SERVICE_PORT}"

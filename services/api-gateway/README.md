@@ -3,14 +3,22 @@
 The API Gateway is the central entry point for all client requests to the Open Labs Share platform. It provides a unified and secure REST API, routing requests to the appropriate downstream microservices while handling cross-cutting concerns like authentication, logging and intermediate logic.
 
 ## Table of Contents
-- [Core Responsibilities](#core-responsibilities)
-- [Technology Stack](#technology-stack)
-- [Service Architecture](#service-architecture)
-- [Getting Started](#getting-started)
-- [API Documentation (Swagger)](#api-documentation-swagger)
-- [Architecture & Service Connections](#architecture--service-connections)
-- [Environment Configuration](#environment-configuration)
-- [Deployment](#deployment)
+- [Open Labs Share - API Gateway](#open-labs-share---api-gateway)
+  - [Table of Contents](#table-of-contents)
+  - [Core Responsibilities](#core-responsibilities)
+  - [Technology Stack](#technology-stack)
+  - [Service Architecture](#service-architecture)
+  - [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Running the Application](#running-the-application)
+  - [API Documentation (Swagger)](#api-documentation-swagger)
+  - [Architecture \& Service Connections](#architecture--service-connections)
+    - [Request Flow](#request-flow)
+  - [Environment Configuration](#environment-configuration)
+    - [Main (Necessary) Environment Variables](#main-necessary-environment-variables)
+    - [General/Optional Environment Variables (Defaults are usually sufficient)](#generaloptional-environment-variables-defaults-are-usually-sufficient)
+  - [Testing](#testing)
+  - [Deployment](#deployment)
 
 ## Core Responsibilities
 

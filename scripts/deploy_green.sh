@@ -26,13 +26,17 @@ echo "Deploying services: ${SERVICES_TO_DEPLOY[@]} to $TARGET_ENV environment"
 # To skip, run with LOCAL_TESTING=true (e.g., LOCAL_TESTING=true ./scripts/deploy_green.sh)
 if [ "$LOCAL_TESTING" != "true" ]; then
     echo "Pulling latest images from registry..."
-    docker-compose --profile $TARGET_ENV pull ${SERVICES_TO_DEPLOY[@]}
+    if ! docker-compose --profile $TARGET_ENV pull ${SERVICES_TO_DEPLOY[@]}; then
+        echo "Failed to pull images from registry. Building images locally..."
+        docker-compose --profile $TARGET_ENV build ${SERVICES_TO_DEPLOY[@]}
+    fi
 else
-    echo "LOCAL_TESTING is true, skipping image pull."
+    echo "LOCAL_TESTING is true, skipping image pull and building locally..."
+    docker-compose --profile $TARGET_ENV build ${SERVICES_TO_DEPLOY[@]}
 fi
 
-# The --build flag will rebuild only the specified services
-docker-compose --profile $TARGET_ENV up -d --no-deps --build ${SERVICES_TO_DEPLOY[@]}
+# The --build flag is removed to ensure we use the images from the registry.
+docker-compose --profile $TARGET_ENV up -d --force-recreate --no-deps ${SERVICES_TO_DEPLOY[@]}
 
 # Health check loop
 echo "Waiting for $TARGET_ENV environment to be healthy..."
@@ -42,19 +46,32 @@ while [ $SECONDS -lt $HEALTH_CHECK_TIMEOUT ]; do
     # Now we iterate over the full service names
     for service_name in "${SERVICES_TO_DEPLOY[@]}"; do
         # docker-compose ps -q <service_name> might return an empty string if the container is not found yet, so we guard it.
-        container_id=$(docker-compose ps -q $service_name)
+        container_id=$(docker-compose --profile $TARGET_ENV ps -q $service_name)
         if [ -z "$container_id" ]; then
             ALL_HEALTHY=false
             echo "Service $service_name is not running yet."
             break
         fi
 
-        HEALTH_STATUS=$(docker inspect --format '{{.State.Health.Status}}' $container_id 2>/dev/null || echo "unhealthy")
+        # Check if a health check is configured for the container
+        HAS_HEALTH_CHECK=$(docker inspect --format '{{if .State.Health}}true{{else}}false{{end}}' $container_id)
 
-        if [ "$HEALTH_STATUS" != "healthy" ]; then
-            ALL_HEALTHY=false
-            echo "Service $service_name is not healthy yet (Status: $HEALTH_STATUS)."
-            break
+        if [ "$HAS_HEALTH_CHECK" == "true" ]; then
+            # If a health check is configured, check its status
+            HEALTH_STATUS=$(docker inspect --format '{{.State.Health.Status}}' $container_id)
+            if [ "$HEALTH_STATUS" != "healthy" ]; then
+                ALL_HEALTHY=false
+                echo "Service $service_name is not healthy yet (Status: $HEALTH_STATUS)."
+                break
+            fi
+        else
+            # If no health check is configured, just check if the container is running
+            IS_RUNNING=$(docker inspect --format '{{.State.Running}}' $container_id)
+            if [ "$IS_RUNNING" != "true" ]; then
+                ALL_HEALTHY=false
+                echo "Service $service_name is not running yet."
+                break
+            fi
         fi
     done
 
