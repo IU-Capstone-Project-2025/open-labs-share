@@ -6,11 +6,10 @@ def retrieve(state: RAGState, retriever: BaseRetriever) -> dict[str, str]:
     """Retrieve relevant (< threshold) information related to a query."""
     retrieved_docs = retriever.invoke(
         state.query,
-        filter={"assignment_id": state.assignment_id}
     )
     serialized = "\n\n".join(
         (f"{doc.page_content}\n")
-        for doc in retrieved_docs
+        for doc in retrieved_docs if doc.metadata.get("assignment_id") == state.assignment_id
     )
-    print(serialized)
+    print("RETRIEVED", serialized)
     return {"docs": serialized}

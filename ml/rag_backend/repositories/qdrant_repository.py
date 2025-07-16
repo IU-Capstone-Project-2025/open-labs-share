@@ -4,6 +4,7 @@ from langchain.text_splitter import MarkdownTextSplitter
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 import os
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class QdrantRepository:
             chunk_overlap=200
         )
         self._embedding_model = HuggingFaceEmbeddings(
-            model_name=os.getenv("EMBEDDING_MODEL_NAME", "BAAI/bge-base-en-v1"),
+            model_name=os.getenv("EMBEDDING_MODEL_NAME", "BAAI/bge-small-en-v1.5"),
             model_kwargs={"device": os.getenv("DEVICE", "cpu")},
             encode_kwargs={"normalize_embeddings": True}
         )
@@ -29,7 +30,7 @@ class QdrantRepository:
         if self.collection_name not in [c.name for c in self._qdrant.get_collections().collections]:
             self._qdrant.create_collection(
                 collection_name=self.collection_name,
-                vectors_config=models.VectorParams(size=1024, distance=models.Distance.COSINE)
+                vectors_config=models.VectorParams(size=384, distance=models.Distance.COSINE)
             )
 
         logger.info("Qdrant repository initialized successfully")
@@ -51,13 +52,15 @@ class QdrantRepository:
         points = []
         for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
             payload = {
-                "assignment_id": assignment_id,
-                "chunk_id": idx,
-                "text": chunk
+                "metadata": {
+                    "assignment_id": assignment_id,
+                    "chunk_id": idx,
+                },
+                "text": chunk  
             }
             points.append(
                 models.PointStruct(
-                    id=assignment_id + f"_{idx}",
+                    id=str(uuid.uuid4()),
                     vector=embedding,
                     payload=payload
                 )
@@ -67,6 +70,7 @@ class QdrantRepository:
             collection_name=self.collection_name,
             points=points
         )
+
 
         logger.info(f"Indexed assignment {assignment_id} with {len(chunks)} chunks")
 

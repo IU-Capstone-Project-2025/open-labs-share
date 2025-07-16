@@ -1,4 +1,4 @@
-from langchain_qdrant import Qdrant
+from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_huggingface.llms import HuggingFacePipeline
@@ -38,10 +38,12 @@ class HelperAgent(BaseAgent):
     def _load_vector_storage(self) -> None:
         try:
             self._qdrant_client = self._qdrant_repo.qdrant_client
-            self._db = Qdrant(
+            self._db = QdrantVectorStore(
                 client=self._qdrant_client,
                 collection_name="labs_collection",
-                embeddings=self._qdrant_repo.embedding_model,
+                embedding=self._qdrant_repo.embedding_model,
+                # metadata_payload_key="payload",
+                content_payload_key="text"
             )
             self._retriever = self._db.as_retriever(
                 search_type="similarity",
@@ -50,6 +52,8 @@ class HelperAgent(BaseAgent):
                     "score_threshold": SCORE_THRESHOLD,
                 }
             )
+
+            logger.info(f"SCORE THRESHOLD {str(SCORE_THRESHOLD)}")
 
             logger.info("Vector storage loaded successfully")
         except Exception as e:
