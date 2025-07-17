@@ -20,16 +20,16 @@ logger = logging.getLogger(__name__)
 
 class Config:
     # General config
-    SERVICE_HOST = os.getenv("SERVICE_HOST", "localhost")
+    SERVICE_HOST = os.getenv("SERVICE_HOST", "127.0.0.1")
     SERVICE_PORT = os.getenv("SERVICE_PORT", "50051")
-    MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
+    MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "127.0.0.1:9000")
     MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
     MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
 
     # DB config
     POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
     POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
-    POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+    POSTGRES_HOST = os.getenv("POSTGRES_HOST", "127.0.0.1")
     POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
     POSTGRES_NAME = os.getenv("POSTGRES_NAME", "postgres")
 

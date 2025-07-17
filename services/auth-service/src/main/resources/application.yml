@@ -24,7 +24,7 @@ token:
 
 grpc:
   users-service:
-    host: ${USERS_SERVICE_HOST:localhost}
+    host: ${USERS_SERVICE_HOST:127.0.0.1}
     port: ${USERS_SERVICE_PORT:9093}
 
 logging:

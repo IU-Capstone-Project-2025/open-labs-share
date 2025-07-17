@@ -18,6 +18,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "proto"))
 from config import Config
 import proto.articles_service_pb2 as stub # Generated from articles_service.proto
 import proto.articles_service_pb2_grpc as service # Generated from articles_service.proto
+from grpc_health.v1 import health
+from grpc_health.v1 import health_pb2
+from grpc_health.v1 import health_pb2_grpc
 from utils.models import Article, ArticleAsset
 
 logging.basicConfig(
@@ -258,7 +261,6 @@ class ArticleService(service.ArticleServiceServicer):
 
             return article_list
 
-
     def GetArticlesByUserId(self, request, context) -> stub.ArticleList:
         """
         Retrieve a paginated list of articles by user ID.
@@ -495,8 +497,6 @@ class ArticleService(service.ArticleServiceServicer):
 
             return stub.Asset(**new_asset.get_attrs())
 
-
-
     def UpdateAsset(self, request_iterator, context) -> stub.Asset:
         """
         Update an existing asset file using streaming.
@@ -594,7 +594,6 @@ class ArticleService(service.ArticleServiceServicer):
             self.logger.info(f"Updated asset with ID {article_asset.id} for article with ID {article_asset.article_id}")
 
             return stub.Asset(**article_asset.get_attrs())
-
 
     def DownloadAsset(self, request, context) -> stub.DownloadAssetResponse:
         """
@@ -726,16 +725,19 @@ def serve():
     # Create a gRPC server
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
 
-    # Add the ArticleService to the server
+    # Add ArticleService to the server
     service.add_ArticleServiceServicer_to_server(ArticleService(), server)
 
+    # Add HealthServicer to the server
+    health_servicer = health.HealthServicer()
+    health_pb2_grpc.add_HealthServicer_to_server(health_servicer, server)
+    health_servicer.set("articles.ArticleService", health_pb2.HealthCheckResponse.SERVING)
+
     # Start the server
-    port = Config.SERVICE_PORT
-    server.add_insecure_port(f"[::]:{port}")
+    server.add_insecure_port(f"[::]:{Config.SERVICE_PORT}")
     server.start()
-    logging.getLogger(__name__).info(f"Server started on port {port}")
+    logging.info(f"Server started on port {Config.SERVICE_PORT}")
     server.wait_for_termination()
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     serve()

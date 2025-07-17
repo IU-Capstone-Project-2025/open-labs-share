@@ -14,6 +14,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
   });
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [dragActive, setDragActive] = useState(false);
   const [availableTags, setAvailableTags] = useState([]);
   const [loadingTags, setLoadingTags] = useState(false);
@@ -25,7 +26,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
     const fetchTags = async () => {
       try {
         setLoadingTags(true);
-        const response = await tagsAPI.getTags(1, 100); // Получаем больше тегов
+        const response = await tagsAPI.getTags(1, 100);
         setAvailableTags(response.tags || []);
       } catch (err) {
         console.error('Error fetching tags:', err);
@@ -44,10 +45,11 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
       ...prev,
       [name]: value
     }));
+    setFieldErrors(prev => ({ ...prev, [name]: undefined }));
   };
 
   const handleAddTag = (tagId) => {
-    // Добавляем тег только если его еще нет в списке
+    
     if (!labData.tags.includes(tagId)) {
       setLabData(prev => ({
         ...prev,
@@ -77,13 +79,13 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
         description: newTagData.description.trim()
       });
       
-      // Добавляем новый тег к списку доступных
+      
       setAvailableTags(prev => [...prev, createdTag]);
       
-      // Автоматически добавляем новый тег к лабе
+      
       handleAddTag(createdTag.id);
       
-      // Очищаем форму и закрываем модальное окно
+      
       setNewTagData({ name: '', description: '' });
       setShowCreateTag(false);
       setError(null);
@@ -148,19 +150,20 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
     
     if (!labData.title.trim()) {
-      setError('Title is required');
+      setFieldErrors(prev => ({ ...prev, title: 'Title is required' }));
       return;
     }
     
     if (!labData.short_desc.trim()) {
-      setError('Short description is required');
+      setFieldErrors(prev => ({ ...prev, short_desc: 'Short description is required' }));
       return;
     }
     
     if (!labData.md_file) {
-      setError('Markdown file is required');
+      setFieldErrors(prev => ({ ...prev, md_file: 'Markdown file is required' }));
       return;
     }
 
@@ -185,7 +188,13 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
       onSuccess && onSuccess(result);
     } catch (err) {
       console.error('Error creating lab:', err);
-      setError(err.message || 'Failed to create lab');
+      if (err.data && typeof err.data === 'object') {
+        const { message, ...fields } = err.data;
+        setFieldErrors(fields);
+        setError(message || 'Failed to create lab');
+      } else {
+        setError(err.message || 'Failed to create lab');
+      }
     } finally {
       setUploading(false);
     }
@@ -221,9 +230,12 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
             value={labData.title}
             onChange={handleInputChange}
             placeholder="Enter lab title..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            className={`w-full px-3 py-2 border ${fieldErrors.title ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white`}
             required
           />
+          {fieldErrors.title && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.title}</p>
+          )}
         </div>
 
         {/* Short Description */}
@@ -237,9 +249,12 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
             onChange={handleInputChange}
             placeholder="Brief description of the lab..."
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            className={`w-full px-3 py-2 border ${fieldErrors.short_desc ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white`}
             required
           />
+          {fieldErrors.short_desc && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.short_desc}</p>
+          )}
         </div>
 
         {/* Tags Section */}
@@ -251,7 +266,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
             <button
               type="button"
               onClick={() => setShowCreateTag(true)}
-              className="text-sm text-msc hover:text-msc-hover font-medium"
+              className="text-sm text-msc hover:text-msc-hover font-medium dark:text-white"
             >
               + Create New Tag
             </button>
@@ -362,13 +377,16 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
             name="md_file"
             accept=".md,.markdown"
             onChange={handleFileChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            className={`w-full px-3 py-2 border ${fieldErrors.md_file ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-msc dark:bg-gray-700 dark:border-gray-600 dark:text-white`}
             required
           />
           {labData.md_file && (
             <p className="mt-1 text-sm text-green-600">
               Selected: {labData.md_file.name}
             </p>
+          )}
+          {fieldErrors.md_file && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.md_file}</p>
           )}
         </div>
 
@@ -448,7 +466,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
           <button
             type="submit"
             disabled={uploading}
-            className="px-6 py-2 bg-msc text-white rounded-md hover:bg-msc-hover disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            className="px-6 py-2 bg-msc text-white dark:bg-white dark:text-msc rounded-md hover:bg-msc-hover disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
             {uploading ? (
               <>
@@ -469,7 +487,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
       {showCreateTag && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 ">
               Create New Tag
             </h3>
             <form onSubmit={handleCreateTag} className="space-y-4">
@@ -514,7 +532,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
                 <button
                   type="submit"
                   disabled={creatingTag}
-                  className="px-4 py-2 bg-msc text-white rounded-md hover:bg-msc-hover disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  className="px-4 py-2 bg-msc text-white dark:bg-white dark:text-msc rounded-md hover:bg-msc-hover disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                 >
                   {creatingTag ? (
                     <>

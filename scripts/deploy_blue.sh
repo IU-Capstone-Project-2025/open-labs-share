@@ -21,8 +21,16 @@ done
 
 echo "Deploying services: ${SERVICES_TO_DEPLOY[@]} to $TARGET_ENV environment"
 
-# The --build flag will rebuild only the specified services
-docker-compose --profile $TARGET_ENV up -d --no-deps --build ${SERVICES_TO_DEPLOY[@]}
+# For CI/CD, images are pulled. For local testing, this step is skipped.
+if [ "$LOCAL_TESTING" != "true" ]; then
+    echo "Pulling latest images from registry..."
+    docker-compose --profile $TARGET_ENV pull ${SERVICES_TO_DEPLOY[@]}
+else
+    echo "LOCAL_TESTING is true, skipping image pull."
+fi
+
+# The --build flag is removed to ensure we use the images from the registry.
+docker-compose --profile $TARGET_ENV up -d --force-recreate --no-deps ${SERVICES_TO_DEPLOY[@]}
 
 # Health check loop
 echo "Waiting for $TARGET_ENV environment to be healthy..."
@@ -31,7 +39,7 @@ while [ $SECONDS -lt $HEALTH_CHECK_TIMEOUT ]; do
     ALL_HEALTHY=true
     # Now we iterate over the full service names
     for service_name in "${SERVICES_TO_DEPLOY[@]}"; do
-        container_id=$(docker-compose ps -q $service_name)
+        container_id=$(docker-compose --profile $TARGET_ENV ps -q $service_name)
         if [ -z "$container_id" ]; then
             ALL_HEALTHY=false
             echo "Service $service_name is not running yet."
@@ -48,7 +56,9 @@ while [ $SECONDS -lt $HEALTH_CHECK_TIMEOUT ]; do
     done
 
     if $ALL_HEALTHY; then
-        echo "All specified services in $TARGET_ENV are healthy."
+        echo "$TARGET_ENV environment is healthy."
+        # If all services are healthy, switch traffic
+        ./scripts/switch_traffic.sh $TARGET_ENV
         exit 0
     fi
 
@@ -56,5 +66,7 @@ while [ $SECONDS -lt $HEALTH_CHECK_TIMEOUT ]; do
     SECONDS=$((SECONDS + 10))
 done
 
-echo "Timeout reached. Some services in the $TARGET_ENV environment are not healthy."
+echo "Timeout reached. $TARGET_ENV environment is not healthy."
+# If timeout is reached, rollback
+./scripts/rollback.sh $TARGET_ENV
 exit 1 

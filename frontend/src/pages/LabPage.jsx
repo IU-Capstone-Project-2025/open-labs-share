@@ -11,11 +11,11 @@ import GemIcon from "../components/GemIcon";
 import CommentsSection from "../components/CommentsSection";
 import ChatWindow from "../components/ChatWindow";
 import ToastNotification from "../components/ToastNotification";
-// import MarpRenderer from '../components/MarpRenderer';
+import { mlAPI } from "../utils/api.js";
+import MarpRenderer from '../components/MarpRenderer';
 import { getCurrentUser, isAuthenticated, notifyUserDataUpdate } from "../utils/auth";
 import { labsAPI, submissionsAPI } from "../utils/api";
 import { useUser } from "../hooks/useUser";
-import { mlAPI } from "../utils/api.js";
 
 const flattenText = (children) => {
   if (typeof children === "string") return children;
@@ -103,8 +103,8 @@ export default function LabPage() {
 
     try {
       setUploading(true);
+
       const submission = await submissionsAPI.submitLabSolution(id, submissionText, files);
-      // submissionId may be under submission.submissionId or submission.id
       const submissionId = submission.submissionId || submission.id;
       let autoGradeStarted = false;
       if (submissionId && user?.id && id) {
@@ -113,7 +113,7 @@ export default function LabPage() {
             uuid: String(user.id),
             assignment_id: String(id),
             submission_id: String(submissionId),
-            webhook_url: 'http://localhost:8080/webhook', // TODO: replace with real webhook if needed
+            webhook_url: 'http://localhost:8081',
           });
           if (resp.ok) {
             autoGradeStarted = true;
@@ -131,6 +131,7 @@ export default function LabPage() {
       notifyUserDataUpdate();
 
       setToast({ show: true, message: `Your solution was uploaded successfully!${autoGradeStarted ? ' Autograding started.' : ''}`, type: "success" });
+
       setFiles([]);
       setSubmissionText("");
     } catch (err) {

@@ -23,6 +23,7 @@ This is a "cold" start of your system, which is performed once before you begin 
     ```bash
     docker-compose --profile test up -d --build
     ```
+
 3.  Run the command to start **ML** environment and all ML-related services (can be used as addiion to "test" profile):
     ```bash
     docker-compose --profile ml up -d --build
@@ -30,6 +31,7 @@ This is a "cold" start of your system, which is performed once before you begin 
 4.  **Launch Verification:**
     *   **Frontend:** Open `http://localhost/` in your browser. You should see your interface.
     *   **HAProxy Stats:** Open `http://localhost:8404/` and make sure that traffic (session) is active on the `blue` backends.
+
 
 ## Step 3: Cleanup
 

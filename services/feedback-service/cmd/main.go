@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -19,6 +20,8 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 )
@@ -64,8 +67,8 @@ func main() {
 	}
 
 	// Create bucket if it doesn't exist
+	ctx := context.Background()
 	if cfg.MinIO.CreateBucket {
-		ctx := context.Background()
 		exists, err := minioClient.BucketExists(ctx, cfg.MinIO.BucketName)
 		if err != nil {
 			log.Fatalf("Failed to check if bucket exists: %v", err)
@@ -78,6 +81,25 @@ func main() {
 			log.Printf("Created bucket: %s", cfg.MinIO.BucketName)
 		}
 	}
+
+	// Set bucket policy for public read access
+	policy := fmt.Sprintf(`{
+		"Version": "2012-10-17",
+		"Statement": [
+			{
+				"Effect": "Allow",
+				"Principal": "*",
+				"Action": ["s3:GetObject"],
+				"Resource": ["arn:aws:s3:::%s/*"]
+			}
+		]
+	}`, cfg.MinIO.BucketName)
+	err = minioClient.SetBucketPolicy(ctx, cfg.MinIO.BucketName, policy)
+	if err != nil {
+		log.Fatalf("Failed to set bucket policy: %v", err)
+	}
+	log.Printf("Set read-only policy for bucket: %s", cfg.MinIO.BucketName)
+
 
 	// Initialize repositories
 	feedbackRepo := repository.NewFeedbackRepository(db, mongodb)
@@ -110,6 +132,12 @@ func main() {
 	// Register services
 	server.RegisterFeedbackServer(grpcServer, feedbackService)
 	server.RegisterCommentServer(grpcServer, commentService)
+
+	// Create a new health server and register it
+	healthServer := health.NewServer()
+	healthpb.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("feedback.FeedbackService", healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("comment.CommentService", healthpb.HealthCheckResponse_SERVING)
 
 	// Enable reflection for easier debugging
 	reflection.Register(grpcServer)

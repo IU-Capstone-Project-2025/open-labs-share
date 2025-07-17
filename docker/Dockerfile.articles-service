@@ -26,8 +26,13 @@ RUN useradd --create-home appuser
 WORKDIR /home/appuser/app
 
 # Install runtime dependencies and netcat
-RUN apt-get update && apt-get install -y --no-install-recommends netcat-openbsd && \
+RUN apt-get update && apt-get install -y --no-install-recommends netcat-openbsd wget && \
     rm -rf /var/lib/apt/lists/*
+
+# Install grpc-health-probe
+RUN GRPC_HEALTH_PROBE_VERSION=v0.4.24 && \
+    wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 -O /usr/local/bin/grpc_health_probe && \
+    chmod +x /usr/local/bin/grpc_health_probe
 
 # Copy dependencies and application code from builder
 COPY --from=builder /app/deps /home/appuser/app/deps

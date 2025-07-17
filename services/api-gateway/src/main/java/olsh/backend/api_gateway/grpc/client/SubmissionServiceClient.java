@@ -105,6 +105,14 @@ public class SubmissionServiceClient {
         }
     }
 
+    /**
+     * Retrieves all submissions made by a specific user, paginated.
+     *
+     * @param userId the ID of the user to retrieve submissions for
+     * @param page   the page number to retrieve (1-based)
+     * @param limit  the number of submissions per page
+     * @return SubmissionList containing submissions made by the user
+     */
     public SubmissionList getSubmissionsByUser(Long userId, Integer page, Integer limit) {
         log.debug("Calling gRPC GetSubmissionsByUser for user ID: {}, page: {}, limit: {}", userId, page, limit);
         try {
@@ -120,6 +128,14 @@ public class SubmissionServiceClient {
         }
     }
 
+    /**
+     * Retrieves all submissions that are available for review by a specific user, paginated.
+     *
+     * @param userId the ID of the user to retrieve submissions for
+     * @param page   the page number to retrieve (1-based)
+     * @param limit  the number of submissions per page
+     * @return SubmissionList containing submissions available for review
+     */
     public SubmissionList getForReview(Long userId, Integer page, Integer limit) {
         log.debug("Calling gRPC GetPossibleToReviewSubmissions for user ID: {}, page: {}, limit: {}",
                 userId, page, limit);
@@ -140,6 +156,13 @@ public class SubmissionServiceClient {
         }
     }
 
+    /**
+     * Updates an existing submission.
+     *
+     * @param request the request containing updated submission details
+     * @return the updated Submission object
+     * @throws SubmissionNotFoundException if the submission does not exist
+     */
     public Submission updateSubmission(UpdateSubmissionRequest request) {
         log.debug("Calling gRPC UpdateSubmission for submission ID: {}", request.getSubmissionId());
         try {
@@ -157,6 +180,13 @@ public class SubmissionServiceClient {
         }
     }
 
+    /**
+     * Deletes a submission by its ID.
+     *
+     * @param submissionId the ID of the submission to delete
+     * @return true if deletion was successful, false otherwise
+     * @throws SubmissionNotFoundException if no submission with the given ID exists
+     */
     public boolean deleteSubmission(Long submissionId) {
         log.debug("Calling gRPC DeleteSubmission for submission ID: {}", submissionId);
         try {
@@ -177,6 +207,14 @@ public class SubmissionServiceClient {
 
     // ========== Asset Management ==========
 
+    /**
+     * Uploads an asset file for a specific submission.
+     *
+     * @param submissionId the ID of the submission to upload the asset for
+     * @param file         the file to upload
+     * @return the uploaded Asset object containing metadata
+     * @throws AssetUploadException if the upload fails or times out
+     */
     public Asset uploadAsset(Long submissionId, MultipartFile file) {
         log.debug("Starting asset upload for submission ID: {}, filename: {}, size: {} bytes", submissionId,
                 file.getOriginalFilename(), file.getSize());
@@ -206,6 +244,12 @@ public class SubmissionServiceClient {
         }
     }
 
+    /**
+     * Lists all assets associated with a specific submission.
+     *
+     * @param submissionId the ID of the submission to list assets for
+     * @return AssetList containing all assets for the submission
+     */
     public AssetList listAssets(Long submissionId) {
         log.debug("Listing assets for submission ID: {}", submissionId);
         try {
@@ -223,6 +267,12 @@ public class SubmissionServiceClient {
         }
     }
 
+    /**
+     * Downloads an asset file by its ID.
+     *
+     * @param assetId the ID of the asset to download
+     * @return byte array containing the asset file content
+     */
     public byte[] downloadAsset(Long assetId) {
         log.debug("Downloading asset with ID: {}", assetId);
         try {
@@ -257,6 +307,12 @@ public class SubmissionServiceClient {
         }
     }
 
+    /**
+     * Deletes an asset by its ID.
+     *
+     * @param assetId the ID of the asset to delete
+     * @return true if deletion was successful, false otherwise
+     */
     public boolean deleteAsset(Long assetId) {
         log.debug("Calling gRPC DeleteAsset for asset ID: {}", assetId);
         try {
@@ -273,6 +329,12 @@ public class SubmissionServiceClient {
 
     // ========== Private Helper Methods ==========
 
+    /**
+     * Creates a gRPC stream observer for uploading assets.
+     *
+     * @param future CompletableFuture to complete with the uploaded Asset
+     * @return StreamObserver for UploadAssetRequest
+     */
     private StreamObserver<UploadAssetRequest> createUploadStream(CompletableFuture<Asset> future) {
         return asyncStub.uploadAsset(new StreamObserver<Asset>() {
             @Override
@@ -294,6 +356,13 @@ public class SubmissionServiceClient {
         });
     }
 
+    /**
+     * Sends asset metadata to the gRPC server.
+     *
+     * @param requestObserver the StreamObserver to send requests
+     * @param submissionId    the ID of the submission this asset belongs to
+     * @param file            the file being uploaded
+     */
     private void sendAssetMetadata(StreamObserver<UploadAssetRequest> requestObserver, Long submissionId,
                                    MultipartFile file) {
         UploadAssetMetadata metadata =
@@ -305,6 +374,14 @@ public class SubmissionServiceClient {
         log.debug("Sent metadata: filename={}, size={} bytes", file.getOriginalFilename(), file.getSize());
     }
 
+    /**
+     * Streams the file content in chunks to the gRPC server.
+     *
+     * @param requestObserver the StreamObserver to send requests
+     * @param file            the file to upload
+     * @return total number of bytes sent
+     * @throws IOException if an error occurs while reading the file
+     */
     private long streamFileContent(StreamObserver<UploadAssetRequest> requestObserver, MultipartFile file) throws IOException {
         byte[] buffer = new byte[uploadConfig.getChunkSize()];
         long totalSent = 0;

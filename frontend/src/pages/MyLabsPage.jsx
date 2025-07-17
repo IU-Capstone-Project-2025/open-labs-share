@@ -3,12 +3,15 @@ import { useNavigate } from "react-router-dom";
 import LabCard from "../components/LabCard";
 import { labsAPI } from "../utils/api";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
+import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function MyLabsPage() {
   const [myLabs, setMyLabs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [labToDelete, setLabToDelete] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,7 +25,7 @@ export default function MyLabsPage() {
     const fetchMyLabs = async () => {
       try {
         setLoading(true);
-        const response = await labsAPI.getMyLabs(1, 20); // page=1, limit=20
+        const response = await labsAPI.getMyLabs(1, 20);
         setMyLabs(response.labs || []);
       } catch (err) {
         console.error('Error fetching my labs:', err);
@@ -45,6 +48,69 @@ export default function MyLabsPage() {
     navigate('/create-lab');
   };
 
+  const handleDeleteClick = (e, lab) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLabToDelete(lab);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!labToDelete) return;
+
+    try {
+      const deletedLabId = labToDelete.id || labToDelete.lab_id;
+      console.log('Deleting lab with ID:', deletedLabId);
+      console.log('Lab to delete:', labToDelete);
+      await labsAPI.deleteLab(deletedLabId);
+      console.log('Before filter - labs count:', myLabs.length);
+      setMyLabs(prev => {
+        const filtered = prev.filter(lab => (lab.id || lab.lab_id) !== deletedLabId);
+        console.log('After filter - labs count:', filtered.length);
+        console.log('Filtered labs:', filtered);
+        return filtered;
+      });
+      setShowDeleteModal(false);
+      setLabToDelete(null);
+    } catch (error) {
+      console.error('Error deleting lab:', error);
+      setError('Failed to delete lab. Please try again.');
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setLabToDelete(null);
+  };
+
+  const ConfirmationModal = () => {
+    if (!showDeleteModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full animate-fade-in">
+          <p className="text-gray-800 dark:text-gray-200 mb-4">
+            Are you sure you want to delete the lab "{labToDelete?.title}"?
+          </p>
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={handleCancelDelete}
+              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (!isAuthenticated()) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -58,13 +124,14 @@ export default function MyLabsPage() {
               </p>
               <button 
                 onClick={() => navigate('/login')}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-msc text-white rounded-lg hover:bg-msc-hover transition-colors"
               >
                 Sign In
               </button>
             </div>
           </div>
         </div>
+        <ConfirmationModal />
       </div>
     );
   }
@@ -95,6 +162,7 @@ export default function MyLabsPage() {
             </div>
           </div>
         </div>
+        <ConfirmationModal />
       </div>
     );
   }
@@ -108,7 +176,7 @@ export default function MyLabsPage() {
           </h1>
           <button
             onClick={handleCreateLab}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            className="inline-flex items-center px-4 py-2 bg-msc text-white dark:bg-white dark:text-msc text-sm font-medium rounded-lg hover:bg-msc-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-msc transition-colors"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -127,7 +195,7 @@ export default function MyLabsPage() {
               </p>
               <button
                 onClick={handleCreateLab}
-                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                className="inline-flex items-center px-6 py-3 bg-msc text-white dark:bg-white dark:text-msc font-medium rounded-lg hover:bg-msc-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-msc transition-colors"
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -139,11 +207,21 @@ export default function MyLabsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {myLabs.map((lab) => (
-              <LabCard key={lab.id || lab.lab_id} lab={lab} />
+              <div key={lab.id || lab.lab_id} className="relative group">
+                <LabCard lab={lab} />
+                <button
+                  onClick={(e) => handleDeleteClick(e, lab)}
+                  className="absolute top-2 right-2 p-1.5 bg-gray-200 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300 hover:bg-red-200 dark:hover:bg-red-800 hover:text-red-600 dark:hover:text-red-200 transition-colors opacity-0 group-hover:opacity-100"
+                  aria-label="Delete lab"
+                >
+                  <TrashIcon className="w-5 h-5" />
+                </button>
+              </div>
             ))}
           </div>
         )}
       </div>
+      <ConfirmationModal />
     </div>
   );
 }

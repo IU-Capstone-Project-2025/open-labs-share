@@ -13,11 +13,11 @@ if os.path.exists(dotenv_path):
 
 class Config:
     # General config
-    SERVICE_HOST = os.getenv("SERVICE_HOST", "localhost")
+    SERVICE_HOST = os.getenv("SERVICE_HOST", "127.0.0.1")
     SERVICE_PORT = os.getenv("SERVICE_PORT", "50051")
 
     # MinIO config
-    MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
+    MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "127.0.0.1:9000")
     MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
     MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
     MINIO_ROOT_USER = os.getenv("MINIO_ROOT_USER", "minioadmin")

@@ -1,16 +1,108 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { feedbackAPI } from '../utils/api';
+import { feedbackAPI, submissionsAPI, labsAPI } from '../utils/api';
 import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
+import { PaperClipIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import ToastNotification from '../components/ToastNotification';
+
+const formatDateTime = (dateString) => {
+  if (!dateString) return 'Unknown date';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    return date.toLocaleString();
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
+};
 
 const FeedbackViewPage = () => {
   const { feedbackId } = useParams();
   const navigate = useNavigate();
   const [feedback, setFeedback] = useState(null);
+  const [labTitle, setLabTitle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [downloadingFiles, setDownloadingFiles] = useState(new Set());
+  const [toast, setToast] = useState({ show: false, message: "", type: "" });
   const user = useUser();
+
+  const getFeedbackFileUrl = (feedbackId, filename) => {
+    const minioEndpoint = import.meta.env.VITE_MINIO_ENDPOINT || 'http://localhost:9000';
+    return `${minioEndpoint}/feedback/${feedbackId}/${filename}`;
+  };
+
+  const downloadFile = async (filename) => {
+    if (!feedbackId || !filename) return;
+
+    try {
+      setDownloadingFiles(prev => new Set(prev).add(filename));
+      
+      const url = getFeedbackFileUrl(feedbackId, filename);
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download file: HTTP ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      setToast({ show: true, message: `Downloaded ${filename} successfully!`, type: 'success' });
+    } catch (error) {
+      console.error(`Error downloading file ${filename}:`, error);
+      setToast({ show: true, message: `Failed to download ${filename}: ${error.message}`, type: 'error' });
+    } finally {
+      setDownloadingFiles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(filename);
+        return newSet;
+      });
+    }
+  };
+
+  const downloadAllFiles = async () => {
+    if (!feedback?.attachments || feedback.attachments.length === 0) return;
+
+    try {
+      setDownloadingFiles(prev => new Set([...prev, 'all']));
+      
+      if (feedback.attachments.length === 1) {
+        await downloadFile(feedback.attachments[0].filename);
+        return;
+      }
+
+      for (const attachment of feedback.attachments) {
+        await downloadFile(attachment.filename);
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      setToast({ show: true, message: 'All files downloaded successfully!', type: 'success' });
+    } catch (error) {
+      console.error('Error downloading all files:', error);
+      setToast({ show: true, message: `Failed to download all files: ${error.message}`, type: 'error' });
+    } finally {
+      setDownloadingFiles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete('all');
+        return newSet;
+      });
+    }
+  };
 
   useEffect(() => {
     const fetchFeedback = async () => {
@@ -28,6 +120,18 @@ const FeedbackViewPage = () => {
         }
         
         setFeedback(response);
+        
+        try {
+          const submission = await submissionsAPI.getSubmissionById(response.submissionId);
+          const labId = submission.labId || submission.data?.labId;
+          
+          if (labId) {
+            const lab = await labsAPI.getLabById(labId);
+            setLabTitle(lab?.title);
+          }
+        } catch (labErr) {
+          console.error('Failed to fetch lab data:', labErr);
+        }
       } catch (err) {
         setError(err.message || 'Feedback details could not be uploaded.');
         console.error(err);
@@ -67,54 +171,99 @@ const FeedbackViewPage = () => {
         </Link>
       </div>
 
-      <h1 className="text-3xl font-bold mb-4">
-        Feedback for submission #{feedback.submissionId}
+      <h1 className="text-3xl font-bold mb-4 dark:text-white">
+        Feedback for submission to "{labTitle || `Lab #${feedback.submissionId}`}"
       </h1>
 
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
-        <h2 className="text-xl font-semibold mb-2">Feedback details</h2>
-        <div className="mb-4">
+        <h2 className="text-xl font-semibold mb-2 dark:text-white">Feedback details</h2>
+        <div className="mb-4 dark:text-white">
           <strong>Student:</strong> {feedback.student.name} {feedback.student.surname} ({feedback.student.username})
         </div>
-        <div className="mb-4">
-          <strong>Student's email address:</strong> {feedback.student.email}
-        </div>
-        <div className="mb-4">
-          <strong>Date of creation:</strong> {new Date(feedback.createdAt).toLocaleString()}
+        <div className="mb-4 dark:text-white">
+          <strong>Date of creation:</strong> {formatDateTime(feedback.createdAt)}
         </div>
         
-        <h2 className="text-xl font-semibold mb-2 mt-6">Your feedback</h2>
+        <h2 className="text-xl font-semibold mb-2 mt-6 dark:text-white">Your feedback</h2>
         <div className="prose dark:prose-invert max-w-none bg-gray-50 dark:bg-gray-700 p-4 rounded-md">
-          <p className="whitespace-pre-wrap">{feedback.content}</p>
+          <p className="whitespace-pre-wrap dark:text-white">{feedback.content}</p>
         </div>
 
         {feedback.attachments && feedback.attachments.length > 0 && (
           <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-2">Attached files:</h3>
-            <ul className="list-disc list-inside mt-2 space-y-1">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold dark:text-white">Attached Files ({feedback.attachments.length}):</h3>
+              {feedback.attachments.length > 1 && (
+                <button
+                  onClick={downloadAllFiles}
+                  disabled={downloadingFiles.has('all')}
+                  className="flex items-center px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 disabled:bg-green-400 transition-colors"
+                >
+                  {downloadingFiles.has('all') ? (
+                    <>
+                      <Spinner className="w-4 h-4 mr-2" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+                      Download All
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+            <div className="space-y-2">
               {feedback.attachments.map((attachment, index) => (
-                <li key={index} className="flex items-center">
-                  <a 
-                    href={`/api/feedback/attachments/${attachment.feedback_id}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline flex items-center"
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div className="flex items-center">
+                    <PaperClipIcon className="w-5 h-5 text-gray-500 mr-3" />
+                    <div>
+                      <div className="font-medium text-gray-900 dark:text-white">
+                        {attachment.filename}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {Math.round(attachment.total_size / 1024)} KB
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => downloadFile(attachment.filename)}
+                    disabled={downloadingFiles.has(attachment.filename)}
+                    className="flex items-center px-3 py-1.5 bg-msc text-white text-sm rounded-md hover:bg-msc-hover disabled:bg-blue-400 transition-colors"
                   >
-                    <span className="mr-1">📎</span>
-                    {attachment.filename} ({Math.round(attachment.total_size / 1024)} KB)
-                  </a>
-                </li>
+                    {downloadingFiles.has(attachment.filename) ? (
+                      <>
+                        <Spinner className="w-4 h-4 mr-2" />
+                        Downloading...
+                      </>
+                    ) : (
+                      <>
+                        <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+                        Download
+                      </>
+                    )}
+                  </button>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         )}
         
         <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-600">
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            <p>Last update: {new Date(feedback.updatedAt).toLocaleString()}</p>
+            <p>Last update: {formatDateTime(feedback.updatedAt)}</p>
           </div>
         </div>
       </div>
+
+      {toast.show && (
+        <ToastNotification 
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ show: false, message: "", type: "" })}
+        />
+      )}
     </div>
   );
 };

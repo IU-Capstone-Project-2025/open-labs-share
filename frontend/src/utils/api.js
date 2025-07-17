@@ -1,7 +1,12 @@
+
 // In production, all API calls are sent to the same origin, and Nginx proxies them.
 // In development, we explicitly target the API gateway's exposed port.
-const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_ENDPOINT || (import.meta.env.PROD ? '' : 'http://localhost/api/v1');
+const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL ? 
+                     `${import.meta.env.VITE_API_GATEWAY_URL}/api/v1` :
+                     'http://localhost:8080/api/v1';
+                     
 const ML_BASE_URL = import.meta.env.VITE_ML_ENDPOINT || 'http://localhost:8081';
+
 
 /**
  * A unified function for making API calls to the backend gateway.
@@ -46,7 +51,11 @@ const apiCall = async (path, options = {}) => {
           message: `API call failed with status ${response.status}. Server response: ${shortText}` 
         };
       }
-      throw new Error(errorData.message || `API error: ${response.statusText}`);
+      // Throw the full error object, not just a string
+      const error = new Error(errorData.message || `API error: ${response.statusText}`);
+      error.data = errorData;
+      error.status = response.status;
+      throw error;
     }
 
     // Handle responses that might not have a JSON body
@@ -210,31 +219,67 @@ export const submissionsAPI = {
 
 // --- ML API ---
 export const mlAPI = {
-  getChatHistory: (uuid, assignment_id) => fetch(`${ML_BASE_URL}/get_chat_history?uuid=${uuid}&assignment_id=${assignment_id}`),
-  askAgent: (uuid, assignment_id, content) => fetch(`${ML_BASE_URL}/ask`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ uuid, assignment_id, content }),
-  }),
-  // Updated: expects { uuid, assignment_id, submission_id, webhook_url }
+  getChatHistory: async (uuid, assignment_id) => {
+    const resp = await fetch(`${ML_BASE_URL}/get_chat_history?uuid=${uuid}&assignment_id=${assignment_id}`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!resp.ok) {
+      let errorText = await resp.text();
+      throw new Error(errorText);
+    }
+    return resp.json();
+  },
+  askAgent: async (uuid, assignment_id, content) => {
+    const resp = await fetch(`${ML_BASE_URL}/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uuid, assignment_id, content }),
+    });
+    if (!resp.ok) {
+      let errorText = await resp.text();
+      throw new Error(errorText);
+    }
+    return resp.json();
+  },
   startAutoGrading: ({ uuid, assignment_id, submission_id, webhook_url }) => fetch(`${ML_BASE_URL}/auto_grade_submission`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ uuid, assignment_id, submission_id, webhook_url: webhook_url || 'http://localhost:8080/webhook' }),
+    body: JSON.stringify({ uuid, assignment_id, submission_id, webhook_url: webhook_url || 'http://localhost:8081' }),
   }),
-  // Updated: expects all params as query
-  getGradingResult: ({ uuid, assignment_id, submission_id, webhook_url }) => {
-    const params = new URLSearchParams({ uuid, assignment_id, submission_id, webhook_url: webhook_url || 'http://localhost:8080/webhook' });
-    return fetch(`${ML_BASE_URL}/get_auto_grade_result?${params.toString()}`);
+  getGradingResult: async ({ uuid, assignment_id, submission_id, webhook_url }) => {
+    const params = new URLSearchParams({
+      uuid: String(uuid),
+      assignment_id: String(assignment_id),
+      submission_id: String(submission_id),
+      webhook_url: String(webhook_url)
+    });
+    const resp = await fetch(`${ML_BASE_URL}/get_auto_grade_result?${params.toString()}`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!resp.ok) {
+      let errorText = await resp.text();
+      throw new Error(errorText);
+    }
+    return resp.json();
   },
-  getGradingStatus: ({ uuid, assignment_id, submission_id, webhook_url }) => {
-    const params = new URLSearchParams({ uuid, assignment_id, submission_id, webhook_url: webhook_url || 'http://localhost:8080/webhook' });
-    return fetch(`${ML_BASE_URL}/get_auto_grade_status?${params.toString()}`);
-  },
+  getGradingStatus: async ({ uuid, assignment_id, submission_id, webhook_url }) => {
+    const params = new URLSearchParams({
+      uuid: String(uuid),
+      assignment_id: String(assignment_id),
+      submission_id: String(submission_id),
+      webhook_url: String(webhook_url)
+    });
+    const resp = await fetch(`${ML_BASE_URL}/get_auto_grade_status?${params.toString()}`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!resp.ok) {
+      let errorText = await resp.text();
+      throw new Error(errorText);
+    }
+    return resp.json();
+  }
 };
 
 // --- Feedback API ---

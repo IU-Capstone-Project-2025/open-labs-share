@@ -6,6 +6,7 @@ from sqlalchemy import select
 # Import built-in modules
 import os
 import logging
+import json
 
 # Import project files
 from config import Config
@@ -45,8 +46,24 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             submissions_stub.Status.REJECTED: 3
         }
 
-        if not self.minio_client.bucket_exists("submissions"):
-            self.minio_client.make_bucket("submissions")
+        bucket_name = "submissions"
+        if not self.minio_client.bucket_exists(bucket_name):
+            self.minio_client.make_bucket(bucket_name)
+            self.logger.info(f"Bucket '{bucket_name}' created.")
+
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {"AWS": "*"},
+                    "Action": "s3:GetObject",
+                    "Resource": f"arn:aws:s3:::{bucket_name}/*"
+                }
+            ]
+        }
+        self.minio_client.set_bucket_policy(bucket_name, json.dumps(policy))
+        self.logger.info(f"Public read policy set for bucket '{bucket_name}'.")
 
         # Ensure the temporary files directory exists
         if not os.path.exists('files'):
