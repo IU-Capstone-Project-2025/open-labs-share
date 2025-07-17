@@ -1,4 +1,4 @@
-name: Unified CI v2
+name: Unified CI
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      services: ${{ steps.changes.outputs.services }}
+      services: ${{ steps.changes.outputs.changes }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v2
