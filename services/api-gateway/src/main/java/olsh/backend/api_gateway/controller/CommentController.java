@@ -64,20 +64,20 @@ public class CommentController {
             @ApiResponse(responseCode = "404", description = "Lab not found")
     })
     public ResponseEntity<CommentResponse> createCommentArticle(
-            @Parameter(description = "ID of the article to comment on", required = true) @PathVariable long labId,
+            @Parameter(description = "ID of the article to comment on", required = true) @PathVariable("articleId") long articleId,
             @Valid @RequestBody @Parameter(description = "Request to create comment") CreateCommentRequest request,
             HttpServletRequest httpRequest) {
         long userId = attributesExtractor.extractUserIdFromRequest(httpRequest);
-        CommentResponse response = commentService.createComment(labId, userId, request, "article");
+        CommentResponse response = commentService.createComment(articleId, userId, request, "article");
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/articles/{articleId}/comments")
     @Operation(summary = "List comments for a article", description = "Retrieves a paginated list of top-level comments for a specific article.")
     public ResponseEntity<CommentListResponse> getLabCommentsArticle(
-            @Parameter(description = "ID of the article", required = true) @PathVariable long labId,
+            @Parameter(description = "ID of the article", required = true) @PathVariable("articleId") long articleId,
             @Valid @ParameterObject GetCommentsRequest request) {
-        CommentListResponse response = commentService.getLabComments(labId, request, "article");
+        CommentListResponse response = commentService.getLabComments(articleId, request, "article");
         return ResponseEntity.ok(response);
     }
 
