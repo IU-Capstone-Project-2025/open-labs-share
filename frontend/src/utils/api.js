@@ -279,7 +279,19 @@ export const mlAPI = {
       throw new Error(errorText);
     }
     return resp.json();
-  }
+  },
+  indexAssignment: async (assignment_id) => {
+    const resp = await fetch(`${ML_BASE_URL}/index_assignment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignment_id: String(assignment_id) })
+    });
+    if (!resp.ok) {
+      let errorText = await resp.text();
+      throw new Error(errorText);
+    }
+    return;
+  },
 };
 
 // --- Feedback API ---
