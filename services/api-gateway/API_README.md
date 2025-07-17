@@ -1137,7 +1137,7 @@ assets: file[] (required) - Submission files
 ```json
 {
   "id": "string (UUID)",
-  "labId": number,
+  "contentId": number,
   "userId": number,
   "firstName": "string",
   "lastName": "string",
@@ -1177,7 +1177,7 @@ assets: file[] (required) - Submission files
   "comments": [
     {
       "id": "string (UUID)",
-      "labId": number,
+      "contentId": number,
       "userId": number,
       "firstName": "string",
       "lastName": "string",
@@ -1217,7 +1217,7 @@ assets: file[] (required) - Submission files
 ```json  
 {
   "id": "string (UUID)",
-  "labId": number,
+  "contentId": number,
   "userId": number,
   "firstName": "string",
   "lastName": "string",
@@ -1256,7 +1256,7 @@ assets: file[] (required) - Submission files
   "comments": [
     {
       "id": "string (UUID)",
-      "labId": number,
+      "contentId": number,
       "userId": number,
       "firstName": "string",
       "lastName": "string",
@@ -1304,7 +1304,7 @@ assets: file[] (required) - Submission files
 ```json  
 {
   "id": "string (UUID)",
-  "labId": number,
+  "contentId": number,
   "userId": number,
   "firstName": "string",
   "lastName": "string",
