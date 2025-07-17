@@ -6,6 +6,7 @@ import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
 import { DocumentTextIcon, ClockIcon, UserIcon, PaperClipIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import ToastNotification from '../components/ToastNotification';
+import ReactMarkdown from 'react-markdown';
 
 const formatDate = (dateString) => {
   if (!dateString) return 'Unknown date';
@@ -510,22 +511,56 @@ const SubmissionPage = () => {
       </div>
 
       {/* Autograding Results Section */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-8">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-8 mt-4">
         <h2 className="text-2xl font-semibold mb-4">Autograding Results</h2>
         {gradingLoading ? (
           <div className="flex items-center space-x-2 text-blue-500"><Spinner className="w-5 h-5" /> <span>Checking autograding status...</span></div>
         ) : gradingError ? (
           <div className="text-red-500">{gradingError}</div>
-        ) : gradingStatus ? (
-          <div className="mb-2">
-            <span className="font-medium">Status:</span> {gradingStatus}
-          </div>
-        ) : (
+        ) : !gradingResult ? (
           <div className="text-gray-500">No autograding information available.</div>
-        )}
+        ) : null}
         {gradingResult && (
-          <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded">
-            <pre className="whitespace-pre-wrap text-sm">{JSON.stringify(gradingResult, null, 2)}</pre>
+          <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded space-y-4">
+            <h3 className="text-lg font-semibold mb-2">Autograding Breakdown</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <span className="font-medium">Code Elegance:</span> {gradingResult.code_elegance_grade ?? '-'} / 10
+              </div>
+              <div>
+                <span className="font-medium">Correctness:</span> {gradingResult.correctness_grade ?? '-'} / 10
+              </div>
+              <div>
+                <span className="font-medium">Documentation:</span> {gradingResult.documentation_grade ?? '-'} / 10
+              </div>
+              <div>
+                <span className="font-medium">Readability:</span> {gradingResult.readability_grade ?? '-'} / 10
+              </div>
+            </div>
+            {gradingResult.code_elegance_feedback && (
+              <div>
+                <h4 className="font-semibold mt-4 mb-1">Code Elegance Feedback</h4>
+                <p className="text-gray-800 dark:text-gray-200 whitespace-pre-line">{gradingResult.code_elegance_feedback}</p>
+              </div>
+            )}
+            {gradingResult.correctness_feedback && (
+              <div>
+                <h4 className="font-semibold mt-4 mb-1">Correctness Feedback</h4>
+                <p className="text-gray-800 dark:text-gray-200 whitespace-pre-line">{gradingResult.correctness_feedback}</p>
+              </div>
+            )}
+            {gradingResult.documentation_feedback && (
+              <div>
+                <h4 className="font-semibold mt-4 mb-1">Documentation Feedback</h4>
+                <p className="text-gray-800 dark:text-gray-200 whitespace-pre-line">{gradingResult.documentation_feedback}</p>
+              </div>
+            )}
+            {gradingResult.readability_feedback && (
+              <div>
+                <h4 className="font-semibold mt-4 mb-1">Readability Feedback</h4>
+                <p className="text-gray-800 dark:text-gray-200 whitespace-pre-line">{gradingResult.readability_feedback}</p>
+              </div>
+            )}
           </div>
         )}
       </div>
