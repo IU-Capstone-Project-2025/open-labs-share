@@ -22,7 +22,7 @@ func NewCommentService(commentRepo repository.CommentRepository) *CommentService
 }
 
 // CreateComment creates a new comment
-func (s *CommentService) CreateComment(ctx context.Context, contentID, userID int64, parentID *string, content string) (*models.Comment, error) {
+func (s *CommentService) CreateComment(ctx context.Context, contentID, userID int64, parentID *string, content string, commentType string) (*models.Comment, error) {
 	// Validate input
 	if contentID <= 0 {
 		return nil, fmt.Errorf("invalid content ID")
@@ -32,6 +32,12 @@ func (s *CommentService) CreateComment(ctx context.Context, contentID, userID in
 	}
 	if content == "" {
 		return nil, fmt.Errorf("content is required")
+	}
+	if commentType == "" {
+		return nil, fmt.Errorf("type is required")
+	}
+	if commentType != "lab" && commentType != "article" {
+		return nil, fmt.Errorf("invalid type: must be 'lab' or 'article'")
 	}
 
 	// Validate parent comment exists if specified
@@ -48,6 +54,7 @@ func (s *CommentService) CreateComment(ctx context.Context, contentID, userID in
 		UserID:    userID,
 		ParentID:  parentID,
 		Content:   content,
+		Type:      commentType,
 	}
 
 	// Save to MongoDB
@@ -108,11 +115,14 @@ func (s *CommentService) DeleteComment(ctx context.Context, id string) error {
 }
 
 // ListComments lists comments by content ID
-func (s *CommentService) ListComments(ctx context.Context, contentID int64, parentID *string, page, limit int32) ([]*models.Comment, int32, error) {
-	log.Printf("ListComments called: contentID=%d, parentID=%v, page=%d, limit=%d", contentID, parentID, page, limit)
+func (s *CommentService) ListComments(ctx context.Context, contentID int64, parentID *string, page, limit int32, commentType string) ([]*models.Comment, int32, error) {
+	log.Printf("ListComments called: contentID=%d, parentID=%v, page=%d, limit=%d, type=%s", contentID, parentID, page, limit, commentType)
 
 	if contentID <= 0 {
 		return nil, 0, fmt.Errorf("invalid content ID")
+	}
+	if commentType != "lab" && commentType != "article" {
+		return nil, 0, fmt.Errorf("invalid type: must be 'lab' or 'article'")
 	}
 	if page <= 0 {
 		page = 1
@@ -126,10 +136,11 @@ func (s *CommentService) ListComments(ctx context.Context, contentID int64, pare
 		ParentID:  parentID,
 		Page:      page,
 		Limit:     limit,
+		Type:      commentType,
 	}
 
 	// Log the request
-	log.Printf("Listing comments - ContentID: %d, ParentID: %v, Page: %d, Limit: %d", contentID, parentID, page, limit)
+	log.Printf("Listing comments - ContentID: %d, ParentID: %v, Page: %d, Limit: %d, Type: %s", contentID, parentID, page, limit, commentType)
 
 	comments, totalCount, err := s.commentRepo.ListByContext(ctx, filter)
 	if err != nil {

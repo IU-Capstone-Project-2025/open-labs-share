@@ -169,6 +169,7 @@ func (r *commentRepository) ListByContext(ctx context.Context, filter models.Com
 	// Build base filter
 	mongoFilter := bson.M{
 		"content_id": filter.ContentID,
+		"type":       filter.Type,
 	}
 
 	// Add parent filter (null for top-level comments, specific ID for replies)
