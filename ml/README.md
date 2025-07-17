@@ -80,7 +80,6 @@ class AutoGradingRequest(BaseModel):
     uuid: str
     assignment_id: str
     submission_id: str
-    webhook_url: str 
 ```
 
 Response Model:
@@ -90,12 +89,6 @@ class AutoGradingTaskResponse(BaseModel):
     status: str
 ```
 
-### How to use
-In webhook_url field put your listener, example:
-http://name-of-docker-service:internal-port-of-docker-service/listener
-
-When task is completed you will receive request with grading result.
-Later to load results just send request to `/get_auto_grade_result`
 
 ## **/get_auto_grade_result** `GET` 
 
@@ -143,3 +136,14 @@ class AutoGradingTaskResponse(BaseModel):
     task_id: str
     status: str
 ```
+
+## **/index_assignment** `POST`
+Adds assignment to vector db
+
+Request Model:
+```
+assignment_id: str
+```
+
+Response Model:
+```HTTP 204```

@@ -241,19 +241,18 @@ export const mlAPI = {
     }
     return resp.json();
   },
-  startAutoGrading: ({ uuid, assignment_id, submission_id, webhook_url }) => fetch(`${ML_BASE_URL}/auto_grade_submission`, {
+  startAutoGrading: async ({ uuid, assignment_id, submission_id }) => await fetch(`${ML_BASE_URL}/auto_grade_submission`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ uuid, assignment_id, submission_id, webhook_url: webhook_url || 'http://localhost:8081' }),
+    body: JSON.stringify({ uuid, assignment_id, submission_id}),
   }),
-  getGradingResult: async ({ uuid, assignment_id, submission_id, webhook_url }) => {
+  getGradingResult: async ({ uuid, assignment_id, submission_id }) => {
     const params = new URLSearchParams({
       uuid: String(uuid),
       assignment_id: String(assignment_id),
       submission_id: String(submission_id),
-      webhook_url: String(webhook_url)
     });
     const resp = await fetch(`${ML_BASE_URL}/get_auto_grade_result?${params.toString()}`, {
       headers: { 'Content-Type': 'application/json' }

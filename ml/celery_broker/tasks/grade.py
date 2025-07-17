@@ -13,12 +13,10 @@ def get_service():
     return AutoGradingService(agent, repo)
 
 @celery_app.task
-def grade_submission_task(request: dict, webhook_url):
+def grade_submission_task(request: dict):
     service = get_service()
     try:
         result = asyncio.run(service.grade(AutoGradingRequest(**request)))
-        httpx.post(webhook_url, json=result)
         return result
     except Exception as e:
         print(f"Error during grading: {e}")
-        httpx.post(webhook_url, json={"error": str(e)})
