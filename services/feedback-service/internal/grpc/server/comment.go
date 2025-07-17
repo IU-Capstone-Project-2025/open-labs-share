@@ -50,13 +50,17 @@ func (s *commentServer) CreateComment(ctx context.Context, req *pb.CreateComment
 		log.Printf("gRPC CreateComment error: content is required")
 		return nil, status.Error(codes.InvalidArgument, "content is required")
 	}
+	if req.Type == "" {
+		log.Printf("gRPC CreateComment error: type is required")
+		return nil, status.Error(codes.InvalidArgument, "type is required")
+	}
 
 	var parentID *string
 	if req.ParentId != nil {
 		parentID = req.ParentId
 	}
 
-	comment, err := s.commentService.CreateComment(ctx, req.ContentId, req.UserId, parentID, req.Content)
+	comment, err := s.commentService.CreateComment(ctx, req.ContentId, req.UserId, parentID, req.Content, req.Type)
 	if err != nil {
 		log.Printf("gRPC CreateComment error: failed to create comment: %v", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create comment: %v", err))
@@ -70,6 +74,7 @@ func (s *commentServer) CreateComment(ctx context.Context, req *pb.CreateComment
 		Content:   comment.Content,
 		CreatedAt: timestamppb.New(comment.CreatedAt),
 		UpdatedAt: timestamppb.New(comment.UpdatedAt),
+		Type:      comment.Type,
 	}
 
 	log.Printf("gRPC CreateComment response: Id=%s, ContentId=%d, UserId=%d, ParentId=%v", response.Id, response.ContentId, response.UserId, response.ParentId)
@@ -99,6 +104,7 @@ func (s *commentServer) GetComment(ctx context.Context, req *pb.GetCommentReques
 		Content:   comment.Content,
 		CreatedAt: timestamppb.New(comment.CreatedAt),
 		UpdatedAt: timestamppb.New(comment.UpdatedAt),
+		Type:      comment.Type,
 	}
 
 	log.Printf("gRPC GetComment response: Id=%s, ContentId=%d, UserId=%d, ParentId=%v", response.Id, response.ContentId, response.UserId, response.ParentId)
@@ -150,6 +156,7 @@ func (s *commentServer) UpdateComment(ctx context.Context, req *pb.UpdateComment
 		Content:   comment.Content,
 		CreatedAt: timestamppb.New(comment.CreatedAt),
 		UpdatedAt: timestamppb.New(comment.UpdatedAt),
+		Type:      comment.Type,
 	}
 
 	log.Printf("gRPC UpdateComment response: Id=%s, ContentId=%d, UserId=%d, UpdatedAt=%v", response.Id, response.ContentId, response.UserId, response.UpdatedAt.AsTime())
@@ -195,10 +202,13 @@ func (s *commentServer) DeleteComment(ctx context.Context, req *pb.DeleteComment
 
 // ListComments lists comments by context
 func (s *commentServer) ListComments(ctx context.Context, req *pb.ListCommentsRequest) (*pb.ListCommentsResponse, error) {
-	log.Printf("gRPC ListComments received: ContentId=%d, ParentId=%v, Page=%d, Limit=%d", req.ContentId, req.ParentId, req.Page, req.Limit)
+	log.Printf("gRPC ListComments received: ContentId=%d, ParentId=%v, Page=%d, Limit=%d, Type=%s", req.ContentId, req.ParentId, req.Page, req.Limit, req.Type)
 
 	if req.ContentId <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "content_id is required")
+	}
+	if req.Type == "" {
+		return nil, status.Error(codes.InvalidArgument, "type is required")
 	}
 
 	var parentID *string
@@ -206,7 +216,7 @@ func (s *commentServer) ListComments(ctx context.Context, req *pb.ListCommentsRe
 		parentID = req.ParentId
 	}
 
-	comments, totalCount, err := s.commentService.ListComments(ctx, req.ContentId, parentID, req.Page, req.Limit)
+	comments, totalCount, err := s.commentService.ListComments(ctx, req.ContentId, parentID, req.Page, req.Limit, req.Type)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list comments: %v", err))
 	}
@@ -221,6 +231,7 @@ func (s *commentServer) ListComments(ctx context.Context, req *pb.ListCommentsRe
 			Content:   comment.Content,
 			CreatedAt: timestamppb.New(comment.CreatedAt),
 			UpdatedAt: timestamppb.New(comment.UpdatedAt),
+			Type:      comment.Type,
 		}
 	}
 
@@ -256,6 +267,7 @@ func (s *commentServer) GetCommentReplies(ctx context.Context, req *pb.GetCommen
 			Content:   comment.Content,
 			CreatedAt: timestamppb.New(comment.CreatedAt),
 			UpdatedAt: timestamppb.New(comment.UpdatedAt),
+			Type:      comment.Type,
 		}
 	}
 
