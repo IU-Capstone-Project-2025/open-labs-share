@@ -105,7 +105,7 @@ class CommentServiceTest {
         // Then
         verify(labService).getLabById(validLabId);
         assertThat(result).isNotNull();
-        assertThat(result.getLabId()).isEqualTo(validLabId);
+        assertThat(result.getContentId()).isEqualTo(validLabId);
     }
 
     @Test

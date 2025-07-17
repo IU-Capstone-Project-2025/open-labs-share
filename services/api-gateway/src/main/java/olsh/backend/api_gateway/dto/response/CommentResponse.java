@@ -16,8 +16,8 @@ public class CommentResponse {
     @Schema(description = "Comment ID in UUID format", example = "c1b2c3d4-e5f6-7890-1234-567890abcdef")
     private String id;
 
-    @Schema(description = "Lab ID the comment belongs to", example = "123")
-    private Long labId;
+    @Schema(description = "Content (lab/article) ID the comment belongs to", example = "123")
+    private Long contentId;
 
     @Schema(description = "User ID who created the comment", example = "456")
     private Long userId;

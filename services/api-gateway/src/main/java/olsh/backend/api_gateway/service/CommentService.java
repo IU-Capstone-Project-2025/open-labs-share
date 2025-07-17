@@ -182,7 +182,7 @@ public class CommentService {
     private CommentResponse mapCommentToResponse(CommentProto.Comment Comment) {
         return CommentResponse.builder()
                 .id(Comment.getId())
-                .labId(Comment.getContentId())
+                .contentId(Comment.getContentId())
                 .userId(Comment.getUserId())
                 .parentId(Comment.hasParentId() ? Comment.getParentId() : null)
                 .content(Comment.getContent())
