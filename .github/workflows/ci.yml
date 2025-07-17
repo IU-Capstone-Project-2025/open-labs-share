@@ -188,13 +188,12 @@ jobs:
   build-and-push-ml:
     needs: [detect-changes, test-java, test-python, test-go]
     if: success() && contains(needs.detect-changes.outputs.services, 'ml-service')
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Build and Push ML Service
-        uses: ./.github/actions/build-and-push
-        with:
-          service_name: 'ml-service'
-          github_token: ${{ secrets.GITHUB_TOKEN }} 
+        run: |
+          echo "Temporarily skipping ML service build and push due to server issues."
+          exit 0
