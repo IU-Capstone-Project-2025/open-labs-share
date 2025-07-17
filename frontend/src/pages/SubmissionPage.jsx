@@ -364,16 +364,20 @@ const SubmissionPage = () => {
       try {
         const statusData = await mlAPI.getGradingStatus(params);
         setGradingStatus(statusData.status || statusData);
-        if (statusData.status === 'completed' || statusData.status === 'COMPLETED' || statusData.status === 'done' || statusData === 'completed') {
+        console.log('Grading status:', statusData.status === 'SUCCESS');
+
+        if (statusData.status === 'SUCCESS' || statusData.status === 'success') {
           try {
             const resultData = await mlAPI.getGradingResult(params);
+            console.log('Grading res:', resultData);
+
             setGradingResult(resultData);
           } catch (err) {
             setGradingResult(null);
             setGradingError('Failed to fetch grading result');
           }
           setGradingLoading(false);
-        } else if (statusData.status === 'failed' || statusData.status === 'FAILED' || statusData === 'failed') {
+        } else if (statusData.status === 'FAILURE') {
           setGradingError('Autograding failed');
           setGradingLoading(false);
         } else {

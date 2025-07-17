@@ -57,7 +57,7 @@ async def auto_grade_submission(
 ):
     try:
         result = grade_submission_task.delay( # type: ignore
-            request.model_dump(), request.webhook_url
+            request.model_dump()
         )
         tasks_service.save_mapping(request, result.id)
 
