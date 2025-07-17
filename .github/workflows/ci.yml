@@ -1,4 +1,4 @@
-name: Unified CI
+name: Unified CI v2
 
 on:
   push:
