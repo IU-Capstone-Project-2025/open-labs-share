@@ -22,6 +22,7 @@ message Comment {
   string content = 5;
   google.protobuf.Timestamp created_at = 6;
   google.protobuf.Timestamp updated_at = 7;
+  string type = 8; // Type of content (e.g., "lab", "article")
 }
 
 message CreateCommentRequest {
@@ -29,6 +30,7 @@ message CreateCommentRequest {
   int64 user_id = 2;
   optional string parent_id = 3; // for replies
   string content = 4; // Markdown content
+  string type = 5; // Type of content (e.g., "lab", "article")
 }
 
 message GetCommentRequest {
@@ -55,6 +57,7 @@ message ListCommentsRequest {
   optional string parent_id = 2;
   int32 page = 3;
   int32 limit = 4;
+  string type = 5; // Type of content (e.g., "lab", "article")
 }
 
 message ListCommentsResponse {

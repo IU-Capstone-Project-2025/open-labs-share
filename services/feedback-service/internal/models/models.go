@@ -35,6 +35,7 @@ type Comment struct {
 	Content   string             `bson:"content" json:"content"` // Markdown content
 	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time          `bson:"updated_at" json:"updated_at"`
+	Type      string             `bson:"type" json:"type"` // Type of content (e.g., "lab", "article")
 }
 
 // AttachmentInfo represents metadata about attachments stored in MinIO
@@ -85,4 +86,5 @@ type CommentFilter struct {
 	ParentID  *string
 	Page      int32
 	Limit     int32
+	Type      string
 }
