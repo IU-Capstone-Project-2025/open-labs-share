@@ -34,13 +34,14 @@ public class CommentService {
      * @param request the request containing comment details
      * @return the created comment response
      */
-    public CommentResponse createComment(Long labId, Long userId, CreateCommentRequest request) {
+    public CommentResponse createComment(Long labId, Long userId, CreateCommentRequest request, String type) {
         validateLabExists(labId);
         CommentProto.CreateCommentRequest grpcRequest = CommentProto.CreateCommentRequest.newBuilder()
                 .setContentId(labId)
                 .setUserId(userId)
                 .setContent(request.getContent())
                 .setParentId(request.getParentId())
+                .setType(type)
                 .build();
         CommentProto.Comment comment = commentServiceClient.createComment(grpcRequest);
         CommentResponse response = mapCommentToResponse(comment);
@@ -73,12 +74,13 @@ public class CommentService {
      * @param request the request containing pagination details
      * @return the list of comments for the lab
      */
-    public CommentListResponse getLabComments(long labId, GetCommentsRequest request) {
+    public CommentListResponse getLabComments(long labId, GetCommentsRequest request, String type) {
         validateLabExists(labId);
         CommentProto.ListCommentsRequest grpcRequest = CommentProto.ListCommentsRequest.newBuilder()
                 .setContentId(labId)
                 .setPage(request.getPage())
                 .setLimit(request.getLimit())
+                .setType(type)
                 .build();
         CommentProto.ListCommentsResponse grpcResponse = commentServiceClient.getComments(grpcRequest);
         CommentListResponse response = mapCommentsToResponse(grpcResponse.getCommentsList(),
