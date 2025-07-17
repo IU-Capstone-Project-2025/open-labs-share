@@ -23,19 +23,35 @@ This is a "cold" start of your system, which is performed once before you begin 
     ```bash
     docker-compose --profile test up -d --build
     ```
-    This command will build all the necessary Docker images for the first time (this may take a while) and run the containers in the background.
 
-3.  **Launch Verification:**
-    *   **Frontend:** Open `http://127.0.0.1/` in your browser. You should see your interface.
-    *   **HAProxy Stats:** Open `http://127.0.0.1:8404/` and make sure that traffic (session) is active on the `blue` backends.
+3.  Run the command to start **ML** environment and all ML-related services (can be used as addiion to "test" profile):
+    ```bash
+    docker-compose --profile ml up -d --build
+    ```
+4.  **Launch Verification:**
+    *   **Frontend:** Open `http://localhost/` in your browser. You should see your interface.
+    *   **HAProxy Stats:** Open `http://localhost:8404/` and make sure that traffic (session) is active on the `blue` backends.
 
-## Step 3.1: Full Cleanup (Local Testing)
+
+## Step 3: Cleanup
+
+1.  Run the command to clean **test** environment and all shared services (databases, HAProxy, etc.):
+    ```bash
+    docker-compose --profile test down -v # --volumes (ARE IMPORTANT)
+    ```
+2.  Run the command to clean **ML** environment and all ML-related services:
+    ```bash
+    docker-compose --profile ml down -v # --volumes (ARE IMPORTANT)
+    ``` 
+
+
+## Step 4.1: Full Cleanup (Local Testing)
 
 **Important: This is used for testing Docker ONLY locally.**
 
 Use `docker system prune -af` to remove all unused images and containers with its volumes.
 
-## Step 3.2: Full Cleanup (Server Side)
+## Step 4.2: Full Cleanup (Server Side)
 
 **Important: This is used for testing Docker ONLY on the server side.**
 

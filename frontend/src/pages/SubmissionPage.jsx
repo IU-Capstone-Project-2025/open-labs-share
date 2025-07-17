@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { labsAPI, submissionsAPI, feedbackAPI } from '../utils/api';
+import { mlAPI } from '../utils/api';
 import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
 import { DocumentTextIcon, ClockIcon, UserIcon, PaperClipIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
@@ -222,6 +223,11 @@ const SubmissionPage = () => {
   const [feedbackError, setFeedbackError] = useState(null);
   const [downloadingFiles, setDownloadingFiles] = useState(new Set());
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
+  const [gradingStatus, setGradingStatus] = useState(null);
+  const [gradingResult, setGradingResult] = useState(null);
+  const [gradingError, setGradingError] = useState(null);
+  const [gradingLoading, setGradingLoading] = useState(false);
+
 
   const getSubmissionFileUrl = (submissionId, filename) => {
     const minioEndpoint = import.meta.env.VITE_MINIO_ENDPOINT || 'http://localhost:9000';
@@ -400,7 +406,7 @@ const SubmissionPage = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
-        Submission for: {lab?.title || `Lab #${submission.labId}`}
+        Submission for: "{lab?.title || `Lab #${submission.labId}`}"
       </h1>
       <p className="text-gray-600 dark:text-gray-400 mb-8">
         Submitted on: {formatDateTime(submission.createdAt)} by {submission.owner?.username || 'Unknown User'}
@@ -498,6 +504,28 @@ const SubmissionPage = () => {
           </div>
         )}
       </div>
+
+      {/* Autograding Results Section */}
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-8">
+        <h2 className="text-2xl font-semibold mb-4">Autograding Results</h2>
+        {gradingLoading ? (
+          <div className="flex items-center space-x-2 text-blue-500"><Spinner className="w-5 h-5" /> <span>Checking autograding status...</span></div>
+        ) : gradingError ? (
+          <div className="text-red-500">{gradingError}</div>
+        ) : gradingStatus ? (
+          <div className="mb-2">
+            <span className="font-medium">Status:</span> {gradingStatus}
+          </div>
+        ) : (
+          <div className="text-gray-500">No autograding information available.</div>
+        )}
+        {gradingResult && (
+          <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded">
+            <pre className="whitespace-pre-wrap text-sm">{JSON.stringify(gradingResult, null, 2)}</pre>
+          </div>
+        )}
+      </div>
+
 
       {toast.show && (
         <ToastNotification 

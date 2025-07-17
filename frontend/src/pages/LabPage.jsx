@@ -11,6 +11,7 @@ import GemIcon from "../components/GemIcon";
 import CommentsSection from "../components/CommentsSection";
 import ChatWindow from "../components/ChatWindow";
 import ToastNotification from "../components/ToastNotification";
+import { mlAPI } from "../utils/api.js";
 import MarpRenderer from '../components/MarpRenderer';
 import { getCurrentUser, isAuthenticated, notifyUserDataUpdate } from "../utils/auth";
 import { labsAPI, submissionsAPI } from "../utils/api";
@@ -102,6 +103,30 @@ export default function LabPage() {
 
     try {
       setUploading(true);
+
+      const submission = await submissionsAPI.submitLabSolution(id, submissionText, files);
+      const submissionId = submission.submissionId || submission.id;
+      let autoGradeStarted = false;
+      if (submissionId && user?.id && id) {
+        try {
+          const resp = await mlAPI.startAutoGrading({
+            uuid: String(user.id),
+            assignment_id: String(id),
+            submission_id: String(submissionId),
+            webhook_url: 'http://localhost:8081',
+          });
+          if (resp.ok) {
+            autoGradeStarted = true;
+          } else {
+            const text = await resp.text();
+            setToast({ show: true, message: `Autograding failed to start: ${text}`, type: "error" });
+          }
+        } catch (err) {
+          setToast({ show: true, message: `Autograding error: ${err.message}`, type: "error" });
+        }
+      }
+
+
       const submission = await submissionsAPI.submitLabSolution(id, submissionText, files);
       const submissionId = submission.submissionId || submission.id;
       let autoGradeStarted = false;
@@ -125,12 +150,11 @@ export default function LabPage() {
       }
 
       const updatedUser = { ...user, balance: user.balance - 1 };
-
       localStorage.setItem("user", JSON.stringify(updatedUser));
-
       notifyUserDataUpdate();
 
-      setToast({ show: true, message: "Your solution was uploaded successfully!", type: "success" });
+      setToast({ show: true, message: `Your solution was uploaded successfully!${autoGradeStarted ? ' Autograding started.' : ''}`, type: "success" });
+
       setFiles([]);
       setSubmissionText("");
     } catch (err) {

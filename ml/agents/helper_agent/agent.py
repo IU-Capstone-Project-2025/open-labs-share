@@ -1,4 +1,5 @@
-from langchain_community.vectorstores import FAISS
+from langchain_qdrant import QdrantVectorStore
+from qdrant_client import QdrantClient
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_huggingface.llms import HuggingFacePipeline
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
@@ -17,30 +18,32 @@ from agents.helper_agent.config import \
     LLM_MODEL_NAME, \
     DEVICE, \
     SCORE_THRESHOLD
+from rag_backend.repositories import QdrantRepository
 from rag_backend.config import POSTGRES_URL
 import logging
 import torch
+import os
 
 
 logger = logging.getLogger(__name__)
 
 class HelperAgent(BaseAgent):
-    def __init__(self):
+    def __init__(self, qdrant_repo: QdrantRepository):
+        self._qdrant_repo = qdrant_repo
+
         self._load_vector_storage()
         self._load_llm()
         self._load_graph_builder()
 
     def _load_vector_storage(self) -> None:
         try:
-            self._embedding_model = HuggingFaceEmbeddings(
-                model_name=EMBEDDING_MODEL_NAME,
-                model_kwargs={"device": DEVICE},
-                encode_kwargs={"normalize_embeddings": True}
-            )
-            self._db = FAISS.load_local(
-                RAG_DB_PATH,
-                self._embedding_model,
-                allow_dangerous_deserialization=True
+            self._qdrant_client = self._qdrant_repo.qdrant_client
+            self._db = QdrantVectorStore(
+                client=self._qdrant_client,
+                collection_name="labs_collection",
+                embedding=self._qdrant_repo.embedding_model,
+                # metadata_payload_key="payload",
+                content_payload_key="text"
             )
             self._retriever = self._db.as_retriever(
                 search_type="similarity",
@@ -49,6 +52,8 @@ class HelperAgent(BaseAgent):
                     "score_threshold": SCORE_THRESHOLD,
                 }
             )
+
+            logger.info(f"SCORE THRESHOLD {str(SCORE_THRESHOLD)}")
 
             logger.info("Vector storage loaded successfully")
         except Exception as e:

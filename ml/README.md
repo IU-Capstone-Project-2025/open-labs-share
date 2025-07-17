@@ -4,7 +4,7 @@
 ```
 DEVICE="cuda"
 RAG_DB_PATH="faiss"
-SCORE_THRESHOLD="1.0"
+SCORE_THRESHOLD="0.5"
 EMBEDDING_MODEL_NAME="BAAI/bge-small-en-v1.5"
 LLM_MODEL_NAME="Qwen/Qwen2.5-Coder-1.5B-Instruct"
 PDF_DIR="data/predator-pray-22/pdfs"

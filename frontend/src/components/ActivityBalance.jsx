@@ -65,7 +65,7 @@ export default function ActivityBalance({ stats }) {
         Your Activity & Balance
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Link to="/labs/all" className="block hover:scale-105 transform transition-transform duration-300">
+        <Link to="/all-labs" className="block hover:scale-105 transform transition-transform duration-300">
           <StatCard
             icon={<GemIcon className="w-6 h-6 text-blue-600 dark:text-blue-300" />}
             value={pointsBalance}
@@ -83,7 +83,7 @@ export default function ActivityBalance({ stats }) {
             color="green"
           />
         </Link>
-        <Link to="/submissions/review" className="block hover:scale-105 transform transition-transform duration-300">
+        <Link to="/reviews" className="block hover:scale-105 transform transition-transform duration-300">
           <StatCard
             icon={<EyeIcon className="w-6 h-6 text-purple-600 dark:text-purple-300" />}
             value={labsReviewed}
