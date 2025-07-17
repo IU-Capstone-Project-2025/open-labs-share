@@ -129,6 +129,17 @@ jobs:
         run: |
           if [ -f requirements.txt ] && grep -q pytest requirements.txt; then
             pytest
+            exit_code=$?
+            # Exit code 5 means no tests were found. In this case, we succeed.
+            if [ $exit_code -eq 5 ]; then
+              echo "===================="
+              echo "NO TESTS FOUND"
+              echo "===================="
+              exit 0
+            # For any other non-zero exit code, we fail the job.
+            elif [ $exit_code -ne 0 ]; then
+              exit $exit_code
+            fi
           else
             echo "No tests configured for ${{ matrix.service }}"
           fi
@@ -155,6 +166,10 @@ jobs:
           key: ${{ runner.os }}-go-feedback-${{ hashFiles('services/feedback-service/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-feedback-
+
+      - name: Install dependencies
+        working-directory: services/feedback-service
+        run: go mod tidy
 
       - name: Run tests
         working-directory: services/feedback-service
