@@ -11,11 +11,13 @@ RUN npm install
 COPY frontend/ ./
 
 # Accept build arguments for environment variables
+ARG VITE_API_GATEWAY_URL
 ARG VITE_API_GATEWAY_ENDPOINT
 ARG VITE_AUTH_API_ENDPOINT
 
 # Create a .env file for the build process
-RUN echo "VITE_API_GATEWAY_ENDPOINT=${VITE_API_GATEWAY_ENDPOINT}" > .env
+RUN echo "VITE_API_GATEWAY_URL=${VITE_API_GATEWAY_URL}" > .env
+RUN echo "VITE_API_GATEWAY_ENDPOINT=${VITE_API_GATEWAY_ENDPOINT}" >> .env
 RUN echo "VITE_AUTH_API_ENDPOINT=${VITE_AUTH_API_ENDPOINT}" >> .env
 
 # Build the application
