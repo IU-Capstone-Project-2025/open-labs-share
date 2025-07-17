@@ -262,6 +262,7 @@ export default function LabPage() {
           await mlAPI.indexAssignment(id);
         } catch (err) {
           //setToast({ show: true, message: `Failed to index assignment: ${err.message}`, type: 'error' });
+
         }
       } catch (err) {
         setError(`Failed to load lab: ${err.message}`);
