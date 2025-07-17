@@ -280,10 +280,14 @@ export const mlAPI = {
     return resp.json();
   },
   indexAssignment: async (assignment_id) => {
+    const formData = new FormData();
+    console.log("ID", assignment_id)
+    formData.append("assignment_id", String(assignment_id));
+
+
     const resp = await fetch(`${ML_BASE_URL}/index_assignment`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assignment_id: String(assignment_id) })
+      body: formData
     });
     if (!resp.ok) {
       let errorText = await resp.text();
