@@ -168,7 +168,7 @@ jobs:
 
   build-and-push-regular:
     needs: [detect-changes, test-java, test-python, test-go]
-    if: success() && needs.detect-changes.outputs.services != '' && contains(needs.detect-changes.outputs.services, 'ml-service') == false
+    if: success() && needs.detect-changes.outputs.services != ''
     runs-on: ubuntu-latest
     strategy:
       matrix:
