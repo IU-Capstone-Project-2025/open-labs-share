@@ -1,7 +1,10 @@
 // Authentication utility for Open Labs Share
 // This connects to the real auth service API
 
-import { authAPI } from './api';
+import { API_BASE_URL } from './api';
+
+let userData = null;
+const userDataUpdateCallbacks = [];
 
 // Use API Gateway for all authentication requests in production
 const AUTH_API_ENDPOINT = `${import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080'}/api/v1/auth`;
@@ -343,6 +346,14 @@ export const changePassword = async (currentPassword, newPassword) => {
 // Fetch user profile from the server and update local storage
 export const getUserProfile = async () => {
   try {
+    // Note: /api/v1/auth/profile endpoint doesn't exist in current API
+    // For now, return cached user data from localStorage
+    const cachedUser = getCurrentUser();
+    if (cachedUser) {
+      return cachedUser;
+    }
+    
+    // If no cached data, try the API call (will likely fail until backend implements this)
     const response = await authAPI.getProfile();
     const { userInfo } = response;
 
@@ -361,21 +372,15 @@ export const getUserProfile = async () => {
 
       // Update local storage
       localStorage.setItem('user', JSON.stringify(userData));
-
-      // Don't notify here to prevent infinite loops - App.jsx handles this
-      // notifyUserDataUpdate();
       
       return userData;
     }
     return null;
   } catch (error) {
-    console.error('Get user profile error:', error);
-    // If token is expired or invalid, sign out the user
-    if (error.message.includes('401') || error.message.includes('403')) {
-      await signOut();
-      window.location.href = '/login'; // Redirect to login
-    }
-    return null;
+    console.warn('Get user profile API not available, using cached data:', error);
+    // Return cached user data instead of failing
+    const cachedUser = getCurrentUser();
+    return cachedUser;
   }
 };
 

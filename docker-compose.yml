@@ -21,7 +21,6 @@ services:
 
   haproxy:
     image: haproxy:2.8
-    command: sh -c "haproxy -f /usr/local/etc/haproxy/haproxy.cfg -p /var/run/haproxy.pid & sleep 2 && haproxy -x /tmp/haproxy.sock -sf $(cat /var/run/haproxy.pid)"
     volumes:
       - ./haproxy:/usr/local/etc/haproxy:ro
     environment:
@@ -33,6 +32,7 @@ services:
       - blue-network
       - green-network
     restart: unless-stopped
+    profiles: ["blue", "green"]
 
 
   cadvisor:
@@ -56,8 +56,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.frontend
       args:
-        - VITE_API_GATEWAY_ENDPOINT=https://open-labs-share.online/api/v1
-        - VITE_AUTH_API_ENDPOINT=https://open-labs-share.online/api/v1/auth
+        - VITE_API_GATEWAY_URL=http://localhost
     environment:
       - NODE_ENV=production
       - VITE_API_GATEWAY_ENDPOINT=https://open-labs-share.online/api/v1
@@ -282,8 +281,8 @@ services:
       - POSTGRES_HOST=postgres-ml
       - POSTGRES_PORT=5432
       - POSTGRES_DB=chat_history_db
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
     expose:
       - "8082"
     volumes:
@@ -347,268 +346,6 @@ services:
     restart: unless-stopped
     profiles: ["blue"]
 
-  # --- Test Environment ---
-  frontend-test:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.frontend
-      args:
-        - VITE_API_GATEWAY_ENDPOINT=http://127.0.0.1/api/v1
-        - VITE_AUTH_API_ENDPOINT=http://127.0.0.1/api/v1/auth
-    environment:
-      - NODE_ENV=production
-      - VITE_API_GATEWAY_ENDPOINT=http://127.0.0.1/api/v1
-      - AUTH_SERVICE_HOST_NGINX=auth-service-test
-      - API_GATEWAY_HOST_NGINX=api-gateway-test
-    expose:
-      - "80"
-    networks:
-      - blue-network
-    restart: unless-stopped
-    profiles: ["test"]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:5173"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 300s
-
-  api-gateway-test:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.api-gateway
-    environment:
-      - SPRING_APP_PORT=8080
-      - AUTH_SERVICE_HOST=auth-service-test
-      - AUTH_SERVICE_PORT=9092
-      - USER_SERVICE_HOST=users-service-test
-      - USER_SERVICE_PORT=9093
-      - LAB_SERVICE_HOST=labs-service-test
-      - LAB_SERVICE_PORT=9091
-      - ARTICLE_SERVICE_HOST=articles-service-test
-      - ARTICLE_SERVICE_PORT=50051
-      - ML_SERVICE_HOST=ml-service
-      - ML_SERVICE_PORT=8081
-      - SPRING_PROFILES_ACTIVE=docker
-      - FEEDBACK_SERVICE_HOST=feedback-service-test
-      - FEEDBACK_SERVICE_PORT=9090
-    expose:
-      - "8080"
-    networks:
-      - blue-network
-    restart: unless-stopped
-    depends_on:
-      - auth-service-test
-      - users-service-test
-      - labs-service-test
-      - articles-service-test
-      - feedback-service-test
-      # - ml-service
-    profiles: ["test"]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 300s
-
-  auth-service-test:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.auth-service
-    environment:
-      - PORT=8081
-      - GRPC_PORT=9092
-      - USERS_SERVICE_HOST=users-service-test
-      - USERS_SERVICE_PORT=9093
-      - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:-adminadmin}
-      - SPRING_PROFILES_ACTIVE=docker
-    expose:
-      - "8081"
-    networks:
-      - blue-network
-    restart: unless-stopped
-    profiles: ["test"]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8081/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 300s
-
-  users-service-test:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.users-service
-    environment:
-      - GRPC_PORT=9093
-      - DB_URL=jdbc:postgresql://postgres-users:5432/users_service
-      - DB_USERNAME=users_user
-      - DB_PASSWORD=${POSTGRES_USERS_PASSWORD:-postgres}
-      - SPRING_PROFILES_ACTIVE=docker
-    networks:
-      - blue-network
-    restart: unless-stopped
-    depends_on:
-      - postgres-users
-    profiles: ["test"]
-    healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:9093"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 300s
-    depends_on:
-      - postgres-users
-
-  labs-service-test:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.labs-service
-    environment:
-      - SERVICE_HOST=0.0.0.0
-      - SERVICE_PORT=9091
-      - POSTGRESQL_HOST=postgres-labs
-      - POSTGRESQL_PORT=5432
-      - POSTGRESQL_USER=labs_user
-      - POSTGRESQL_PASSWORD=${POSTGRES_LABS_PASSWORD:-postgres}
-      - POSTGRESQL_NAME=labs_db
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
-      - MONGODB_HOST=mongodb-labs
-      - MONGODB_PORT=27017
-      - MONGODB_USER=${MONGO_ROOT_USER:-mongo}
-      - MONGODB_PASSWORD=${MONGO_ROOT_PASSWORD:-mongo}
-      - MONGODB_NAME=labs_mongo_db
-    networks:
-      - blue-network
-    restart: unless-stopped
-    depends_on:
-      - postgres-labs
-    profiles: ["test"]
-    healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:9091"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 300s
-    depends_on:
-      - postgres-labs
-      - mongodb-labs
-      - minio
-
-  articles-service-test:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.articles-service
-    environment:
-      - SERVICE_HOST=0.0.0.0
-      - SERVICE_PORT=50051
-      - POSTGRES_HOST=postgres-articles
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=articles_user
-      - POSTGRES_PASSWORD=${POSTGRES_ARTICLES_PASSWORD:-password}
-      - POSTGRES_NAME=articles_db
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
-    networks:
-      - blue-network
-    restart: unless-stopped
-    depends_on:
-      - postgres-articles
-    profiles: ["test"]
-    healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:50051"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 300s
-    depends_on:
-      - postgres-articles
-      - minio
-
-  feedback-service-test:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.feedback-service
-    environment:
-      - GRPC_PORT=9090
-      - POSTGRES_HOST=postgres-feedback
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=feedback_user
-      - POSTGRES_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD:-feedback_password}
-      - POSTGRES_DB=feedback_db
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
-      - MINIO_BUCKET_NAME=feedback
-      - MINIO_USE_SSL=false
-      - MONGODB_URI=mongodb://${MONGO_ROOT_USER:-adminadmin}:${MONGO_ROOT_PASSWORD:-adminadmin}@mongodb-feedback:27017
-      - MONGODB_DATABASE=feedback
-      - MONGODB_COLLECTION=comments
-    networks:
-      - blue-network
-    restart: unless-stopped
-    depends_on:
-      - postgres-feedback
-    profiles: ["test"]
-    healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:9090"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 300s
-    depends_on:
-      - postgres-feedback
-      - mongodb-feedback
-      - minio
-
-
-  marimo-manager-service-test:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.marimo-manager-service
-    environment:
-      - SERVER_PORT=8084
-      - DB_URL=jdbc:postgresql://postgres-marimo:5432/marimo_service
-      - DB_USERNAME=${POSTGRES_MARIMO_USER:-marimo_user}
-      - DB_PASSWORD=${POSTGRES_MARIMO_PASSWORD:-password}
-      - PYTHON_SERVICE_HOST=marimo-executor-service-test
-      - PYTHON_SERVICE_PORT=9095
-      - AUTH_SERVICE_HOST=auth-service-test
-      - AUTH_SERVICE_PORT=9092
-      - USERS_SERVICE_HOST=users-service-test
-      - USERS_SERVICE_PORT=9093
-      - ARTICLES_SERVICE_HOST=articles-service-test
-      - ARTICLES_SERVICE_PORT=50051
-      - LABS_SERVICE_HOST=labs-service-test
-      - LABS_SERVICE_PORT=9091
-      - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
-      - MINIO_BUCKET=marimo
-      - SPRING_PROFILES_ACTIVE=docker
-    depends_on:
-      - postgres-marimo
-      - marimo-executor-service-test
-    networks:
-      - blue-network
-    restart: unless-stopped
-    profiles: ["test"]
-
-  marimo-executor-service-test:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.marimo-executor-service
-    environment:
-      - GRPC_PORT=9095
-    networks:
-      - blue-network
-    restart: unless-stopped
-    profiles: ["test"]
-
   # --- Green Environment ---
   frontend-green:
     image: ghcr.io/iu-capstone-project-2025/open-labs-share-frontend:${IMAGE_TAG:-latest}
@@ -616,8 +353,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.frontend
       args:
-        - VITE_API_GATEWAY_ENDPOINT=http://127.0.0.1/api/v1
-        - VITE_AUTH_API_ENDPOINT=http://127.0.0.1/api/v1/auth
+        - VITE_API_GATEWAY_URL=http://localhost
     environment:
       - NODE_ENV=production
       - VITE_API_GATEWAY_ENDPOINT=https://open-labs-share.online/api/v1
@@ -906,6 +642,391 @@ services:
     restart: unless-stopped
     profiles: ["green"]
 
+  # --- Local Development Services ---
+  
+  haproxy-test:
+    image: haproxy:2.8
+    volumes:
+      - ./haproxy/haproxy.test.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "80:80"
+      - "8404:8404"
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
+
+  # --- Test Environment ---
+  frontend-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        - VITE_API_GATEWAY_URL=http://localhost
+    environment:
+      - NODE_ENV=development
+      - AUTH_SERVICE_HOST_NGINX=auth-service-test
+      - API_GATEWAY_HOST_NGINX=api-gateway-test
+    expose:
+      - "80"
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 300s
+
+  api-gateway-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api-gateway
+    environment:
+      - SPRING_APP_PORT=8080
+      - AUTH_SERVICE_HOST=auth-service-test
+      - AUTH_SERVICE_PORT=9092
+      - USER_SERVICE_HOST=users-service-test
+      - USER_SERVICE_PORT=9093
+      - LAB_SERVICE_HOST=labs-service-test
+      - LAB_SERVICE_PORT=9091
+      - ARTICLE_SERVICE_HOST=articles-service-test
+      - ARTICLE_SERVICE_PORT=50051
+      - SPRING_PROFILES_ACTIVE=docker
+      - FEEDBACK_SERVICE_HOST=feedback-service-test
+      - FEEDBACK_SERVICE_PORT=9090
+    expose:
+      - "8080"
+    networks:
+      - blue-network
+    restart: unless-stopped
+    depends_on:
+      - auth-service-test
+      - users-service-test
+      - labs-service-test
+      - articles-service-test
+      - feedback-service-test
+    profiles: ["test"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+
+  auth-service-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.auth-service
+    environment:
+      - PORT=8081
+      - GRPC_PORT=9092
+      - USERS_SERVICE_HOST=users-service-test
+      - USERS_SERVICE_PORT=9093
+      - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:-adminadmin}
+      - SPRING_PROFILES_ACTIVE=docker
+    expose:
+      - "8081"
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+
+  users-service-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.users-service
+    environment:
+      - GRPC_PORT=9093
+      - DB_URL=jdbc:postgresql://postgres-users:5432/users_service
+      - DB_USERNAME=users_user
+      - DB_PASSWORD=${POSTGRES_USERS_PASSWORD:-postgres}
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - blue-network
+    restart: unless-stopped
+    depends_on:
+      - postgres-users
+    profiles: ["test"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:9093"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+
+  labs-service-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.labs-service
+    environment:
+      - SERVICE_HOST=0.0.0.0
+      - SERVICE_PORT=9091
+      - POSTGRESQL_HOST=postgres-labs
+      - POSTGRESQL_PORT=5432
+      - POSTGRESQL_USER=labs_user
+      - POSTGRESQL_PASSWORD=${POSTGRES_LABS_PASSWORD:-postgres}
+      - POSTGRESQL_NAME=labs_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MONGODB_HOST=mongodb-labs
+      - MONGODB_PORT=27017
+      - MONGODB_USER=${MONGO_ROOT_USER:-mongo}
+      - MONGODB_PASSWORD=${MONGO_ROOT_PASSWORD:-mongo}
+      - MONGODB_NAME=labs_mongo_db
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:9091"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+    depends_on:
+      - postgres-labs
+      - mongodb-labs
+      - minio
+
+  articles-service-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.articles-service
+    environment:
+      - SERVICE_HOST=0.0.0.0
+      - SERVICE_PORT=50051
+      - POSTGRES_HOST=postgres-articles
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=articles_user
+      - POSTGRES_PASSWORD=${POSTGRES_ARTICLES_PASSWORD:-password}
+      - POSTGRES_NAME=articles_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:50051"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+    depends_on:
+      - postgres-articles
+      - minio
+
+  feedback-service-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.feedback-service
+    environment:
+      - GRPC_PORT=9090
+      - POSTGRES_HOST=postgres-feedback
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=feedback_user
+      - POSTGRES_PASSWORD=${POSTGRES_FEEDBACK_PASSWORD:-feedback_password}
+      - POSTGRES_DB=feedback_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BUCKET_NAME=feedback
+      - MINIO_USE_SSL=false
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USER:-adminadmin}:${MONGO_ROOT_PASSWORD:-adminadmin}@mongodb-feedback:27017
+      - MONGODB_DATABASE=feedback
+      - MONGODB_COLLECTION=comments
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:9090"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+    depends_on:
+      - postgres-feedback
+      - mongodb-feedback
+      - minio
+
+
+  marimo-manager-service-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.marimo-manager-service
+    environment:
+      - SERVER_PORT=8084
+      - DB_URL=jdbc:postgresql://postgres-marimo:5432/marimo_service
+      - DB_USERNAME=${POSTGRES_MARIMO_USER:-marimo_user}
+      - DB_PASSWORD=${POSTGRES_MARIMO_PASSWORD:-password}
+      - PYTHON_SERVICE_HOST=marimo-executor-service-test
+      - PYTHON_SERVICE_PORT=9095
+      - AUTH_SERVICE_HOST=auth-service-test
+      - AUTH_SERVICE_PORT=9092
+      - USERS_SERVICE_HOST=users-service-test
+      - USERS_SERVICE_PORT=9093
+      - ARTICLES_SERVICE_HOST=articles-service-test
+      - ARTICLES_SERVICE_PORT=50051
+      - LABS_SERVICE_HOST=labs-service-test
+      - LABS_SERVICE_PORT=9091
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BUCKET=marimo
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - postgres-marimo
+      - marimo-executor-service-test
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
+
+  marimo-executor-service-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.marimo-executor-service
+    environment:
+      - GRPC_PORT=9095
+    networks:
+      - blue-network
+    restart: unless-stopped
+    profiles: ["test"]
+
+
+  # --- ML Environment ---
+  ml-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ml-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SERVICE_PORT=8081
+      - DEVICE=cpu
+      - RAG_DB_PATH=/app/ml/faiss
+      - SCORE_THRESHOLD=0.5
+      - EMBEDDING_MODEL_NAME=BAAI/bge-small-en-v1.5
+      - LLM_MODEL_NAME=Qwen/Qwen2.5-Coder-1.5B-Instruct
+      - PDF_DIR=/app/ml/data/predator-pray-22/pdfs
+      - CODE_DIR=/app/ml/data/predator-pray-22/code
+      - POSTGRES_USER=ml_user
+      - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD}
+      - POSTGRES_HOST=postgres-ml
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=chat_history_db
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - REDIS_BROKER_URL=${REDIS_BROKER_URL}
+      - QDRANT_HOST=${QDRANT_HOST}
+      - QDRANT_PORT=${QDRANT_PORT}
+    volumes:
+      - ./ml:/app/ml
+      - ml-models:/app/models
+    restart: unless-stopped
+    depends_on:
+      postgres-ml:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      ml-celery-worker:
+        condition: service_started
+      ml-qdrant:
+        condition: service_started
+    networks:
+      - blue-network
+      - green-network
+    profiles:
+      - ml
+
+  postgres-ml:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=chat_history_db
+      - POSTGRES_USER=ml_user
+      - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD:-password}
+    volumes:
+      - postgres-ml-data:/var/lib/postgresql/data
+    networks:
+      - blue-network
+      - green-network
+    profiles:
+      - ml
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ml_user -d chat_history_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 300s
+      
+  ml-redis-broker:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - blue-network
+      - green-network
+    profiles:
+      - ml
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 300s
+      
+
+  ml-celery-worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ml-celery-worker
+    environment:
+      - REDIS_BROKER_URL=${REDIS_BROKER_URL}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ./ml:/app/ml
+    depends_on:
+      - ml-redis-broker
+      - minio
+    networks:
+      - blue-network
+      - green-network
+    profiles:
+      - ml
+    healthcheck:
+      test: ["CMD", "celery", "-A", "celery_broker.worker.celery_app", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 300s
+
+  ml-qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - blue-network
+      - green-network
+    restart: unless-stopped
+    profiles:
+      - ml
+      
   # --- Shared Services ---
   postgres-users:
     image: postgres:15
@@ -983,132 +1104,6 @@ services:
       retries: 5
       start_period: 300s
 
-  ml-service:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.ml-service
-    ports:
-      - "8081:8081"
-    environment:
-      - SERVICE_PORT=8081
-      - DEVICE=cpu
-      - RAG_DB_PATH=/app/ml/faiss
-      - SCORE_THRESHOLD=0.5
-      - EMBEDDING_MODEL_NAME=BAAI/bge-small-en-v1.5
-      - LLM_MODEL_NAME=Qwen/Qwen2.5-Coder-1.5B-Instruct
-      - PDF_DIR=/app/ml/data/predator-pray-22/pdfs
-      - CODE_DIR=/app/ml/data/predator-pray-22/code
-      - POSTGRES_USER=ml_user
-      - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD}
-      - POSTGRES_HOST=postgres-ml
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=chat_history_db
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
-      - REDIS_BROKER_URL=${REDIS_BROKER_URL}
-      - QDRANT_HOST=${QDRANT_HOST}
-      - QDRANT_PORT=${QDRANT_PORT}
-    volumes:
-      - ./ml:/app/ml
-      - ml-models:/app/models
-    restart: unless-stopped
-    depends_on:
-      postgres-ml:
-        condition: service_healthy
-      minio:
-        condition: service_started
-      ml-celery-worker:
-        condition: service_started
-      ml-qdrant:
-        condition: service_started
-    networks:
-      - blue-network
-      - green-network
-    profiles:
-      - ml
-
-  postgres-ml:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=chat_history_db
-      - POSTGRES_USER=ml_user
-      - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD:-password}
-    volumes:
-      - postgres-ml-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ml_user -d chat_history_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - blue-network
-      - green-network
-    profiles:
-      - ml
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ml_user -d chat_history_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 300s
-      
-  ml-redis-broker:
-    image: redis:7
-    ports:
-      - "6379:6379"
-    restart: unless-stopped
-    networks:
-      - blue-network
-      - green-network
-    profiles:
-      - ml
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 300s
-      
-
-  ml-celery-worker:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.ml-celery-worker
-    environment:
-      - REDIS_BROKER_URL=${REDIS_BROKER_URL}
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
-    volumes:
-      - ./ml:/app/ml
-    depends_on:
-      - ml-redis-broker
-      - minio
-    networks:
-      - blue-network
-      - green-network
-    profiles:
-      - ml
-    healthcheck:
-      test: ["CMD", "celery", "-A", "celery_broker.worker.celery_app", "status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 300s
-
-  ml-qdrant:
-    image: qdrant/qdrant:latest
-    ports:
-      - "6333:6333"
-    volumes:
-      - qdrant-data:/qdrant/storage
-    networks:
-      - blue-network
-      - green-network
-    restart: unless-stopped
-    profiles:
-      - ml
-      
-      
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"

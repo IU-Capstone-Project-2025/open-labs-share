@@ -1,7 +1,7 @@
 
 // In production, all API calls are sent to the same origin, and Nginx proxies them.
 // In development, we explicitly target the API gateway's exposed port.
-const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL ? 
+export const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL ? 
                      `${import.meta.env.VITE_API_GATEWAY_URL}/api/v1` :
                      'http://localhost:8080/api/v1';
                      
@@ -144,10 +144,10 @@ export const authAPI = {
 // --- Users API ---
 export const usersAPI = {
   getUserById: (userId) => apiCall(`/users/${userId}`),
-  getAllUsers: (page = 1, limit = 20) => apiCall(`/users?page=${page}&limit=${limit}`),
-  deleteUser: (userId) => apiCall(`/users/${userId}`, { method: 'DELETE' }),
-  getUserLabs: (userId, page = 1, limit = 20) => apiCall(`/users/${userId}/labs?page=${page}&limit=${limit}`),
-  getUserArticles: (userId, page = 1, limit = 20) => apiCall(`/users/${userId}/articles?page=${page}&limit=${limit}`),
+  getUserProfile: (userId) => apiCall(`/users/profile/${userId}`),
+  // Note: These endpoints don't exist in the current API:
+  // - getAllUsers, deleteUser, getUserLabs, getUserArticles
+  // - Removed to prevent 404 errors
 };
 
 // --- Labs API ---

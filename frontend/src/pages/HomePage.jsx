@@ -54,22 +54,10 @@ export default function Home() {
         setFeaturedArticles(getRandomItems(allArticles, 3));
 
         
+        // Note: Total users and submissions counts are not available via API
+        // These statistics would need to be implemented as separate API endpoints
         let totalUsers = 0;
-        try {
-          const usersResponse = await usersAPI.getAllUsers();
-          totalUsers = (usersResponse.data || []).length;
-        } catch (err) {
-          console.warn('Could not fetch users count:', err);
-        }
-
-        
         let totalSubmissions = 0;
-        try {
-          const submissionsResponse = await submissionsAPI.getAllSubmissions();
-          totalSubmissions = (submissionsResponse.data || []).length;
-        } catch (err) {
-          console.warn('Could not fetch submissions count:', err);
-        }
 
         
         setStats({
