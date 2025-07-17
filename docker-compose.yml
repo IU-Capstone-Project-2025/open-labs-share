@@ -694,6 +694,8 @@ services:
       - LAB_SERVICE_PORT=9091
       - ARTICLE_SERVICE_HOST=articles-service-test
       - ARTICLE_SERVICE_PORT=50051
+      - ML_SERVICE_HOST=ml-service
+      - ML_SERVICE_PORT=8081
       - SPRING_PROFILES_ACTIVE=docker
       - FEEDBACK_SERVICE_HOST=feedback-service-test
       - FEEDBACK_SERVICE_PORT=9090
@@ -923,15 +925,15 @@ services:
       - PDF_DIR=/app/ml/data/predator-pray-22/pdfs
       - CODE_DIR=/app/ml/data/predator-pray-22/code
       - POSTGRES_USER=ml_user
-      - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD}
+      - POSTGRES_PASSWORD=${POSTGRES_ML_PASSWORD:-password}
       - POSTGRES_HOST=postgres-ml
       - POSTGRES_PORT=5432
       - POSTGRES_DB=chat_history_db
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
-      - REDIS_BROKER_URL=${REDIS_BROKER_URL}
-      - QDRANT_HOST=${QDRANT_HOST}
-      - QDRANT_PORT=${QDRANT_PORT}
+      - REDIS_BROKER_URL=${REDIS_BROKER_URL:-redis://ml-redis-broker:6379/0}
+      - QDRANT_HOST=${QDRANT_HOST:-ml-qdrant}
+      - QDRANT_PORT=${QDRANT_PORT:-6333}
     volumes:
       - ./ml:/app/ml
       - ml-models:/app/models
@@ -994,9 +996,9 @@ services:
       context: .
       dockerfile: docker/Dockerfile.ml-celery-worker
     environment:
-      - REDIS_BROKER_URL=${REDIS_BROKER_URL}
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - REDIS_BROKER_URL=${REDIS_BROKER_URL:-redis://ml-redis-broker:6379/0}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
       - ./ml:/app/ml
     depends_on:
