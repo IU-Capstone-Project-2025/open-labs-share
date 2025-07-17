@@ -286,7 +286,7 @@ export const mlAPI = {
 export const feedbackAPI = {
   createFeedback: (formData) => apiCall('/feedback', {
     method: 'POST',
-    body: formData, // multipart/form-data
+    body: formData, 
   }),
   deleteFeedback: (feedbackId) => apiCall(`/feedback/${feedbackId}`, {
     method: 'DELETE',

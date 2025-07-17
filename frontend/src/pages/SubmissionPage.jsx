@@ -348,7 +348,6 @@ const SubmissionPage = () => {
     fetchFeedback();
   }, [submission, user]);
 
-  // Fetch autograding status/result
   useEffect(() => {
     let polling = null;
     const fetchGrading = async () => {
