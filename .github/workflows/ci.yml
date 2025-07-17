@@ -156,10 +156,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-feedback-
 
-      - name: Install dependencies
-        working-directory: services/feedback-service
-        run: go mod tidy
-
       - name: Run tests
         working-directory: services/feedback-service
         run: |
