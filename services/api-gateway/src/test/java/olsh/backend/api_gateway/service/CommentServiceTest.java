@@ -100,12 +100,12 @@ class CommentServiceTest {
         when(userService.getUserByIdSafe(userId)).thenReturn(createTestUser(userId));
 
         // When
-        CommentResponse result = commentService.createComment(validLabId, userId, request);
+        CommentResponse result = commentService.createComment(validLabId, userId, request, "lab");
 
         // Then
         verify(labService).getLabById(validLabId);
         assertThat(result).isNotNull();
-        assertThat(result.getLabId()).isEqualTo(validLabId);
+        assertThat(result.getContentId()).isEqualTo(validLabId);
     }
 
     @Test
@@ -119,7 +119,7 @@ class CommentServiceTest {
         doThrow(new LabNotFoundException("Lab not found")).when(labService).getLabById(nonExistentLabId);
 
         // When & Then
-        assertThatThrownBy(() -> commentService.createComment(nonExistentLabId, userId, request))
+        assertThatThrownBy(() -> commentService.createComment(nonExistentLabId, userId, request, "lab"))
                 .isInstanceOf(LabNotFoundException.class)
                 .hasMessage("Lab not found");
 
@@ -138,7 +138,7 @@ class CommentServiceTest {
         when(userService.getUserByIdSafe(anyLong())).thenReturn(createTestUser(123L));
 
         // When
-        CommentListResponse result = commentService.getLabComments(validLabId, request);
+        CommentListResponse result = commentService.getLabComments(validLabId, request, "lab");
 
         // Then
         verify(labService).getLabById(validLabId);
