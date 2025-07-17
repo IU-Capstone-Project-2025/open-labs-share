@@ -63,7 +63,7 @@ const ChatWindow = ({ labId, isOpen, onToggle, chatMode, onSetChatMode }) => {
     setIsLoading(true);
 
     try {
-      const data = await mlAPI.askAgent(String(user.id), String(labId), messageContent);
+      const data = await mlAPI.askAgent(String(user.id), String(labId), String(messageContent)  );
       const aiMessage = {
         id: Date.now() + 1,
         text: data.content,

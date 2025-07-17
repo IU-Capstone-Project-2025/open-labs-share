@@ -342,6 +342,49 @@ const SubmissionPage = () => {
     fetchFeedback();
   }, [submission, user]);
 
+  useEffect(() => {
+    let polling = null;
+    const fetchGrading = async () => {
+      if (!submission || !user?.id || !submission.labId || (!submission.submissionId && !submission.id)) return;
+      const submissionId = submission.submissionId || submission.id;
+      const params = {
+        uuid: String(user.id),
+        assignment_id: String(submission.labId),
+        submission_id: String(submissionId),
+        webhook_url: 'http://localhost:8081',
+      };
+      setGradingLoading(true);
+      setGradingError(null);
+      try {
+        const statusData = await mlAPI.getGradingStatus(params);
+        setGradingStatus(statusData.status || statusData);
+        if (statusData.status === 'completed' || statusData.status === 'COMPLETED' || statusData.status === 'done' || statusData === 'completed') {
+          try {
+            const resultData = await mlAPI.getGradingResult(params);
+            setGradingResult(resultData);
+          } catch (err) {
+            setGradingResult(null);
+            setGradingError('Failed to fetch grading result');
+          }
+          setGradingLoading(false);
+        } else if (statusData.status === 'failed' || statusData.status === 'FAILED' || statusData === 'failed') {
+          setGradingError('Autograding failed');
+          setGradingLoading(false);
+        } else {
+          polling = setTimeout(fetchGrading, 5000);
+          setGradingLoading(false);
+        }
+      } catch (err) {
+        setGradingError('Error fetching grading status/result');
+        setGradingLoading(false);
+      }
+    };
+    if (submission && user && submission.labId) {
+      fetchGrading();
+    }
+    return () => { if (polling) clearTimeout(polling); };
+  }, [submission, user]);
+
   if (loading) {
     return <div className="flex justify-center items-center h-64"><Spinner /></div>;
   }
