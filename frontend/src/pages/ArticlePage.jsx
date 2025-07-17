@@ -12,6 +12,7 @@ import '@react-pdf-viewer/toolbar/lib/styles/index.css';
 import { articlesAPI } from "../utils/api";
 import ToastNotification from "../components/ToastNotification";
 import CommentSectionArticle from "../components/CommentSectionArticle";
+import { useUser } from "../hooks/useUser";
 
 export default function ArticlePage() {
   const { id } = useParams();
@@ -28,6 +29,8 @@ export default function ArticlePage() {
   
   const defaultLayoutPluginInstance = defaultLayoutPlugin();
   const toolbarPluginInstance = toolbarPlugin();
+
+  const user = useUser();
 
 
   useEffect(() => {
@@ -202,8 +205,8 @@ export default function ArticlePage() {
           <CommentSectionArticle 
             contentType="article" 
             contentId={id} 
-            userId={article?.authorId}
-            userName={`${article?.authorName || ''} ${article?.authorSurname || ''}`}
+            userId={user?.id}
+            userName={`${user?.firstName || ''} ${user?.lastName || ''}`}
           />
         </section>
       </div>
