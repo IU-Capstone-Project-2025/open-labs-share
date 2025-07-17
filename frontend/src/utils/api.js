@@ -316,17 +316,22 @@ export const commentsAPI = {
   getCommentById: (commentId) => apiCall(`/comments/${commentId}`),
   getCommentReplies: (commentId, page = 1, size = 20) => apiCall(`/comments/${commentId}/replies?page=${page}&size=${size}`),
   updateComment: (commentId, content) => {
-  const payload = { content };
-  return apiCall(`/comments/${commentId}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  });
-},
+    const payload = { content };
+    return apiCall(`/comments/${commentId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
   deleteComment: (commentId) => apiCall(`/comments/${commentId}`, {
     method: 'DELETE',
   }),
-
-}
+  // Article comments
+  createArticleComment: (articleId, commentData) => apiCall(`/articles/${articleId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify(commentData),
+  }),
+  getArticleComments: (articleId, page = 1, limit = 20) => apiCall(`/articles/${articleId}/comments?page=${page}&limit=${limit}`),
+};
 
 // --- Tags API ---
 export const tagsAPI = {

@@ -7,7 +7,7 @@ export default function CreateArticlePage() {
   const handleArticleCreated = (result) => {
     console.log('Article created successfully:', result);
     if (result.id) {
-      navigate(`/articles/${result.id}`);
+      navigate('/my-articles');
     } else {
       navigate('/my-articles');
     }
