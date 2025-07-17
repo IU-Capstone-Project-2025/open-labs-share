@@ -23,14 +23,14 @@ echo "Deploying services: ${SERVICES_TO_DEPLOY[@]} to $TARGET_ENV environment"
 
 # For CI/CD, images are pulled. For local testing, this step is skipped.
 if [ "$LOCAL_TESTING" != "true" ]; then
-    echo "Pulling latest images from registry..."
+    echo "Pulling images with tag: ${IMAGE_TAG:-latest}..."
     docker-compose --profile $TARGET_ENV pull ${SERVICES_TO_DEPLOY[@]}
 else
     echo "LOCAL_TESTING is true, skipping image pull."
 fi
 
 # The --build flag is removed to ensure we use the images from the registry.
-docker-compose --profile $TARGET_ENV up -d --force-recreate --no-deps ${SERVICES_TO_DEPLOY[@]}
+IMAGE_TAG=${IMAGE_TAG:-latest} docker-compose --profile $TARGET_ENV up -d --force-recreate --no-deps ${SERVICES_TO_DEPLOY[@]}
 
 # Health check loop
 echo "Waiting for $TARGET_ENV environment to be healthy..."
