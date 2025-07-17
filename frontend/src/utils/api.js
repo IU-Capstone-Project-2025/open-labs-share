@@ -214,19 +214,74 @@ export const submissionsAPI = {
 
 // --- ML API ---
 export const mlAPI = {
-  // ML service is also not on the gateway, it's called directly.
-  getChatHistory: (uuid, assignment_id) => apiCall(`/ml/get_chat_history?uuid=${uuid}&assignment_id=${assignment_id}`),
-  askAgent: (uuid, assignment_id, content) => apiCall('/ml/ask', {
+  getChatHistory: async (uuid, assignment_id) => {
+    const resp = await fetch(`${ML_BASE_URL}/get_chat_history?uuid=${uuid}&assignment_id=${assignment_id}`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!resp.ok) {
+      let errorText = await resp.text();
+      throw new Error(errorText);
+    }
+    return resp.json();
+  },
+  askAgent: async (uuid, assignment_id, content) => {
+    const resp = await fetch(`${ML_BASE_URL}/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uuid, assignment_id, content }),
+    });
+    if (!resp.ok) {
+      let errorText = await resp.text();
+      throw new Error(errorText);
+    }
+    return resp.json();
+  },
+  startAutoGrading: ({ uuid, assignment_id, submission_id, webhook_url }) => fetch(`${ML_BASE_URL}/auto_grade_submission`, {
     method: 'POST',
-    body: JSON.stringify({ uuid, assignment_id, content }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ uuid, assignment_id, submission_id, webhook_url: webhook_url || 'http://localhost:8081' }),
   }),
+  getGradingResult: async ({ uuid, assignment_id, submission_id, webhook_url }) => {
+    const params = new URLSearchParams({
+      uuid: String(uuid),
+      assignment_id: String(assignment_id),
+      submission_id: String(submission_id),
+      webhook_url: String(webhook_url)
+    });
+    const resp = await fetch(`${ML_BASE_URL}/get_auto_grade_result?${params.toString()}`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!resp.ok) {
+      let errorText = await resp.text();
+      throw new Error(errorText);
+    }
+    return resp.json();
+  },
+  getGradingStatus: async ({ uuid, assignment_id, submission_id, webhook_url }) => {
+    const params = new URLSearchParams({
+      uuid: String(uuid),
+      assignment_id: String(assignment_id),
+      submission_id: String(submission_id),
+      webhook_url: String(webhook_url)
+    });
+    const resp = await fetch(`${ML_BASE_URL}/get_auto_grade_status?${params.toString()}`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!resp.ok) {
+      let errorText = await resp.text();
+      throw new Error(errorText);
+    }
+    return resp.json();
+  }
 };
 
 // --- Feedback API ---
 export const feedbackAPI = {
   createFeedback: (formData) => apiCall('/feedback', {
     method: 'POST',
-    body: formData, // multipart/form-data
+    body: formData, 
   }),
   deleteFeedback: (feedbackId) => apiCall(`/feedback/${feedbackId}`, {
     method: 'DELETE',
