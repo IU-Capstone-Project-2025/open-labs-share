@@ -167,7 +167,7 @@ jobs:
 
   build-and-push:
     needs: [detect-changes, test-java, test-python, test-go]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/254-stable-container-deployment')
     runs-on: ubuntu-latest
     strategy:
       matrix:
