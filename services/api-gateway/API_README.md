@@ -1101,19 +1101,21 @@ assets: file[] (required) - Submission files
 
 ## Comments Service
 
-| Endpoint                                                      | Type   | Description                                               |
-| ------------------------------------------------------------- | ------ | --------------------------------------------------------- |
-| [`POST /labs/{labId}/comments`](#create-comment)               | POST   | Create a new comment or reply on a lab                    |
-| [`GET /labs/{labId}/comments`](#get-lab-comments)             | GET    | Get list of comments for a specific lab                   |
-| [`GET /comments/{commentId}`](#get-comment-by-id)             | GET    | Get a single comment by ID                                |
-| [`GET /comments/{commentId}/replies`](#get-comment-replies)    | GET    | Get list of replies for a specific comment                |
-| [`PUT /comments/{commentId}`](#update-comment)                 | PUT    | Update an existing comment                                |
-| [`DELETE /comments/{commentId}`](#delete-comment)              | DELETE | Delete a specific comment                                 |
+| Endpoint                                                    | Type   | Description                                 |
+|-------------------------------------------------------------| ------ |---------------------------------------------|
+| [`POST /labs/{labId}/comments`](#create-comment)            | POST   | Create a new comment or reply on a lab      |
+| [`GET /labs/{labId}/comments`](#get-lab-comments)           | GET    | Get list of comments for a specific lab     |
+| [`POST /articles/{articleId}/comments`](#create-comment)    | POST   | Create a new comment or reply on an article |
+| [`GET /articles/{articleId}/comments`](#get-lab-comments)           | GET    | Get list of comments for a specific article |
+| [`GET /comments/{commentId}`](#get-comment-by-id)           | GET    | Get a single comment by ID                  |
+| [`GET /comments/{commentId}/replies`](#get-comment-replies) | GET    | Get list of replies for a specific comment  |
+| [`PUT /comments/{commentId}`](#update-comment)              | PUT    | Update an existing comment                  |
+| [`DELETE /comments/{commentId}`](#delete-comment)           | DELETE | Delete a specific comment                   |
 
 ### Create Comment
 
 **Create a new comment or reply on a lab**
-- **Endpoint:** `POST /labs/{labId}/comments`
+- **Endpoint:** `POST /labs/{labId}/comments` (or `POST /articles/{articleId}/comments`)
 - **Authentication:** Required
 - **Content-Type:** `application/json`
 - **Description:** Creates a new top-level comment or a reply to an existing comment
@@ -1156,7 +1158,7 @@ assets: file[] (required) - Submission files
 ### Get Lab Comments
 
 **Get list of comments for a lab**
-- **Endpoint:** `GET /labs/{labId}/comments`
+- **Endpoint:** `GET /labs/{labId}/comments` (or `GET /articles/{articleId}/comments`)
 - **Authentication:** Not Required
 - **Description:** Retrieves a paginated list of top-level comments for a specific lab
 
