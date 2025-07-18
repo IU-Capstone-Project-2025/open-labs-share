@@ -348,15 +348,7 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
   };
 
   return (
-    <section>
-      {notification && (
-        <ToastNotification
-          message={notification.message}
-          type={notification.type}
-          onClose={() => setNotification(null)}
-        />
-      )}
-      
+    <section>      
       <ConfirmationModal />
       
       <div>
