@@ -2,8 +2,9 @@ syntax = "proto3";
 
 package marimo;
 
-option java_package = "olsh.backend.marimoservice.grpc.proto";
-option java_outer_classname = "PythonMarimoServiceProto";
+option java_multiple_files = true;
+option java_package = "olsh.backend.grpc.marimo";
+option java_outer_classname = "MarimoExecutorServiceOuterClass";
 
 service MarimoExecutor {
     rpc StartSession (StartSessionRequest) returns (StartSessionResponse);
@@ -13,8 +14,9 @@ service MarimoExecutor {
 }
 
 message StartSessionRequest {
-    string session_id = 1;
-    string notebook_path = 2;
+    string sessionId = 1;
+    string notebookPath = 2;
+    optional string componentId = 3;
 }
 
 message StartSessionResponse {
@@ -23,8 +25,8 @@ message StartSessionResponse {
 }
 
 message ExecuteRequest {
-    string session_id = 1;
-    string cell_id = 2;
+    string sessionId = 1;
+    string cellId = 2;
     string code = 3;
 }
 
@@ -39,7 +41,7 @@ message CellOutput {
     OutputType type = 1;
     string content = 2;
     bytes data = 3;
-    string mime_type = 4;
+    string mimeType = 4;
     map<string, string> metadata = 5;
 }
 
@@ -47,11 +49,11 @@ message ExecuteResponse {
     bool success = 1;
     repeated CellOutput outputs = 2;
     string error = 3;
-    map<string, string> cell_state = 4;
+    map<string, string> cellState = 4;
 }
 
 message EndSessionRequest {
-    string session_id = 1;
+    string sessionId = 1;
 }
 
 message EndSessionResponse {
@@ -60,7 +62,7 @@ message EndSessionResponse {
 }
 
 message SessionStateRequest {
-    string session_id = 1;
+    string sessionId = 1;
 }
 
 message SessionStateResponse {

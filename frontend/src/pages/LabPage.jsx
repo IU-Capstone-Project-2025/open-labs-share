@@ -14,8 +14,13 @@ import ToastNotification from "../components/ToastNotification";
 import { mlAPI } from "../utils/api.js";
 import MarpRenderer from '../components/MarpRenderer';
 import { getCurrentUser, isAuthenticated, notifyUserDataUpdate } from "../utils/auth";
-import { labsAPI, submissionsAPI } from "../utils/api";
+import { labsAPI, submissionsAPI, marimoAPI } from "../utils/api";
 import { useUser } from "../hooks/useUser";
+import MarimoWasmComponent from "../components/MarimoWasmComponent";
+import MarimoAssetList from "../components/MarimoAssetList";
+import ResizablePanel from "../components/ResizablePanel";
+import MarimoCell from "../components/MarimoCell";
+import { MarimoSessionProvider } from "../contexts/MarimoSessionContext";
 
 const flattenText = (children) => {
   if (typeof children === "string") return children;
@@ -43,6 +48,7 @@ export default function LabPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeId, setActiveId] = useState("");
+  const [marimoComponents, setMarimoComponents] = useState([]);
   const observer = useRef();
   const contentRef = useRef();
   const [files, setFiles] = useState([]);
@@ -262,8 +268,65 @@ export default function LabPage() {
           await mlAPI.indexAssignment(id);
         } catch (err) {
           //setToast({ show: true, message: `Failed to index assignment: ${err.message}`, type: 'error' });
-
         }
+        // Fetch Marimo components
+        try {
+          const marimoData = await marimoAPI.getComponentsByContent('lab', id);
+          console.log("Fetched marimoData:", marimoData);
+          console.log("marimoData type:", typeof marimoData);
+          console.log("marimoData length:", marimoData ? marimoData.length : 0);
+          
+          if (marimoData && marimoData.length > 0) {
+            console.log("First component:", marimoData[0]);
+            console.log("First component code:", marimoData[0].code);
+            
+            // Fetch the actual code for each component
+            const componentsWithCode = await Promise.all(
+              marimoData.map(async (component) => {
+                try {
+                  let code = '';
+                  if (component.notebookPath) {
+                    try {
+                      const minioEndpoint = import.meta.env.VITE_MINIO_ENDPOINT || 'http://localhost:9000';
+                      const minioUrl = `${minioEndpoint}/marimo${component.notebookPath}`;
+                      console.log("Trying to fetch from MinIO:", minioUrl);
+                      
+                      const minioResponse = await fetch(minioUrl);
+                      if (minioResponse.ok) {
+                        code = await minioResponse.text();
+                        console.log("Successfully fetched code from MinIO:", code.substring(0, 100) + "...");
+                      } else {
+                        console.error("MinIO fetch failed:", minioResponse.status, minioResponse.statusText);
+                      }
+                    } catch (minioErr) {
+                      console.error("MinIO fetch error:", minioErr);
+                    }
+                  }
+                  
+                  return {
+                    ...component,
+                    code: code || `# Component: ${component.name}\n# No code available yet\n# Path: ${component.notebookPath || 'Unknown'}`
+                  };
+                } catch (err) {
+                  console.error(`Error fetching code for component ${component.id}:`, err);
+                  return {
+                    ...component,
+                    code: `# Error loading component code\n# Component: ${component.name}\n# Error: ${err.message}`
+                  };
+                }
+              })
+            );
+            
+            console.log("Components with code:", componentsWithCode);
+            setMarimoComponents(componentsWithCode);
+          } else {
+            setMarimoComponents([]);
+          }
+        } catch (err) {
+          console.error("Error fetching marimo components:", err);
+          // Do not set a page-level error for this, as it's optional content
+        }
+
       } catch (err) {
         setError(`Failed to load lab: ${err.message}`);
       } finally {
@@ -387,12 +450,29 @@ Lab content delivery is currently being developed. The markdown content for this
     );
   }
 
-  return (
-    <>
-      <div className={`container mx-auto px-4 py-8 flex transition-all duration-300 ${isChatOpen && chatMode === 'sidebar' ? 'lg:mr-[400px]' : ''}`}>
+  const leftContent = (
+    <MarimoSessionProvider contentType="lab" contentId={id}>
+      <div className="marimo-column space-y-4">
+        {marimoComponents.length > 0 && (
+          <div className="text-xs text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded px-3 py-2">
+            <span className="font-medium">Shared session active</span> - variables persist between components. 
+            Reload page to reset.
+          </div>
+        )}
+        {marimoComponents.map((component) => (
+          <div key={component.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{component.name}</h3>
+            <MarimoCell component={component} />
+          </div>
+        ))}
+      </div>
+    </MarimoSessionProvider>
+  );
+
+  const rightContent = (
         <div
           ref={contentRef}
-          className="flex-1 p-8 overflow-y-auto scroll-smooth"
+      className="flex-1 p-8 overflow-y-auto scroll-smooth"
         >
         {/* Lab Header Section */}
         {lab && (
@@ -476,7 +556,7 @@ Lab content delivery is currently being developed. The markdown content for this
                   ),
                   li: ({ node, ...props }) => <li {...props} className="pl-2 my-1" />,
                   pre: ({ node, ...props }) => (
-                    <pre {...props} className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 overflow-x-auto my-6" />
+                  <pre {...props} className="bg-gray-800 rounded-lg p-4 overflow-x-auto my-6" />
                   ),
                   code: ({ node, className, children, ...props }) => {
                     const match = /language-(\w+)/.exec(className || "");
@@ -714,10 +794,26 @@ Lab content delivery is currently being developed. The markdown content for this
             userName={`${user?.firstName} ${user?.lastName}`}
           />
         </section>
+    </div>
+  );
+
+  return (
+    <>
+      <div className={`container mx-auto py-8 flex transition-all duration-300 ${isChatOpen && chatMode === 'sidebar' ? 'lg:mr-[400px]' : ''}`}>
+        <div className="flex-1 min-w-0 flex">
+          {marimoComponents.length > 0 ? (
+            <ResizablePanel
+              leftComponent={leftContent}
+              rightComponent={rightContent}
+              initialLeftWidth={25}
+            />
+          ) : (
+            rightContent
+          )}
         </div>
 
         {/* Table of Contents */}
-        <aside className="w-64 pr-8 sticky top-24 self-start hidden lg:block">
+        <aside className="w-72 pl-8 sticky top-24 self-start hidden lg:block">
           <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
             Table of Contents
           </h3>

@@ -15,6 +15,7 @@ service MarimoExecutor {
 message StartSessionRequest {
     string session_id = 1;
     string notebook_path = 2;
+    optional string component_id = 3;
 }
 
 message StartSessionResponse {

@@ -321,6 +321,106 @@ export const feedbackAPI = {
   },
 };
 
+const MARIMO_API_BASE_URL = 'http://localhost:8084/api/v1';
+
+/**
+ * A dedicated function for making API calls directly to the Marimo Manager service.
+ * This is necessary because the Marimo service is not exposed via the API Gateway.
+ * @param {string} path - The API endpoint path, e.g., '/components'.
+ * @param {object} options - Configuration for the fetch call (method, body, etc.).
+ * @returns {Promise<any>} - The JSON response from the API.
+ */
+const marimoApiCall = async (path, options = {}) => {
+  const url = `${MARIMO_API_BASE_URL}${path}`;
+  const token = localStorage.getItem('authToken');
+
+  const headers = {
+    ...options.headers,
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  const isFormData = options.body instanceof FormData;
+
+  if (!isFormData && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  try {
+    const response = await fetch(url, { ...options, headers });
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        errorData = { message: `Marimo API call failed with status ${response.status}.` };
+      }
+      throw new Error(errorData.message || `API error: ${response.statusText}`);
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    }
+    return response;
+  } catch (error) {
+    console.error(`Marimo API call to "${url}" failed:`, error);
+    throw error;
+  }
+};
+
+// --- Marimo API ---
+export const marimoAPI = {
+  // Component Management
+  createComponent: (data) => marimoApiCall('/marimo/components', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  getComponent: (componentId) => marimoApiCall(`/marimo/components/${componentId}`),
+  getComponentsByContent: (contentType, contentId) => marimoApiCall(`/marimo/components/${contentType}/${contentId}`),
+  updateComponentCode: (componentId, code) => marimoApiCall(`/marimo/components/${componentId}/code`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'text/plain' },
+    body: code,
+  }),
+  deleteComponent: (componentId) => marimoApiCall(`/marimo/components/${componentId}`, {
+    method: 'DELETE'
+  }),
+
+  // Asset Management
+  uploadAsset: (formData) => marimoApiCall('/marimo/assets/upload', {
+    method: 'POST',
+    body: formData,
+  }),
+  getAssets: (componentId) => marimoApiCall(`/marimo/assets/component/${componentId}`),
+  downloadAsset: (assetId) => marimoApiCall(`/marimo/assets/${assetId}/download`),
+  deleteAsset: (assetId) => marimoApiCall(`/marimo/assets/${assetId}`, {
+    method: 'DELETE'
+  }),
+
+  // Session Management
+  createSession: (componentId) => marimoApiCall('/marimo/sessions', {
+    method: 'POST',
+    body: JSON.stringify({ componentId }),
+  }),
+  closeSession: (sessionId) => marimoApiCall(`/marimo/sessions/${sessionId}/close`, {
+    method: 'POST'
+  }),
+
+  // Execution
+  runCode: (sessionId, code, cellId = '0') => marimoApiCall(`/marimo/sessions/${sessionId}/execute`, {
+    method: 'POST',
+    body: JSON.stringify({ code, cellId }),
+  }),
+  setUIElementValue: (sessionId, data) => marimoApiCall(`/marimo/sessions/${sessionId}/set-ui-element`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+};
+
 // --- Comments API ---
 export const commentsAPI = {
   createComment: (labId, commentData) => apiCall(`/labs/${labId}/comments`, {
@@ -366,4 +466,50 @@ export const tagsAPI = {
   }),
   deleteTag: (tagId) => apiCall(`/tags/${tagId}`, { method: 'DELETE' }),
 
+};
+
+export const marimo = {
+  // Component Management
+  createComponent: (data) => apiCall('/marimo/components', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  getComponent: (id) => apiCall(`/marimo/components/${id}`),
+  updateComponent: (id, data) => apiCall(`/marimo/components/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  deleteComponent: (id) => apiCall(`/marimo/components/${id}`, { method: 'DELETE' }),
+  listComponents: (params) => apiCall('/marimo/components', { params }),
+  searchComponents: (params) => apiCall('/marimo/components/search', { params }),
+
+  // Session Management
+  startSession: (data) => apiCall('/marimo/sessions', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  endSession: (id) => apiCall(`/marimo/sessions/${id}`, { method: 'DELETE' }),
+  getSessionStatus: (id) => apiCall(`/marimo/sessions/${id}`),
+  listUserSessions: (params) => apiCall('/marimo/sessions', { params }),
+  getExecutionHistory: (sessionId, params) => apiCall(`/marimo/sessions/${sessionId}/history`, { params }),
+  getSessionVariables: (sessionId) => apiCall(`/marimo/sessions/${sessionId}/variables`),
+
+  // Code Execution
+  executeCell: (sessionId, data) => apiCall(`/marimo/sessions/${sessionId}/execute`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+
+  // Asset Management
+  uploadAsset: (formData) => apiCall('/marimo/assets/upload', {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  }),
+  getAssetInfo: (id) => apiCall(`/marimo/assets/${id}`),
+  downloadAsset: (id) => apiCall(`/marimo/assets/${id}/download`, { responseType: 'blob' }),
+  listAssets: (componentId) => apiCall(`/marimo/components/${componentId}/assets`),
+  deleteAsset: (id) => apiCall(`/marimo/assets/${id}`, { method: 'DELETE' }),
 };

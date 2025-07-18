@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import LabCard from "../components/LabCard";
-import { labsAPI } from "../utils/api";
+import { labsAPI, marimoAPI } from "../utils/api";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
 import { TrashIcon } from '@heroicons/react/24/outline';
 
@@ -62,6 +62,44 @@ export default function MyLabsPage() {
       const deletedLabId = labToDelete.id || labToDelete.lab_id;
       console.log('Deleting lab with ID:', deletedLabId);
       console.log('Lab to delete:', labToDelete);
+      
+      // Step 1: Delete marimo components and their assets
+      try {
+        const marimoComponents = await marimoAPI.getComponentsByContent('lab', deletedLabId);
+        console.log('Found marimo components for lab:', marimoComponents);
+        
+        if (marimoComponents && marimoComponents.length > 0) {
+          for (const component of marimoComponents) {
+            console.log('Deleting marimo component:', component.id);
+            
+            try {
+              // Delete component assets first (if any)
+              if (component.assets && component.assets.length > 0) {
+                for (const asset of component.assets) {
+                  try {
+                    await marimoAPI.deleteAsset(asset.id);
+                    console.log('Deleted asset:', asset.id);
+                  } catch (assetError) {
+                    console.warn('Failed to delete asset:', asset.id, assetError);
+                  }
+                }
+              }
+              
+              // Then delete the component itself
+              await marimoAPI.deleteComponent(component.id);
+              console.log('Deleted marimo component:', component.id);
+            } catch (componentError) {
+              console.error('Error deleting marimo component:', component.id, componentError);
+              // Continue with other components even if this one fails
+            }
+          }
+        }
+      } catch (marimoError) {
+        console.warn('Error cleaning up marimo components:', marimoError);
+        // Continue with lab deletion even if marimo cleanup fails
+      }
+      
+      // Step 2: Delete the lab itself
       await labsAPI.deleteLab(deletedLabId);
       console.log('Before filter - labs count:', myLabs.length);
       setMyLabs(prev => {

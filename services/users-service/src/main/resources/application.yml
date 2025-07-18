@@ -7,11 +7,14 @@ spring:
     password: ${DB_PASSWORD:postgres}
   jpa:
     hibernate:
-      ddl-auto: ${HIBERNATE_DDL_AUTO:create-drop}
+      ddl-auto: ${HIBERNATE_DDL_AUTO:validate}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: ${SHOW_SQL:false}
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
   grpc:
     server:
       port: ${GRPC_PORT:9093}

@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package labs;
-
 option java_multiple_files = true;
-option java_package = "com.olsh.labs.proto";
+option java_package = "olsh.backend.grpc.labs";
 option java_outer_classname = "LabsServiceProto";
+
+package labs;
 
 import "google/protobuf/timestamp.proto";
 
