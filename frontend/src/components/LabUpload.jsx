@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { labsAPI, tagsAPI } from '../utils/api';
+import { labsAPI, tagsAPI, marimoAPI } from '../utils/api';
 import { getCurrentUser } from '../utils/auth';
 import { TagsInput } from "../components/Tags";
 import { Tooltip } from '../components/Tooltip';
+import MarimoCreator from './MarimoCreator';
+import { PlusCircleIcon } from '@heroicons/react/24/solid';
 
 export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
   const [labData, setLabData] = useState({
@@ -12,6 +14,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
     assets: [],
     tags: []
   });
+  const [marimoComponents, setMarimoComponents] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -147,6 +150,28 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
     }));
   };
 
+  const handleAddComponent = () => {
+    const newComponent = {
+      id: `temp-${Date.now()}-${Math.random()}`, // Unique ID for key prop
+      name: '',
+      code: '',
+      assets: []
+    };
+    setMarimoComponents([...marimoComponents, newComponent]);
+  };
+  
+  const handleRemoveComponent = (idToRemove) => {
+    setMarimoComponents(marimoComponents.filter((component) => component.id !== idToRemove));
+  };
+
+  const handleComponentChange = (index, data) => {
+    setMarimoComponents(prevComponents => 
+      prevComponents.map((component, i) => 
+        i === index ? data : component
+      )
+    );
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -185,6 +210,48 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
       }
       
       const result = await labsAPI.createLab(formData);
+
+      // Step 2: Create Marimo components if any
+      const user = getCurrentUser();
+
+      // --- DEBUGGING LOG ---
+      console.log("--- Marimo Component Creation Check ---");
+      console.log("User object:", user);
+      console.log("Lab creation API result:", result);
+      console.log("Marimo components in state:", JSON.stringify(marimoComponents, null, 2));
+      console.log("marimoComponents.length > 0:", marimoComponents.length > 0);
+      // --- END DEBUGGING LOG ---
+
+      if (user && result && result.id && marimoComponents.length > 0) {
+        console.log("Condition PASSED. Creating Marimo components...");
+        const labId = result.id;
+        for (const component of marimoComponents) {
+          if (!component.name || component.name.trim() === '' || !component.code || component.code.trim() === '') {
+            throw new Error('All Marimo components must have a name and code.');
+          }
+          const componentResponse = await marimoAPI.createComponent({
+            name: component.name,
+            contentType: 'lab',
+            contentId: String(labId),
+            ownerId: String(user.id),
+            initialCode: component.code,
+          });
+          const componentId = componentResponse.id;
+
+          if (component.assets && component.assets.length > 0) {
+            for (const assetFile of component.assets) {
+              const assetFormData = new FormData();
+              assetFormData.append('file', assetFile);
+              assetFormData.append('componentId', String(componentId));
+              assetFormData.append('assetType', 'DATA');
+              await marimoAPI.uploadAsset(assetFormData);
+            }
+          }
+        }
+      } else {
+        console.log("Condition FAILED. Skipping Marimo component creation.");
+      }
+
       onSuccess && onSuccess(result);
     } catch (err) {
       console.error('Error creating lab:', err);
@@ -449,6 +516,36 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Marimo Components Section */}
+        <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-2xl border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Interactive Components (Optional)</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                Enhance your lab by adding interactive components with Python code. These allow for live code execution directly within the lab page.
+            </p>
+
+            {marimoComponents.length > 0 && (
+              <div className="space-y-6">
+                {marimoComponents.map((component, index) => (
+                  <MarimoCreator
+                    key={component.id}
+                    index={index}
+                    componentData={component}
+                    onComponentChange={handleComponentChange}
+                    onRemove={() => handleRemoveComponent(component.id)}
+                  />
+                ))}
+              </div>
+            )}
+            
+            <button
+                type="button"
+                onClick={handleAddComponent}
+                className="mt-6 flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-blue-500 hover:text-blue-500 dark:hover:border-blue-400 dark:hover:text-blue-400 transition-all"
+            >
+                <PlusCircleIcon className="h-6 w-6 mr-2" />
+            </button>
         </div>
 
         {/* Action Buttons */}

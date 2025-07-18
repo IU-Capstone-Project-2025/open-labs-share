@@ -1,5 +1,6 @@
 import io
 import sys
+import os
 import traceback
 from typing import Any, Dict, List, Tuple, TYPE_CHECKING
 import marimo as mo
@@ -22,6 +23,13 @@ class MarimoCellExecutor:
             error_output = self._format_error(validation_error)
             return False, [error_output], str(validation_error), {}
 
+        # Store current working directory to restore later
+        original_cwd = os.getcwd()
+        
+        # Change to session's working directory if it exists
+        if self.session.working_dir and os.path.exists(self.session.working_dir):
+            os.chdir(self.session.working_dir)
+
         old_stdout = sys.stdout
         old_stderr = sys.stderr
         redirected_stdout = io.StringIO()
@@ -42,6 +50,9 @@ class MarimoCellExecutor:
             tb = traceback.format_exc()
             outputs.append(self._format_error(tb))
         finally:
+            # Restore original working directory
+            os.chdir(original_cwd)
+            
             sys.stdout = old_stdout
             sys.stderr = old_stderr
 

@@ -9,15 +9,19 @@ import '@react-pdf-viewer/core/lib/styles/index.css';
 import '@react-pdf-viewer/default-layout/lib/styles/index.css';
 import '@react-pdf-viewer/toolbar/lib/styles/index.css';
 
-import { articlesAPI } from "../utils/api";
+import { articlesAPI, marimoAPI } from "../utils/api";
 import ToastNotification from "../components/ToastNotification";
 import CommentSectionArticle from "../components/CommentSectionArticle";
 import { useUser } from "../hooks/useUser";
+import MarimoCell from "../components/MarimoCell";
+import { MarimoSessionProvider } from "../contexts/MarimoSessionContext";
+import ResizablePanel from "../components/ResizablePanel";
 
 export default function ArticlePage() {
   const { id } = useParams();
   const [article, setArticle] = useState(null);
   const [pdfFile, setPdfFile] = useState(null);
+  const [marimoComponents, setMarimoComponents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [file, setFile] = useState(null);
@@ -44,8 +48,64 @@ export default function ArticlePage() {
         
         const articleData = await articlesAPI.getArticleById(id);
         setArticle(articleData);
+                
+        // Fetch Marimo components
+        try {
+          const marimoData = await marimoAPI.getComponentsByContent('article', id);
+          console.log("Fetched marimoData:", marimoData);
+          console.log("marimoData type:", typeof marimoData);
+          console.log("marimoData length:", marimoData ? marimoData.length : 0);
+          
+          if (marimoData && marimoData.length > 0) {
+            console.log("First component:", marimoData[0]);
+            console.log("First component code:", marimoData[0].code);
+            
+            // Fetch the actual code for each component
+            const componentsWithCode = await Promise.all(
+              marimoData.map(async (component) => {
+                try {
+                  let code = '';
+                  if (component.notebookPath) {
+                    try {
+                      const minioEndpoint = import.meta.env.VITE_MINIO_ENDPOINT || 'http://localhost:9000';
+                      const minioUrl = `${minioEndpoint}/marimo${component.notebookPath}`;
+                      console.log("Trying to fetch from MinIO:", minioUrl);
+                      
+                      const minioResponse = await fetch(minioUrl);
+                      if (minioResponse.ok) {
+                        code = await minioResponse.text();
+                        console.log("Successfully fetched code from MinIO:", code.substring(0, 100) + "...");
+                      } else {
+                        console.error("MinIO fetch failed:", minioResponse.status, minioResponse.statusText);
+                      }
+                    } catch (minioErr) {
+                      console.error("MinIO fetch error:", minioErr);
+                    }
+                  }
+                  
+                  return {
+                    ...component,
+                    code: code || `# Component: ${component.name}\n# No code available yet\n# Path: ${component.notebookPath || 'Unknown'}`
+                  };
+                } catch (err) {
+                  console.error(`Error fetching code for component ${component.id}:`, err);
+                  return {
+                    ...component,
+                    code: `# Component: ${component.name}\n# Error loading code: ${err.message}`
+                  };
+                }
+              })
+            );
+            
+            setMarimoComponents(componentsWithCode);
+          } else {
+            setMarimoComponents([]);
+          }
+        } catch (marimoErr) {
+          console.error("Error fetching Marimo components:", marimoErr);
+          setMarimoComponents([]);
+        }
 
-        
         const minioEndpoint = import.meta.env.VITE_MINIO_ENDPOINT || 'http://localhost:9000';
         
         
@@ -136,7 +196,7 @@ export default function ArticlePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
       {toast.show && (
         <ToastNotification
           message={toast.message}
@@ -144,9 +204,10 @@ export default function ArticlePage() {
           onClose={() => setToast({ show: false, message: '', type: 'info' })}
         />
       )}
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Article Header */}
-        <div className="max-w-4xl mx-auto mb-12 text-center">
+      
+      {/* Article Header */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl font-bold font-display text-gray-900 dark:text-white">
             {article.title}
           </h1>
@@ -161,24 +222,62 @@ export default function ArticlePage() {
             <span>{article.views} views</span>
           </div>
         </div>
+      </div>
 
-        {/* PDF Viewer Section */}
-        <section className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-8 mb-8">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
-            Article PDF
-          </h2>
-          <div className="bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden" style={{ minHeight: '800px' }}>
-            {pdfFile && (
-              <div style={{ height: '800px', width: '100%' }}>
-                <Worker workerUrl="https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.worker.min.js">
-                  <Viewer fileUrl={pdfFile} plugins={[defaultLayoutPluginInstance]} />
-                </Worker>
-              </div>
-            )}
-          </div>
-        </section>
+      {/* Main Content */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+        <div style={{ height: '150vh' }}>
+          <ResizablePanel
+            leftComponent={
+              marimoComponents.length > 0 ? (
+                <aside className="h-full overflow-y-auto p-6 bg-gray-50 dark:bg-gray-800/50">
+                  <MarimoSessionProvider contentType="article" contentId={id}>
+                    <div className="sticky top-6 space-y-6">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded px-3 py-2">
+                        <span className="font-medium">Shared session active</span> - variables persist between components. 
+                        Reload page to reset.
+                      </div>
+                      {marimoComponents.map(component => (
+                        <div key={component.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{component.name}</h3>
+                          <MarimoCell component={component} />
+                        </div>
+                      ))}
+                    </div>
+                  </MarimoSessionProvider>
+                </aside>
+              ) : null
+            }
+            initialLeftWidth={25}
+            rightComponent={
+              <main className="h-full p-6 overflow-hidden">
+                <div className="h-full">
+                  {/* PDF Viewer Section */}
+                  <div className="h-full">
+                    <section className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-8 h-full flex flex-col">
+                      <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
+                        Article PDF
+                      </h2>
+                      <div className="bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex-1">
+                        {pdfFile && (
+                          <div className="h-full">
+                            <Worker workerUrl="https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.worker.min.js">
+                              <Viewer fileUrl={pdfFile} plugins={[defaultLayoutPluginInstance]} />
+                            </Worker>
+                          </div>
+                        )}
+                      </div>
+                    </section>
+                  </div>
+                </div>
+              </main>
+            }
+          />
+        </div>
+      </div>
 
-        {/* Comments Section */}
+      {/* Comments Section */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
           <div className="flex items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-600">
             <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center mr-3">
@@ -194,7 +293,7 @@ export default function ArticlePage() {
                   strokeLinejoin="round"
                   strokeWidth={2}
                   d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                />
+              />
               </svg>
             </div>
             <div>

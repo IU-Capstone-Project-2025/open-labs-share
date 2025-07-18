@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ArticleCard from "../components/ArticleCard";
-import { articlesAPI } from "../utils/api";
+import { articlesAPI, marimoAPI } from "../utils/api";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
 import { TrashIcon } from '@heroicons/react/24/outline';
 
@@ -60,6 +60,46 @@ export default function MyArticlesPage() {
 
     try {
       const deletedArticleId = articleToDelete.id || articleToDelete.article_id;
+      console.log('Deleting article with ID:', deletedArticleId);
+      console.log('Article to delete:', articleToDelete);
+      
+      // Step 1: Delete marimo components and their assets
+      try {
+        const marimoComponents = await marimoAPI.getComponentsByContent('article', deletedArticleId);
+        console.log('Found marimo components for article:', marimoComponents);
+        
+        if (marimoComponents && marimoComponents.length > 0) {
+          for (const component of marimoComponents) {
+            console.log('Deleting marimo component:', component.id);
+            
+            try {
+              // Delete component assets first (if any)
+              if (component.assets && component.assets.length > 0) {
+                for (const asset of component.assets) {
+                  try {
+                    await marimoAPI.deleteAsset(asset.id);
+                    console.log('Deleted asset:', asset.id);
+                  } catch (assetError) {
+                    console.warn('Failed to delete asset:', asset.id, assetError);
+                  }
+                }
+              }
+              
+              // Then delete the component itself
+              await marimoAPI.deleteComponent(component.id);
+              console.log('Deleted marimo component:', component.id);
+            } catch (componentError) {
+              console.error('Error deleting marimo component:', component.id, componentError);
+              // Continue with other components even if this one fails
+            }
+          }
+        }
+      } catch (marimoError) {
+        console.warn('Error cleaning up marimo components:', marimoError);
+        // Continue with article deletion even if marimo cleanup fails
+      }
+      
+      // Step 2: Delete the article itself
       await articlesAPI.deleteArticle(deletedArticleId);
       setMyArticles(prev => prev.filter(article => (article.id || article.article_id) !== deletedArticleId));
       setShowDeleteModal(false);

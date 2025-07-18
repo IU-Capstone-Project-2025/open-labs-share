@@ -36,26 +36,22 @@ server:
 # gRPC Configuration
 grpc:
   client:
-    python-marimo-service:
-      address: 'static://${PYTHON_SERVICE_HOST:marimo-executor-service}:${PYTHON_SERVICE_PORT:9095}'
-      enable-keep-alive: true
-      keep-alive-without-calls: true
-    auth-service:
-      address: 'static://${AUTH_SERVICE_HOST:auth-service}:${AUTH_SERVICE_PORT:9092}'
-      enable-keep-alive: true
-      keep-alive-without-calls: true
-    users-service:
-      address: 'static://${USERS_SERVICE_HOST:users-service}:${USERS_SERVICE_PORT:9093}'
-      enable-keep-alive: true
-      keep-alive-without-calls: true
-    articles-service:
-      address: 'static://${ARTICLES_SERVICE_HOST:articles-service}:${ARTICLES_SERVICE_PORT:50051}'
-      enable-keep-alive: true
-      keep-alive-without-calls: true
-    labs-service:
-      address: 'static://${LABS_SERVICE_HOST:labs-service}:${LABS_SERVICE_PORT:50052}'
-      enable-keep-alive: true
-      keep-alive-without-calls: true
+    channels:
+      python-marimo-service:
+        address: "static://${PYTHON_SERVICE_HOST:marimo-executor-service}:${PYTHON_SERVICE_PORT:9095}"
+        negotiation-type: plaintext
+      auth-service:
+        address: "static://${AUTH_SERVICE_HOST:auth-service}:${AUTH_SERVICE_PORT:9092}"
+        negotiation-type: plaintext
+      users-service:
+        address: "static://${USERS_SERVICE_HOST:users-service}:${USERS_SERVICE_PORT:9093}"
+        negotiation-type: plaintext
+      articles-service:
+        address: "static://${ARTICLES_SERVICE_HOST:articles-service}:${ARTICLES_SERVICE_PORT:50051}"
+        negotiation-type: plaintext
+      labs-service:
+        address: "static://${LABS_SERVICE_HOST:labs-service}:${LABS_SERVICE_PORT:9091}"
+        negotiation-type: plaintext
 
 
 # MinIO Configuration

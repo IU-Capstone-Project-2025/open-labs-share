@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-import marimo_executor_service_pb2 as python__marimo__service__pb2
+import marimo_executor_service_pb2 as marimo__executor__service__pb2
 
 GRPC_GENERATED_VERSION = '1.71.0'
 GRPC_VERSION = grpc.__version__
@@ -36,23 +36,23 @@ class MarimoExecutorStub(object):
         """
         self.StartSession = channel.unary_unary(
                 '/marimo.MarimoExecutor/StartSession',
-                request_serializer=python__marimo__service__pb2.StartSessionRequest.SerializeToString,
-                response_deserializer=python__marimo__service__pb2.StartSessionResponse.FromString,
+                request_serializer=marimo__executor__service__pb2.StartSessionRequest.SerializeToString,
+                response_deserializer=marimo__executor__service__pb2.StartSessionResponse.FromString,
                 _registered_method=True)
         self.ExecuteCell = channel.unary_unary(
                 '/marimo.MarimoExecutor/ExecuteCell',
-                request_serializer=python__marimo__service__pb2.ExecuteRequest.SerializeToString,
-                response_deserializer=python__marimo__service__pb2.ExecuteResponse.FromString,
+                request_serializer=marimo__executor__service__pb2.ExecuteRequest.SerializeToString,
+                response_deserializer=marimo__executor__service__pb2.ExecuteResponse.FromString,
                 _registered_method=True)
         self.EndSession = channel.unary_unary(
                 '/marimo.MarimoExecutor/EndSession',
-                request_serializer=python__marimo__service__pb2.EndSessionRequest.SerializeToString,
-                response_deserializer=python__marimo__service__pb2.EndSessionResponse.FromString,
+                request_serializer=marimo__executor__service__pb2.EndSessionRequest.SerializeToString,
+                response_deserializer=marimo__executor__service__pb2.EndSessionResponse.FromString,
                 _registered_method=True)
         self.GetSessionState = channel.unary_unary(
                 '/marimo.MarimoExecutor/GetSessionState',
-                request_serializer=python__marimo__service__pb2.SessionStateRequest.SerializeToString,
-                response_deserializer=python__marimo__service__pb2.SessionStateResponse.FromString,
+                request_serializer=marimo__executor__service__pb2.SessionStateRequest.SerializeToString,
+                response_deserializer=marimo__executor__service__pb2.SessionStateResponse.FromString,
                 _registered_method=True)
 
 
@@ -88,23 +88,23 @@ def add_MarimoExecutorServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'StartSession': grpc.unary_unary_rpc_method_handler(
                     servicer.StartSession,
-                    request_deserializer=python__marimo__service__pb2.StartSessionRequest.FromString,
-                    response_serializer=python__marimo__service__pb2.StartSessionResponse.SerializeToString,
+                    request_deserializer=marimo__executor__service__pb2.StartSessionRequest.FromString,
+                    response_serializer=marimo__executor__service__pb2.StartSessionResponse.SerializeToString,
             ),
             'ExecuteCell': grpc.unary_unary_rpc_method_handler(
                     servicer.ExecuteCell,
-                    request_deserializer=python__marimo__service__pb2.ExecuteRequest.FromString,
-                    response_serializer=python__marimo__service__pb2.ExecuteResponse.SerializeToString,
+                    request_deserializer=marimo__executor__service__pb2.ExecuteRequest.FromString,
+                    response_serializer=marimo__executor__service__pb2.ExecuteResponse.SerializeToString,
             ),
             'EndSession': grpc.unary_unary_rpc_method_handler(
                     servicer.EndSession,
-                    request_deserializer=python__marimo__service__pb2.EndSessionRequest.FromString,
-                    response_serializer=python__marimo__service__pb2.EndSessionResponse.SerializeToString,
+                    request_deserializer=marimo__executor__service__pb2.EndSessionRequest.FromString,
+                    response_serializer=marimo__executor__service__pb2.EndSessionResponse.SerializeToString,
             ),
             'GetSessionState': grpc.unary_unary_rpc_method_handler(
                     servicer.GetSessionState,
-                    request_deserializer=python__marimo__service__pb2.SessionStateRequest.FromString,
-                    response_serializer=python__marimo__service__pb2.SessionStateResponse.SerializeToString,
+                    request_deserializer=marimo__executor__service__pb2.SessionStateRequest.FromString,
+                    response_serializer=marimo__executor__service__pb2.SessionStateResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -132,8 +132,8 @@ class MarimoExecutor(object):
             request,
             target,
             '/marimo.MarimoExecutor/StartSession',
-            python__marimo__service__pb2.StartSessionRequest.SerializeToString,
-            python__marimo__service__pb2.StartSessionResponse.FromString,
+            marimo__executor__service__pb2.StartSessionRequest.SerializeToString,
+            marimo__executor__service__pb2.StartSessionResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -159,8 +159,8 @@ class MarimoExecutor(object):
             request,
             target,
             '/marimo.MarimoExecutor/ExecuteCell',
-            python__marimo__service__pb2.ExecuteRequest.SerializeToString,
-            python__marimo__service__pb2.ExecuteResponse.FromString,
+            marimo__executor__service__pb2.ExecuteRequest.SerializeToString,
+            marimo__executor__service__pb2.ExecuteResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -186,8 +186,8 @@ class MarimoExecutor(object):
             request,
             target,
             '/marimo.MarimoExecutor/EndSession',
-            python__marimo__service__pb2.EndSessionRequest.SerializeToString,
-            python__marimo__service__pb2.EndSessionResponse.FromString,
+            marimo__executor__service__pb2.EndSessionRequest.SerializeToString,
+            marimo__executor__service__pb2.EndSessionResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -213,8 +213,8 @@ class MarimoExecutor(object):
             request,
             target,
             '/marimo.MarimoExecutor/GetSessionState',
-            python__marimo__service__pb2.SessionStateRequest.SerializeToString,
-            python__marimo__service__pb2.SessionStateResponse.FromString,
+            marimo__executor__service__pb2.SessionStateRequest.SerializeToString,
+            marimo__executor__service__pb2.SessionStateResponse.FromString,
             options,
             channel_credentials,
             insecure,

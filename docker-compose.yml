@@ -307,6 +307,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.marimo-manager-service
+    ports:
+      - "8084:8084"
     environment:
       - SERVER_PORT=8084
       - DB_URL=jdbc:postgresql://postgres-marimo:5432/marimo_service
@@ -341,6 +343,10 @@ services:
       dockerfile: docker/Dockerfile.marimo-executor-service
     environment:
       - GRPC_PORT=9095
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BUCKET=marimo
     networks:
       - blue-network
     restart: unless-stopped
@@ -868,6 +874,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.marimo-manager-service
+    ports:
+      - "8084:8084"
     environment:
       - SERVER_PORT=8084
       - DB_URL=jdbc:postgresql://postgres-marimo:5432/marimo_service
@@ -902,11 +910,14 @@ services:
       dockerfile: docker/Dockerfile.marimo-executor-service
     environment:
       - GRPC_PORT=9095
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BUCKET=marimo
     networks:
       - blue-network
     restart: unless-stopped
     profiles: ["test"]
-
 
   # --- ML Environment ---
   ml-service:

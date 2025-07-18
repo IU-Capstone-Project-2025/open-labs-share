@@ -1,5 +1,10 @@
 import { useState } from 'react';
-import { articlesAPI } from '../utils/api';
+import { useNavigate } from 'react-router-dom';
+import { articlesAPI, marimoAPI } from '../utils/api';
+import { getCurrentUser } from '../utils/auth';
+import MarimoCreator from './MarimoCreator';
+import { PlusCircleIcon } from '@heroicons/react/24/solid';
+
 
 export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
   const [articleData, setArticleData] = useState({
@@ -7,9 +12,11 @@ export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
     short_desc: '',
     pdf_file: null,
   });
+  const [marimoComponents, setMarimoComponents] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+  const navigate = useNavigate();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -28,6 +35,28 @@ export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
         pdf_file: files[0]
       }));
     }
+  };
+
+  const handleAddComponent = () => {
+    const newComponent = {
+      id: `temp-${Date.now()}-${Math.random()}`, // Unique ID for key prop
+      name: '',
+      code: '',
+      assets: []
+    };
+    setMarimoComponents([...marimoComponents, newComponent]);
+  };
+  
+  const handleRemoveComponent = (idToRemove) => {
+    setMarimoComponents(marimoComponents.filter((component) => component.id !== idToRemove));
+  };
+
+  const handleComponentChange = (index, data) => {
+    setMarimoComponents(prevComponents => 
+      prevComponents.map((component, i) => 
+        i === index ? data : component
+      )
+    );
   };
 
   const handleSubmit = async (e) => {
@@ -58,7 +87,59 @@ export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
     try {
       setUploading(true);
       const result = await articlesAPI.createArticle(formData);
-      onSuccess && onSuccess(result);
+
+      // Step 2: Create Marimo components if any
+      const user = getCurrentUser();
+
+      // --- DEBUGGING LOG ---
+      console.log("--- Marimo Component Creation Check ---");
+      console.log("User object:", user);
+      console.log("Article creation API result:", result);
+      console.log("Marimo components in state:", JSON.stringify(marimoComponents, null, 2));
+      console.log("marimoComponents.length > 0:", marimoComponents.length > 0);
+      // --- END DEBUGGING LOG ---
+
+      if (user && result && result.id && marimoComponents.length > 0) {
+        console.log("Condition PASSED. Creating Marimo components...");
+        const articleId = result.id;
+        for (const component of marimoComponents) {
+          if (!component.name || component.name.trim() === '' || !component.code || component.code.trim() === '') {
+            throw new Error('All Marimo components must have a name and code.');
+          }
+          const componentResponse = await marimoAPI.createComponent({
+            name: component.name,
+            contentType: 'article',
+            contentId: String(articleId),
+            ownerId: String(user.id),
+            initialCode: component.code,
+          });
+          const componentId = componentResponse.id;
+
+          if (component.assets && component.assets.length > 0) {
+            for (const assetFile of component.assets) {
+              const assetFormData = new FormData();
+              assetFormData.append('file', assetFile);
+              assetFormData.append('componentId', String(componentId));
+              assetFormData.append('assetType', 'DATA');
+              await marimoAPI.uploadAsset(assetFormData);
+            }
+          }
+        }
+      } else {
+        console.log("Condition FAILED. Skipping Marimo component creation.");
+      }
+
+      if (onSuccess) {
+        onSuccess(result);
+      } else {
+        const user = getCurrentUser();
+        if (user) {
+          navigate(`/users/${user.id}/articles`);
+        } else {
+          navigate('/'); // Fallback to home if user is not found
+        }
+      }
+
     } catch (err) {
       console.error('Error creating article:', err);
       if (err.data && typeof err.data === 'object') {
@@ -145,6 +226,36 @@ export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
           {fieldErrors.pdf_file && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.pdf_file}</p>
           )}
+        </div>
+
+        {/* Marimo Components Section */}
+        <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 mt-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Interactive Components (Optional)</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                Enhance your article by adding interactive components with Python code. These allow for live code execution directly within the lab page.
+            </p>
+
+            {marimoComponents.length > 0 && (
+              <div className="space-y-6">
+                {marimoComponents.map((component, index) => (
+                  <MarimoCreator
+                    key={component.id}
+                    index={index}
+                    componentData={component}
+                    onComponentChange={handleComponentChange}
+                    onRemove={() => handleRemoveComponent(component.id)}
+                  />
+                ))}
+              </div>
+            )}
+            
+            <button
+                type="button"
+                onClick={handleAddComponent}
+                className="mt-6 flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-blue-500 hover:text-blue-500 dark:hover:border-blue-400 dark:hover:text-blue-400 transition-all"
+            >
+                <PlusCircleIcon className="h-6 w-6 mr-2" />
+            </button>
         </div>
 
         {/* Action Buttons */}

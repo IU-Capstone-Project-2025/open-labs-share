@@ -1,7 +1,7 @@
 plugins {
     id 'java'
     id 'org.springframework.boot' version '3.5.0'
-    id 'io.spring.dependency-management' version '1.1.6'
+    id 'io.spring.dependency-management' version '1.1.7'
     id 'com.google.protobuf' version '0.9.4'
 }
 
@@ -14,14 +14,13 @@ java {
     }
 }
 
-configurations {
-    compileOnly {
-        extendsFrom annotationProcessor
-    }
-}
-
 repositories {
     mavenCentral()
+}
+
+ext {
+    set('springGrpcVersion', "0.8.0")
+    set('grpcVersion', "1.72.0")
 }
 
 dependencies {
@@ -30,22 +29,19 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-cache'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
     
-    // gRPC client starter
-    implementation 'net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE'
-    implementation 'io.grpc:grpc-protobuf:1.62.2'
-    implementation 'io.grpc:grpc-stub:1.62.2'
-    implementation 'com.google.protobuf:protobuf-java-util:3.25.3'
-    
+    // gRPC client
+    implementation 'org.springframework.grpc:spring-grpc-client-spring-boot-starter'
+    implementation 'io.grpc:grpc-services'
+    implementation 'com.google.protobuf:protobuf-java-util:4.28.2'
+
     // Spring Retry for resilient gRPC calls
     implementation 'org.springframework.retry:spring-retry'
     implementation 'org.springframework:spring-aspects'
 
-    // Javax Annotation for gRPC generated code
-    implementation 'javax.annotation:javax.annotation-api:1.3.2'
-
     // OpenAPI / Swagger
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
 
     // Database
     runtimeOnly 'org.postgresql:postgresql'
@@ -54,43 +50,42 @@ dependencies {
     implementation 'io.minio:minio:8.5.9'
     
     // Lombok
-    compileOnly 'org.projectlombok:lombok'
-    annotationProcessor 'org.projectlombok:lombok'
+    compileOnly 'org.projectlombok:lombok:1.18.34'
+    annotationProcessor 'org.projectlombok:lombok:1.18.34'
+
+    // Jakarta annotations for Java 21
+	compileOnly 'jakarta.annotation:jakarta.annotation-api:2.1.1'
     
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'io.grpc:grpc-testing:1.72.0'
+    testImplementation 'com.google.protobuf:protobuf-java-util:4.28.2'
     testImplementation 'org.testcontainers:junit-jupiter:1.19.7'
     testImplementation 'org.testcontainers:postgresql:1.19.7'
 }
 
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.grpc:spring-grpc-dependencies:${springGrpcVersion}"
+	}
+}
+
 protobuf {
     protoc {
-        artifact = "com.google.protobuf:protoc:3.25.1"
+        artifact = "com.google.protobuf:protoc"
     }
     plugins {
         grpc {
-            artifact = "io.grpc:protoc-gen-grpc-java:1.60.0"
+            artifact = "io.grpc:protoc-gen-grpc-java"
         }
     }
     generateProtoTasks {
-        all().each { task ->
-            task.builtins {
-                java {
-                }
+        all()*.plugins {
+            grpc {
+                option 'jakarta_omit'
+                option '@generated=omit'
             }
-            task.plugins {
-            grpc {}
-            }
-        }
-    }
-}
-
-sourceSets {
-    main {
-        java {
-            srcDirs 'src/main/java'
-            srcDirs 'build/generated/source/proto/main/java'
-            srcDirs 'build/generated/source/proto/main/grpc'
         }
     }
 }
@@ -100,4 +95,10 @@ tasks.named('test') {
 }
 
 // Ensure proto files are compiled before Java compilation
-compileJava.dependsOn tasks.generateProto 
+compileJava.dependsOn tasks.generateProto
+
+// Add a task to clean generated protobuf files
+task cleanProto(type: Delete) {
+    delete "build/generated"
+}
+clean.dependsOn cleanProto 

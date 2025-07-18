@@ -21,8 +21,14 @@ class MarimoExecutorService(marimo_service_pb2_grpc.MarimoExecutorServicer):
 
     def StartSession(self, request, context):
         try:
-            # Pass the session_id from the request to the session manager
-            session_id, session = self.session_manager.create_session(request.session_id, request.notebook_path)
+            # Extract component_id from request if provided
+            component_id = request.component_id if request.HasField('component_id') else None
+            # Pass the session_id and component_id from the request to the session manager
+            session_id, session = self.session_manager.create_session(
+                request.session_id, 
+                request.notebook_path, 
+                component_id
+            )
             return marimo_service_pb2.StartSessionResponse(
                 success=True,
                 error=""
