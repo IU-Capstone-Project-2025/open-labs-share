@@ -7,8 +7,11 @@ marimo==0.6.22
 
 # Data & Plotting
 numpy
+pandas
 plotly
 matplotlib
+seaborn
+scikit-learn
 
 # Cloud & DB
 minio

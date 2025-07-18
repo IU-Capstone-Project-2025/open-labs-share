@@ -19,6 +19,30 @@ class MarimoExecutorService(marimo_service_pb2_grpc.MarimoExecutorServicer):
     def __init__(self):
         self.session_manager = SessionManager()
 
+    def _map_output_type(self, output_type_str):
+        """Map string output type to protobuf enum."""
+        type_mapping = {
+            'TEXT': marimo_service_pb2.CellOutput.OutputType.TEXT,
+            'STDOUT': marimo_service_pb2.CellOutput.OutputType.STDOUT,
+            'STDERR': marimo_service_pb2.CellOutput.OutputType.STDERR,
+            'EXPRESSION_RESULT': marimo_service_pb2.CellOutput.OutputType.EXPRESSION_RESULT,
+            'ERROR': marimo_service_pb2.CellOutput.OutputType.ERROR,
+            'HTML': marimo_service_pb2.CellOutput.OutputType.HTML,
+            'PLOT': marimo_service_pb2.CellOutput.OutputType.PLOT,
+            'WIDGET': marimo_service_pb2.CellOutput.OutputType.WIDGET,
+        }
+        return type_mapping.get(output_type_str, marimo_service_pb2.CellOutput.OutputType.TEXT)
+
+    def _map_data_type(self, data_type_str):
+        """Map string data type to protobuf enum."""
+        type_mapping = {
+            'TEXT': marimo_service_pb2.CellOutput.DataType.TEXT_DATA,
+            'HTML': marimo_service_pb2.CellOutput.DataType.HTML_DATA,
+            'JSON': marimo_service_pb2.CellOutput.DataType.JSON_DATA,
+            'IMAGE': marimo_service_pb2.CellOutput.DataType.IMAGE_DATA,
+        }
+        return type_mapping.get(data_type_str, marimo_service_pb2.CellOutput.DataType.TEXT_DATA)
+
     def StartSession(self, request, context):
         try:
             # Extract component_id from request if provided
@@ -58,12 +82,17 @@ class MarimoExecutorService(marimo_service_pb2_grpc.MarimoExecutorServicer):
             # Convert outputs to protobuf format
             proto_outputs = []
             for output in outputs:
+                # Map output types to protobuf enums
+                output_type = self._map_output_type(output.get('type', 'TEXT'))
+                data_type = self._map_data_type(output.get('data_type', 'TEXT'))
+                
                 proto_output = marimo_service_pb2.CellOutput(
-                    type=output.get('type', 'TEXT'),
+                    type=output_type,
                     content=output.get('content', ''),
                     data=output.get('data', b''),
                     mime_type=output.get('mime_type', 'text/plain'),
-                    metadata=output.get('metadata', {})
+                    metadata=output.get('metadata', {}),
+                    data_type=data_type
                 )
                 proto_outputs.append(proto_output)
 

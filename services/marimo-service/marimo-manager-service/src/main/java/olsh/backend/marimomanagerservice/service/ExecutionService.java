@@ -80,7 +80,8 @@ public class ExecutionService {
                 proto.getData().toByteArray(),
                 proto.getMimeType(),
                 proto.getMetadataMap(),
-                null
+                null,
+                proto.getDataType().name()
         );
     }
 } 
