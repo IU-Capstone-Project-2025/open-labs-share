@@ -5,6 +5,12 @@ import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
 import { PaperClipIcon, ExclamationCircleIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import ToastNotification from "../components/ToastNotification";
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
+import rehypeHighlight from 'rehype-highlight';
 
 
 const ReviewSubmissionPage = () => {
@@ -175,6 +181,42 @@ const ReviewSubmissionPage = () => {
         return 'Unknown Lab';
     };
 
+    // Add flattenText, generateId, and HeadingRenderer from LabPage
+    const flattenText = (children) => {
+      if (typeof children === "string") return children;
+      if (!Array.isArray(children)) return String(children);
+      return children
+        .map((child) => {
+          if (typeof child === "string") return child;
+          if (child.props?.children) return flattenText(child.props.children);
+          return "";
+        })
+        .join("");
+    };
+    const generateId = (text) =>
+      text
+        .toLowerCase()
+        .replace(/[^\wа-яё]+/gi, "-")
+        .replace(/^-+|-+$/g, "");
+    const HeadingRenderer = (level) => ({ node, children }) => {
+      const text = flattenText(children);
+      const id = generateId(text);
+      const Tag = `h${level}`;
+      return (
+        <Tag
+          id={id}
+          data-heading="true"
+          className={`scroll-mt-20 ${
+            level === 1 ? "text-3xl font-bold mt-8 mb-4 pt-4 border-t" : ""
+          } ${level === 2 ? "text-2xl font-bold mt-6 mb-3" : ""} ${
+            level === 3 ? "text-xl font-semibold mt-4 mb-2" : ""
+          }`}
+        >
+          {children}
+        </Tag>
+      );
+    };
+
     return (
         <div className="container mx-auto px-4 py-8">
 
@@ -184,7 +226,56 @@ const ReviewSubmissionPage = () => {
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
                 <h2 className="text-2xl font-semibold mb-4 dark:text-white">Submission Details</h2>
                 <div className="prose dark:prose-invert max-w-none dark:text-white">
-                    <p>{submission.text}</p>
+                    <article className="prose dark:prose-invert max-w-none">
+                        <ReactMarkdown
+                            remarkPlugins={[remarkGfm, remarkMath]}
+                            rehypePlugins={[rehypeKatex, rehypeHighlight]}
+                            components={{
+                                h1: HeadingRenderer(1),
+                                h2: HeadingRenderer(2),
+                                h3: HeadingRenderer(3),
+                                p: ({ node, ...props }) => (
+                                    <p {...props} className="my-4 leading-relaxed dark:text-gray-300" />
+                                ),
+                                ul: ({ node, ...props }) => (
+                                    <ul {...props} className="list-disc pl-6 my-4 space-y-2 dark:text-gray-300" />
+                                ),
+                                ol: ({ node, ...props }) => (
+                                    <ol {...props} className="list-decimal pl-6 my-4 space-y-2 dark:text-gray-300" />
+                                ),
+                                li: ({ node, ...props }) => <li {...props} className="pl-2 my-1" />,
+                                pre: ({ node, ...props }) => (
+                                    <pre {...props} className="bg-gray-800 rounded-lg p-4 overflow-x-auto my-6" />
+                                ),
+                                code: ({ node, className, children, ...props }) => {
+                                    const match = /language-(\w+)/.exec(className || "");
+                                    const isInline = !match;
+                                    return isInline ? (
+                                        <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm" {...props}>
+                                            {children}
+                                        </code>
+                                    ) : (
+                                        <code className={className} {...props}>
+                                            {children}
+                                        </code>
+                                    );
+                                },
+                                table: ({ node, ...props }) => (
+                                    <div className="overflow-x-auto">
+                                        <table {...props} className="min-w-full divide-y divide-gray-700 my-4 border border-gray-700" />
+                                    </div>
+                                ),
+                                th: ({ node, ...props }) => (
+                                    <th {...props} className="px-4 py-2 bg-gray-800 text-left text-sm font-semibold text-white border-b border-gray-700" />
+                                ),
+                                td: ({ node, ...props }) => (
+                                    <td {...props} className="px-4 py-2 text-sm text-black border-b border-gray-700" />
+                                ),
+                            }}
+                        >
+                            {submission.text}
+                        </ReactMarkdown>
+                    </article>
                 </div>
                 {submission.assets && submission.assets.length > 0 && (
                     <div className="mt-6">
