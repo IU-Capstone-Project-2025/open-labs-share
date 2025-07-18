@@ -478,12 +478,12 @@ Lab content delivery is currently being developed. The markdown content for this
         {lab && (
           <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-8">
             <div className="border-b border-gray-200 dark:border-gray-600 pb-6 mb-6">
-              <h1 className="text-4xl font-bold font-display text-gray-900 dark:text-white">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display text-gray-900 dark:text-white break-words">
                 {lab.title}
               </h1>
               
               {lab.shortDesc && (
-                <p className="mt-2 text-lg text-gray-500 dark:text-gray-400">
+                <p className="mt-2 text-base sm:text-lg text-gray-500 dark:text-gray-400 break-words">
                   {lab.shortDesc}
                 </p>
               )}
