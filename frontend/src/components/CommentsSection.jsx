@@ -146,13 +146,9 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
 
       setReplyText("");
       setReplyingTo(null);
-      
-      setComments(prev => prev.map(comment => 
-        comment.id === parentId
-          ? { ...comment, replies: [...(comment.replies || []), response] }
-          : comment
-      ));
-      
+      // Expand replies section and fetch latest replies
+      setExpandedRepliesState(prev => ({ ...prev, [parentId]: true }));
+      await fetchReplies(parentId);
       setNotification({
         message: "Reply posted successfully",
         type: "success"
@@ -277,13 +273,14 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
   };
 
   const toggleReplies = (commentId) => {
-    if (expandedReplies.has(commentId)) {
-      setExpandedReplies(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(commentId);
-        return newSet;
+    if (expandedRepliesState[commentId]) {
+      setExpandedRepliesState(prev => {
+        const newState = { ...prev };
+        delete newState[commentId];
+        return newState;
       });
     } else {
+      setExpandedRepliesState(prev => ({ ...prev, [commentId]: true }));
       fetchReplies(commentId);
     }
   };
@@ -523,7 +520,7 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
                         </>
                       ) : (
                         <span>
-                          {expandedReplies.has(comment.id) ? "Hide replies" : "Show replies"}
+                          {expandedRepliesState[comment.id] ? "Hide replies" : "Show replies"}
                         </span>
                       )}
                     </button>
