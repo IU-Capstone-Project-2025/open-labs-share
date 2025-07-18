@@ -2,15 +2,18 @@ package olsh.backend.api_gateway.grpc.client;
 
 import com.google.protobuf.ByteString;
 import io.grpc.Channel;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.config.UploadFileConfiguration;
 import olsh.backend.api_gateway.exception.AssetUploadException;
+import olsh.backend.api_gateway.exception.GrpcError;
 import olsh.backend.api_gateway.exception.LabNotFoundException;
 import olsh.backend.api_gateway.exception.SubmissionNotFoundException;
 import olsh.backend.api_gateway.grpc.proto.SubmissionProto.*;
 import olsh.backend.api_gateway.grpc.proto.SubmissionServiceGrpc;
 import org.springframework.grpc.client.GrpcChannelFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -202,6 +205,20 @@ public class SubmissionServiceClient {
             }
             log.error("Error calling DeleteSubmission gRPC for ID {}: {}", submissionId, e.getMessage(), e);
             throw new RuntimeException("Failed to delete submission via gRPC", e);
+        }
+    }
+
+
+    public Integer submissionsCount() {
+        log.debug("Calling gRPC GetSubmissionsCount gRPC request");
+        try {
+            GetSubmissionsCountRequest request = GetSubmissionsCountRequest.newBuilder().build();
+            GetSubmissionsCountResponse response = blockingStub.getSubmissionsCount(request);
+            log.debug("Successfully retrieved submissions count: {}", response.getTotalCount());
+            return response.getTotalCount();
+        } catch (StatusRuntimeException e){
+            log.error("Error calling GetSubmissionsCount gRPC: {}", e.getMessage(), e);
+            throw new GrpcError(HttpStatus.INTERNAL_SERVER_ERROR, e.getStatus().getCode().name(), e.getMessage());
         }
     }
 

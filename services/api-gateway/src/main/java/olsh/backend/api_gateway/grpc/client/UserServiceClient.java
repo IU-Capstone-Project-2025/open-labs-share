@@ -1,12 +1,15 @@
 package olsh.backend.api_gateway.grpc.client;
 
 import io.grpc.Channel;
+import io.grpc.StatusRuntimeException;
 import lombok.extern.slf4j.Slf4j;
+import olsh.backend.api_gateway.exception.GrpcError;
 import olsh.backend.api_gateway.exception.UserNotFoundException;
 import olsh.backend.api_gateway.grpc.proto.UsersServiceGrpc;
 import olsh.backend.api_gateway.grpc.proto.UsersServiceProto.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.grpc.client.GrpcChannelFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -74,6 +77,18 @@ public class UserServiceClient {
         log.debug("Increment labs reviewed response received for userId: {} with success: {} and message: {}",
                 id, response.getSuccess(), response.getMessage());
         return response;
+    }
+
+    public Integer usersCount() {
+        log.debug("Getting users count via gRPC call to user service");
+        try{
+            GetUsersCountResponse response = userServiceStub.getUsersCount(GetUsersCountRequest.newBuilder().build());
+            log.debug("Users count response received: {}", response.getCount());
+            return response.getCount();
+        } catch (StatusRuntimeException e) {
+            log.error("Error calling GetArticlesCount gRPC: {}", e.getMessage(), e);
+            throw new GrpcError(HttpStatus.INTERNAL_SERVER_ERROR, e.getStatus().getCode().name(), e.getMessage());
+        }
     }
 }
 

@@ -2,14 +2,17 @@ package olsh.backend.api_gateway.grpc.client;
 
 import com.google.protobuf.ByteString;
 import io.grpc.Channel;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.config.UploadFileConfiguration;
 import olsh.backend.api_gateway.exception.ArticleNotFoundException;
 import olsh.backend.api_gateway.exception.AssetUploadException;
+import olsh.backend.api_gateway.exception.GrpcError;
 import olsh.backend.api_gateway.grpc.proto.ArticleProto.*;
 import olsh.backend.api_gateway.grpc.proto.ArticleServiceGrpc;
 import org.springframework.grpc.client.GrpcChannelFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -123,8 +126,8 @@ public class ArticleServiceClient {
      * Sends metadata about the asset being uploaded.
      *
      * @param requestObserver The StreamObserver to send requests
-     * @param articleId      The ID of the article associated with the asset
-     * @param file           The file being uploaded
+     * @param articleId       The ID of the article associated with the asset
+     * @param file            The file being uploaded
      */
     private void sendMetadata(StreamObserver<UploadAssetRequest> requestObserver, Long articleId, MultipartFile file) {
         UploadAssetMetadata metadata = UploadAssetMetadata.newBuilder()
@@ -145,7 +148,7 @@ public class ArticleServiceClient {
      * Streams the file content in chunks to the gRPC server.
      *
      * @param requestObserver The StreamObserver to send requests
-     * @param file           The file to upload
+     * @param file            The file to upload
      * @return The total number of bytes sent
      * @throws IOException If an error occurs while reading the file
      */
@@ -208,7 +211,7 @@ public class ArticleServiceClient {
         }
     }
 
-/**
+    /**
      * Retrieves a paginated list of articles via gRPC.
      *
      * @param request The request containing pagination details
@@ -297,6 +300,25 @@ public class ArticleServiceClient {
         } catch (Exception e) {
             log.error("Error calling GetAssetByArticleId gRPC for article ID {}: {}", articleId, e.getMessage(), e);
             throw new RuntimeException("Failed to get asset by article ID via gRPC", e);
+        }
+    }
+
+    /**
+     * Retrieves the number of articles via gRPC.
+     *
+     * @return The number of articles
+     * @throws GrpcError if the gRPC call fails
+     */
+    public Integer articlesCount() {
+        log.debug("Calling gRPC GetArticlesCount to retrieve total article count");
+        try {
+            GetArticlesCountResponse response =
+                    blockingStub.getArticlesCount(GetArticlesCountRequest.newBuilder().build());
+            log.debug("Successfully retrieved article count: {}", response.getTotalCount());
+            return response.getTotalCount();
+        } catch (StatusRuntimeException e) {
+            log.error("Error calling GetArticlesCount gRPC: {}", e.getMessage(), e);
+            throw new GrpcError(HttpStatus.INTERNAL_SERVER_ERROR, e.getStatus().getCode().name(), e.getMessage());
         }
     }
 
