@@ -18,7 +18,7 @@ public class AuthService {
         ValidateTokenResponse response = authServiceClient.validateToken(token);
 
         UserInfo userInfo = null;
-        if (response.getIsValid()) {
+        if (response.getValid()) {
             olsh.backend.grpc.auth.UserInfo protoUserInfo = response.getUserInfo();
             userInfo = new UserInfo(
                 (long) protoUserInfo.getUserId(),
@@ -34,9 +34,9 @@ public class AuthService {
         }
 
         return new AuthValidationResponse(
-                response.getIsValid(),
+                response.getValid(),
                 userInfo,
-                response.getExpiresAt(),
+                response.getExpirationTime(),
                 response.getErrorMessage()
         );
     }

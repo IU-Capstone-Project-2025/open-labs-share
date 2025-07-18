@@ -32,7 +32,7 @@ public class AuthServiceClient {
 
     public ValidateTokenResponse validateToken(String token) {
         if (token == null || token.isBlank()) {
-            return ValidateTokenResponse.newBuilder().setIsValid(false).build();
+            return ValidateTokenResponse.newBuilder().setValid(false).build();
         }
         try {
             log.debug("Validating token with auth-service");
@@ -40,7 +40,7 @@ public class AuthServiceClient {
             return blockingStub.withDeadlineAfter(5, TimeUnit.SECONDS).validateToken(request);
         } catch (Exception e) {
             log.error("gRPC error calling auth-service", e);
-            return ValidateTokenResponse.newBuilder().setIsValid(false).setErrorMessage(e.getMessage()).build();
+            return ValidateTokenResponse.newBuilder().setValid(false).setErrorMessage(e.getMessage()).build();
         }
     }
 
