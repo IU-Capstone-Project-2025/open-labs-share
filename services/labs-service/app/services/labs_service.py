@@ -497,6 +497,21 @@ class LabService(labs_service.LabServiceServicer):
 
             return lab_list
 
+    def GetLabsCount(self, request, context) -> labs_stub.GetLabsCountResponse:
+        """
+        Get the total number of labs.
+        """
+
+        self.logger.info(f"GetLabsCount requested")
+
+        with Session(self.engine) as session:
+            stmt = select(func.count(Lab.id))
+            total_count = session.execute(stmt).scalar_one()
+
+            self.logger.info(f"Total count: {total_count}")
+
+            return labs_stub.GetLabsCountResponse(total_count=total_count)
+
 
     # ------- Lab Assets Management -------
     def UploadAsset(self, request_iterator, context) -> labs_stub.Asset:
