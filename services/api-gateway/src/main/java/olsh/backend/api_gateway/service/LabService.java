@@ -240,12 +240,15 @@ public class LabService {
     /**
      * Validates the existence of a lab by its ID.
      *
-     * @param labId the ID of the lab to validate
+     * @param id the ID of the lab to validate
      * @throws LabNotFoundException if the lab does not exist
      */
-    protected void validateLabExists(Long labId) throws LabNotFoundException {
-        log.debug("Validating existence of lab with ID: {}", labId);
-        LabProto.Lab lab = labServiceClient.getLab(labId);
+    protected void validateLabExists(Long id) throws LabNotFoundException {
+        if (id == null || id <= 0) {
+            throw new IllegalArgumentException("LabId should be provided");
+        }
+        log.debug("Validating existence of lab with ID: {}", id);
+        LabProto.Lab lab = labServiceClient.getLab(id);
     }
 
     /**

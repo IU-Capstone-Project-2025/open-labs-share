@@ -65,6 +65,12 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(ContentNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleContentNotFoundException(ContentNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, "The requested content was not found", ex.getMessage());
+    }
+
+
     @ExceptionHandler(GrpcError.class)
     public ResponseEntity<ErrorResponse> handleGrpcError(GrpcError ex) {
         return buildResponse(ex.getStatus(), ex.getCode(), ex.getMessage());

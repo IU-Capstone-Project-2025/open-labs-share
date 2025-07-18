@@ -18,23 +18,6 @@ public class CommentListResponse {
     @Schema(description = "List of comments on the current page")
     private List<CommentResponse> comments;
 
-    @Schema(description = "Pagination information")
-    private PaginationResponse pagination;
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Schema(description = "Pagination information for list responses")
-    public static class PaginationResponse {
-
-        @Schema(description = "Current page number", example = "1")
-        private Integer currentPage;
-
-        @Schema(description = "Total number of pages", example = "5")
-        private Integer totalPages;
-
-        @Schema(description = "Total number of items across all pages", example = "100")
-        private Integer totalItems;
-    }
+    @Schema(description = "Total number of entries")
+    private int count;
 } 
