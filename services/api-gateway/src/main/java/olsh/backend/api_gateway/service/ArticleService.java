@@ -6,6 +6,7 @@ import olsh.backend.api_gateway.config.UploadFileConfiguration;
 import olsh.backend.api_gateway.dto.request.CreateArticleRequest;
 import olsh.backend.api_gateway.dto.request.ArticlesGetRequest;
 import olsh.backend.api_gateway.dto.response.*;
+import olsh.backend.api_gateway.exception.ArticleNotFoundException;
 import olsh.backend.api_gateway.exception.ForbiddenAccessException;
 import olsh.backend.api_gateway.grpc.client.ArticleServiceClient;
 import olsh.backend.api_gateway.grpc.proto.ArticleProto;
@@ -200,6 +201,14 @@ public class ArticleService {
                 .message("Article deleted successfully")
                 .build();
 
+    }
+
+    public void validateArticleExists(Long id) throws ArticleNotFoundException {
+        if (id == null || id <= 0) {
+            throw new IllegalArgumentException("Article Id should be provided");
+        }
+        log.debug("Validating existence of article with ID: {}", id);
+        ArticleProto.Article article = articleServiceClient.getArticle(id);
     }
 
     /**

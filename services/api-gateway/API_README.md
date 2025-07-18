@@ -1187,11 +1187,7 @@ assets: file[] (required) - Submission files
       "updatedAt": "string (ISO 8601)"
     }
   ],
-  "pagination": {
-    "currentPage": number,
-    "totalPages": number,
-    "totalItems": number
-  }
+  "count": number
 }
 ```  
 
@@ -1266,11 +1262,7 @@ assets: file[] (required) - Submission files
       "updatedAt": "string (ISO 8601)"
     }
   ],
-  "pagination": {
-    "currentPage": number,
-    "totalPages": number,
-    "totalItems": number
-  }
+  "count": number
 }
 ```  
 

@@ -28,6 +28,7 @@ class CommentServiceTest {
     private CommentService commentService;
     private CommentServiceClient commentServiceClient;
     private LabService labService;
+    private ArticleService articleService;
     private UserService userService;
 
     @BeforeEach
@@ -36,7 +37,8 @@ class CommentServiceTest {
         commentServiceClient = mock(CommentServiceClient.class);
         labService = mock(LabService.class);
         userService = mock(UserService.class);
-        commentService = new CommentService(commentServiceClient, labService, userService);
+        articleService = mock(ArticleService.class);
+        commentService = new CommentService(commentServiceClient, labService, articleService,  userService);
         System.out.println("Setting up CommentService tests...");
     }
 
@@ -54,7 +56,7 @@ class CommentServiceTest {
         String commentId = "comment-123";
         long ownerId = 456L;
 
-        CommentProto.Comment protoComment = createTestProtoComment(commentId, ownerId, 1L);
+        CommentProto.Comment protoComment = createTestProtoComment(commentId, ownerId, 1L, "lab");
         when(commentServiceClient.getCommentById(any(CommentProto.GetCommentRequest.class))).thenReturn(protoComment);
         when(userService.getUserByIdSafe(ownerId)).thenReturn(createTestUser(ownerId));
         when(commentServiceClient.deleteComment(any(CommentProto.DeleteCommentRequest.class))).thenReturn(true);
@@ -75,7 +77,7 @@ class CommentServiceTest {
         long actualOwnerId = 456L;
         long attemptingUserId = 789L;
 
-        CommentProto.Comment protoComment = createTestProtoComment(commentId, actualOwnerId, 1L);
+        CommentProto.Comment protoComment = createTestProtoComment(commentId, actualOwnerId, 1L, "lab");
         when(commentServiceClient.getCommentById(any(CommentProto.GetCommentRequest.class))).thenReturn(protoComment);
         when(userService.getUserByIdSafe(actualOwnerId)).thenReturn(createTestUser(actualOwnerId));
 
@@ -95,7 +97,7 @@ class CommentServiceTest {
         long userId = 123L;
         CreateCommentRequest request = new CreateCommentRequest("Test comment", "");
 
-        CommentProto.Comment protoComment = createTestProtoComment("comment-123", userId, validLabId);
+        CommentProto.Comment protoComment = createTestProtoComment("comment-123", userId, validLabId, "lab");
         when(commentServiceClient.createComment(any(CommentProto.CreateCommentRequest.class))).thenReturn(protoComment);
         when(userService.getUserByIdSafe(userId)).thenReturn(createTestUser(userId));
 
@@ -103,7 +105,7 @@ class CommentServiceTest {
         CommentResponse result = commentService.createComment(validLabId, userId, request, "lab");
 
         // Then
-        verify(labService).getLabById(validLabId);
+        verify(labService).validateLabExists(validLabId);
         assertThat(result).isNotNull();
         assertThat(result.getContentId()).isEqualTo(validLabId);
     }
@@ -116,7 +118,7 @@ class CommentServiceTest {
         long userId = 123L;
         CreateCommentRequest request = new CreateCommentRequest("Test comment", null);
 
-        doThrow(new LabNotFoundException("Lab not found")).when(labService).getLabById(nonExistentLabId);
+        doThrow(new LabNotFoundException("Lab not found")).when(labService).validateLabExists(nonExistentLabId);
 
         // When & Then
         assertThatThrownBy(() -> commentService.createComment(nonExistentLabId, userId, request, "lab"))
@@ -141,7 +143,7 @@ class CommentServiceTest {
         CommentListResponse result = commentService.getLabComments(validLabId, request, "lab");
 
         // Then
-        verify(labService).getLabById(validLabId);
+        verify(labService).validateLabExists(validLabId);
         assertThat(result).isNotNull();
     }
 
@@ -152,7 +154,7 @@ class CommentServiceTest {
         String commentId = "comment-123";
         long userId = 123L;
 
-        CommentProto.Comment protoComment = createTestProtoComment(commentId, userId, 1L);
+        CommentProto.Comment protoComment = createTestProtoComment(commentId, userId, 1L, "lab");
         UserResponse userInfo = createTestUser(userId, "John", "Doe");
 
         when(commentServiceClient.getCommentById(any(CommentProto.GetCommentRequest.class))).thenReturn(protoComment);
@@ -187,12 +189,13 @@ class CommentServiceTest {
     }
 
     // Helper methods to create test data
-    private CommentProto.Comment createTestProtoComment(String id, long userId, long labId) {
+    private CommentProto.Comment createTestProtoComment(String id, long userId, long labId, String type) {
         return CommentProto.Comment.newBuilder()
                 .setId(id)
                 .setContentId(labId)
                 .setUserId(userId)
                 .setContent("Test comment content")
+                .setType(type)
                 .setCreatedAt(com.google.protobuf.Timestamp.newBuilder().setSeconds(1704067200).build())
                 .setUpdatedAt(com.google.protobuf.Timestamp.newBuilder().setSeconds(1704067200).build())
                 .build();
@@ -208,8 +211,8 @@ class CommentServiceTest {
 
     private CommentProto.ListCommentsResponse createTestProtoCommentListResponse() {
         return CommentProto.ListCommentsResponse.newBuilder()
-                .addComments(createTestProtoComment("comment-1", 123L, 1L))
-                .addComments(createTestProtoComment("comment-2", 456L, 1L))
+                .addComments(createTestProtoComment("comment-1", 123L, 1L, "lab"))
+                .addComments(createTestProtoComment("comment-2", 456L, 1L, "lab"))
                 .setTotalCount(2)
                 .build();
     }

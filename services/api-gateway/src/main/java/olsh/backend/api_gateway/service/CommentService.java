@@ -5,6 +5,7 @@ import olsh.backend.api_gateway.dto.request.UpdateCommentRequest;
 import olsh.backend.api_gateway.dto.response.CommentListResponse;
 import olsh.backend.api_gateway.dto.response.CommentResponse;
 import olsh.backend.api_gateway.dto.response.UserResponse;
+import olsh.backend.api_gateway.exception.ContentNotFoundException;
 import olsh.backend.api_gateway.exception.ForbiddenAccessException;
 import olsh.backend.api_gateway.exception.LabNotFoundException;
 import olsh.backend.api_gateway.grpc.client.CommentServiceClient;
@@ -24,20 +25,21 @@ public class CommentService {
 
     private final CommentServiceClient commentServiceClient;
     private final LabService labService;
+    private final ArticleService articleService;
     private final UserService userService;
 
     /**
      * Creates a new comment for a lab.
      *
-     * @param labId the ID of the lab
+     * @param contentId the ID of the lab
      * @param userId the ID of the user creating the comment
      * @param request the request containing comment details
      * @return the created comment response
      */
-    public CommentResponse createComment(Long labId, Long userId, CreateCommentRequest request, String type) {
-        validateLabExists(labId);
+    public CommentResponse createComment(Long contentId, Long userId, CreateCommentRequest request, String type) {
+        validateContentExists(contentId, type);
         CommentProto.CreateCommentRequest grpcRequest = CommentProto.CreateCommentRequest.newBuilder()
-                .setContentId(labId)
+                .setContentId(contentId)
                 .setUserId(userId)
                 .setContent(request.getContent())
                 .setParentId(request.getParentId())
@@ -46,7 +48,7 @@ public class CommentService {
         CommentProto.Comment comment = commentServiceClient.createComment(grpcRequest);
         CommentResponse response = mapCommentToResponse(comment);
         enrichCommentWithUserInfo(response);
-        log.debug("Comment created successfully for lab ID: {} by user ID: {}", labId, userId);
+        log.debug("Comment created successfully for lab ID: {} by user ID: {}", contentId, userId);
         return response;
     }
 
@@ -70,23 +72,22 @@ public class CommentService {
     /**
      * Retrieves comments for a specific lab.
      *
-     * @param labId the ID of the lab
+     * @param contentId the ID of the lab
      * @param request the request containing pagination details
      * @return the list of comments for the lab
      */
-    public CommentListResponse getLabComments(long labId, GetCommentsRequest request, String type) {
-        validateLabExists(labId);
+    public CommentListResponse getLabComments(long contentId, GetCommentsRequest request, String type) {
+        validateContentExists(contentId, type);
         CommentProto.ListCommentsRequest grpcRequest = CommentProto.ListCommentsRequest.newBuilder()
-                .setContentId(labId)
+                .setContentId(contentId)
                 .setPage(request.getPage())
                 .setLimit(request.getLimit())
                 .setType(type)
                 .build();
         CommentProto.ListCommentsResponse grpcResponse = commentServiceClient.getComments(grpcRequest);
-        CommentListResponse response = mapCommentsToResponse(grpcResponse.getCommentsList(),
-                grpcResponse.getTotalCount(), request.getPage());
+        CommentListResponse response = mapCommentsToResponse(grpcResponse.getCommentsList());
         enrichCommentsWithUserInfo(response);
-        log.debug("Fetched comments for lab ID: {} on page: {}, limit: {}", labId, request.getPage(),
+        log.debug("Fetched comments for lab ID: {} on page: {}, limit: {}", contentId, request.getPage(),
                 request.getLimit());
         return response;
     }
@@ -105,8 +106,7 @@ public class CommentService {
                 .setLimit(request.getLimit())
                 .build();
         CommentProto.GetCommentRepliesResponse grpcResponse = commentServiceClient.getCommentReplies(grpcRequest);
-        CommentListResponse response = mapCommentsToResponse(grpcResponse.getCommentsList(),
-                grpcResponse.getTotalCount(), request.getPage());
+        CommentListResponse response = mapCommentsToResponse(grpcResponse.getCommentsList());
         enrichCommentsWithUserInfo(response);
         log.debug("Fetched replies for comment ID: {} on page: {}, limit: {}", commentId, request.getPage(),
                 request.getLimit());
@@ -164,11 +164,18 @@ public class CommentService {
         return success;
     }
 
-    private void validateLabExists(long labId) {
+    private void validateContentExists(long id, String type) {
         try {
-            labService.getLabById(labId);
-        } catch (LabNotFoundException e) {
-            log.error("Cannot create comment action for non-existent lab with ID: {}", labId);
+            switch (type) {
+                case "lab": labService.validateLabExists(id);
+                break;
+                case "article": articleService.validateArticleExists(id);
+                break;
+                default: throw new ContentNotFoundException(
+                        String.format("Couldn't find the content of type %s with id %d", type, id ));
+            }
+        } catch (ContentNotFoundException e) {
+            log.error("Cannot create comment action for non-existent lab with ID: {}", id);
             throw e;
         }
     }
@@ -195,21 +202,15 @@ public class CommentService {
      * Maps a list of CommentProto.Comment to CommentListResponse.
      *
      * @param list the list of gRPC comments
-     * @param totalCount the total number of comments
-     * @param page the current page number
      * @return the mapped CommentListResponse
      */
-    private CommentListResponse mapCommentsToResponse(List<CommentProto.Comment> list, int totalCount, int page) {
+    private CommentListResponse mapCommentsToResponse(List<CommentProto.Comment> list) {
         var comments = list.stream()
                 .map(this::mapCommentToResponse)
                 .toList();
         return CommentListResponse.builder()
                 .comments(comments)
-                .pagination(CommentListResponse.PaginationResponse.builder()
-                        .currentPage(page)
-                        .totalItems(totalCount)
-                        .totalPages(0)
-                        .build())
+                .count(comments.size())
                 .build();
     }
 
