@@ -11,6 +11,8 @@ import com.olsh.users.proto.FindUserByEmailRequest;
 import com.olsh.users.proto.FindUserByUsernameRequest;
 import com.olsh.users.proto.GetUserInfoRequest;
 import com.olsh.users.proto.GetUserProfileRequest;
+import com.olsh.users.proto.GetUsersCountRequest;
+import com.olsh.users.proto.GetUsersCountResponse;
 import com.olsh.users.proto.HealthCheckRequest;
 import com.olsh.users.proto.HealthCheckResponse;
 import com.olsh.users.proto.IncrementLabsReviewedRequest;
@@ -291,6 +293,23 @@ public class UsersServiceGrpcImpl extends UsersServiceGrpc.UsersServiceImplBase 
         responseBuilder.setData(healthDataBuilder);
         responseObserver.onNext(responseBuilder.build());
         responseObserver.onCompleted();
+    }
+
+    @Override
+    public void getUsersCount(GetUsersCountRequest request,
+                              StreamObserver<GetUsersCountResponse> responseObserver) {
+        try {
+            log.info("Received GetUsersCount request");
+            GetUsersCountResponse response = userService.getUsersCount(request);
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            log.error("Error getting users count", e);
+            responseObserver.onError(io.grpc.Status.INTERNAL
+                                        .withDescription(
+                                            "Internal server error: " + e.getMessage())
+                                        .asException());
+        }
     }
 
     @Override
