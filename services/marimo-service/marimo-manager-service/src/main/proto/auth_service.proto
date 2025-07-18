@@ -21,23 +21,23 @@ message ValidateTokenRequest {
 
 // Response containing validation result and user information
 message ValidateTokenResponse {
-  bool isValid = 1;
-  UserInfo userInfo = 2;
-  int64 expiresAt = 3;
-  string errorMessage = 4;
+  bool valid = 1;
+  UserInfo user_info = 2;
+  int64 expiration_time = 3;
+  string error_message = 4;
 }
 
 // User information model
 message UserInfo {
-  int64 userId = 1;
+  int64 user_id = 1;
   string username = 2;
-  string firstName = 3;
-  string lastName = 4;
+  string first_name = 3;
+  string last_name = 4;
   string role = 5;
   string email = 6;
-  int32 labsSolved = 7;
-  int32 labsReviewed = 8;
-  double balance = 9;
+  int32 labs_solved = 7;
+  int32 labs_reviewed = 8;
+  int32 balance = 9;
 }
 
 // Health check request

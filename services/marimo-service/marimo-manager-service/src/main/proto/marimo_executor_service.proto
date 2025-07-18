@@ -14,9 +14,9 @@ service MarimoExecutor {
 }
 
 message StartSessionRequest {
-    string sessionId = 1;
-    string notebookPath = 2;
-    optional string componentId = 3;
+    string session_id = 1;
+    string notebook_path = 2;
+    optional string component_id = 3;
 }
 
 message StartSessionResponse {
@@ -25,8 +25,8 @@ message StartSessionResponse {
 }
 
 message ExecuteRequest {
-    string sessionId = 1;
-    string cellId = 2;
+    string session_id = 1;
+    string cell_id = 2;
     string code = 3;
 }
 
@@ -41,7 +41,7 @@ message CellOutput {
     OutputType type = 1;
     string content = 2;
     bytes data = 3;
-    string mimeType = 4;
+    string mime_type = 4;
     map<string, string> metadata = 5;
 }
 
@@ -49,11 +49,11 @@ message ExecuteResponse {
     bool success = 1;
     repeated CellOutput outputs = 2;
     string error = 3;
-    map<string, string> cellState = 4;
+    map<string, string> cell_state = 4;
 }
 
 message EndSessionRequest {
-    string sessionId = 1;
+    string session_id = 1;
 }
 
 message EndSessionResponse {
@@ -62,7 +62,7 @@ message EndSessionResponse {
 }
 
 message SessionStateRequest {
-    string sessionId = 1;
+    string session_id = 1;
 }
 
 message SessionStateResponse {
