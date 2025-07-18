@@ -1,6 +1,6 @@
 # Import downloaded modules
 import grpc
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, func
 from sqlalchemy.orm import Session
 import minio
 
@@ -232,9 +232,6 @@ class ArticleService(service.ArticleServiceServicer):
 
             return stub.ArticleList()
 
-        self.logger.info(f"Data: {data}")
-        self.logger.info(f"Text: {data['text']}, {type(data['text'])=}, {data['text'] == ""}")
-
         if data["text"] is not None and data["text"] == "":
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
             error_message = f"Text is required, got '{data['text']}'"
@@ -403,6 +400,20 @@ class ArticleService(service.ArticleServiceServicer):
             self.logger.info(f"Deleted article with ID {article.id}")
 
             return stub.DeleteArticleResponse(success=True)
+
+    def GetArticlesCount(self, request, context) -> stub.GetArticlesCountResponse:
+        """
+        Get the total number of articles.
+        """
+        self.logger.info(f"GetArticlesCount requested")
+
+        with Session(self.engine) as session:
+            stmt = select(func.count(Article.id))
+            total_count = session.execute(stmt).scalar_one()
+
+            self.logger.info(f"Total count: {total_count}")
+
+            return stub.GetArticlesCountResponse(total_count=total_count)
 
     # Assets Management
     def UploadAsset(self, request_iterator, context) -> stub.Asset:

@@ -15,6 +15,7 @@ service ArticleService {
   rpc DeleteArticle (DeleteArticleRequest) returns (DeleteArticleResponse);
 
   rpc GetArticlesByUserId (GetArticlesByUserIdRequest) returns (ArticleList);
+  rpc GetArticlesCount(GetArticlesCountRequest) returns (GetArticlesCountResponse);
 
   // Assets Management
   rpc UploadAsset (stream UploadAssetRequest) returns (Asset);
@@ -76,6 +77,12 @@ message GetArticlesByUserIdRequest {
   int64 user_id = 1;
   int32 page_number = 2;
   int32 page_size = 3;
+}
+
+message GetArticlesCountRequest {}
+
+message GetArticlesCountResponse {
+  int32 total_count = 1;
 }
 
 // Assets Management
