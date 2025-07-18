@@ -15,6 +15,7 @@ service LabService {
   rpc DeleteLab (DeleteLabRequest) returns (DeleteLabResponse);
 
   rpc GetLabsByUserId (GetLabsByUserIdRequest) returns (LabList);
+  rpc GetLabsCount(GetLabsCountRequest) returns (GetLabsCountResponse);
 
   // Assets Management
   rpc UploadAsset (stream UploadAssetRequest) returns (Asset);
@@ -61,6 +62,12 @@ message GetLabsByUserIdRequest {
   int64 user_id = 1;
   int32 page_number = 2;
   int32 page_size = 3;
+}
+
+message GetLabsCountRequest {}
+
+message GetLabsCountResponse {
+  int32 total_count = 1;
 }
 
 message LabList {
