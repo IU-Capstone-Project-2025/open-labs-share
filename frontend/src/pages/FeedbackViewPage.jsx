@@ -5,6 +5,12 @@ import { useUser } from '../hooks/useUser';
 import Spinner from '../components/Spinner';
 import { PaperClipIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import ToastNotification from '../components/ToastNotification';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
+import rehypeHighlight from 'rehype-highlight';
 
 const formatDateTime = (dateString) => {
   if (!dateString) return 'Unknown date';
@@ -19,6 +25,41 @@ const formatDateTime = (dateString) => {
     console.error('Error formatting date:', error);
     return 'Invalid date';
   }
+};
+
+const flattenText = (children) => {
+  if (typeof children === "string") return children;
+  if (!Array.isArray(children)) return String(children);
+  return children
+    .map((child) => {
+      if (typeof child === "string") return child;
+      if (child.props?.children) return flattenText(child.props.children);
+      return "";
+    })
+    .join("");
+};
+const generateId = (text) =>
+  text
+    .toLowerCase()
+    .replace(/[^\wа-яё]+/gi, "-")
+    .replace(/^-+|-+$/g, "");
+const HeadingRenderer = (level) => ({ node, children }) => {
+  const text = flattenText(children);
+  const id = generateId(text);
+  const Tag = `h${level}`;
+  return (
+    <Tag
+      id={id}
+      data-heading="true"
+      className={`scroll-mt-20 ${
+        level === 1 ? "text-3xl font-bold mt-8 mb-4 pt-4 border-t" : ""
+      } ${level === 2 ? "text-2xl font-bold mt-6 mb-3" : ""} ${
+        level === 3 ? "text-xl font-semibold mt-4 mb-2" : ""
+      }`}
+    >
+      {children}
+    </Tag>
+  );
 };
 
 const FeedbackViewPage = () => {
@@ -186,7 +227,56 @@ const FeedbackViewPage = () => {
         
         <h2 className="text-xl font-semibold mb-2 mt-6 dark:text-white">Your feedback</h2>
         <div className="prose dark:prose-invert max-w-none bg-gray-50 dark:bg-gray-700 p-4 rounded-md">
-          <p className="whitespace-pre-wrap dark:text-white">{feedback.content}</p>
+          <article className="prose dark:prose-invert max-w-none">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={[rehypeKatex, rehypeHighlight]}
+              components={{
+                h1: HeadingRenderer(1),
+                h2: HeadingRenderer(2),
+                h3: HeadingRenderer(3),
+                p: ({ node, ...props }) => (
+                  <p {...props} className="my-4 leading-relaxed dark:text-gray-300" />
+                ),
+                ul: ({ node, ...props }) => (
+                  <ul {...props} className="list-disc pl-6 my-4 space-y-2 dark:text-gray-300" />
+                ),
+                ol: ({ node, ...props }) => (
+                  <ol {...props} className="list-decimal pl-6 my-4 space-y-2 dark:text-gray-300" />
+                ),
+                li: ({ node, ...props }) => <li {...props} className="pl-2 my-1" />,
+                pre: ({ node, ...props }) => (
+                  <pre {...props} className="bg-gray-800 rounded-lg p-4 overflow-x-auto my-6" />
+                ),
+                code: ({ node, className, children, ...props }) => {
+                  const match = /language-(\w+)/.exec(className || "");
+                  const isInline = !match;
+                  return isInline ? (
+                    <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm" {...props}>
+                      {children}
+                    </code>
+                  ) : (
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  );
+                },
+                table: ({ node, ...props }) => (
+                  <div className="overflow-x-auto">
+                    <table {...props} className="min-w-full divide-y divide-gray-700 my-4 border border-gray-700" />
+                  </div>
+                ),
+                th: ({ node, ...props }) => (
+                  <th {...props} className="px-4 py-2 bg-gray-800 text-left text-sm font-semibold text-white border-b border-gray-700" />
+                ),
+                td: ({ node, ...props }) => (
+                  <td {...props} className="px-4 py-2 text-sm text-black border-b border-gray-700" />
+                ),
+              }}
+            >
+              {feedback.content}
+            </ReactMarkdown>
+          </article>
         </div>
 
         {feedback.attachments && feedback.attachments.length > 0 && (
