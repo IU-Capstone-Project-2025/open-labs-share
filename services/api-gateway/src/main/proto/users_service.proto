@@ -52,6 +52,9 @@ service UsersService {
 
   // Health check endpoint
   rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse) {}
+
+  // Get total count of users
+  rpc GetUsersCount (GetUsersCountRequest) returns (GetUsersCountResponse) {}
 }
 
 // Request to get a user's profile
@@ -212,4 +215,14 @@ message DeleteUserRequest {
 message DeleteUserResponse {
   bool success = 1;
   string message = 2;
+}
+
+// Request to get total count of users
+message GetUsersCountRequest {
+  // Empty request - no parameters needed
+}
+
+// Response containing total count of users
+message GetUsersCountResponse {
+  int32 count = 1;
 }

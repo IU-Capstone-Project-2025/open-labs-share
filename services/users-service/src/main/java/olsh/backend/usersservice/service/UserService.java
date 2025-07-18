@@ -9,6 +9,8 @@ import com.olsh.users.proto.FindUserByEmailRequest;
 import com.olsh.users.proto.FindUserByUsernameRequest;
 import com.olsh.users.proto.GetUserInfoRequest;
 import com.olsh.users.proto.GetUserProfileRequest;
+import com.olsh.users.proto.GetUsersCountRequest;
+import com.olsh.users.proto.GetUsersCountResponse;
 import com.olsh.users.proto.IncrementLabsReviewedRequest;
 import com.olsh.users.proto.IncrementLabsSolvedRequest;
 import com.olsh.users.proto.OperationResponse;
@@ -350,6 +352,20 @@ public class UserService {
                 .setSuccess(false)
                 .setMessage("Failed to increment labs reviewed: " + e.getMessage())
                 .build();
+        }
+    }
+
+    public GetUsersCountResponse getUsersCount(GetUsersCountRequest request) {
+        log.info("Getting total count of users");
+        try {
+            long count = userRepository.count();
+            log.info("Total users count: {}", count);
+            return GetUsersCountResponse.newBuilder()
+                .setCount((int) count)
+                .build();
+        } catch (Exception e) {
+            log.error("Error getting users count", e);
+            throw new RuntimeException("Failed to get users count: " + e.getMessage());
         }
     }
 
