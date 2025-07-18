@@ -68,7 +68,6 @@ export default function CommentsSection({ contentType, contentId, userId, userNa
       setHasMore((data.pagination?.currentPage || 1) < (data.pagination?.totalPages || 1));
       setPage(data.pagination?.currentPage || pageNum);
     } catch (error) {
-      console.error("Error fetching comments:", error);
       setNotification({
         message: "Error loading comments",
         type: "error"
