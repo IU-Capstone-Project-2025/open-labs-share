@@ -52,7 +52,7 @@ public class LabServiceClient {
             return response;
         } catch (StatusRuntimeException e) {
             log.error("Error calling CreateLab gRPC: {}", e.getMessage(), e);
-            throw new GrpcError(HttpStatus.BAD_REQUEST, e.getStatus().getCode().name(), e.getMessage());
+            throw new GrpcError(HttpStatus.INTERNAL_SERVER_ERROR, e.getStatus().getCode().name(), e.getMessage());
         }
     }
 
@@ -144,6 +144,24 @@ public class LabServiceClient {
             }
             log.error("Error calling DeleteLab gRPC for ID {}: {}", labId, e.getMessage(), e);
             throw new RuntimeException("Failed to delete lab via gRPC", e);
+        }
+    }
+
+    /**
+     * Retrieves the number of labs using the gRPC service.
+     *
+     * @return Total number of labs
+     * @throws GrpcError if the gRPC call fails
+     */
+    public Integer labCount() {
+        log.debug("Calling gRPC GetLabsCount");
+        try {
+            GetLabsCountResponse response = blockingStub.getLabsCount(GetLabsCountRequest.newBuilder().build());
+            log.debug("Successfully retrieved lab count: {}", response.getTotalCount());
+            return response.getTotalCount();
+        } catch (StatusRuntimeException e) {
+            log.error("Error calling GetLabsCount gRPC: {}", e.getMessage(), e);
+            throw new GrpcError(HttpStatus.INTERNAL_SERVER_ERROR, e.getStatus().getCode().name(), e.getMessage());
         }
     }
 
@@ -327,5 +345,7 @@ public class LabServiceClient {
             throw new RuntimeException("Failed to download asset", e);
         }
     }
+
+
 }
 

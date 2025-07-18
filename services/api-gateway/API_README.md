@@ -11,16 +11,17 @@ All endpoints require JWT authentication unless specified otherwise.
 ## Agenda
 
 1. [Health Check](#health-check)
-2. [User Service](#user-service)
-3. [Labs Service](#labs-service)
-4. [Tag Service](#tag-service)
-5. [Submissions Service](#submissions-service)
-6. [Comments Service](#comments-service)
-7. [Articles Service](#articles-service)
-8. [Feedback Service](#feedback-service)
-9. [Common Response Codes](#common-response-codes)
-10. [Authentication Headers](#authentication-headers)
-11. [Error Response Format](#error-response-format)
+2. [Statistics](#statistics)
+3. [User Service](#user-service)
+4. [Labs Service](#labs-service)
+5. [Tag Service](#tag-service)
+6. [Submissions Service](#submissions-service)
+7. [Comments Service](#comments-service)
+8. [Articles Service](#articles-service)
+9. [Feedback Service](#feedback-service)
+10. [Common Response Codes](#common-response-codes)
+11. [Authentication Headers](#authentication-headers)
+12. [Error Response Format](#error-response-format)
 
 ---  
 
@@ -52,6 +53,23 @@ Example response:
   "status": "UP"
 }
 ```
+
+## Statistics
+
+You can check the statistics of the system with four main parameters.
+- **Endpoint:** `GET /statistics`
+- **Authentication:** Not Required
+
+**Response:**
+```json
+{
+  "users": 1000,
+  "labs": 200,
+  "articles": 50,
+  "submissions": 500
+}
+```
+
 
 ## User Service
 
