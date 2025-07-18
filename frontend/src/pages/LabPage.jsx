@@ -113,12 +113,6 @@ export default function LabPage() {
       const submission = await submissionsAPI.submitLabSolution(id, submissionText, files);
       const submissionId = submission.submissionMetadata.submissionId;
       let autoGradeStarted = false;
-      console.log("Submission", submission);
-      console.log("====================================================\n");
-      console.log("Submitting lab solution for ID:", id);
-      console.log("User ID:", user?.id);
-      console.log("Sub id", submission.submissionMetadata.submissionId);
-      console.log("Statement", submissionId && user?.id && id);
       
       if (submissionId && user?.id && id) {
         try {
@@ -156,13 +150,11 @@ export default function LabPage() {
 
 
   const isMarpPresentation = (markdown) => {
-    // console.log('Full markdown content:', markdown)
-    // console.log('First 10 lines:', markdown.split('\n').slice(0, 10))
+
     
     const result = markdown.trim().startsWith('---\nmarp: true') || 
           markdown.includes('\nmarp: true\n') ||
           markdown.includes('marp: true');
-    // console.log('isMarpPresentation check:', result, 'Content preview:', markdown.substring(0, 200) + '...')
     return result;
   };
 
