@@ -1,7 +1,7 @@
 # Import downloaded modules
 import grpc
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 # Import built-in modules
 import os
@@ -464,7 +464,6 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
             return submission_list
 
-    
     def GetPossibleToReviewSubmissions(self, request, context) -> submissions_stub.SubmissionList:
         data: dict = {
             "user_id": request.user_id,
@@ -530,6 +529,20 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             self.logger.info(f"Retrieved {len(submissions)} submissions to review for user_id={data['user_id']}")
 
             return submission_list
+
+    def GetSubmissionsCount(self, request, context) -> submissions_stub.GetSubmissionsCountResponse:
+        """
+        Get the total number of submissions.
+        """
+        self.logger.info(f"GetSubmissionsCount requested")
+        
+        with Session(self.postgresql_engine) as session:
+            stmt = select(func.count(Submission.id))
+            total_count = session.execute(stmt).scalar_one()
+
+            self.logger.info(f"Total count: {total_count}")
+
+            return submissions_stub.GetSubmissionsCountResponse(total_count=total_count)
 
     # Assets Management
     def UploadAsset(self, request_iterator, context) -> submissions_stub.Asset:
