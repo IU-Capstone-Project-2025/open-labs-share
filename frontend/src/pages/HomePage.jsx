@@ -147,9 +147,10 @@ export default function Home() {
               
               <Link 
                 to="/all-articles" 
-                className="px-8 py-4 bg-white dark:bg-gray-100 text-msc dark:text-gray-900 rounded-lg font-semibold hover:bg-gray-100 dark:hover:bg-white transition-colors border border-gray-200 dark:border-gray-300"
+                className="px-8 py-4 bg-white dark:bg-gray-100 text-msc dark:text-gray-900 rounded-lg font-semibold hover:bg-gray-100 dark:hover:bg-white transition-colors border border-gray-200 dark:border-gray-300 flex items-center group"
               >
                 Browse Articles
+                <ArrowRightIcon className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
           </div>
