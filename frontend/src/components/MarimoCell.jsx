@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useMarimoSession } from '../contexts/MarimoSessionContext';
 import MarimoAssetList from './MarimoAssetList';
+import OutputRenderer from './OutputRenderer';
 import CodeMirror from '@uiw/react-codemirror';
 import { python } from '@codemirror/lang-python';
 import { oneDark } from '@codemirror/theme-one-dark';
@@ -133,25 +134,13 @@ const MarimoCell = ({ component }) => {
 
     // Handle different output formats from the API
     if (output.outputs && Array.isArray(output.outputs)) {
-      return output.outputs.map((out, index) => {
-        switch (out.mimeType) {
-          case 'text/html':
-            return <div key={index} dangerouslySetInnerHTML={{ __html: out.content }} />;
-          case 'image/png':
-          case 'image/jpeg':
-          case 'image/gif':
-            // Handle both base64 data and direct content
-            const imgSrc = out.data ? `data:${out.mimeType};base64,${out.data}` : out.content;
-            return <img key={index} src={imgSrc} alt={`output-${index}`} />;
-          case 'text/plain':
-          default:
-            return <pre key={index} className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{out.content}</pre>;
-        }
-      });
+      return output.outputs.map((out, index) => (
+        <OutputRenderer key={index} output={out} index={index} />
+      ));
     }
 
     // Fallback for other response formats
-    return <pre className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{JSON.stringify(output, null, 2)}</pre>;
+    return <pre className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-mono text-sm bg-gray-50 dark:bg-gray-900 p-2 rounded border">{JSON.stringify(output, null, 2)}</pre>;
   };
 
   return (

@@ -36,12 +36,24 @@ message CellOutput {
         HTML = 2;
         WIDGET = 3;
         ERROR = 4;
+        STDOUT = 5;
+        STDERR = 6;
+        EXPRESSION_RESULT = 7;
     }
+    
+    enum DataType {
+        TEXT_DATA = 0;
+        HTML_DATA = 1;
+        JSON_DATA = 2;
+        IMAGE_DATA = 3;
+    }
+    
     OutputType type = 1;
     string content = 2;
     bytes data = 3;
     string mime_type = 4;
     map<string, string> metadata = 5;
+    DataType data_type = 6;
 }
 
 message ExecuteResponse {

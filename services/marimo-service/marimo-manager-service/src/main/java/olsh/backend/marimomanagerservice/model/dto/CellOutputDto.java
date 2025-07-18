@@ -17,4 +17,5 @@ public class CellOutputDto {
     private String mimeType;
     private Map<String, String> metadata;
     private String assetUrl;
+    private String dataType;
 } 
