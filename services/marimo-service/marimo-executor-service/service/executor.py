@@ -4,7 +4,9 @@ import os
 import traceback
 import ast
 import base64
-from typing import Any, Dict, List, Tuple, TYPE_CHECKING
+import json
+import hashlib
+from typing import Any, Dict, List, Tuple, TYPE_CHECKING, Set, Optional
 import marimo as mo
 
 from .security import SecurityValidator
@@ -42,6 +44,7 @@ class MarimoCellExecutor:
         outputs = []
         error = ""
         success = False
+        processed_widgets = set()  # Track already processed widgets to prevent duplicates
 
         try:
             # Parse the code to identify if last statement is an expression
@@ -52,10 +55,22 @@ class MarimoCellExecutor:
             if code_result is not None and hasattr(code_result, 'savefig'):
                 is_matplotlib_figure = True
             
+            # Check if the last expression result is a widget
+            last_expression_is_widget = False
+            if code_result is not None and self._is_marimo_widget(code_result):
+                last_expression_is_widget = True
+            
             # If we have a result from the last expression, format it
             if code_result is not None:
-                expression_output = self._format_expression_result(code_result)
+                expression_output = self._format_expression_result(code_result, processed_widgets)
                 outputs.append(expression_output)
+            
+            # AST widget detection - only for widgets not covered by expression result
+            # Skip AST detection if the last expression was already a widget
+            if not last_expression_is_widget:
+                widget_results = self._detect_widgets_in_code(code, processed_widgets)
+                for widget_result in widget_results:
+                    outputs.append(widget_result)
             
             # Check for matplotlib figures that might have been created but not returned
             # Only capture if we didn't already capture a matplotlib figure as expression result
@@ -189,8 +204,11 @@ class MarimoCellExecutor:
             
         return figures
 
-    def _format_expression_result(self, result: Any) -> Dict[str, Any]:
+    def _format_expression_result(self, result: Any, processed_widgets: Optional[Set] = None) -> Dict[str, Any]:
         """Format the result of an expression based on its type."""
+        if processed_widgets is None:
+            processed_widgets = set()
+            
         if result is None:
             return {
                 'type': 'EXPRESSION_RESULT',
@@ -198,6 +216,23 @@ class MarimoCellExecutor:
                 'mime_type': 'text/plain',
                 'data_type': 'TEXT'
             }
+        
+        # Check if result is a marimo widget
+        if self._is_marimo_widget(result):
+            # Create a unique identifier for this widget object
+            widget_object_id = id(result)
+            if widget_object_id in processed_widgets:
+                # Widget already processed, return a simple representation instead
+                return {
+                    'type': 'EXPRESSION_RESULT',
+                    'content': f'<marimo widget: {self._get_widget_type(result)}>',
+                    'mime_type': 'text/plain',
+                    'data_type': 'TEXT'
+                }
+            
+            # Mark this widget as processed
+            processed_widgets.add(widget_object_id)
+            return self._format_widget_result(result)
             
         # Handle pandas DataFrames
         if hasattr(result, '_repr_html_'):
@@ -386,3 +421,502 @@ class MarimoCellExecutor:
             'content': str(error_message),
             'mime_type': 'text/plain'
         }
+
+    def _is_marimo_widget(self, obj: Any) -> bool:
+        """Check if an object is a marimo widget"""
+        if obj is None:
+            return False
+            
+        # Check for direct marimo widget types
+        if hasattr(obj, '__module__'):
+            module_name = str(obj.__module__)
+            if 'marimo' in module_name and ('ui' in module_name or 'UIElement' in str(type(obj))):
+                return True
+        
+        # Check for marimo widget class patterns
+        class_name = str(type(obj))
+        if 'marimo' in class_name and any(widget_type in class_name.lower() for widget_type in 
+                                         ['slider', 'button', 'text', 'checkbox', 'dropdown', 'select', 'radio', 'multiselect', 'number']):
+            return True
+        
+        # Check if object has marimo widget methods/attributes
+        widget_methods = ['_component', '_on_change', '_value', '_impl']
+        if hasattr(obj, '_component') and any(hasattr(obj, method) for method in widget_methods):
+            return True
+        
+        # Check for marimo UI elements by their behavior
+        if hasattr(obj, 'value') and hasattr(obj, '_on_change') and hasattr(obj, '_component'):
+            return True
+            
+        return False
+
+    def _format_widget_result(self, result: Any) -> Dict[str, Any]:
+        """Format marimo widget objects for output"""
+        
+        # Create a stable identifier for the widget based on its characteristics
+        # instead of object identity which changes on each execution
+        widget_characteristics = {
+            'type': self._get_widget_type(result),
+            'properties': self._extract_widget_properties(result),
+            'value': self._get_widget_value(result)
+        }
+        
+        # Create a hash from the widget characteristics for stable identification
+        characteristics_str = json.dumps(widget_characteristics, sort_keys=True, default=str)
+        widget_hash = hashlib.md5(characteristics_str.encode()).hexdigest()[:8]
+        
+        # Check if a widget with similar characteristics already exists
+        existing_widget_id = None
+        for existing_id, widget_info in self.session.widgets.items():
+            existing_characteristics = {
+                'type': widget_info['type'],
+                'properties': widget_info['properties'],
+                'value': widget_info['value']
+            }
+            existing_str = json.dumps(existing_characteristics, sort_keys=True, default=str)
+            existing_hash = hashlib.md5(existing_str.encode()).hexdigest()[:8]
+            
+            if existing_hash == widget_hash:
+                existing_widget_id = existing_id
+                break
+        
+        # If widget with same characteristics already exists, return existing widget data
+        if existing_widget_id:
+            # Update the object reference to the new instance
+            self.session.widgets[existing_widget_id]['object'] = result
+            
+            widget_data = {
+                'id': existing_widget_id,
+                'type': self.session.widgets[existing_widget_id]['type'],
+                'value': self._get_widget_value(result),
+                'properties': self.session.widgets[existing_widget_id]['properties']
+            }
+            
+            return {
+                'type': 'WIDGET',
+                'content': json.dumps(widget_data),
+                'mime_type': 'application/json',
+                'data_type': 'WIDGET_DATA'
+            }
+        
+        # Create new widget if not already registered
+        widget_id = f"widget_{widget_hash}"  # Use hash for consistent ID
+        
+        # Detect widget type and properties
+        widget_type = self._get_widget_type(result)
+        
+        # Extract widget properties
+        properties = self._extract_widget_properties(result)
+        
+        # Get current value with fallback
+        value = self._get_widget_value(result)
+        
+        # Store widget in session registry
+        self.session.add_widget(widget_id, result)
+        
+        widget_data = {
+            'id': widget_id,
+            'type': widget_type,
+            'value': value,
+            'properties': properties
+        }
+        
+        return {
+            'type': 'WIDGET',
+            'content': json.dumps(widget_data),
+            'mime_type': 'application/json',
+            'data_type': 'WIDGET_DATA'
+        }
+
+    def _get_widget_type(self, obj: Any) -> str:
+        """Detect widget type with fallbacks"""
+        # Check class name for type hints
+        class_name = str(type(obj)).lower()
+        
+        # Direct class name mapping - check range_slider first before regular slider
+        if 'range_slider' in class_name:
+            return 'range_slider'
+        elif 'slider' in class_name:
+            return 'slider'
+        elif 'button' in class_name:
+            return 'button'
+        elif 'text' in class_name:
+            return 'text'
+        elif 'checkbox' in class_name:
+            return 'checkbox'
+        elif 'radio' in class_name:
+            return 'radio'
+        elif 'multiselect' in class_name:
+            return 'multiselect'
+        elif 'dropdown' in class_name or 'select' in class_name:
+            return 'dropdown'
+        elif 'number' in class_name:
+            return 'number'
+        
+        # Check for component type attribute
+        if hasattr(obj, '_component'):
+            component = obj._component
+            if hasattr(component, 'component_type'):
+                return str(component.component_type).lower()
+        
+        # Check for widget-specific attributes
+        if hasattr(obj, 'min') and hasattr(obj, 'max'):
+            return 'slider'
+        elif hasattr(obj, 'options'):
+            # Try to distinguish between different option-based widgets
+            # Check class name more carefully
+            class_name = str(type(obj)).lower()
+            if 'radio' in class_name:
+                return 'radio'
+            elif 'multiselect' in class_name or 'multi_select' in class_name:
+                return 'multiselect'
+            elif 'dropdown' in class_name:
+                return 'dropdown'
+            else:
+                # Default to dropdown for options-based widgets
+                return 'dropdown'
+        elif hasattr(obj, 'placeholder'):
+            return 'text'
+        
+        # Fallback to session method
+        return self.session._get_widget_type(obj)
+
+    def _extract_widget_properties(self, obj: Any) -> Dict[str, Any]:
+        """Extract widget properties"""
+        properties = {}
+        
+        # Common properties
+        if hasattr(obj, 'label'):
+            properties['label'] = getattr(obj, 'label')
+        
+        # For marimo widgets, extract label from _args tuple
+        if hasattr(obj, '_args') and isinstance(obj._args, tuple) and len(obj._args) > 2:
+            label = obj._args[2]
+            if label and isinstance(label, str) and label.strip():
+                properties['label'] = label
+        
+        # Type-specific properties
+        widget_type = self._get_widget_type(obj)
+        
+        if widget_type == 'range_slider':
+            if hasattr(obj, 'start'):
+                properties['min'] = getattr(obj, 'start')  # Map start to min for frontend compatibility
+            if hasattr(obj, 'stop'):
+                properties['max'] = getattr(obj, 'stop')   # Map stop to max for frontend compatibility
+            if hasattr(obj, 'step'):
+                properties['step'] = getattr(obj, 'step')
+            # For range slider, also extract min/max from _args
+            if hasattr(obj, '_args') and isinstance(obj._args, tuple) and len(obj._args) > 4:
+                if isinstance(obj._args[4], dict):
+                    config = obj._args[4]
+                    if 'start' in config:
+                        properties['min'] = config['start']
+                    if 'stop' in config:
+                        properties['max'] = config['stop']
+                    if 'step' in config:
+                        properties['step'] = config['step']
+        elif widget_type == 'slider':
+            # First try direct attributes
+            if hasattr(obj, 'min'):
+                properties['min'] = getattr(obj, 'min')
+            if hasattr(obj, 'max'):
+                properties['max'] = getattr(obj, 'max')
+            if hasattr(obj, 'step'):
+                properties['step'] = getattr(obj, 'step')
+            
+            # For marimo sliders, also extract from _args tuple
+            # mo.ui.slider(start, stop, step=1, value=None, label="", ...)
+            if hasattr(obj, '_args') and isinstance(obj._args, tuple):
+                if len(obj._args) > 0 and obj._args[0] is not None:
+                    properties['min'] = obj._args[0]  # start parameter
+                if len(obj._args) > 1 and obj._args[1] is not None:
+                    properties['max'] = obj._args[1]  # stop parameter
+                if len(obj._args) > 2 and obj._args[2] is not None:
+                    properties['step'] = obj._args[2]  # step parameter
+            
+            # Also try alternative attribute names that marimo might use
+            if hasattr(obj, 'start'):
+                properties['min'] = getattr(obj, 'start')
+            if hasattr(obj, 'stop'):
+                properties['max'] = getattr(obj, 'stop')
+        
+        elif widget_type == 'text':
+            # First try direct attributes
+            if hasattr(obj, 'placeholder'):
+                properties['placeholder'] = getattr(obj, 'placeholder')
+            if hasattr(obj, 'max_length'):
+                properties['maxLength'] = getattr(obj, 'max_length')
+            
+            # For marimo text widgets, also extract from _args tuple
+            # mo.ui.text(value="", placeholder="", label="", ...)
+            if hasattr(obj, '_args') and isinstance(obj._args, tuple):
+                if len(obj._args) > 1 and obj._args[1] is not None:
+                    properties['placeholder'] = obj._args[1]  # placeholder parameter
+                # Additional parameters might be in kwargs
+                if len(obj._args) > 3 and isinstance(obj._args[3], dict):
+                    kwargs = obj._args[3]
+                    if 'placeholder' in kwargs:
+                        properties['placeholder'] = kwargs['placeholder']
+                    if 'max_length' in kwargs:
+                        properties['maxLength'] = kwargs['max_length']
+        
+        elif widget_type in ['dropdown', 'select', 'radio', 'multiselect']:
+            # First try direct attributes
+            if hasattr(obj, 'options'):
+                options = getattr(obj, 'options', [])
+                if isinstance(options, (list, tuple)):
+                    properties['options'] = [
+                        {'value': opt, 'label': str(opt)} if not isinstance(opt, dict) else opt
+                        for opt in options
+                    ]
+                elif isinstance(options, dict):
+                    # Handle dictionary format: {label: value, ...}
+                    properties['options'] = [
+                        {'value': value, 'label': label}
+                        for label, value in options.items()
+                    ]
+            
+            # For marimo widgets, also extract options from _args tuple
+            # mo.ui.dropdown(options, value=None, label="", ...)
+            # mo.ui.radio(options, value=None, label="", ...)
+            # mo.ui.multiselect(options, value=None, label="", ...)
+            if hasattr(obj, '_args') and isinstance(obj._args, tuple):
+                if len(obj._args) > 0 and obj._args[0] is not None:
+                    options_arg = obj._args[0]
+                    if isinstance(options_arg, (list, tuple)):
+                        properties['options'] = [
+                            {'value': opt, 'label': str(opt)} if not isinstance(opt, dict) else opt
+                            for opt in options_arg
+                        ]
+                    elif isinstance(options_arg, dict):
+                        # Handle dictionary format: {label: value, ...}
+                        properties['options'] = [
+                            {'value': value, 'label': label}
+                            for label, value in options_arg.items()
+                        ]
+        
+        elif widget_type == 'number':
+            # First try direct attributes
+            if hasattr(obj, 'min'):
+                properties['min'] = getattr(obj, 'min')
+            if hasattr(obj, 'max'):
+                properties['max'] = getattr(obj, 'max')
+            if hasattr(obj, 'step'):
+                properties['step'] = getattr(obj, 'step')
+            
+            # For marimo number widgets, also extract from _args tuple
+            # mo.ui.number(start=0, stop=100, step=1, value=None, label="", ...)
+            if hasattr(obj, '_args') and isinstance(obj._args, tuple):
+                if len(obj._args) > 0 and obj._args[0] is not None:
+                    properties['min'] = obj._args[0]  # start parameter
+                if len(obj._args) > 1 and obj._args[1] is not None:
+                    properties['max'] = obj._args[1]  # stop parameter
+                if len(obj._args) > 2 and obj._args[2] is not None:
+                    properties['step'] = obj._args[2]  # step parameter
+        
+        elif widget_type == 'button':
+            if hasattr(obj, 'kind'):
+                properties['kind'] = getattr(obj, 'kind')
+        
+        # Fallback to session method for additional properties
+        session_properties = self.session._extract_widget_properties(obj)
+        properties.update(session_properties)
+        
+        return properties
+
+    def _get_widget_value(self, obj: Any) -> Any:
+        """Get widget value with fallbacks"""
+        # Try direct value attribute
+        if hasattr(obj, 'value'):
+            return getattr(obj, 'value')
+        
+        # Try _value attribute
+        if hasattr(obj, '_value'):
+            return getattr(obj, '_value')
+        
+        # Try component value
+        if hasattr(obj, '_component') and hasattr(obj._component, 'value'):
+            return getattr(obj._component, 'value')
+        
+        # For marimo widgets, try to extract initial value from _args
+        widget_type = self._get_widget_type(obj)
+        if hasattr(obj, '_args') and isinstance(obj._args, tuple):
+            if widget_type == 'slider':
+                # mo.ui.slider(start, stop, step=1, value=None, ...)
+                # Value is typically the 4th parameter or in kwargs
+                if len(obj._args) > 3 and obj._args[3] is not None:
+                    return obj._args[3]
+                # If no explicit value, default to start value
+                elif len(obj._args) > 0 and obj._args[0] is not None:
+                    return obj._args[0]
+            elif widget_type in ['dropdown', 'select', 'radio']:
+                # mo.ui.dropdown(options, value=None, ...)
+                # Value is typically the 2nd parameter
+                if len(obj._args) > 1 and obj._args[1] is not None:
+                    return obj._args[1]
+            elif widget_type == 'multiselect':
+                # mo.ui.multiselect(options, value=None, ...)
+                # Value is typically the 2nd parameter and should be a list
+                if len(obj._args) > 1 and obj._args[1] is not None:
+                    value = obj._args[1]
+                    return value if isinstance(value, list) else [value]
+            elif widget_type == 'text':
+                # mo.ui.text(value="", ...)
+                # Value is typically the 1st parameter
+                if len(obj._args) > 0 and obj._args[0] is not None:
+                    return obj._args[0]
+            elif widget_type == 'number':
+                # mo.ui.number(start, stop, step=1, value=None, ...)
+                # Value is typically the 4th parameter or start value
+                if len(obj._args) > 3 and obj._args[3] is not None:
+                    return obj._args[3]
+                elif len(obj._args) > 0 and obj._args[0] is not None:
+                    return obj._args[0]
+        
+        # Default values based on widget type
+        if widget_type == 'range_slider':
+            # For range slider, return default range
+            return [0, 100]
+        elif widget_type == 'slider':
+            return 0
+        elif widget_type == 'text':
+            return ""
+        elif widget_type == 'checkbox':
+            return False
+        elif widget_type in ['dropdown', 'select', 'radio']:
+            return None
+        elif widget_type == 'multiselect':
+            return []
+        elif widget_type == 'number':
+            return 0
+        
+        return None
+
+    def _detect_widgets_in_code(self, code: str, processed_widgets: Optional[Set] = None) -> List[Dict[str, Any]]:
+        """AST-based widget detection for complex expressions"""
+        if processed_widgets is None:
+            processed_widgets = set()
+            
+        widgets = []
+        
+        try:
+            # Parse the code into an AST
+            tree = ast.parse(code)
+            
+            # Create a widget detector visitor
+            detector = WidgetDetectorVisitor(self.session)
+            detector.visit(tree)
+            
+            # Check detected assignments for widgets
+            for var_name, value in detector.widget_assignments.items():
+                if var_name in self.session.globals and self._is_marimo_widget(self.session.globals[var_name]):
+                    widget_obj = self.session.globals[var_name]
+                    widget_object_id = id(widget_obj)
+                    
+                    # Skip if already processed
+                    if widget_object_id not in processed_widgets:
+                        processed_widgets.add(widget_object_id)
+                        widget_result = self._format_widget_result(widget_obj)
+                        widgets.append(widget_result)
+            
+            # Check function calls that might return widgets
+            for call_info in detector.widget_calls:
+                # Try to evaluate the call if it's safe
+                try:
+                    # Use globals only, as locals might not be available
+                    result = eval(call_info['code'], self.session.globals, {})
+                    if self._is_marimo_widget(result):
+                        widget_object_id = id(result)
+                        
+                        # Skip if already processed
+                        if widget_object_id not in processed_widgets:
+                            processed_widgets.add(widget_object_id)
+                            widget_result = self._format_widget_result(result)
+                            widgets.append(widget_result)
+                except:
+                    pass  # Skip unsafe evaluations
+            
+        except (SyntaxError, ValueError):
+            # If AST parsing fails, fall back to simple widget detection
+            pass
+        
+        return widgets
+
+class WidgetDetectorVisitor(ast.NodeVisitor):
+    """AST visitor to detect marimo widget patterns"""
+    
+    def __init__(self, session):
+        self.session = session
+        self.widget_assignments = {}
+        self.widget_calls = []
+        self.current_assignment_target = None
+    
+    def visit_Assign(self, node):
+        """Visit assignment nodes to detect widget assignments"""
+        # Handle simple assignments like: widget = mo.ui.slider(...)
+        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            target_name = node.targets[0].id
+            self.current_assignment_target = target_name
+            
+            # Check if the value is a widget call
+            if self._is_widget_call(node.value):
+                self.widget_assignments[target_name] = node.value
+        
+        self.generic_visit(node)
+    
+    def visit_Call(self, node):
+        """Visit function calls to detect widget creation"""
+        if self._is_widget_call(node):
+            call_code = ast.unparse(node) if hasattr(ast, 'unparse') else self._unparse_call(node)
+            self.widget_calls.append({
+                'code': call_code,
+                'node': node
+            })
+        
+        self.generic_visit(node)
+    
+    def _is_widget_call(self, node):
+        """Check if a call node represents a widget creation"""
+        if not isinstance(node, ast.Call):
+            return False
+        
+        # Check for mo.ui.* calls
+        if isinstance(node.func, ast.Attribute):
+            # Handle mo.ui.slider(), mo.ui.button(), etc.
+            if (isinstance(node.func.value, ast.Attribute) and 
+                isinstance(node.func.value.value, ast.Name) and
+                node.func.value.value.id == 'mo' and
+                node.func.value.attr == 'ui'):
+                return True
+            
+            # Handle direct ui.slider() calls (if ui is imported)
+            if (isinstance(node.func.value, ast.Name) and
+                node.func.value.id == 'ui'):
+                return True
+        
+        # Check for direct widget function calls
+        if isinstance(node.func, ast.Name):
+            widget_functions = ['slider', 'button', 'text', 'checkbox', 'dropdown', 'select', 'radio', 'multiselect', 'number']
+            if node.func.id in widget_functions:
+                return True
+        
+        return False
+    
+    def _unparse_call(self, node):
+        """Fallback unparsing for older Python versions"""
+        try:
+            if isinstance(node.func, ast.Attribute):
+                if isinstance(node.func.value, ast.Attribute):
+                    # mo.ui.slider format
+                    if isinstance(node.func.value.value, ast.Name):
+                        return f"{node.func.value.value.id}.{node.func.value.attr}.{node.func.attr}()"
+                else:
+                    # ui.slider format
+                    if isinstance(node.func.value, ast.Name):
+                        return f"{node.func.value.id}.{node.func.attr}()"
+            elif isinstance(node.func, ast.Name):
+                # slider format
+                return f"{node.func.id}()"
+        except AttributeError:
+            pass
+        return "unknown_widget_call()"

@@ -419,6 +419,18 @@ export const marimoAPI = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
+
+  // Widget Management
+  updateWidgetValue: (sessionId, widgetId, value) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/value`, {
+    method: 'PUT',
+    body: JSON.stringify({ value }),
+  }),
+
+  // Batch widget updates for performance
+  batchUpdateWidgets: (sessionId, updates) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/batch`, {
+    method: 'PUT',
+    body: JSON.stringify({ updates }),
+  }),
 };
 
 // --- Comments API ---
@@ -499,6 +511,95 @@ export const marimo = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
+
+  // Widget Management
+  updateWidgetValue: (sessionId, widgetId, value) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/value`, {
+    method: 'PUT',
+    body: JSON.stringify({ value }),
+  }),
+
+  // Batch widget updates for performance
+  batchUpdateWidgets: (sessionId, updates) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/batch`, {
+    method: 'PUT',
+    body: JSON.stringify({ updates }),
+  }),
+
+  // Widget analytics and performance
+  getWidgetAnalytics: (sessionId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/analytics`),
+  
+  // Widget state management
+  getWidgetState: (sessionId, widgetId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/state`),
+  
+  // Widget constraints and validation
+  getWidgetConstraints: (sessionId, widgetId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/constraints`),
+
+  // Phase 5: Widget persistence endpoints
+  saveWidgetState: (sessionId, widgetId, state) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/state`, {
+    method: 'POST',
+    body: JSON.stringify({ state }),
+  }),
+
+  loadWidgetState: (sessionId, widgetId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/state`),
+
+  deleteWidgetState: (sessionId, widgetId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/state`, {
+    method: 'DELETE',
+  }),
+
+  batchSaveWidgetStates: (batchData) => marimoApiCall('/marimo/widgets/states/batch', {
+    method: 'POST',
+    body: JSON.stringify({ states: batchData }),
+  }),
+
+  batchLoadWidgetStates: (sessionId, widgetIds) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/states/batch`, {
+    method: 'POST',
+    body: JSON.stringify({ widgetIds }),
+  }),
+
+  clearSessionWidgetStates: (sessionId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/states`, {
+    method: 'DELETE',
+  }),
+
+  // Phase 5: Widget versioning endpoints
+  getWidgetVersions: (sessionId, widgetId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/versions`),
+
+  createWidgetVersion: (sessionId, widgetId, version) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/versions`, {
+    method: 'POST',
+    body: JSON.stringify({ version }),
+  }),
+
+  revertWidgetToVersion: (sessionId, widgetId, versionId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/versions/${versionId}/revert`, {
+    method: 'POST',
+  }),
+
+  // Phase 5: Widget templates endpoints
+  getWidgetTemplates: (category = null) => marimoApiCall(`/marimo/templates${category ? `?category=${category}` : ''}`),
+
+  saveWidgetTemplate: (template) => marimoApiCall('/marimo/templates', {
+    method: 'POST',
+    body: JSON.stringify(template),
+  }),
+
+  deleteWidgetTemplate: (templateId) => marimoApiCall(`/marimo/templates/${templateId}`, {
+    method: 'DELETE',
+  }),
+
+  createWidgetFromTemplate: (templateId, overrides = {}) => marimoApiCall(`/marimo/templates/${templateId}/create`, {
+    method: 'POST',
+    body: JSON.stringify({ overrides }),
+  }),
+
+  // Phase 5: Widget collaboration endpoints
+  getSessionCollaborators: (sessionId) => marimoApiCall(`/marimo/sessions/${sessionId}/collaborators`),
+
+  requestWidgetLock: (sessionId, widgetId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/lock`, {
+    method: 'POST',
+  }),
+
+  releaseWidgetLock: (sessionId, widgetId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/lock`, {
+    method: 'DELETE',
+  }),
+
+  getWidgetLocks: (sessionId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/locks`),
 
   // Asset Management
   uploadAsset: (formData) => apiCall('/marimo/assets/upload', {

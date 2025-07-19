@@ -23,6 +23,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+import java.util.Map;
 import jakarta.servlet.http.HttpServletRequest;
 import olsh.backend.marimomanagerservice.model.dto.UserInfo;
 import org.springframework.http.HttpStatus;
@@ -242,6 +245,176 @@ public class MarimoController {
                 request.getCode()
         );
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/sessions/{sessionId}/widgets/{widgetId}/value")
+    @RequireAuth
+    public ResponseEntity<Void> updateWidgetValue(
+            @PathVariable String sessionId,
+            @PathVariable String widgetId,
+            @RequestBody UpdateWidgetValueRequestDto request) {
+        log.debug("Updating widget value: sessionId={}, widgetId={}, value={}", sessionId, widgetId, request.getValue());
+        executionService.updateWidgetValue(sessionId, widgetId, request.getValue());
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/sessions/{sessionId}/widgets/batch")
+    @RequireAuth
+    public ResponseEntity<BatchUpdateResponseDto> batchUpdateWidgets(
+            @PathVariable String sessionId,
+            @RequestBody BatchUpdateWidgetsRequestDto request) {
+        log.debug("Batch updating widgets: sessionId={}, count={}", sessionId, request.getUpdates().size());
+        BatchUpdateResponseDto response = executionService.batchUpdateWidgets(sessionId, request.getUpdates());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/sessions/{sessionId}/widgets/analytics")
+    @RequireAuth
+    public ResponseEntity<WidgetAnalyticsDto> getWidgetAnalytics(@PathVariable String sessionId) {
+        log.debug("Getting widget analytics: sessionId={}", sessionId);
+        WidgetAnalyticsDto analytics = executionService.getWidgetAnalytics(sessionId);
+        return ResponseEntity.ok(analytics);
+    }
+
+    @GetMapping("/sessions/{sessionId}/widgets/{widgetId}/state")
+    @RequireAuth
+    public ResponseEntity<WidgetStateDto> getWidgetState(
+            @PathVariable String sessionId,
+            @PathVariable String widgetId) {
+        log.debug("Getting widget state: sessionId={}, widgetId={}", sessionId, widgetId);
+        WidgetStateDto state = executionService.getWidgetState(sessionId, widgetId);
+        return ResponseEntity.ok(state);
+    }
+
+    @GetMapping("/sessions/{sessionId}/widgets/{widgetId}/constraints")
+    @RequireAuth
+    public ResponseEntity<WidgetConstraintsDto> getWidgetConstraints(
+            @PathVariable String sessionId,
+            @PathVariable String widgetId) {
+        log.debug("Getting widget constraints: sessionId={}, widgetId={}", sessionId, widgetId);
+        WidgetConstraintsDto constraints = executionService.getWidgetConstraints(sessionId, widgetId);
+        return ResponseEntity.ok(constraints);
+    }
+
+    @PostMapping("/sessions/{sessionId}/widgets/{widgetId}/state")
+    @RequireAuth
+    public ResponseEntity<Void> saveWidgetState(
+            @PathVariable String sessionId,
+            @PathVariable String widgetId,
+            @RequestBody Map<String, Object> state) {
+        log.debug("Saving widget state: sessionId={}, widgetId={}", sessionId, widgetId);
+        executionService.saveWidgetState(sessionId, widgetId, state);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/sessions/{sessionId}/widgets/{widgetId}/state/raw")
+    @RequireAuth
+    public ResponseEntity<Map<String, Object>> loadWidgetState(
+            @PathVariable String sessionId,
+            @PathVariable String widgetId) {
+        log.debug("Loading widget state: sessionId={}, widgetId={}", sessionId, widgetId);
+        Map<String, Object> state = executionService.loadWidgetState(sessionId, widgetId);
+        return ResponseEntity.ok(state);
+    }
+
+    @DeleteMapping("/sessions/{sessionId}/widgets/{widgetId}/state")
+    @RequireAuth
+    public ResponseEntity<Void> deleteWidgetState(
+            @PathVariable String sessionId,
+            @PathVariable String widgetId) {
+        log.debug("Deleting widget state: sessionId={}, widgetId={}", sessionId, widgetId);
+        executionService.deleteWidgetState(sessionId, widgetId);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/templates")
+    @RequireAuth
+    public ResponseEntity<List<WidgetTemplateDto>> getWidgetTemplates(
+            @RequestParam(required = false) String category) {
+        log.debug("Getting widget templates: category={}", category);
+        List<WidgetTemplateDto> templates = executionService.getWidgetTemplates(category);
+        return ResponseEntity.ok(templates);
+    }
+
+    @PostMapping("/templates")
+    @RequireAuth
+    public ResponseEntity<WidgetTemplateDto> saveWidgetTemplate(
+            @RequestBody WidgetTemplateDto template) {
+        log.debug("Saving widget template: {}", template.getId());
+        WidgetTemplateDto savedTemplate = executionService.saveWidgetTemplate(template);
+        return ResponseEntity.ok(savedTemplate);
+    }
+
+    @DeleteMapping("/templates/{templateId}")
+    @RequireAuth
+    public ResponseEntity<Void> deleteWidgetTemplate(
+            @PathVariable String templateId) {
+        log.debug("Deleting widget template: {}", templateId);
+        executionService.deleteWidgetTemplate(templateId);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/sessions/{sessionId}/widgets/{widgetId}/versions")
+    @RequireAuth
+    public ResponseEntity<List<WidgetVersionDto>> getWidgetVersions(
+            @PathVariable String sessionId,
+            @PathVariable String widgetId) {
+        log.debug("Getting widget versions: sessionId={}, widgetId={}", sessionId, widgetId);
+        List<WidgetVersionDto> versions = executionService.getWidgetVersions(sessionId, widgetId);
+        return ResponseEntity.ok(versions);
+    }
+
+    @PostMapping("/sessions/{sessionId}/widgets/{widgetId}/versions")
+    @RequireAuth
+    public ResponseEntity<WidgetVersionDto> createWidgetVersion(
+            @PathVariable String sessionId,
+            @PathVariable String widgetId,
+            @RequestBody Map<String, Object> version) {
+        log.debug("Creating widget version: sessionId={}, widgetId={}", sessionId, widgetId);
+        WidgetVersionDto versionDto = executionService.createWidgetVersion(sessionId, widgetId, version);
+        return ResponseEntity.ok(versionDto);
+    }
+
+    @PostMapping("/sessions/{sessionId}/widgets/{widgetId}/versions/{versionId}/revert")
+    @RequireAuth
+    public ResponseEntity<Void> revertWidgetToVersion(
+            @PathVariable String sessionId,
+            @PathVariable String widgetId,
+            @PathVariable int versionId) {
+        log.debug("Reverting widget to version: sessionId={}, widgetId={}, versionId={}", sessionId, widgetId, versionId);
+        executionService.revertWidgetToVersion(sessionId, widgetId, versionId);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/sessions/{sessionId}/collaborators")
+    @RequireAuth
+    public ResponseEntity<WidgetCollaborationDto> getSessionCollaborators(
+            @PathVariable String sessionId) {
+        log.debug("Getting session collaborators: sessionId={}", sessionId);
+        WidgetCollaborationDto collaboration = executionService.getSessionCollaborators(sessionId);
+        return ResponseEntity.ok(collaboration);
+    }
+
+    @PostMapping("/sessions/{sessionId}/widgets/{widgetId}/lock")
+    @RequireAuth
+    public ResponseEntity<Void> requestWidgetLock(
+            @PathVariable String sessionId,
+            @PathVariable String widgetId,
+            @RequestParam String userId) {
+        log.debug("Requesting widget lock: sessionId={}, widgetId={}, userId={}", sessionId, widgetId, userId);
+        executionService.requestWidgetLock(sessionId, widgetId, userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/sessions/{sessionId}/widgets/{widgetId}/lock")
+    @RequireAuth
+    public ResponseEntity<Void> releaseWidgetLock(
+            @PathVariable String sessionId,
+            @PathVariable String widgetId,
+            @RequestParam String userId) {
+        log.debug("Releasing widget lock: sessionId={}, widgetId={}, userId={}", sessionId, widgetId, userId);
+        executionService.releaseWidgetLock(sessionId, widgetId, userId);
+        return ResponseEntity.ok().build();
     }
     
     @PostMapping(value = "/assets/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

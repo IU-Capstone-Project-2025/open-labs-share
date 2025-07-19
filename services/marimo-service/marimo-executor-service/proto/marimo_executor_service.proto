@@ -10,6 +10,7 @@ service MarimoExecutor {
     rpc ExecuteCell (ExecuteRequest) returns (ExecuteResponse);
     rpc EndSession (EndSessionRequest) returns (EndSessionResponse);
     rpc GetSessionState (SessionStateRequest) returns (SessionStateResponse);
+    rpc UpdateWidgetValue (UpdateWidgetValueRequest) returns (UpdateWidgetValueResponse);
 }
 
 message StartSessionRequest {
@@ -79,4 +80,15 @@ message SessionStateRequest {
 message SessionStateResponse {
     bool exists = 1;
     map<string, string> state = 2;
+}
+
+message UpdateWidgetValueRequest {
+    string session_id = 1;
+    string widget_id = 2;
+    string value = 3;
+}
+
+message UpdateWidgetValueResponse {
+    bool success = 1;
+    string error = 2;
 } 

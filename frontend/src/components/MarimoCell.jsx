@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useMarimoSession } from '../contexts/MarimoSessionContext';
+import { useWidgetState } from '../contexts/WidgetStateContext';
 import MarimoAssetList from './MarimoAssetList';
 import OutputRenderer from './OutputRenderer';
 import CodeMirror from '@uiw/react-codemirror';
@@ -40,6 +41,9 @@ const MarimoCell = ({ component }) => {
   
   // Use shared session context
   const { sharedSessionId, sessionError, executeInSharedSession, isSessionReady } = useMarimoSession();
+  
+  // Use widget state context
+  const { clearWidgets } = useWidgetState();
 
   // Detect current theme
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -135,13 +139,25 @@ const MarimoCell = ({ component }) => {
     // Handle different output formats from the API
     if (output.outputs && Array.isArray(output.outputs)) {
       return output.outputs.map((out, index) => (
-        <OutputRenderer key={index} output={out} index={index} />
+        <OutputRenderer 
+          key={index} 
+          output={out} 
+          index={index} 
+          sessionId={sharedSessionId}
+          onWidgetUpdate={handleWidgetUpdate}
+        />
       ));
     }
 
     // Fallback for other response formats
     return <pre className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-mono text-sm bg-gray-50 dark:bg-gray-900 p-2 rounded border">{JSON.stringify(output, null, 2)}</pre>;
   };
+
+  // Handle widget updates
+  const handleWidgetUpdate = useCallback((widgetId, newValue) => {
+    console.log(`Widget ${widgetId} updated to:`, newValue);
+    // Widget state is managed by WidgetStateContext, no additional handling needed here
+  }, []);
 
   return (
     <div className="marimo-cell bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg my-4 shadow-sm">

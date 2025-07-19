@@ -54,6 +54,11 @@ class MarimoExecutorStub(object):
                 request_serializer=marimo__executor__service__pb2.SessionStateRequest.SerializeToString,
                 response_deserializer=marimo__executor__service__pb2.SessionStateResponse.FromString,
                 _registered_method=True)
+        self.UpdateWidgetValue = channel.unary_unary(
+                '/marimo.MarimoExecutor/UpdateWidgetValue',
+                request_serializer=marimo__executor__service__pb2.UpdateWidgetValueRequest.SerializeToString,
+                response_deserializer=marimo__executor__service__pb2.UpdateWidgetValueResponse.FromString,
+                _registered_method=True)
 
 
 class MarimoExecutorServicer(object):
@@ -83,6 +88,12 @@ class MarimoExecutorServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def UpdateWidgetValue(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_MarimoExecutorServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -105,6 +116,11 @@ def add_MarimoExecutorServicer_to_server(servicer, server):
                     servicer.GetSessionState,
                     request_deserializer=marimo__executor__service__pb2.SessionStateRequest.FromString,
                     response_serializer=marimo__executor__service__pb2.SessionStateResponse.SerializeToString,
+            ),
+            'UpdateWidgetValue': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateWidgetValue,
+                    request_deserializer=marimo__executor__service__pb2.UpdateWidgetValueRequest.FromString,
+                    response_serializer=marimo__executor__service__pb2.UpdateWidgetValueResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -215,6 +231,33 @@ class MarimoExecutor(object):
             '/marimo.MarimoExecutor/GetSessionState',
             marimo__executor__service__pb2.SessionStateRequest.SerializeToString,
             marimo__executor__service__pb2.SessionStateResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdateWidgetValue(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/marimo.MarimoExecutor/UpdateWidgetValue',
+            marimo__executor__service__pb2.UpdateWidgetValueRequest.SerializeToString,
+            marimo__executor__service__pb2.UpdateWidgetValueResponse.FromString,
             options,
             channel_credentials,
             insecure,
