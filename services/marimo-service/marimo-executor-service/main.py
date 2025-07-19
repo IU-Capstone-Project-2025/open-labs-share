@@ -140,6 +140,84 @@ class MarimoExecutorService(marimo_service_pb2_grpc.MarimoExecutorServicer):
                 exists=False,
                 state={}
             )
+    
+    def UpdateWidgetValue(self, request, context):
+        """Update widget value in the session"""
+        try:
+            session = self.session_manager.get_session(request.session_id)
+            if not session:
+                return marimo_service_pb2.UpdateWidgetValueResponse(
+                    success=False,
+                    error="Session not found"
+                )
+            
+            # Parse the value based on widget type
+            widget_value = request.value
+            
+            # Get widget info to determine type
+            widget_info = session.widgets.get(request.widget_id)
+            widget_type = widget_info['type'] if widget_info else 'unknown'
+            
+            # Try to parse JSON for complex values
+            try:
+                import json
+                widget_value = json.loads(request.value)
+            except (json.JSONDecodeError, ValueError):
+                # If not valid JSON, keep as string
+                widget_value = request.value
+            
+            # Type-specific validation and conversion
+            if widget_type == 'number':
+                try:
+                    if widget_value is None or widget_value == '':
+                        widget_value = 0
+                    elif isinstance(widget_value, str):
+                        widget_value = float(widget_value)
+                    elif not isinstance(widget_value, (int, float)):
+                        widget_value = float(widget_value)
+                except (ValueError, TypeError):
+                    # If conversion fails, use default value or previous value
+                    widget_value = widget_info.get('value', 0) if widget_info else 0
+                    logging.warning(f"Invalid number value for widget {request.widget_id}, using default: {widget_value}")
+            
+            elif widget_type == 'checkbox':
+                widget_value = bool(widget_value)
+            
+            elif widget_type in ['dropdown', 'radio']:
+                # Single selection widgets - ensure string value
+                if widget_value is None:
+                    widget_value = ''
+                else:
+                    widget_value = str(widget_value)
+            
+            elif widget_type == 'multiselect':
+                # Multi-selection widget - ensure list
+                if not isinstance(widget_value, list):
+                    if widget_value is None:
+                        widget_value = []
+                    else:
+                        widget_value = [widget_value]  # Wrap single value in list
+            
+            elif widget_type == 'range_slider':
+                if not isinstance(widget_value, list) or len(widget_value) != 2:
+                    widget_value = [0, 100]  # Default range
+            
+            # Update widget value in session
+            session.update_widget_value(request.widget_id, widget_value)
+            
+            logging.info(f"Updated widget {request.widget_id} to value: {widget_value}")
+            
+            return marimo_service_pb2.UpdateWidgetValueResponse(
+                success=True,
+                error=""
+            )
+            
+        except Exception as e:
+            logging.error(f"Failed to update widget {request.widget_id}: {e}", exc_info=True)
+            return marimo_service_pb2.UpdateWidgetValueResponse(
+                success=False,
+                error=str(e)
+            )
 
 def serve():
     # Configure logging

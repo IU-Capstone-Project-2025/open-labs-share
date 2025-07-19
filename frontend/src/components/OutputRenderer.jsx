@@ -1,11 +1,12 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import WidgetRenderer from './WidgetRenderer';
 
 /**
- * Enhanced output renderer that handles the new output types from Phase 1 & 2
+ * Output Renderer Component
  * Supports STDOUT, STDERR, EXPRESSION_RESULT with proper data type classification
  */
-const OutputRenderer = ({ output, index = 0, className = '' }) => {
+const OutputRenderer = ({ output, index = 0, className = '', sessionId, onWidgetUpdate }) => {
   if (!output) return null;
 
   const renderByType = () => {
@@ -53,9 +54,27 @@ const OutputRenderer = ({ output, index = 0, className = '' }) => {
       case 'WIDGET':
         try {
           const widgetData = JSON.parse(output.content);
-          return (
-            <pre className="text-sm">{JSON.stringify(widgetData, null, 2)}</pre>
-          );
+          if (sessionId && widgetData.id) {
+            return (
+              <WidgetRenderer
+                widget={widgetData}
+                sessionId={sessionId}
+                onWidgetUpdate={onWidgetUpdate}
+              />
+            );
+          } else {
+            // Fallback for when sessionId is not available
+            return (
+              <div className="widget-fallback p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+                  Interactive Widget
+                </p>
+                <pre className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                  {JSON.stringify(widgetData, null, 2)}
+                </pre>
+              </div>
+            );
+          }
         } catch (e) {
           return (
             <div className="text-red-500">
@@ -158,6 +177,8 @@ OutputRenderer.propTypes = {
   }).isRequired,
   index: PropTypes.number,
   className: PropTypes.string,
+  sessionId: PropTypes.string,
+  onWidgetUpdate: PropTypes.func,
 };
 
 export default OutputRenderer;

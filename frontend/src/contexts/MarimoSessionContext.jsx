@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { startSession, executeCell, endSession } from '../utils/marimoApi';
+import { WidgetStateProvider, useWidgetState } from './WidgetStateContext';
 
 const MarimoSessionContext = createContext();
 
@@ -166,7 +167,9 @@ export const MarimoSessionProvider = ({ children, contentType, contentId }) => {
 
   return (
     <MarimoSessionContext.Provider value={value}>
-      {children}
+      <WidgetStateProvider sessionId={sharedSessionId}>
+        {children}
+      </WidgetStateProvider>
     </MarimoSessionContext.Provider>
   );
 };

@@ -93,6 +93,22 @@ public class PythonMarimoServiceClient {
         }
     }
 
+    public void updateWidgetValue(String sessionId, String widgetId, String value) {
+        log.info("Updating widget value in Python service for sessionId: {}, widgetId: {}", sessionId, widgetId);
+        UpdateWidgetValueRequest request = UpdateWidgetValueRequest.newBuilder()
+                .setSessionId(sessionId)
+                .setWidgetId(widgetId)
+                .setValue(value)
+                .build();
+        
+        try {
+            blockingStub.withDeadlineAfter(10, TimeUnit.SECONDS).updateWidgetValue(request);
+        } catch (Exception e) {
+            log.error("Error updating widget value: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to update widget value", e);
+        }
+    }
+
     @PreDestroy
     public void shutdown() {
         log.info("Shutting down PythonMarimoServiceClient");

@@ -43,15 +43,15 @@ const ResizablePanel = ({ leftComponent, rightComponent, initialLeftWidth = 33.3
 
   return (
     <div ref={containerRef} className="flex h-full w-full">
-      <div style={{ width: `${leftWidth}%` }} className="h-full overflow-y-auto">
+      <div style={{ width: `${leftWidth}%` }} className="h-full overflow-y-auto pr-6">
         {leftComponent}
       </div>
       <div
         onMouseDown={handleMouseDown}
-        className="flex-shrink-0 w-2 cursor-col-resize bg-gray-300 dark:bg-gray-700 hover:bg-msc dark:hover:bg-msc-light transition-colors duration-200"
+        className="flex-shrink-0 w-2 cursor-col-resize bg-gray-300 dark:bg-gray-700 hover:bg-msc dark:hover:bg-msc-light transition-colors duration-200 mx-2"
         style={{ zIndex: 10 }}
       />
-      <div style={{ width: `calc(100% - ${leftWidth}% - 8px)` }} className="h-full overflow-y-auto">
+      <div style={{ width: `calc(100% - ${leftWidth}% - 16px)` }} className="h-full overflow-y-auto pl-6">
         {rightComponent}
       </div>
     </div>
