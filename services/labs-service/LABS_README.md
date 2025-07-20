@@ -1,4 +1,6 @@
-# Agenda
+# Labs Service
+
+## Agenda
 
 - [Purpose](#purpose)
 - [Functionality](#functionality)
@@ -8,166 +10,240 @@
 - [User Stories](#user-stories)
 - [Technical Details](#technical-details)
 
-# Purpose  
+## Purpose  
 
 The **Labs** service on the **Open Labs Share** platform is the central repository of all laboratory work in the system. It provides a single point of management for educational content and access to file resources. It allows:  
 - **Teachers** to create, publish, and review lab assignments
 - **Students** to upload their solutions (submissions), receive grades and feedback
 - **Administrators** to control the quality of the content and the verification process
 
-# Functionality 
+## Functionality 
 
-1. **General**
-- CRUD for labs
-- Data storage
+### 1. **General**
+- CRUD operations for labs, submissions, and tags
+- Data storage with PostgreSQL and MongoDB
+- File storage with MinIO
 - Control of access to labs
 
-2. **For teachers:**
+### 2. **For teachers:**
 - Creation of laboratory papers with descriptions, evaluation criteria and other details
-- Uploading assignment files in Markdown format
-- Checking students' decisions with the possibility of commenting
+- Uploading assignment files in various formats
+- Checking students' submissions with the possibility of grading and commenting
+- Tag management for organizing labs
 
-3. **For students:**
+### 3. **For students:**
 - View available lab work
-   - Downloading lab submissions
-   - Getting ratings and detailed feedback
-   - The ability to refine the submission after verification
+- Downloading lab assets
+- Submitting solutions with text and file attachments
+- Getting grades and detailed feedback
 
-4. **Additional functions:**
+### 4. **Additional functions:**
 - Connection with theoretical materials (articles, lectures)
+- Tag-based lab organization and search
+- Advanced submission review system
 
-# Entities
+## Entities
 
 The service works with the following entities:  
 
-1. **Lab (Laboratory work):**
+### 1. **Lab (Laboratory work):**
 
-| Field        | Type      |
-|--------------|-----------|
-| id (PK)      | long      |
-| owner_id     | long      |
-| title        | string    |
-| created_at   | datestamp |
-| updated_at   | datestamp |
-| abstract     | string    |
-| views        | long      |
-| submissions  | long      |
-| stars        | long      |
-| people_rated | long      |
+| Field        | Type      | Description |
+|--------------|-----------|-------------|
+| id (PK)      | BIGSERIAL | Auto-generated primary key |
+| owner_id     | BIGINT    | ID of the lab creator |
+| title        | VARCHAR(255) | Lab title |
+| created_at   | TIMESTAMP WITH TIME ZONE | Creation timestamp |
+| updated_at   | TIMESTAMP WITH TIME ZONE | Last update timestamp |
+| abstract     | TEXT      | Lab description/summary |
+| views        | BIGINT    | Number of views (default: 0) |
+| submissions  | BIGINT    | Number of submissions (default: 0) |
+| stars        | BIGINT    | Rating stars (default: 0) |
+| people_rated | BIGINT    | Number of people who rated (default: 0) |
 
-2. **Submission (Student's submission):**
+### 2. **Submission (Student's submission):**
 
-| Field      | Type      |
-|------------|-----------|
-| id (PK)    | long      |
-| lab_id     | long      |
-| owner_id   | long      |
-| text       | text      |
-| created_at | datestamp |
-| updated_at | datestamp |
-| status     | string    |
-| points     | integer   |
+| Field      | Type      | Description |
+|------------|-----------|-------------|
+| id (PK)    | BIGSERIAL | Auto-generated primary key |
+| lab_id     | BIGINT    | Foreign key to labs table |
+| owner_id   | BIGINT    | ID of the submission owner |
+| created_at | TIMESTAMP WITH TIME ZONE | Creation timestamp |
+| updated_at | TIMESTAMP WITH TIME ZONE | Last update timestamp |
+| status     | VARCHAR(50) | Submission status (NOT_GRADED, IN_PROGRESS, ACCEPTED, REJECTED) |
+| points     | INTEGER   | Points awarded (default: 0) |
+| text       | TEXT      | Submission text content (stored in MongoDB) |
 
+### 3. **Tag:**
 
-3. **Article relations:**
+| Field        | Type      | Description |
+|--------------|-----------|-------------|
+| id (PK)      | INTEGER   | Primary key |
+| name         | VARCHAR(255) | Tag name (unique) |
+| description  | TEXT      | Tag description |
+| created_at   | TIMESTAMP WITH TIME ZONE | Creation timestamp |
+| updated_at   | TIMESTAMP WITH TIME ZONE | Last update timestamp |
+| labs_count   | INTEGER   | Number of labs using this tag |
 
-| Field           | Type |
-|-----------------|------|
-| lab_id (PK)     | long |
-| article_id (PK) | long |
+### 4. **LabTag (Many-to-many relationship):**
 
-4. **Lab Assets:**
+| Field   | Type      | Description |
+|---------|-----------|-------------|
+| lab_id  | BIGINT    | Foreign key to labs table |
+| tag_id  | INTEGER   | Foreign key to tags table |
 
-| Field       | Type      |
-|-------------|-----------|
-| id (PK)     | long      |
-| lab_id      | long      |
-| filename    | string    |
-| filesize    | long      |
-| upload_date | datestamp |
+### 5. **Article relations:**
 
-5. **Submission Assets:**
+| Field           | Type | Description |
+|-----------------|------|-------------|
+| lab_id (PK)     | BIGINT | Foreign key to labs table |
+| article_id (PK) | BIGINT | ID of related article |
 
-| Field       | Type      |
-|-------------|-----------|
-| id (PK)     | long      |
-| solution_id | long      |
-| filename    | string    |
-| filesize    | long      |
-| upload_date | datestamp |
+### 6. **Lab Assets:**
 
-# gRPC Contract
+| Field       | Type      | Description |
+|-------------|-----------|-------------|
+| id (PK)     | BIGSERIAL | Auto-generated primary key |
+| lab_id      | BIGINT    | Foreign key to labs table |
+| filename    | VARCHAR(255) | File name |
+| filesize    | BIGINT    | File size in bytes |
+| upload_date | TIMESTAMP WITH TIME ZONE | Upload timestamp |
 
-More gRPC details you can find in `labs.proto` and `submissions.proto` files
+### 7. **Submission Assets:**
 
-## Labs Management
+| Field          | Type      | Description |
+|----------------|-----------|-------------|
+| id (PK)        | BIGSERIAL | Auto-generated primary key |
+| submission_id  | BIGINT    | Foreign key to submissions table |
+| filename       | VARCHAR(255) | File name |
+| filesize       | BIGINT    | File size in bytes |
+| upload_date    | TIMESTAMP WITH TIME ZONE | Upload timestamp |
 
-- `CreateLab`: Creates a new lab entry
-- `GetLab`: Retrieves complete lab information by UUID
-- `GetLabs`: Retrieves a list of labs with pagination
-- `UpdateLab`: Modifies existing lab properties and content
+## gRPC Contract
+
+The service provides three main gRPC services: `LabService`, `SubmissionService`, and `TagService`.
+
+### LabService
+
+**Labs Management:**
+- `CreateLab`: Creates a new lab entry with optional tags and article relations
+- `GetLab`: Retrieves complete lab information by ID
+- `GetLabs`: Retrieves a paginated list of labs with optional text search and tag filtering
+- `UpdateLab`: Modifies existing lab properties, tags, and article relations
 - `DeleteLab`: Permanently removes a lab and its assets from the system
+- `GetLabsByUserId`: Retrieves labs owned by a specific user
+- `GetLabsCount`: Returns total number of labs
 
+**Assets Management:**
 - `UploadAsset` **(Streaming)**: Uploads files to the lab in chunks via stream
+- `UpdateAsset` **(Streaming)**: Updates existing lab assets with new files
 - `DownloadAsset` **(Streaming)**: Downloads stored files in streaming chunks
 - `DeleteAsset`: Removes a specific file asset from storage
 - `ListAssets`: Returns all files associated with a particular lab
 
-## Submissions Management
+### SubmissionService
 
-- `CreateSubmission`: Creates a new submission for a lab
-- `GetSubmission`: Retrieves submission details and metadata
-- `GetSubmission`: Retrieves a list of submissions for specific lab
-- `UpdateSubmission`: Modifies existing submission properties
-- `DeleteSubmission`: Permanently removes a submission
+**Submissions Management:**
+- `CreateSubmission`: Creates a new submission for a lab (prevents lab owners from submitting to their own labs)
+- `GetSubmission`: Retrieves submission details and metadata with text from MongoDB
+- `GetSubmissions`: Retrieves a paginated list of submissions for a specific lab
+- `UpdateSubmission`: Modifies existing submission properties and text
+- `DeleteSubmission`: Permanently removes a submission and decrements lab submission count
+- `GetUsersSubmissions`: Retrieves submissions for a specific user
+- `GetPossibleToReviewSubmissions`: Retrieves submissions eligible for review by a user
+- `GetSubmissionsCount`: Returns total number of submissions
 
+**Assets Management:**
 - `UploadAsset` **(Streaming)**: Uploads files to the submission in chunks via stream
+- `UpdateAsset` **(Streaming)**: Updates existing submission assets with new files
 - `DownloadAsset` **(Streaming)**: Downloads stored files in streaming chunks
 - `DeleteAsset`: Removes a specific file asset from storage
 - `ListAssets`: Returns all files associated with a particular submission
 
-# Integrations
+### TagService
 
-1. **User Service:**
-- Getting user data
+**Tags Management:**
+- `CreateTag`: Creates a new tag with name and description
+- `GetTag`: Retrieves a tag by ID
+- `GetTags`: Retrieves a paginated list of tags
+- `GetTagsByIds`: Retrieves multiple tags by their IDs
+- `UpdateTag`: Modifies existing tag properties
+- `DeleteTag`: Permanently removes a tag
 
-2. **API Gateway:**
+## Integrations
+
+### 1. **API Gateway:**
 - A single entry point for all requests
 
-3. **MinIO:**
+### 2. **MinIO:**
 - Storing labs and submissions files
+- Organized bucket structure:
+  - `labs/` bucket for lab assets
+  - `submissions/` bucket for submission assets
 
-# User Stories
+### 3. **PostgreSQL:**
+- Primary database for labs, submissions, tags, and assets metadata
+- Handles relationships and constraints
 
-1. **The teacher publishes the lab:**
-- Creates a task in Markdown format, uploads it via `/labs`
-- Sets the evaluation criteria.  
-- Students receive notification of a new lab
+### 4. **MongoDB:**
+- Stores submission text content
+- Provides flexible text storage for large submission content
 
-2. **The student submits the solution:**
-- Uploads the solution and report via `/labs/{lab_id}/submit`
-- Receives a rating and comments after verification
+## User Stories
 
-# Technical Details
+### 1. **The teacher publishes the lab:**
+- Creates a lab with title, abstract, and optional tags
+- Uploads assignment files via streaming upload
+- Sets up article relations for theoretical materials
+- Students can discover the lab through search and filtering
 
-- Technological stack:  
-	- Backend: **Python 3.12**
-	- Integration with external services: **gRPC**
-- **Database: PostgreSQL (Labs), MongoDB (Submissions)**  
-- **Deployment:** **Docker**
-- **File Storage:** **MinIO**
+### 2. **The student submits the solution:**
+- Creates a submission with text content (stored in MongoDB)
+- Uploads solution files via streaming upload
+- Cannot submit to their own labs
+- Receives status updates and feedback after teacher review
 
+### 3. **The teacher reviews submissions:**
+- Views submissions for labs they own or have accepted submissions in
+- Reviews submission text and downloaded files
+- Updates submission status (ACCEPTED, REJECTED, IN_PROGRESS)
+- Provides feedback through status updates
+
+## Technical Details
+
+### Technology Stack:
+- **Programming Language:** Python 3.12
+- **Inter-service Communication:** gRPC (`grpcio`, `grpcio-tools` libraries)
+- **Database (Relational):** PostgreSQL via SQLAlchemy (`sqlalchemy`, `sqlalchemy-serializer` libraries)
+- **Database (NoSQL):** MongoDB via PyMongo (`pymongo` library)
+- **Object Storage:** MinIO (`minio` library)
+- **Containerization:** Docker, Docker Compose
+- **Config Management:** `python-dotenv`, Environment Variables
+- **Testing:** Pytest unit-testing (`pytest` library)
+- **Logging:** Python logging (built-in `logging` library)
+
+### Service Architecture:
+- Three gRPC services in a single server:
+  - `LabService` for lab management
+  - `SubmissionService` for submission handling
+  - `TagService` for tag operations
+- Streaming support for large file uploads/downloads
+
+### File Storage Structure:
 ```
-Bucket:
-labs
-└── lab_id
-	├── lab.md
+Bucket: labs
+└── lab_id/
+    ├── lab.md
     ├── example.png
     └── cute_cat.png
 
-submissions
-└── submission_id
+Bucket: submissions
+└── submission_id/
     └── solution.pdf
 ```
 
-
+### Error Handling:
+- Comprehensive gRPC status codes
+- Detailed error messages and logging
+- Graceful handling of file operations
+- Validation for business rules (e.g., preventing self-submissions)
