@@ -480,6 +480,11 @@ export const tagsAPI = {
 
 };
 
+// --- Statistics API ---
+export const statisticsAPI = {
+  getStatistics: () => apiCall('/statistics'),
+};
+
 export const marimo = {
   // Component Management
   createComponent: (data) => apiCall('/marimo/components', {
