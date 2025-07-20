@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -14,16 +13,13 @@ import (
 
 // MongoDBClient wraps MongoDB client with database and collection
 type MongoDBClient struct {
-	Client     *mongo.Client
-	Database   *mongo.Database
-	Collection *mongo.Collection
+	Client   *mongo.Client
+	Database *mongo.Database
+	Session  mongo.SessionContext
 }
 
 // ConnectMongoDB establishes connection to MongoDB
-func ConnectMongoDB(cfg config.MongoDBConfig) (*MongoDBClient, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
+func ConnectMongoDB(ctx context.Context, cfg config.MongoDBConfig) (*MongoDBClient, error) {
 	// Set client options
 	clientOptions := options.Client().ApplyURI(cfg.URI)
 
@@ -39,12 +35,10 @@ func ConnectMongoDB(cfg config.MongoDBConfig) (*MongoDBClient, error) {
 	}
 
 	database := client.Database(cfg.Database)
-	collection := database.Collection(cfg.Collection)
 
 	return &MongoDBClient{
-		Client:     client,
-		Database:   database,
-		Collection: collection,
+		Client:   client,
+		Database: database,
 	}, nil
 }
 
@@ -54,12 +48,14 @@ func (m *MongoDBClient) Close(ctx context.Context) error {
 }
 
 // CreateIndexes creates necessary indexes for the collection
-func (m *MongoDBClient) CreateIndexes(ctx context.Context) error {
-	// Index for context queries (context + context_id)
-	contextIndex := mongo.IndexModel{
+func (m *MongoDBClient) CreateIndexes(ctx context.Context, collectionName string) error {
+	collection := m.Database.Collection(collectionName)
+
+	// Index for content_id queries
+	contentIDIndex := mongo.IndexModel{
 		Keys: bson.D{
-			{Key: "context", Value: 1},
-			{Key: "context_id", Value: 1},
+			{Key: "content_id", Value: 1},
+			{Key: "type", Value: 1},
 		},
 	}
 
@@ -84,14 +80,32 @@ func (m *MongoDBClient) CreateIndexes(ctx context.Context) error {
 		},
 	}
 
-	_, err := m.Collection.Indexes().CreateMany(ctx, []mongo.IndexModel{
-		contextIndex,
+	_, err := collection.Indexes().CreateMany(ctx, []mongo.IndexModel{
+		contentIDIndex,
 		parentIndex,
 		userIndex,
 		timestampIndex,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create indexes: %w", err)
+	}
+
+	return nil
+}
+
+func (m *MongoDBClient) WithTransaction(ctx context.Context, fn func(mongo.SessionContext) error) error {
+	session, err := m.Client.StartSession()
+	if err != nil {
+		return fmt.Errorf("failed to start session: %w", err)
+	}
+	defer session.EndSession(ctx)
+
+	_, err = session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
+		return nil, fn(sc)
+	})
+
+	if err != nil {
+		return fmt.Errorf("transaction failed: %w", err)
 	}
 
 	return nil

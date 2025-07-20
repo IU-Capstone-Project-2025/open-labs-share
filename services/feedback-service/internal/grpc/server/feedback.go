@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"time"
 
 	pb "github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/api"
@@ -22,12 +22,14 @@ import (
 type FeedbackServer struct {
 	pb.UnimplementedFeedbackServiceServer
 	feedbackService *service.FeedbackService
+	logger          *slog.Logger
 }
 
 // RegisterFeedbackServer registers the feedback server with gRPC
-func RegisterFeedbackServer(s *grpc.Server, feedbackService *service.FeedbackService) {
+func RegisterFeedbackServer(s *grpc.Server, feedbackService *service.FeedbackService, logger *slog.Logger) {
 	server := &FeedbackServer{
 		feedbackService: feedbackService,
+		logger:          logger,
 	}
 	pb.RegisterFeedbackServiceServer(s, server)
 }
@@ -50,55 +52,56 @@ func convertToProtoFeedback(feedback *models.Feedback) *pb.Feedback {
 
 // CreateFeedback creates a new feedback entry (reviewer only)
 func (s *FeedbackServer) CreateFeedback(ctx context.Context, req *pb.CreateFeedbackRequest) (*pb.Feedback, error) {
-	log.Printf("gRPC CreateFeedback received: ReviewerId=%d, StudentId=%d, SubmissionId=%d, Title=%q, Content=%q", req.ReviewerId, req.StudentId, req.SubmissionId, req.Title, req.Content)
+	s.logger.Info("gRPC CreateFeedback received",
+		"reviewer_id", req.ReviewerId,
+		"student_id", req.StudentId,
+		"submission_id", req.SubmissionId,
+	)
 
 	// Validate request
 	if req.ReviewerId <= 0 {
-		log.Printf("gRPC CreateFeedback error: reviewer_id is required")
 		return nil, status.Error(codes.InvalidArgument, "reviewer_id is required")
 	}
 	if req.StudentId <= 0 {
-		log.Printf("gRPC CreateFeedback error: student_id is required")
 		return nil, status.Error(codes.InvalidArgument, "student_id is required")
 	}
 	if req.SubmissionId <= 0 {
-		log.Printf("gRPC CreateFeedback error: submission_id is required")
 		return nil, status.Error(codes.InvalidArgument, "submission_id is required")
 	}
 	if req.Title == "" {
-		log.Printf("gRPC CreateFeedback error: title is required")
 		return nil, status.Error(codes.InvalidArgument, "title is required")
 	}
 
 	// Create feedback
 	feedback, err := s.feedbackService.CreateFeedback(ctx, req.ReviewerId, req.StudentId, req.SubmissionId, req.Title, req.Content)
 	if err != nil {
-		log.Printf("gRPC CreateFeedback error: failed to create feedback: %v", err)
+		s.logger.Error("gRPC CreateFeedback failed", "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create feedback: %v", err))
 	}
 
 	response := convertToProtoFeedback(feedback)
-	log.Printf("gRPC CreateFeedback response: Id=%s, ReviewerId=%d, StudentId=%d, SubmissionId=%d", response.Id, response.ReviewerId, response.StudentId, response.SubmissionId)
+	s.logger.Info("gRPC CreateFeedback completed", "id", response.Id)
 	return response, nil
 }
 
 // UpdateFeedback updates an existing feedback (reviewer only)
 func (s *FeedbackServer) UpdateFeedback(ctx context.Context, req *pb.UpdateFeedbackRequest) (*pb.Feedback, error) {
-	log.Printf("gRPC UpdateFeedback received: Id=%s, ReviewerId=%d, Title=%v, Content=%v", req.Id, req.ReviewerId, req.Title, req.Content)
+	s.logger.Info("gRPC UpdateFeedback received",
+		"id", req.Id,
+		"reviewer_id", req.ReviewerId,
+	)
 
 	// Validate request
 	if req.ReviewerId <= 0 {
-		log.Printf("gRPC UpdateFeedback error: reviewer_id is required")
 		return nil, status.Error(codes.InvalidArgument, "reviewer_id is required")
 	}
 	if req.Id == "" {
-		log.Printf("gRPC UpdateFeedback error: feedback ID is required")
 		return nil, status.Error(codes.InvalidArgument, "feedback ID is required")
 	}
 
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
-		log.Printf("gRPC UpdateFeedback error: invalid feedback ID format: %v", err)
+		s.logger.Warn("gRPC UpdateFeedback: invalid ID format", "id", req.Id, "error", err)
 		return nil, status.Error(codes.InvalidArgument, "invalid feedback ID format")
 	}
 
@@ -112,52 +115,57 @@ func (s *FeedbackServer) UpdateFeedback(ctx context.Context, req *pb.UpdateFeedb
 
 	feedback, err := s.feedbackService.UpdateFeedback(ctx, id, req.ReviewerId, title, content)
 	if err != nil {
-		log.Printf("gRPC UpdateFeedback error: failed to update feedback: %v", err)
+		s.logger.Error("gRPC UpdateFeedback failed", "id", req.Id, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update feedback: %v", err))
 	}
 
 	response := convertToProtoFeedback(feedback)
-	log.Printf("gRPC UpdateFeedback response: Id=%s, ReviewerId=%d, UpdatedAt=%v", response.Id, response.ReviewerId, response.UpdatedAt.AsTime())
+	s.logger.Info("gRPC UpdateFeedback completed", "id", response.Id)
 	return response, nil
 }
 
 // DeleteFeedback deletes a feedback (reviewer only)
 func (s *FeedbackServer) DeleteFeedback(ctx context.Context, req *pb.DeleteFeedbackRequest) (*pb.DeleteFeedbackResponse, error) {
-	log.Printf("gRPC DeleteFeedback received: Id=%s, ReviewerId=%d", req.Id, req.ReviewerId)
+	s.logger.Info("gRPC DeleteFeedback received",
+		"id", req.Id,
+		"reviewer_id", req.ReviewerId,
+	)
 
 	// Validate request
 	if req.ReviewerId <= 0 {
-		log.Printf("gRPC DeleteFeedback error: reviewer_id is required")
 		return nil, status.Error(codes.InvalidArgument, "reviewer_id is required")
 	}
 	if req.Id == "" {
-		log.Printf("gRPC DeleteFeedback error: feedback ID is required")
 		return nil, status.Error(codes.InvalidArgument, "feedback ID is required")
 	}
 
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
-		log.Printf("gRPC DeleteFeedback error: invalid feedback ID format: %v", err)
+		s.logger.Warn("gRPC DeleteFeedback: invalid ID format", "id", req.Id, "error", err)
 		return nil, status.Error(codes.InvalidArgument, "invalid feedback ID format")
 	}
 
 	err = s.feedbackService.DeleteFeedback(ctx, id, req.ReviewerId)
 	if err != nil {
-		log.Printf("gRPC DeleteFeedback error: failed to delete feedback: %v", err)
+		s.logger.Error("gRPC DeleteFeedback failed", "id", req.Id, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete feedback: %v", err))
 	}
 
 	response := &pb.DeleteFeedbackResponse{Success: true}
-	log.Printf("gRPC DeleteFeedback response: Success=%t", response.Success)
+	s.logger.Info("gRPC DeleteFeedback completed", "id", req.Id)
 	return response, nil
 }
 
 // ListReviewerFeedbacks lists feedbacks created by a reviewer
 func (s *FeedbackServer) ListReviewerFeedbacks(ctx context.Context, req *pb.ListReviewerFeedbacksRequest) (*pb.ListReviewerFeedbacksResponse, error) {
-	log.Printf("gRPC ListReviewerFeedbacks received: ReviewerId=%d, SubmissionId=%v, Page=%d, Limit=%d", req.ReviewerId, req.SubmissionId, req.Page, req.Limit)
+	s.logger.Info("gRPC ListReviewerFeedbacks received",
+		"reviewer_id", req.ReviewerId,
+		"submission_id", req.SubmissionId,
+		"page", req.Page,
+		"limit", req.Limit,
+	)
 
 	if req.ReviewerId <= 0 {
-		log.Printf("gRPC ListReviewerFeedbacks error: reviewer_id is required")
 		return nil, status.Error(codes.InvalidArgument, "reviewer_id is required")
 	}
 
@@ -168,7 +176,7 @@ func (s *FeedbackServer) ListReviewerFeedbacks(ctx context.Context, req *pb.List
 
 	feedbacks, totalCount, err := s.feedbackService.ListReviewerFeedbacks(ctx, req.ReviewerId, submissionID, req.Page, req.Limit)
 	if err != nil {
-		log.Printf("gRPC ListReviewerFeedbacks error: failed to list reviewer feedbacks: %v", err)
+		s.logger.Error("gRPC ListReviewerFeedbacks failed", "reviewer_id", req.ReviewerId, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list reviewer feedbacks: %v", err))
 	}
 
@@ -182,7 +190,11 @@ func (s *FeedbackServer) ListReviewerFeedbacks(ctx context.Context, req *pb.List
 		TotalCount: totalCount,
 	}
 
-	log.Printf("gRPC ListReviewerFeedbacks response: %d feedbacks, totalCount=%d", len(feedbacks), totalCount)
+	s.logger.Info("gRPC ListReviewerFeedbacks completed",
+		"reviewer_id", req.ReviewerId,
+		"count", len(feedbacks),
+		"total_count", totalCount,
+	)
 	return response, nil
 }
 
@@ -190,41 +202,53 @@ func (s *FeedbackServer) ListReviewerFeedbacks(ctx context.Context, req *pb.List
 
 // GetStudentFeedback retrieves feedback for a student by submission
 func (s *FeedbackServer) GetStudentFeedback(ctx context.Context, req *pb.GetStudentFeedbackRequest) (*pb.Feedback, error) {
-	log.Printf("gRPC GetStudentFeedback received: StudentId=%d, SubmissionId=%d", req.StudentId, req.SubmissionId)
+	s.logger.Info("gRPC GetStudentFeedback received",
+		"student_id", req.StudentId,
+		"submission_id", req.SubmissionId,
+	)
 
 	if req.StudentId <= 0 {
-		log.Printf("gRPC GetStudentFeedback error: student_id is required")
 		return nil, status.Error(codes.InvalidArgument, "student_id is required")
 	}
 	if req.SubmissionId <= 0 {
-		log.Printf("gRPC GetStudentFeedback error: submission_id is required")
 		return nil, status.Error(codes.InvalidArgument, "submission_id is required")
 	}
 
 	feedbacks, err := s.feedbackService.GetStudentFeedback(ctx, req.StudentId, req.SubmissionId)
 	if err != nil {
-		log.Printf("gRPC GetStudentFeedback error: failed to get student feedback: %v", err)
+		s.logger.Error("gRPC GetStudentFeedback failed",
+			"student_id", req.StudentId,
+			"submission_id", req.SubmissionId,
+			"error", err,
+		)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get student feedback: %v", err))
 	}
 
 	if len(feedbacks) == 0 {
-		log.Printf("gRPC GetStudentFeedback error: no feedback found for StudentId=%d, SubmissionId=%d", req.StudentId, req.SubmissionId)
+		s.logger.Warn("gRPC GetStudentFeedback: no feedback found",
+			"student_id", req.StudentId,
+			"submission_id", req.SubmissionId,
+		)
 		return nil, status.Error(codes.NotFound, "no feedback found for this submission")
 	}
 
 	// Return the first feedback (assuming one feedback per submission)
 	// If multiple feedbacks are expected, this should be changed to return all
 	response := convertToProtoFeedback(feedbacks[0])
-	log.Printf("gRPC GetStudentFeedback response: Id=%s, ReviewerId=%d, StudentId=%d, SubmissionId=%d", response.Id, response.ReviewerId, response.StudentId, response.SubmissionId)
+	s.logger.Info("gRPC GetStudentFeedback completed", "id", response.Id)
 	return response, nil
 }
 
 // ListStudentFeedbacks lists all feedbacks for a student
 func (s *FeedbackServer) ListStudentFeedbacks(ctx context.Context, req *pb.ListStudentFeedbacksRequest) (*pb.ListStudentFeedbacksResponse, error) {
-	log.Printf("gRPC ListStudentFeedbacks received: StudentId=%d, SubmissionId=%v, Page=%d, Limit=%d", req.StudentId, req.SubmissionId, req.Page, req.Limit)
+	s.logger.Info("gRPC ListStudentFeedbacks received",
+		"student_id", req.StudentId,
+		"submission_id", req.SubmissionId,
+		"page", req.Page,
+		"limit", req.Limit,
+	)
 
 	if req.StudentId <= 0 {
-		log.Printf("gRPC ListStudentFeedbacks error: student_id is required")
 		return nil, status.Error(codes.InvalidArgument, "student_id is required")
 	}
 
@@ -235,7 +259,7 @@ func (s *FeedbackServer) ListStudentFeedbacks(ctx context.Context, req *pb.ListS
 
 	feedbacks, totalCount, err := s.feedbackService.ListStudentFeedbacks(ctx, req.StudentId, submissionID, req.Page, req.Limit)
 	if err != nil {
-		log.Printf("gRPC ListStudentFeedbacks error: failed to list student feedbacks: %v", err)
+		s.logger.Error("gRPC ListStudentFeedbacks failed", "student_id", req.StudentId, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list student feedbacks: %v", err))
 	}
 
@@ -249,38 +273,41 @@ func (s *FeedbackServer) ListStudentFeedbacks(ctx context.Context, req *pb.ListS
 		TotalCount: totalCount,
 	}
 
-	log.Printf("gRPC ListStudentFeedbacks response: %d feedbacks, totalCount=%d", len(feedbacks), totalCount)
+	s.logger.Info("gRPC ListStudentFeedbacks completed",
+		"student_id", req.StudentId,
+		"count", len(feedbacks),
+		"total_count", totalCount,
+	)
 	return response, nil
 }
 
 // GetFeedbackById retrieves feedback by its ID
 func (s *FeedbackServer) GetFeedbackById(ctx context.Context, req *pb.GetFeedbackByIdRequest) (*pb.Feedback, error) {
-	log.Printf("gRPC GetFeedbackById received: Id=%s", req.Id)
+	s.logger.Info("gRPC GetFeedbackById received", "id", req.Id)
 
 	if req.Id == "" {
-		log.Printf("gRPC GetFeedbackById error: feedback id is required")
 		return nil, status.Error(codes.InvalidArgument, "feedback id is required")
 	}
 
 	feedbackID, err := uuid.Parse(req.Id)
 	if err != nil {
-		log.Printf("gRPC GetFeedbackById error: invalid feedback ID format: %v", err)
+		s.logger.Warn("gRPC GetFeedbackById: invalid ID format", "id", req.Id, "error", err)
 		return nil, status.Error(codes.InvalidArgument, "invalid feedback ID format")
 	}
 
 	feedback, err := s.feedbackService.GetFeedbackByID(ctx, feedbackID)
 	if err != nil {
-		log.Printf("gRPC GetFeedbackById error: failed to get feedback: %v", err)
+		s.logger.Error("gRPC GetFeedbackById failed", "id", req.Id, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get feedback: %v", err))
 	}
 
 	if feedback == nil {
-		log.Printf("gRPC GetFeedbackById error: feedback not found for Id=%s", req.Id)
+		s.logger.Warn("gRPC GetFeedbackById: feedback not found", "id", req.Id)
 		return nil, status.Error(codes.NotFound, "feedback not found")
 	}
 
 	response := convertToProtoFeedback(feedback)
-	log.Printf("gRPC GetFeedbackById response: Id=%s, ReviewerId=%d, StudentId=%d, SubmissionId=%d", response.Id, response.ReviewerId, response.StudentId, response.SubmissionId)
+	s.logger.Info("gRPC GetFeedbackById completed", "id", response.Id)
 	return response, nil
 }
 
@@ -288,7 +315,7 @@ func (s *FeedbackServer) GetFeedbackById(ctx context.Context, req *pb.GetFeedbac
 
 // UploadAttachment uploads an attachment to a feedback (reviewer only)
 func (s *FeedbackServer) UploadAttachment(stream pb.FeedbackService_UploadAttachmentServer) error {
-	log.Printf("gRPC UploadAttachment: starting stream upload")
+	s.logger.Info("gRPC UploadAttachment: starting stream upload")
 
 	// Create context with cancellation for proper cleanup
 	ctx, cancel := context.WithCancel(stream.Context())
@@ -298,53 +325,58 @@ func (s *FeedbackServer) UploadAttachment(stream pb.FeedbackService_UploadAttach
 	req, err := stream.Recv()
 	if err != nil {
 		if err == io.EOF {
-			log.Printf("gRPC UploadAttachment error: no metadata received - stream closed immediately")
+			s.logger.Warn("gRPC UploadAttachment: no metadata received - stream closed immediately")
 			return status.Error(codes.InvalidArgument, "no metadata received - stream closed immediately")
 		}
-		log.Printf("gRPC UploadAttachment error: failed to receive metadata: %v", err)
+		s.logger.Error("gRPC UploadAttachment: failed to receive metadata", "error", err)
 		return status.Error(codes.Internal, fmt.Sprintf("failed to receive metadata: %v", err))
 	}
 
 	metadata := req.GetMetadata()
 	if metadata == nil {
-		log.Printf("gRPC UploadAttachment error: metadata is required in first chunk")
+		s.logger.Error("gRPC UploadAttachment: metadata is required in first chunk")
 		return status.Error(codes.InvalidArgument, "metadata is required in first chunk")
 	}
 	
-	log.Printf("gRPC UploadAttachment received: ReviewerID=%d, FeedbackID=%s, Filename=%s, Size=%d, ContentType=%s", 
-		metadata.ReviewerId, metadata.FeedbackId, metadata.Filename, metadata.TotalSize, metadata.ContentType)
+	s.logger.Info("gRPC UploadAttachment received",
+		"reviewer_id", metadata.ReviewerId,
+		"feedback_id", metadata.FeedbackId,
+		"filename", metadata.Filename,
+		"size", metadata.TotalSize,
+		"content_type", metadata.ContentType,
+	)
 	
 	if metadata.ReviewerId <= 0 {
-		log.Printf("gRPC UploadAttachment error: reviewer_id is required")
+		s.logger.Error("gRPC UploadAttachment: reviewer_id is required")
 		return status.Error(codes.InvalidArgument, "reviewer_id is required")
 	}
 	if metadata.FeedbackId == "" {
-		log.Printf("gRPC UploadAttachment error: feedback_id is required")
+		s.logger.Error("gRPC UploadAttachment: feedback_id is required")
 		return status.Error(codes.InvalidArgument, "feedback_id is required")
 	}
 	if metadata.Filename == "" {
-		log.Printf("gRPC UploadAttachment error: filename is required")
+		s.logger.Error("gRPC UploadAttachment: filename is required")
 		return status.Error(codes.InvalidArgument, "filename is required")
 	}
 	if metadata.TotalSize <= 0 {
-		log.Printf("gRPC UploadAttachment error: total_size must be positive")
+		s.logger.Error("gRPC UploadAttachment: total_size must be positive")
 		return status.Error(codes.InvalidArgument, "total_size must be positive")
 	}
 
 	feedbackID, err := uuid.Parse(metadata.FeedbackId)
 	if err != nil {
-		log.Printf("gRPC UploadAttachment error: invalid feedback ID format: %v", err)
+		s.logger.Warn("gRPC UploadAttachment: invalid feedback ID format", "feedback_id", metadata.FeedbackId, "error", err)
 		return status.Error(codes.InvalidArgument, "invalid feedback ID format")
 	}
 
 	// Check attachment count limit
 	existingAttachments, err := s.feedbackService.ListAttachments(ctx, feedbackID)
 	if err != nil {
-		log.Printf("gRPC UploadAttachment error: failed to check existing attachments: %v", err)
+		s.logger.Error("gRPC UploadAttachment: failed to check existing attachments", "error", err)
 		return status.Error(codes.Internal, fmt.Sprintf("failed to check existing attachments: %v", err))
 	}
 	if len(existingAttachments) >= config.MaxAttachmentsPerFeedback {
-		log.Printf("gRPC UploadAttachment error: maximum %d attachments allowed per feedback", config.MaxAttachmentsPerFeedback)
+		s.logger.Warn("gRPC UploadAttachment: maximum attachments reached", "max_attachments", config.MaxAttachmentsPerFeedback)
 		return status.Error(codes.FailedPrecondition, fmt.Sprintf("maximum %d attachments allowed per feedback", config.MaxAttachmentsPerFeedback))
 	}
 
@@ -358,14 +390,14 @@ func (s *FeedbackServer) UploadAttachment(stream pb.FeedbackService_UploadAttach
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("gRPC UploadAttachment: upload panic: %v", r)
+				s.logger.Error("gRPC UploadAttachment: upload panic", "panic", r)
 				uploadErrCh <- fmt.Errorf("upload panic: %v", r)
 			}
 		}()
 		
-		log.Printf("gRPC UploadAttachment: starting upload goroutine")
+		s.logger.Info("gRPC UploadAttachment: starting upload goroutine")
 		err := s.feedbackService.UploadAttachment(ctx, feedbackID, metadata.Filename, metadata.ContentType, pipeReader, metadata.TotalSize)
-		log.Printf("gRPC UploadAttachment: upload goroutine finished with error: %v", err)
+		s.logger.Info("gRPC UploadAttachment: upload goroutine finished", "feedback_id", feedbackID, "filename", metadata.Filename, "error", err)
 		uploadErrCh <- err
 	}()
 
@@ -377,14 +409,14 @@ func (s *FeedbackServer) UploadAttachment(stream pb.FeedbackService_UploadAttach
 	firstChunk := req.GetChunk()
 	
 	// Read chunks from stream
-	log.Printf("gRPC UploadAttachment: starting to read chunks from stream")
+	s.logger.Info("gRPC UploadAttachment: starting to read chunks from stream")
 	
 	func() {
 		// Ensure pipe writer is closed when we exit this function
 		defer func() {
-			log.Printf("gRPC UploadAttachment: closing pipe writer")
+			s.logger.Info("gRPC UploadAttachment: closing pipe writer")
 			if closeErr := pipeWriter.Close(); closeErr != nil {
-				log.Printf("gRPC UploadAttachment: error closing pipe writer: %v", closeErr)
+				s.logger.Error("gRPC UploadAttachment: error closing pipe writer", "error", closeErr)
 				if streamErr == nil {
 					streamErr = fmt.Errorf("failed to close pipe writer: %v", closeErr)
 				}
@@ -393,12 +425,12 @@ func (s *FeedbackServer) UploadAttachment(stream pb.FeedbackService_UploadAttach
 
 		// Handle first chunk if it exists
 		if firstChunk != nil && len(firstChunk) > 0 {
-			log.Printf("gRPC UploadAttachment: processing first chunk with %d bytes", len(firstChunk))
+			s.logger.Info("gRPC UploadAttachment: processing first chunk", "chunk_size", len(firstChunk))
 			
 			// Validate total size
 			if int64(len(firstChunk)) > metadata.TotalSize {
 				streamErr = fmt.Errorf("first chunk larger than total size: %d > %d", len(firstChunk), metadata.TotalSize)
-				log.Printf("gRPC UploadAttachment: size validation failed: %v", streamErr)
+				s.logger.Error("gRPC UploadAttachment: size validation failed", "chunk_size", len(firstChunk), "total_size", metadata.TotalSize, "error", streamErr)
 				return
 			}
 
@@ -406,15 +438,15 @@ func (s *FeedbackServer) UploadAttachment(stream pb.FeedbackService_UploadAttach
 			n, writeErr := pipeWriter.Write(firstChunk)
 			if writeErr != nil {
 				streamErr = fmt.Errorf("failed to write first chunk: %v", writeErr)
-				log.Printf("gRPC UploadAttachment: write error: %v", writeErr)
+				s.logger.Error("gRPC UploadAttachment: write error", "error", writeErr)
 				return
 			}
 			totalReceived += int64(n)
-			log.Printf("gRPC UploadAttachment: written first chunk %d bytes, total received: %d/%d", n, totalReceived, metadata.TotalSize)
+			s.logger.Info("gRPC UploadAttachment: written first chunk", "chunk_size", n, "total_received", totalReceived, "total_expected", metadata.TotalSize)
 			
 			// Check if we've received all expected data from first chunk
 			if totalReceived >= metadata.TotalSize {
-				log.Printf("gRPC UploadAttachment: received all expected data from first chunk (%d bytes), ending stream", totalReceived)
+				s.logger.Info("gRPC UploadAttachment: received all expected data from first chunk, ending stream", "total_received", totalReceived)
 				return
 			}
 		}
@@ -432,11 +464,11 @@ func (s *FeedbackServer) UploadAttachment(stream pb.FeedbackService_UploadAttach
 				return
 			}
 
-			log.Printf("gRPC UploadAttachment: waiting for next chunk...")
+			s.logger.Info("gRPC UploadAttachment: waiting for next chunk...")
 			req, err := stream.Recv()
 			if err == io.EOF {
 				// End of stream - this is expected and normal
-				log.Printf("gRPC UploadAttachment: received EOF, stream ended normally. Total received: %d bytes", totalReceived)
+				s.logger.Info("gRPC UploadAttachment: received EOF, stream ended normally", "total_received", totalReceived)
 				return
 			}
 			if err != nil {
@@ -446,23 +478,23 @@ func (s *FeedbackServer) UploadAttachment(stream pb.FeedbackService_UploadAttach
 				} else {
 					streamErr = fmt.Errorf("failed to receive chunk: %v", err)
 				}
-				log.Printf("gRPC UploadAttachment: error receiving chunk: %v", err)
+				s.logger.Error("gRPC UploadAttachment: error receiving chunk", "error", err)
 				return
 			}
 
 			chunk := req.GetChunk()
 			if chunk == nil {
 				// Skip empty chunks - this means we got a metadata packet or empty chunk
-				log.Printf("gRPC UploadAttachment: received empty chunk or metadata packet, skipping")
+				s.logger.Info("gRPC UploadAttachment: received empty chunk or metadata packet, skipping")
 				continue
 			}
 
-			log.Printf("gRPC UploadAttachment: received chunk of %d bytes", len(chunk))
+			s.logger.Info("gRPC UploadAttachment: received chunk", "chunk_size", len(chunk))
 
 			// Validate total size
 			if totalReceived+int64(len(chunk)) > metadata.TotalSize {
 				streamErr = fmt.Errorf("received more data than expected: %d + %d > %d", totalReceived, len(chunk), metadata.TotalSize)
-				log.Printf("gRPC UploadAttachment: size validation failed: %v", streamErr)
+				s.logger.Error("gRPC UploadAttachment: size validation failed", "total_received", totalReceived, "chunk_size", len(chunk), "total_expected", metadata.TotalSize, "error", streamErr)
 				return
 			}
 
@@ -475,15 +507,15 @@ func (s *FeedbackServer) UploadAttachment(stream pb.FeedbackService_UploadAttach
 				} else {
 					streamErr = fmt.Errorf("failed to write chunk: %v", writeErr)
 				}
-				log.Printf("gRPC UploadAttachment: write error: %v", writeErr)
+				s.logger.Error("gRPC UploadAttachment: write error", "error", writeErr)
 				return
 			}
 			totalReceived += int64(n)
-			log.Printf("gRPC UploadAttachment: written %d bytes, total received: %d/%d", n, totalReceived, metadata.TotalSize)
+			s.logger.Info("gRPC UploadAttachment: written chunk", "chunk_size", n, "total_received", totalReceived, "total_expected", metadata.TotalSize)
 			
 			// Check if we've received all expected data
 			if totalReceived >= metadata.TotalSize {
-				log.Printf("gRPC UploadAttachment: received all expected data (%d bytes), ending stream", totalReceived)
+				s.logger.Info("gRPC UploadAttachment: received all expected data, ending stream", "total_received", totalReceived)
 				return
 			}
 		}
@@ -491,46 +523,46 @@ func (s *FeedbackServer) UploadAttachment(stream pb.FeedbackService_UploadAttach
 
 	// Check for streaming errors
 	if streamErr != nil {
-		log.Printf("gRPC UploadAttachment: stream error detected: %v", streamErr)
+		s.logger.Error("gRPC UploadAttachment: stream error detected", "error", streamErr)
 		cancel() // Cancel main context to stop upload
 		// Wait for upload to finish with a timeout
 		select {
 		case uploadErr := <-uploadErrCh:
 			// Upload finished
-			log.Printf("gRPC UploadAttachment: upload finished after stream error with result: %v", uploadErr)
+			s.logger.Info("gRPC UploadAttachment: upload finished after stream error", "feedback_id", feedbackID, "error", uploadErr)
 		case <-time.After(5 * time.Second):
 			// Timeout waiting for upload to finish
-			log.Printf("gRPC UploadAttachment: timeout waiting for upload to finish after stream error")
+			s.logger.Warn("gRPC UploadAttachment: timeout waiting for upload to finish after stream error")
 		}
 		return status.Error(codes.Internal, streamErr.Error())
 	}
 
 	// Validate that we received all expected data
 	if totalReceived != metadata.TotalSize {
-		log.Printf("gRPC UploadAttachment: size mismatch - received %d bytes, expected %d bytes", totalReceived, metadata.TotalSize)
+		s.logger.Error("gRPC UploadAttachment: size mismatch", "total_received", totalReceived, "total_expected", metadata.TotalSize)
 		cancel() // Cancel main context to stop upload
 		return status.Error(codes.InvalidArgument, fmt.Sprintf("received %d bytes, expected %d bytes", totalReceived, metadata.TotalSize))
 	}
 
-	log.Printf("gRPC UploadAttachment: waiting for upload to complete...")
+	s.logger.Info("gRPC UploadAttachment: waiting for upload to complete...")
 	// Wait for upload to complete
 	select {
 	case uploadErr := <-uploadErrCh:
 		if uploadErr != nil {
-			log.Printf("gRPC UploadAttachment: upload failed: %v", uploadErr)
+			s.logger.Error("gRPC UploadAttachment: upload failed", "feedback_id", feedbackID, "error", uploadErr)
 			return status.Error(codes.Internal, fmt.Sprintf("failed to upload attachment: %v", uploadErr))
 		}
-		log.Printf("gRPC UploadAttachment: upload completed successfully")
+		s.logger.Info("gRPC UploadAttachment: upload completed successfully", "feedback_id", feedbackID)
 	case <-ctx.Done():
-		log.Printf("gRPC UploadAttachment: upload cancelled due to context")
+		s.logger.Error("gRPC UploadAttachment: upload cancelled due to context", "feedback_id", feedbackID, "error", ctx.Err())
 		return status.Error(codes.Canceled, "upload cancelled")
 	case <-time.After(30 * time.Second): // Add reasonable timeout
-		log.Printf("gRPC UploadAttachment: upload timed out")
+		s.logger.Warn("gRPC UploadAttachment: upload timed out")
 		cancel() // Cancel context to stop any ongoing operations
 		return status.Error(codes.DeadlineExceeded, "upload timeout")
 	}
 
-	log.Printf("gRPC UploadAttachment response: filename=%s, size=%d", metadata.Filename, totalReceived)
+	s.logger.Info("gRPC UploadAttachment response", "filename", metadata.Filename, "size", totalReceived)
 	return stream.SendAndClose(&pb.UploadAttachmentResponse{
 		Filename: metadata.Filename,
 		Size:     totalReceived,
@@ -540,62 +572,69 @@ func (s *FeedbackServer) UploadAttachment(stream pb.FeedbackService_UploadAttach
 
 // DeleteAttachment deletes an attachment (reviewer only)
 func (s *FeedbackServer) DeleteAttachment(ctx context.Context, req *pb.DeleteAttachmentRequest) (*pb.DeleteAttachmentResponse, error) {
-	log.Printf("gRPC DeleteAttachment received: ReviewerId=%d, FeedbackId=%s, Filename=%s", req.ReviewerId, req.FeedbackId, req.Filename)
+	s.logger.Info("gRPC DeleteAttachment received",
+		"reviewer_id", req.ReviewerId,
+		"feedback_id", req.FeedbackId,
+		"filename", req.Filename,
+	)
 
 	// Validate request
 	if req.ReviewerId <= 0 {
-		log.Printf("gRPC DeleteAttachment error: reviewer_id is required")
+		s.logger.Error("gRPC DeleteAttachment: reviewer_id is required")
 		return nil, status.Error(codes.InvalidArgument, "reviewer_id is required")
 	}
 	if req.FeedbackId == "" {
-		log.Printf("gRPC DeleteAttachment error: feedback_id is required")
+		s.logger.Error("gRPC DeleteAttachment: feedback_id is required")
 		return nil, status.Error(codes.InvalidArgument, "feedback_id is required")
 	}
 	if req.Filename == "" {
-		log.Printf("gRPC DeleteAttachment error: filename is required")
+		s.logger.Error("gRPC DeleteAttachment: filename is required")
 		return nil, status.Error(codes.InvalidArgument, "filename is required")
 	}
 
 	feedbackID, err := uuid.Parse(req.FeedbackId)
 	if err != nil {
-		log.Printf("gRPC DeleteAttachment error: invalid feedback ID format: %v", err)
+		s.logger.Warn("gRPC DeleteAttachment: invalid feedback ID format", "feedback_id", req.FeedbackId, "error", err)
 		return nil, status.Error(codes.InvalidArgument, "invalid feedback ID format")
 	}
 
 	err = s.feedbackService.DeleteAttachment(ctx, feedbackID, req.Filename)
 	if err != nil {
-		log.Printf("gRPC DeleteAttachment error: failed to delete attachment: %v", err)
+		s.logger.Error("gRPC DeleteAttachment failed", "feedback_id", feedbackID, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete attachment: %v", err))
 	}
 
 	response := &pb.DeleteAttachmentResponse{Success: true}
-	log.Printf("gRPC DeleteAttachment response: Success=%t", response.Success)
+	s.logger.Info("gRPC DeleteAttachment completed", "feedback_id", feedbackID)
 	return response, nil
 }
 
 // DownloadAttachment downloads an attachment (both roles)
 func (s *FeedbackServer) DownloadAttachment(req *pb.DownloadAttachmentRequest, stream pb.FeedbackService_DownloadAttachmentServer) error {
-	log.Printf("gRPC DownloadAttachment received: FeedbackId=%s, Filename=%s", req.FeedbackId, req.Filename)
+	s.logger.Info("gRPC DownloadAttachment received",
+		"feedback_id", req.FeedbackId,
+		"filename", req.Filename,
+	)
 
 	if req.FeedbackId == "" {
-		log.Printf("gRPC DownloadAttachment error: feedback_id is required")
+		s.logger.Error("gRPC DownloadAttachment: feedback_id is required")
 		return status.Error(codes.InvalidArgument, "feedback_id is required")
 	}
 	if req.Filename == "" {
-		log.Printf("gRPC DownloadAttachment error: filename is required")
+		s.logger.Error("gRPC DownloadAttachment: filename is required")
 		return status.Error(codes.InvalidArgument, "filename is required")
 	}
 
 	feedbackID, err := uuid.Parse(req.FeedbackId)
 	if err != nil {
-		log.Printf("gRPC DownloadAttachment error: invalid feedback ID format: %v", err)
+		s.logger.Warn("gRPC DownloadAttachment: invalid feedback ID format", "feedback_id", req.FeedbackId, "error", err)
 		return status.Error(codes.InvalidArgument, "invalid feedback ID format")
 	}
 
 	// Get attachment info first
 	attachments, err := s.feedbackService.ListAttachments(stream.Context(), feedbackID)
 	if err != nil {
-		log.Printf("gRPC DownloadAttachment error: failed to get attachment info: %v", err)
+		s.logger.Error("gRPC DownloadAttachment: failed to get attachment info", "feedback_id", feedbackID, "error", err)
 		return status.Error(codes.Internal, fmt.Sprintf("failed to get attachment info: %v", err))
 	}
 
@@ -608,11 +647,15 @@ func (s *FeedbackServer) DownloadAttachment(req *pb.DownloadAttachmentRequest, s
 	}
 
 	if attachmentInfo == nil {
-		log.Printf("gRPC DownloadAttachment error: attachment not found for filename=%s", req.Filename)
+		s.logger.Warn("gRPC DownloadAttachment: attachment not found", "filename", req.Filename)
 		return status.Error(codes.NotFound, "attachment not found")
 	}
 
-	log.Printf("gRPC DownloadAttachment: found attachment - filename=%s, size=%d, contentType=%s", attachmentInfo.Filename, attachmentInfo.Size, attachmentInfo.ContentType)
+	s.logger.Info("gRPC DownloadAttachment: found attachment",
+		"filename", attachmentInfo.Filename,
+		"size", attachmentInfo.Size,
+		"content_type", attachmentInfo.ContentType,
+	)
 
 	// Send attachment info first
 	err = stream.Send(&pb.DownloadAttachmentResponse{
@@ -626,19 +669,19 @@ func (s *FeedbackServer) DownloadAttachment(req *pb.DownloadAttachmentRequest, s
 		},
 	})
 	if err != nil {
-		log.Printf("gRPC DownloadAttachment error: failed to send attachment info: %v", err)
+		s.logger.Error("gRPC DownloadAttachment: failed to send attachment info", "error", err)
 		return status.Error(codes.Internal, fmt.Sprintf("failed to send attachment info: %v", err))
 	}
 
 	// Download and stream file content
 	reader, _, err := s.feedbackService.DownloadAttachment(stream.Context(), feedbackID, req.Filename)
 	if err != nil {
-		log.Printf("gRPC DownloadAttachment error: failed to download attachment: %v", err)
+		s.logger.Error("gRPC DownloadAttachment: failed to download attachment", "feedback_id", feedbackID, "error", err)
 		return status.Error(codes.Internal, fmt.Sprintf("failed to download attachment: %v", err))
 	}
 	defer reader.Close()
 
-	log.Printf("gRPC DownloadAttachment: starting to stream file content")
+	s.logger.Info("gRPC DownloadAttachment: starting to stream file content")
 	var totalSent int64
 	buffer := make([]byte, 32*1024) // 32KB chunks
 	for {
@@ -647,7 +690,7 @@ func (s *FeedbackServer) DownloadAttachment(req *pb.DownloadAttachmentRequest, s
 			break
 		}
 		if err != nil {
-			log.Printf("gRPC DownloadAttachment error: failed to read attachment: %v", err)
+			s.logger.Error("gRPC DownloadAttachment: failed to read attachment", "error", err)
 			return status.Error(codes.Internal, fmt.Sprintf("failed to read attachment: %v", err))
 		}
 
@@ -657,34 +700,34 @@ func (s *FeedbackServer) DownloadAttachment(req *pb.DownloadAttachmentRequest, s
 			},
 		})
 		if err != nil {
-			log.Printf("gRPC DownloadAttachment error: failed to send chunk: %v", err)
+			s.logger.Error("gRPC DownloadAttachment: failed to send chunk", "error", err)
 			return status.Error(codes.Internal, fmt.Sprintf("failed to send chunk: %v", err))
 		}
 		totalSent += int64(n)
 	}
 
-	log.Printf("gRPC DownloadAttachment response: successfully streamed %d bytes", totalSent)
+	s.logger.Info("gRPC DownloadAttachment response", "total_sent", totalSent)
 	return nil
 }
 
 // ListAttachments lists attachments for a feedback (both roles)
 func (s *FeedbackServer) ListAttachments(ctx context.Context, req *pb.ListAttachmentsRequest) (*pb.ListAttachmentsResponse, error) {
-	log.Printf("gRPC ListAttachments received: FeedbackId=%s", req.FeedbackId)
+	s.logger.Info("gRPC ListAttachments received", "feedback_id", req.FeedbackId)
 
 	if req.FeedbackId == "" {
-		log.Printf("gRPC ListAttachments error: feedback_id is required")
+		s.logger.Error("gRPC ListAttachments: feedback_id is required")
 		return nil, status.Error(codes.InvalidArgument, "feedback_id is required")
 	}
 
 	feedbackID, err := uuid.Parse(req.FeedbackId)
 	if err != nil {
-		log.Printf("gRPC ListAttachments error: invalid feedback ID format: %v", err)
+		s.logger.Warn("gRPC ListAttachments: invalid feedback ID format", "feedback_id", req.FeedbackId, "error", err)
 		return nil, status.Error(codes.InvalidArgument, "invalid feedback ID format")
 	}
 
 	attachments, err := s.feedbackService.ListAttachments(ctx, feedbackID)
 	if err != nil {
-		log.Printf("gRPC ListAttachments error: failed to list attachments: %v", err)
+		s.logger.Error("gRPC ListAttachments failed", "feedback_id", feedbackID, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list attachments: %v", err))
 	}
 
@@ -699,42 +742,45 @@ func (s *FeedbackServer) ListAttachments(ctx context.Context, req *pb.ListAttach
 	}
 
 	response := &pb.ListAttachmentsResponse{Attachments: pbAttachments}
-	log.Printf("gRPC ListAttachments response: %d attachments found", len(attachments))
+	s.logger.Info("gRPC ListAttachments completed", "feedback_id", req.FeedbackId, "count", len(attachments))
 	return response, nil
 }
 
 // GetAttachmentLocation returns location information for attachments (both roles)
 func (s *FeedbackServer) GetAttachmentLocation(ctx context.Context, req *pb.GetAttachmentLocationRequest) (*pb.GetAttachmentLocationResponse, error) {
-	log.Printf("gRPC GetAttachmentLocation received: FeedbackId=%s, Filename=%v", req.FeedbackId, req.Filename)
+	s.logger.Info("gRPC GetAttachmentLocation received",
+		"feedback_id", req.FeedbackId,
+		"filename", req.Filename,
+	)
 
 	if req.FeedbackId == "" {
-		log.Printf("gRPC GetAttachmentLocation error: feedback_id is required")
+		s.logger.Error("gRPC GetAttachmentLocation: feedback_id is required")
 		return nil, status.Error(codes.InvalidArgument, "feedback_id is required")
 	}
 
 	feedbackID, err := uuid.Parse(req.FeedbackId)
 	if err != nil {
-		log.Printf("gRPC GetAttachmentLocation error: invalid feedback ID format: %v", err)
+		s.logger.Warn("gRPC GetAttachmentLocation: invalid feedback ID format", "feedback_id", req.FeedbackId, "error", err)
 		return nil, status.Error(codes.InvalidArgument, "invalid feedback ID format")
 	}
 
 	var locationInfos []*models.AttachmentLocationInfo
 
 	if req.Filename != nil && *req.Filename != "" {
-		log.Printf("gRPC GetAttachmentLocation: getting location for specific file: %s", *req.Filename)
+		s.logger.Info("gRPC GetAttachmentLocation: getting location for specific file", "filename", *req.Filename)
 		// Get location info for specific attachment
 		locationInfo, err := s.feedbackService.GetAttachmentLocation(ctx, feedbackID, *req.Filename)
 		if err != nil {
-			log.Printf("gRPC GetAttachmentLocation error: failed to get attachment location: %v", err)
+			s.logger.Error("gRPC GetAttachmentLocation: failed to get attachment location", "feedback_id", feedbackID, "error", err)
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get attachment location: %v", err))
 		}
 		locationInfos = []*models.AttachmentLocationInfo{locationInfo}
 	} else {
-		log.Printf("gRPC GetAttachmentLocation: getting locations for all attachments")
+		s.logger.Info("gRPC GetAttachmentLocation: getting locations for all attachments")
 		// Get location info for all attachments
 		infos, err := s.feedbackService.ListAttachmentLocations(ctx, feedbackID)
 		if err != nil {
-			log.Printf("gRPC GetAttachmentLocation error: failed to list attachment locations: %v", err)
+			s.logger.Error("gRPC GetAttachmentLocation: failed to list attachment locations", "feedback_id", feedbackID, "error", err)
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list attachment locations: %v", err))
 		}
 		locationInfos = infos
@@ -755,6 +801,6 @@ func (s *FeedbackServer) GetAttachmentLocation(ctx context.Context, req *pb.GetA
 	}
 
 	response := &pb.GetAttachmentLocationResponse{Attachments: pbLocationInfos}
-	log.Printf("gRPC GetAttachmentLocation response: %d attachment locations returned", len(locationInfos))
+	s.logger.Info("gRPC GetAttachmentLocation completed", "feedback_id", req.FeedbackId, "count", len(locationInfos))
 	return response, nil
 }

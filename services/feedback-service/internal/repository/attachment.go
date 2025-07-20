@@ -41,32 +41,22 @@ func (r *attachmentRepository) Upload(ctx context.Context, feedbackID uuid.UUID,
 
 	// Create object name: {feedbackID}/{filename}
 	objectName := fmt.Sprintf("%s/%s", feedbackID.String(), filename)
-	
-	fmt.Printf("MinIO Upload: Starting upload - Object: %s, Size: %d, ContentType: %s\n", objectName, size, contentType)
 
 	// Set custom metadata (excluding Content-Type which is set separately)
 	metaData := map[string]string{
 		"X-Feedback-ID": feedbackID.String(),
-		"X-Uploaded-At": time.Now().Format(time.RFC3339),
+		"X-Uploaded-At": time.Now().UTC().Format(time.RFC3339),
 	}
 
 	// Upload object with context monitoring
-	fmt.Printf("MinIO Upload: Calling PutObject...\n")
-	uploadInfo, err := r.minioClient.PutObject(ctx, r.bucketName, objectName, data, size, minio.PutObjectOptions{
+	_, err := r.minioClient.PutObject(ctx, r.bucketName, objectName, data, size, minio.PutObjectOptions{
 		ContentType:  contentType,
 		UserMetadata: metaData,
 	})
 	if err != nil {
-		// Check if the error is due to context cancellation
-		if ctx.Err() != nil {
-			fmt.Printf("MinIO Upload: Failed due to context cancellation: %v\n", ctx.Err())
-			return fmt.Errorf("upload cancelled during operation: %w", ctx.Err())
-		}
-		fmt.Printf("MinIO Upload: Failed with error: %v\n", err)
 		return fmt.Errorf("failed to upload attachment: %w", err)
 	}
 
-	fmt.Printf("MinIO Upload: Successfully uploaded - ETag: %s, Size: %d\n", uploadInfo.ETag, uploadInfo.Size)
 	return nil
 }
 
@@ -88,7 +78,7 @@ func (r *attachmentRepository) Download(ctx context.Context, feedbackID uuid.UUI
 	}
 
 	// Parse uploaded time from metadata
-	uploadedAt := time.Now()
+	uploadedAt := objInfo.LastModified
 	if uploadedAtStr, ok := objInfo.UserMetadata["X-Uploaded-At"]; ok {
 		if parsedTime, err := time.Parse(time.RFC3339, uploadedAtStr); err == nil {
 			uploadedAt = parsedTime
@@ -161,7 +151,10 @@ func (r *attachmentRepository) Delete(ctx context.Context, feedbackID uuid.UUID,
 	objectName := fmt.Sprintf("%s/%s", feedbackID.String(), filename)
 
 	// Remove object
-	err := r.minioClient.RemoveObject(ctx, r.bucketName, objectName, minio.RemoveObjectOptions{})
+	opts := minio.RemoveObjectOptions{
+		ForceDelete: true,
+	}
+	err := r.minioClient.RemoveObject(ctx, r.bucketName, objectName, opts)
 	if err != nil {
 		return fmt.Errorf("failed to delete attachment: %w", err)
 	}
@@ -180,20 +173,24 @@ func (r *attachmentRepository) DeleteAll(ctx context.Context, feedbackID uuid.UU
 		Recursive: true,
 	})
 
-	// Collect object names to delete
-	var objectNames []string
-	for object := range objectCh {
-		if object.Err != nil {
-			return fmt.Errorf("failed to list attachments for deletion: %w", object.Err)
+	// Create a channel of objects to remove
+	objectsCh := make(chan minio.ObjectInfo)
+
+	go func() {
+		defer close(objectsCh)
+		for object := range objectCh {
+			objectsCh <- object
 		}
-		objectNames = append(objectNames, object.Key)
-	}
+	}()
 
 	// Delete all objects
-	for _, objectName := range objectNames {
-		err := r.minioClient.RemoveObject(ctx, r.bucketName, objectName, minio.RemoveObjectOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to delete attachment %s: %w", objectName, err)
+	opts := minio.RemoveObjectsOptions{
+		GovernanceBypass: true,
+	}
+
+	for rErr := range r.minioClient.RemoveObjects(ctx, r.bucketName, objectsCh, opts) {
+		if rErr.Err != nil {
+			return fmt.Errorf("failed to delete attachment %s: %w", rErr.ObjectName, rErr.Err)
 		}
 	}
 
@@ -212,7 +209,7 @@ func (r *attachmentRepository) GetLocationInfo(ctx context.Context, feedbackID u
 	}
 
 	// Parse uploaded time from metadata
-	uploadedAt := time.Now()
+	uploadedAt := objInfo.LastModified
 	if uploadedAtStr, ok := objInfo.UserMetadata["X-Uploaded-At"]; ok {
 		if parsedTime, err := time.Parse(time.RFC3339, uploadedAtStr); err == nil {
 			uploadedAt = parsedTime

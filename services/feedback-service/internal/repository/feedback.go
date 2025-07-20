@@ -160,6 +160,64 @@ func (r *feedbackRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+// listFeedbacks is a helper function to list feedbacks based on a filter
+func (r *feedbackRepository) listFeedbacks(ctx context.Context, baseQuery, countQuery string, args []interface{}, filter models.FeedbackFilter) ([]*models.Feedback, int32, error) {
+	// Get total count
+	var totalCount int32
+	err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&totalCount)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count feedbacks: %w", err)
+	}
+
+	if totalCount == 0 {
+		return []*models.Feedback{}, 0, nil
+	}
+
+	// Add pagination
+	paginatedQuery := fmt.Sprintf("%s ORDER BY created_at DESC LIMIT %d OFFSET %d", baseQuery, filter.Limit, (filter.Page-1)*filter.Limit)
+
+	rows, err := r.db.QueryContext(ctx, paginatedQuery, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list feedbacks: %w", err)
+	}
+	defer rows.Close()
+
+	var feedbacks []*models.Feedback
+	var feedbackIDs []string
+	for rows.Next() {
+		feedback := &models.Feedback{}
+		err := rows.Scan(
+			&feedback.ID, &feedback.ReviewerID, &feedback.StudentID, &feedback.SubmissionID,
+			&feedback.Title, &feedback.CreatedAt, &feedback.UpdatedAt,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan feedback: %w", err)
+		}
+		feedbacks = append(feedbacks, feedback)
+		feedbackIDs = append(feedbackIDs, feedback.ID.String())
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("error iterating feedback rows: %w", err)
+	}
+
+	// Get content from MongoDB in a single query
+	contentMap, err := r.getContents(ctx, feedbackIDs)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get feedback contents: %w", err)
+	}
+
+	// Assign content to feedbacks
+	for _, feedback := range feedbacks {
+		if content, ok := contentMap[feedback.ID.String()]; ok {
+			feedback.Content = content
+		}
+	}
+
+	return feedbacks, totalCount, nil
+}
+
+
 // ListByUser lists feedbacks created by a specific user
 func (r *feedbackRepository) ListByUser(ctx context.Context, filter models.FeedbackFilter) ([]*models.Feedback, int32, error) {
 	baseQuery := `
@@ -170,55 +228,15 @@ func (r *feedbackRepository) ListByUser(ctx context.Context, filter models.Feedb
 	countQuery := `SELECT COUNT(*) FROM feedbacks WHERE reviewer_id = $1`
 
 	args := []interface{}{filter.ReviewerID}
-	argIndex := 2
 
 	// Add submission filter if specified
 	if filter.SubmissionID != nil {
-		baseQuery += fmt.Sprintf(" AND submission_id = $%d", argIndex)
-		countQuery += fmt.Sprintf(" AND submission_id = $%d", argIndex)
+		baseQuery += " AND submission_id = $2"
+		countQuery += " AND submission_id = $2"
 		args = append(args, *filter.SubmissionID)
-		argIndex++
 	}
 
-	// Get total count
-	var totalCount int32
-	err := r.db.QueryRowContext(ctx, countQuery, args[:len(args)]...).Scan(&totalCount)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count feedbacks: %w", err)
-	}
-
-	// Add pagination
-	baseQuery += fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", argIndex, argIndex+1)
-	args = append(args, filter.Limit, (filter.Page-1)*filter.Limit)
-
-	rows, err := r.db.QueryContext(ctx, baseQuery, args...)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to list user feedbacks: %w", err)
-	}
-	defer rows.Close()
-
-	var feedbacks []*models.Feedback
-	for rows.Next() {
-		feedback := &models.Feedback{}
-		err := rows.Scan(
-			&feedback.ID, &feedback.ReviewerID, &feedback.StudentID, &feedback.SubmissionID,
-			&feedback.Title, &feedback.CreatedAt, &feedback.UpdatedAt,
-		)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to scan feedback: %w", err)
-		}
-
-		// Get content from MongoDB
-		content, err := r.GetContent(ctx, feedback.ID)
-		if err != nil && err != mongo.ErrNoDocuments {
-			return nil, 0, fmt.Errorf("failed to get feedback content for ID %s: %w", feedback.ID, err)
-		}
-		feedback.Content = content
-
-		feedbacks = append(feedbacks, feedback)
-	}
-
-	return feedbacks, totalCount, nil
+	return r.listFeedbacks(ctx, baseQuery, countQuery, args, filter)
 }
 
 // ListByStudent lists feedbacks for a specific student
@@ -231,55 +249,15 @@ func (r *feedbackRepository) ListByStudent(ctx context.Context, filter models.Fe
 	countQuery := `SELECT COUNT(*) FROM feedbacks WHERE student_id = $1`
 
 	args := []interface{}{filter.StudentID}
-	argIndex := 2
 
 	// Add submission filter if specified
 	if filter.SubmissionID != nil {
-		baseQuery += fmt.Sprintf(" AND submission_id = $%d", argIndex)
-		countQuery += fmt.Sprintf(" AND submission_id = $%d", argIndex)
+		baseQuery += " AND submission_id = $2"
+		countQuery += " AND submission_id = $2"
 		args = append(args, *filter.SubmissionID)
-		argIndex++
 	}
 
-	// Get total count
-	var totalCount int32
-	err := r.db.QueryRowContext(ctx, countQuery, args[:len(args)]...).Scan(&totalCount)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count feedbacks: %w", err)
-	}
-
-	// Add pagination
-	baseQuery += fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", argIndex, argIndex+1)
-	args = append(args, filter.Limit, (filter.Page-1)*filter.Limit)
-
-	rows, err := r.db.QueryContext(ctx, baseQuery, args...)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to list student feedbacks: %w", err)
-	}
-	defer rows.Close()
-
-	var feedbacks []*models.Feedback
-	for rows.Next() {
-		feedback := &models.Feedback{}
-		err := rows.Scan(
-			&feedback.ID, &feedback.ReviewerID, &feedback.StudentID, &feedback.SubmissionID,
-			&feedback.Title, &feedback.CreatedAt, &feedback.UpdatedAt,
-		)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to scan feedback: %w", err)
-		}
-
-		// Get content from MongoDB
-		content, err := r.GetContent(ctx, feedback.ID)
-		if err != nil && err != mongo.ErrNoDocuments {
-			return nil, 0, fmt.Errorf("failed to get feedback content for ID %s: %w", feedback.ID, err)
-		}
-		feedback.Content = content
-
-		feedbacks = append(feedbacks, feedback)
-	}
-
-	return feedbacks, totalCount, nil
+	return r.listFeedbacks(ctx, baseQuery, countQuery, args, filter)
 }
 
 // SetContent stores feedback content in MongoDB
@@ -332,4 +310,31 @@ func (r *feedbackRepository) DeleteContent(ctx context.Context, id uuid.UUID) er
 	}
 
 	return nil
+}
+
+// getContents retrieves multiple feedback contents from MongoDB
+func (r *feedbackRepository) getContents(ctx context.Context, ids []string) (map[string]string, error) {
+	collection := r.mongodb.Database.Collection("feedback_content")
+
+	filter := bson.M{"_id": bson.M{"$in": ids}}
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find feedback contents: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	contentMap := make(map[string]string)
+	for cursor.Next(ctx) {
+		var feedbackContent models.FeedbackContent
+		if err := cursor.Decode(&feedbackContent); err != nil {
+			return nil, fmt.Errorf("failed to decode feedback content: %w", err)
+		}
+		contentMap[feedbackContent.ID] = feedbackContent.Content
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error on feedback contents: %w", err)
+	}
+
+	return contentMap, nil
 }
