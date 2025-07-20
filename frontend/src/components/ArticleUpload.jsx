@@ -79,6 +79,18 @@ export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
       return;
     }
 
+    // Validate Marimo components before creating the article
+    if (marimoComponents.length > 0) {
+      const invalidComponents = marimoComponents.filter(
+        component => !component.name || component.name.trim() === '' || !component.code || component.code.trim() === ''
+      );
+      
+      if (invalidComponents.length > 0) {
+        setError('All interactive components must have a name and code filled in. Please complete or remove empty components.');
+        return;
+      }
+    }
+
     const formData = new FormData();
     formData.append('title', articleData.title);
     formData.append('short_desc', articleData.short_desc);
@@ -103,9 +115,6 @@ export default function ArticleUpload({ onSuccess, onCancel, isModal = true }) {
         console.log("Condition PASSED. Creating Marimo components...");
         const articleId = result.id;
         for (const component of marimoComponents) {
-          if (!component.name || component.name.trim() === '' || !component.code || component.code.trim() === '') {
-            throw new Error('All Marimo components must have a name and code.');
-          }
           const componentResponse = await marimoAPI.createComponent({
             name: component.name,
             contentType: 'article',
