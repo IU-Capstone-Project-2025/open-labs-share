@@ -4,7 +4,7 @@ export default function ArticleCard({ article }) {
   return (
     <Link
       to={`/article/${article.id}`}
-      className="block bg-light-blue bg-opacity-50 dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 p-4 h-40 flex flex-col justify-between"
+      className="block bg-light-blue bg-opacity-50 dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 p-4 h-full flex flex-col justify-between"
     >
       <div className="space-y-2 flex-1">
         <h3 className="text-lg font-bold text-msc dark:text-white line-clamp-1">

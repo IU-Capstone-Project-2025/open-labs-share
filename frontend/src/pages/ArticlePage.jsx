@@ -29,6 +29,7 @@ export default function ArticlePage() {
   const dropzoneRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
+  const [showPdfFullscreen, setShowPdfFullscreen] = useState(false);
 
   
   const defaultLayoutPluginInstance = defaultLayoutPlugin();
@@ -225,7 +226,7 @@ export default function ArticlePage() {
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+      <div className="w-full max-w-none px-0 md:container md:mx-auto md:px-8 pb-8">
         <div style={{ height: '150vh' }}>
           <ResizablePanel
             leftComponent={
@@ -254,17 +255,53 @@ export default function ArticlePage() {
                 <div className="h-full">
                   {/* PDF Viewer Section */}
                   <div className="h-full">
-                    <section className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-8 h-full flex flex-col">
-                      <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
+                    <section className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-0 sm:p-4 md:p-8 w-full md:h-full flex flex-col">
+                      <h2 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white mb-3 sm:mb-6">
                         Article PDF
                       </h2>
-                      <div className="bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex-1">
+                      <div className="bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden w-full min-h-[100vw] md:flex-1 md:h-full relative">
                         {pdfFile && (
-                          <div className="h-full">
-                            <Worker workerUrl="https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.worker.min.js">
-                              <Viewer fileUrl={pdfFile} plugins={[defaultLayoutPluginInstance]} />
-                            </Worker>
-                          </div>
+                          <>
+                            {/* Normal PDF preview for md+ screens */}
+                            <div className="hidden md:block w-full h-full min-h-[300px]">
+                              <Worker workerUrl="https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.worker.min.js">
+                                <Viewer fileUrl={pdfFile} plugins={[defaultLayoutPluginInstance]} />
+                              </Worker>
+                            </div>
+                            {/* Mobile preview with fullscreen button */}
+                            <div className="block md:hidden w-full h-full min-h-[100vw]">
+                              <Worker workerUrl="https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.worker.min.js">
+                                <Viewer fileUrl={pdfFile} plugins={[defaultLayoutPluginInstance]} />
+                              </Worker>
+                              <button
+                                className="absolute bottom-2 right-2 z-10 px-4 py-2 bg-msc text-white rounded-md shadow-md text-sm"
+                                onClick={() => setShowPdfFullscreen(true)}
+                              >
+                                View Fullscreen
+                              </button>
+                            </div>
+                            {/* Fullscreen overlay on mobile */}
+                            {showPdfFullscreen && (
+                              <div className="fixed inset-0 w-full h-full z-[9999] bg-white dark:bg-gray-900 flex flex-col">
+                                <button
+                                  className="absolute top-4 right-4 z-10 p-2 rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
+                                  onClick={() => setShowPdfFullscreen(false)}
+                                  aria-label="Close fullscreen PDF"
+                                >
+                                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                                <div className="flex-1 flex items-center justify-center">
+                                  <div className="w-full h-full">
+                                    <Worker workerUrl="https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.worker.min.js">
+                                      <Viewer fileUrl={pdfFile} plugins={[defaultLayoutPluginInstance]} />
+                                    </Worker>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     </section>

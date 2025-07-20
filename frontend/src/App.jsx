@@ -35,6 +35,7 @@ import MyFeedbackPage from './pages/MyFeedbackPage';
 import FeedbackViewPage from './pages/FeedbackViewPage';
 
 import SearchResultsPage from './pages/SearchResultsPage';
+import useMediaQuery from "./hooks/useMediaQuery";
 
 
 function ProtectedRoute({ children }) {
@@ -71,6 +72,7 @@ function AppContent() {
   const sidebarRef = useRef();
   const location = useLocation();
   const updateTimeoutRef = useRef(null);
+  const isMobile = useMediaQuery("(max-width: 640px)");
 
   const showSidebar = !["/signup", "/signin"].includes(location.pathname) && 
                    !(location.pathname === "/" && !isAuthenticated());
@@ -221,6 +223,15 @@ function AppContent() {
 
         {showSidebar && <BackgroundCircles />}
 
+        {/* Overlay for mobile sidebar */}
+        {showSidebar && isSidebarOpen && isMobile && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm z-[9998]"
+            onClick={() => setIsSidebarOpen(false)}
+            aria-label="Sidebar overlay"
+          />
+        )}
+
         {showSidebar && (
           <Sidebar
             ref={sidebarRef}
@@ -228,11 +239,12 @@ function AppContent() {
             toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
             currentTheme={theme}
             toggleTheme={toggleTheme}
+            isMobile={isMobile}
           />
         )}
         <main
           className={`${showSidebar ? "p-4" : ""} transition-all duration-300 ${
-            isSidebarOpen && showSidebar ? "ml-64" : "ml-0"
+            isSidebarOpen && showSidebar && !isMobile ? "ml-64" : "ml-0"
           }`}
         >
           <Routes>
