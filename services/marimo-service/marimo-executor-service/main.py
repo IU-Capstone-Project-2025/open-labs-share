@@ -2,7 +2,6 @@ import os
 import sys
 import grpc
 from concurrent import futures
-import logging
 
 # Add the generated gRPC code directory to Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'proto'))
@@ -10,6 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'proto'))
 from config import Config
 from service.session import SessionManager
 from service.executor import MarimoCellExecutor
+from service.logging_config import setup_logging, get_logger
 
 # Import generated gRPC code
 import marimo_executor_service_pb2 as marimo_service_pb2
@@ -18,6 +18,7 @@ import marimo_executor_service_pb2_grpc as marimo_service_pb2_grpc
 class MarimoExecutorService(marimo_service_pb2_grpc.MarimoExecutorServicer):
     def __init__(self):
         self.session_manager = SessionManager()
+        self.logger = get_logger("grpc_service")
 
     def _map_output_type(self, output_type_str):
         """Map string output type to protobuf enum."""
@@ -58,7 +59,7 @@ class MarimoExecutorService(marimo_service_pb2_grpc.MarimoExecutorServicer):
                 error=""
             )
         except Exception as e:
-            logging.error(f"Failed to start session {request.session_id}: {e}", exc_info=True)
+            self.logger.error(f"Failed to start session {request.session_id}: {e}", exc_info=True)
             return marimo_service_pb2.StartSessionResponse(
                 success=False,
                 error=str(e)
@@ -178,7 +179,7 @@ class MarimoExecutorService(marimo_service_pb2_grpc.MarimoExecutorServicer):
                 except (ValueError, TypeError):
                     # If conversion fails, use default value or previous value
                     widget_value = widget_info.get('value', 0) if widget_info else 0
-                    logging.warning(f"Invalid number value for widget {request.widget_id}, using default: {widget_value}")
+                    self.logger.warning(f"Invalid number value for widget {request.widget_id}, using default: {widget_value}")
             
             elif widget_type == 'checkbox':
                 widget_value = bool(widget_value)
@@ -205,7 +206,7 @@ class MarimoExecutorService(marimo_service_pb2_grpc.MarimoExecutorServicer):
             # Update widget value in session
             session.update_widget_value(request.widget_id, widget_value)
             
-            logging.info(f"Updated widget {request.widget_id} to value: {widget_value}")
+            self.logger.info(f"Updated widget {request.widget_id} to value: {widget_value}")
             
             return marimo_service_pb2.UpdateWidgetValueResponse(
                 success=True,
@@ -213,17 +214,17 @@ class MarimoExecutorService(marimo_service_pb2_grpc.MarimoExecutorServicer):
             )
             
         except Exception as e:
-            logging.error(f"Failed to update widget {request.widget_id}: {e}", exc_info=True)
+            self.logger.error(f"Failed to update widget {request.widget_id}: {e}", exc_info=True)
             return marimo_service_pb2.UpdateWidgetValueResponse(
                 success=False,
                 error=str(e)
             )
 
 def serve():
-    # Configure logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s'
+    # Setup logging configuration
+    logger = setup_logging(
+        log_level=os.getenv("LOG_LEVEL", "INFO"),
+        log_file=os.getenv("LOG_FILE", None)
     )
 
     # Create gRPC server
@@ -237,7 +238,7 @@ def serve():
 
     # Start server
     server.start()
-    logging.info(f'Marimo Python Service started on port {Config.GRPC_PORT}')
+    logger.info(f'Marimo Python Service started on port {Config.GRPC_PORT}')
 
     # Keep alive
     server.wait_for_termination()

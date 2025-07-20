@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Tuple, TYPE_CHECKING, Set, Optional
 import marimo as mo
 
 from .security import SecurityValidator
+from .logging_config import get_logger
 
 if TYPE_CHECKING:
     from .session import NotebookSession
@@ -18,14 +19,48 @@ class MarimoCellExecutor:
     def __init__(self, session: 'NotebookSession'):
         self.session = session
         self.security_validator = SecurityValidator()
+        self.logger = get_logger("executor")
 
     def execute_cell(self, cell_id: str, code: str) -> Tuple[bool, List[Dict[str, Any]], str, Dict[str, Any]]:
         """Executes a cell and captures its output and errors."""
         
+        self.logger.debug(f"Starting execution for cell '{cell_id}'")
+        
         is_valid, validation_error = self.security_validator.validate_code(code)
         if not is_valid:
+            self.logger.warning(f"Security validation failed for cell '{cell_id}': {validation_error}")
             error_output = self._format_error(validation_error)
             return False, [error_output], str(validation_error), {}
+
+        # Clean up variables and track state
+        cleanup_error = None
+        pre_execution_state = None
+        
+        try:
+            # Clean up variables from previous execution of this cell
+            self.logger.debug(f"Cleaning up variables for cell '{cell_id}' before execution")
+            self.session._cleanup_cell_variables(cell_id)
+            
+            # Clean up conflicting variables from initial code
+            self.logger.debug(f"Cleaning up conflicting initial variables for cell '{cell_id}'")
+            self.session._cleanup_conflicting_initial_variables(cell_id, code)
+            
+            # Clean up conflicting imports from initial code
+            self.logger.debug(f"Cleaning up conflicting initial imports for cell '{cell_id}'")
+            self.session._cleanup_conflicting_initial_imports(cell_id, code)
+            
+            # Capture pre-execution state for tracking
+            pre_execution_state = self.session._capture_pre_execution_state(cell_id)
+            
+        except Exception as cleanup_ex:
+            # If cleanup fails, log but continue with execution
+            cleanup_error = f"Cleanup failed: {str(cleanup_ex)}"
+            self.logger.warning(f"Variable cleanup warning for cell '{cell_id}': {cleanup_error}")
+            # Still capture pre-state even if cleanup failed
+            try:
+                pre_execution_state = self.session._capture_pre_execution_state(cell_id)
+            except Exception:
+                pre_execution_state = {}
 
         # Store current working directory to restore later
         original_cwd = os.getcwd()
@@ -79,12 +114,86 @@ class MarimoCellExecutor:
                 for fig_output in matplotlib_figures:
                     outputs.append(fig_output)
             
+            # Track variables after successful execution
+            try:
+                self.logger.debug(f"Tracking variables for cell '{cell_id}' after successful execution")
+                self.session._track_cell_variables(cell_id, pre_execution_state or {})
+            except Exception as tracking_ex:
+                # If tracking fails, log but don't fail the execution
+                tracking_error = f"Variable tracking failed: {str(tracking_ex)}"
+                self.logger.warning(f"Variable tracking warning for cell '{cell_id}': {tracking_error}")
+                # Add warning to outputs but don't mark execution as failed
+                outputs.append({
+                    "type": "WARNING", 
+                    "content": f"Variable tracking warning: {tracking_error}", 
+                    "mime_type": "text/plain"
+                })
+            
+            # Track imports after successful execution
+            try:
+                self.logger.debug(f"Tracking imports for cell '{cell_id}' after successful execution")
+                self.session._track_cell_imports(cell_id, code)
+            except Exception as import_tracking_ex:
+                # If import tracking fails, log but don't fail the execution
+                import_tracking_error = f"Import tracking failed: {str(import_tracking_ex)}"
+                self.logger.warning(f"Import tracking warning for cell '{cell_id}': {import_tracking_error}")
+                # Add warning to outputs but don't mark execution as failed
+                outputs.append({
+                    "type": "WARNING", 
+                    "content": f"Import tracking warning: {import_tracking_error}", 
+                    "mime_type": "text/plain"
+                })
+            
+            # Track widgets after successful execution
+            try:
+                self.logger.debug(f"Tracking widgets for cell '{cell_id}' after successful execution")
+                self.session._track_cell_widgets(cell_id)
+            except Exception as widget_tracking_ex:
+                # If widget tracking fails, log but don't fail the execution
+                widget_tracking_error = f"Widget tracking failed: {str(widget_tracking_ex)}"
+                self.logger.warning(f"Widget tracking warning for cell '{cell_id}': {widget_tracking_error}")
+                # Add warning to outputs but don't mark execution as failed
+                outputs.append({
+                    "type": "WARNING", 
+                    "content": f"Widget tracking warning: {widget_tracking_error}", 
+                    "mime_type": "text/plain"
+                })
+            
             success = True
         except Exception as e:
             error = f"{type(e).__name__}: {e}"
+            self.logger.error(f"Cell execution failed for '{cell_id}': {error}")
             # Capture full traceback for detailed error logging
             tb = traceback.format_exc()
             outputs.append(self._format_error(tb))
+            
+            # Track variables even after failed execution (for partial state)
+            try:
+                self.logger.debug(f"Tracking variables for cell '{cell_id}' after failed execution (partial state)")
+                # Use empty pre-state if tracking failed during setup
+                self.session._track_cell_variables(cell_id, pre_execution_state or {})
+            except Exception as tracking_ex:
+                tracking_error = f"Variable tracking failed after execution error: {str(tracking_ex)}"
+                self.logger.warning(f"Variable tracking warning for cell '{cell_id}': {tracking_error}")
+                # Don't add to outputs since we already have an execution error
+            
+            # Track imports even after failed execution (for partial state)
+            try:
+                self.logger.debug(f"Tracking imports for cell '{cell_id}' after failed execution (partial state)")
+                self.session._track_cell_imports(cell_id, code)
+            except Exception as import_tracking_ex:
+                import_tracking_error = f"Import tracking failed after execution error: {str(import_tracking_ex)}"
+                self.logger.warning(f"Import tracking warning for cell '{cell_id}': {import_tracking_error}")
+                # Don't add to outputs since we already have an execution error
+            
+            # Track widgets even after failed execution (for partial state)
+            try:
+                self.logger.debug(f"Tracking widgets for cell '{cell_id}' after failed execution (partial state)")
+                self.session._track_cell_widgets(cell_id)
+            except Exception as widget_tracking_ex:
+                widget_tracking_error = f"Widget tracking failed after execution error: {str(widget_tracking_ex)}"
+                self.logger.warning(f"Widget tracking warning for cell '{cell_id}': {widget_tracking_error}")
+                # Don't add to outputs since we already have an execution error
         finally:
             # Restore original working directory
             os.chdir(original_cwd)
@@ -105,7 +214,7 @@ class MarimoCellExecutor:
             elif stderr_val and error:
                  # If an exception was caught, the traceback is already in outputs.
                  # We can log the raw stderr_val if needed for debugging.
-                 print(f"Stderr from failed execution: {stderr_val}")
+                 self.logger.warning(f"Stderr from failed execution: {stderr_val}")
 
         cell_state = self._get_cell_state()
         return success, outputs, error, cell_state
