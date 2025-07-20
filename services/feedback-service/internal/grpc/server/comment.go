@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 
 	pb "github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/api"
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/service"
@@ -17,42 +17,49 @@ import (
 type commentServer struct {
 	pb.UnimplementedCommentServiceServer
 	commentService *service.CommentService
+	logger         *slog.Logger
 }
 
 // NewCommentServer creates a new comment server
-func NewCommentServer(commentService *service.CommentService) pb.CommentServiceServer {
+func NewCommentServer(commentService *service.CommentService, logger *slog.Logger) pb.CommentServiceServer {
 	return &commentServer{
 		commentService: commentService,
+		logger:         logger,
 	}
 }
 
 // RegisterCommentServer registers the comment server with gRPC
-func RegisterCommentServer(s *grpc.Server, commentService *service.CommentService) {
+func RegisterCommentServer(s *grpc.Server, commentService *service.CommentService, logger *slog.Logger) {
 	server := &commentServer{
 		commentService: commentService,
+		logger:         logger,
 	}
 	pb.RegisterCommentServiceServer(s, server)
 }
 
 // CreateComment creates a new comment
 func (s *commentServer) CreateComment(ctx context.Context, req *pb.CreateCommentRequest) (*pb.Comment, error) {
-	log.Printf("gRPC CreateComment received: ContentId=%d, UserId=%d, ParentId=%v, Content=%q", req.ContentId, req.UserId, req.ParentId, req.Content)
+	s.logger.Info("gRPC CreateComment received",
+		"content_id", req.ContentId,
+		"user_id", req.UserId,
+		"parent_id", req.ParentId,
+		"type", req.Type,
+	)
 
 	if req.ContentId <= 0 {
-		log.Printf("gRPC CreateComment error: content_id is required")
 		return nil, status.Error(codes.InvalidArgument, "content_id is required")
 	}
 	if req.UserId <= 0 {
-		log.Printf("gRPC CreateComment error: user_id is required")
 		return nil, status.Error(codes.InvalidArgument, "user_id is required")
 	}
 	if req.Content == "" {
-		log.Printf("gRPC CreateComment error: content is required")
 		return nil, status.Error(codes.InvalidArgument, "content is required")
 	}
 	if req.Type == "" {
-		log.Printf("gRPC CreateComment error: type is required")
 		return nil, status.Error(codes.InvalidArgument, "type is required")
+	}
+	if req.Type != "lab" && req.Type != "article" {
+		return nil, status.Error(codes.InvalidArgument, "type must be 'lab' or 'article'")
 	}
 
 	var parentID *string
@@ -62,7 +69,7 @@ func (s *commentServer) CreateComment(ctx context.Context, req *pb.CreateComment
 
 	comment, err := s.commentService.CreateComment(ctx, req.ContentId, req.UserId, parentID, req.Content, req.Type)
 	if err != nil {
-		log.Printf("gRPC CreateComment error: failed to create comment: %v", err)
+		s.logger.Error("gRPC CreateComment failed", "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create comment: %v", err))
 	}
 
@@ -77,22 +84,21 @@ func (s *commentServer) CreateComment(ctx context.Context, req *pb.CreateComment
 		Type:      comment.Type,
 	}
 
-	log.Printf("gRPC CreateComment response: Id=%s, ContentId=%d, UserId=%d, ParentId=%v", response.Id, response.ContentId, response.UserId, response.ParentId)
+	s.logger.Info("gRPC CreateComment completed", "comment_id", response.Id)
 	return response, nil
 }
 
 // GetComment retrieves a comment by ID
 func (s *commentServer) GetComment(ctx context.Context, req *pb.GetCommentRequest) (*pb.Comment, error) {
-	log.Printf("gRPC GetComment received: Id=%s", req.Id)
+	s.logger.Info("gRPC GetComment received", "id", req.Id)
 
 	if req.Id == "" {
-		log.Printf("gRPC GetComment error: comment ID is required")
 		return nil, status.Error(codes.InvalidArgument, "comment ID is required")
 	}
 
 	comment, err := s.commentService.GetComment(ctx, req.Id)
 	if err != nil {
-		log.Printf("gRPC GetComment error: failed to get comment: %v", err)
+		s.logger.Error("gRPC GetComment failed", "id", req.Id, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get comment: %v", err))
 	}
 
@@ -107,44 +113,48 @@ func (s *commentServer) GetComment(ctx context.Context, req *pb.GetCommentReques
 		Type:      comment.Type,
 	}
 
-	log.Printf("gRPC GetComment response: Id=%s, ContentId=%d, UserId=%d, ParentId=%v", response.Id, response.ContentId, response.UserId, response.ParentId)
+	s.logger.Info("gRPC GetComment completed", "id", response.Id)
 	return response, nil
 }
 
 // UpdateComment updates a comment
 func (s *commentServer) UpdateComment(ctx context.Context, req *pb.UpdateCommentRequest) (*pb.Comment, error) {
-	log.Printf("gRPC UpdateComment received: Id=%s, UserId=%d, Content=%q", req.Id, req.UserId, req.Content)
+	s.logger.Info("gRPC UpdateComment received",
+		"id", req.Id,
+		"user_id", req.UserId,
+	)
 
 	// Validate request
 	if req.UserId <= 0 {
-		log.Printf("gRPC UpdateComment error: user_id is required")
 		return nil, status.Error(codes.InvalidArgument, "user_id is required")
 	}
 	if req.Id == "" {
-		log.Printf("gRPC UpdateComment error: comment ID is required")
 		return nil, status.Error(codes.InvalidArgument, "comment ID is required")
 	}
 	if req.Content == "" {
-		log.Printf("gRPC UpdateComment error: content is required")
 		return nil, status.Error(codes.InvalidArgument, "content is required")
 	}
 
 	// Check if comment exists and user is authorized
 	existingComment, err := s.commentService.GetComment(ctx, req.Id)
 	if err != nil {
-		log.Printf("gRPC UpdateComment error: comment not found: %v", err)
+		s.logger.Warn("gRPC UpdateComment: comment not found", "id", req.Id, "error", err)
 		return nil, status.Error(codes.NotFound, "comment not found")
 	}
 
 	// Authorization check: only the comment author can update it
 	if existingComment.UserID != req.UserId {
-		log.Printf("gRPC UpdateComment error: unauthorized - user %d cannot update comment owned by user %d", req.UserId, existingComment.UserID)
+		s.logger.Warn("gRPC UpdateComment: permission denied",
+			"id", req.Id,
+			"user_id", req.UserId,
+			"owner_id", existingComment.UserID,
+		)
 		return nil, status.Error(codes.PermissionDenied, "you can only update your own comments")
 	}
 
 	comment, err := s.commentService.UpdateComment(ctx, req.Id, req.Content)
 	if err != nil {
-		log.Printf("gRPC UpdateComment error: failed to update comment: %v", err)
+		s.logger.Error("gRPC UpdateComment failed", "id", req.Id, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update comment: %v", err))
 	}
 
@@ -159,50 +169,61 @@ func (s *commentServer) UpdateComment(ctx context.Context, req *pb.UpdateComment
 		Type:      comment.Type,
 	}
 
-	log.Printf("gRPC UpdateComment response: Id=%s, ContentId=%d, UserId=%d, UpdatedAt=%v", response.Id, response.ContentId, response.UserId, response.UpdatedAt.AsTime())
+	s.logger.Info("gRPC UpdateComment completed", "id", response.Id)
 	return response, nil
 }
 
 // DeleteComment deletes a comment
 func (s *commentServer) DeleteComment(ctx context.Context, req *pb.DeleteCommentRequest) (*pb.DeleteCommentResponse, error) {
-	log.Printf("gRPC DeleteComment received: Id=%s, UserId=%d", req.Id, req.UserId)
+	s.logger.Info("gRPC DeleteComment received",
+		"id", req.Id,
+		"user_id", req.UserId,
+	)
 
 	// Validate request
 	if req.UserId <= 0 {
-		log.Printf("gRPC DeleteComment error: user_id is required")
 		return nil, status.Error(codes.InvalidArgument, "user_id is required")
 	}
 	if req.Id == "" {
-		log.Printf("gRPC DeleteComment error: comment ID is required")
 		return nil, status.Error(codes.InvalidArgument, "comment ID is required")
 	}
 
 	// Check if comment exists and user is authorized
 	existingComment, err := s.commentService.GetComment(ctx, req.Id)
 	if err != nil {
-		log.Printf("gRPC DeleteComment error: comment not found: %v", err)
+		s.logger.Warn("gRPC DeleteComment: comment not found", "id", req.Id, "error", err)
 		return nil, status.Error(codes.NotFound, "comment not found")
 	}
 
 	// Authorization check: only the comment author can delete it
 	if existingComment.UserID != req.UserId {
-		log.Printf("gRPC DeleteComment error: unauthorized - user %d cannot delete comment owned by user %d", req.UserId, existingComment.UserID)
+		s.logger.Warn("gRPC DeleteComment: permission denied",
+			"id", req.Id,
+			"user_id", req.UserId,
+			"owner_id", existingComment.UserID,
+		)
 		return nil, status.Error(codes.PermissionDenied, "you can only delete your own comments")
 	}
 
 	if err := s.commentService.DeleteComment(ctx, req.Id); err != nil {
-		log.Printf("gRPC DeleteComment error: failed to delete comment: %v", err)
+		s.logger.Error("gRPC DeleteComment failed", "id", req.Id, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete comment: %v", err))
 	}
 
 	response := &pb.DeleteCommentResponse{Success: true}
-	log.Printf("gRPC DeleteComment response: Success=%t", response.Success)
+	s.logger.Info("gRPC DeleteComment completed", "id", req.Id)
 	return response, nil
 }
 
 // ListComments lists comments by context
 func (s *commentServer) ListComments(ctx context.Context, req *pb.ListCommentsRequest) (*pb.ListCommentsResponse, error) {
-	log.Printf("gRPC ListComments received: ContentId=%d, ParentId=%v, Page=%d, Limit=%d, Type=%s", req.ContentId, req.ParentId, req.Page, req.Limit, req.Type)
+	s.logger.Info("gRPC ListComments received",
+		"content_id", req.ContentId,
+		"parent_id", req.ParentId,
+		"page", req.Page,
+		"limit", req.Limit,
+		"type", req.Type,
+	)
 
 	if req.ContentId <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "content_id is required")
@@ -218,6 +239,7 @@ func (s *commentServer) ListComments(ctx context.Context, req *pb.ListCommentsRe
 
 	comments, totalCount, err := s.commentService.ListComments(ctx, req.ContentId, parentID, req.Page, req.Limit, req.Type)
 	if err != nil {
+		s.logger.Error("gRPC ListComments failed", "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list comments: %v", err))
 	}
 
@@ -235,7 +257,10 @@ func (s *commentServer) ListComments(ctx context.Context, req *pb.ListCommentsRe
 		}
 	}
 
-	log.Printf("gRPC ListComments response: %d comments, totalCount=%d", len(comments), totalCount)
+	s.logger.Info("gRPC ListComments completed",
+		"count", len(comments),
+		"total_count", totalCount,
+	)
 	return &pb.ListCommentsResponse{
 		Comments:   pbComments,
 		TotalCount: totalCount,
@@ -244,16 +269,19 @@ func (s *commentServer) ListComments(ctx context.Context, req *pb.ListCommentsRe
 
 // GetCommentReplies gets replies to a comment
 func (s *commentServer) GetCommentReplies(ctx context.Context, req *pb.GetCommentRepliesRequest) (*pb.GetCommentRepliesResponse, error) {
-	log.Printf("gRPC GetCommentReplies received: CommentId=%s, Page=%d, Limit=%d", req.CommentId, req.Page, req.Limit)
+	s.logger.Info("gRPC GetCommentReplies received",
+		"comment_id", req.CommentId,
+		"page", req.Page,
+		"limit", req.Limit,
+	)
 
 	if req.CommentId == "" {
-		log.Printf("gRPC GetCommentReplies error: comment_id is required")
 		return nil, status.Error(codes.InvalidArgument, "comment_id is required")
 	}
 
 	comments, totalCount, err := s.commentService.GetCommentReplies(ctx, req.CommentId, req.Page, req.Limit)
 	if err != nil {
-		log.Printf("gRPC GetCommentReplies error: failed to get comment replies: %v", err)
+		s.logger.Error("gRPC GetCommentReplies failed", "comment_id", req.CommentId, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get comment replies: %v", err))
 	}
 
@@ -276,6 +304,10 @@ func (s *commentServer) GetCommentReplies(ctx context.Context, req *pb.GetCommen
 		TotalCount: totalCount,
 	}
 
-	log.Printf("gRPC GetCommentReplies response: %d replies, totalCount=%d", len(comments), totalCount)
+	s.logger.Info("gRPC GetCommentReplies completed",
+		"comment_id", req.CommentId,
+		"count", len(comments),
+		"total_count", totalCount,
+	)
 	return response, nil
 }

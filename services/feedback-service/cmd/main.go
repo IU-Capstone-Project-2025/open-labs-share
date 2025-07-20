@@ -4,7 +4,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"os/signal"
@@ -27,34 +27,46 @@ import (
 )
 
 func main() {
+	// Initialize structured logger
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		logger.Error("Failed to load configuration", "error", err)
+		os.Exit(1)
 	}
 
 	// Initialize PostgreSQL database connection
-	db, err := database.NewConnection(cfg.Database)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	db, err := database.NewConnection(ctx, cfg.Database)
 	if err != nil {
-		log.Fatalf("Failed to connect to PostgreSQL: %v", err)
+		logger.Error("Failed to connect to PostgreSQL", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
 
 	// Run database migrations
-	if err := database.Migrate(db, "migrations"); err != nil {
-		log.Fatalf("Failed to run database migrations: %v", err)
+	if err := database.Migrate(ctx, db, "migrations"); err != nil {
+		logger.Error("Failed to run database migrations", "error", err)
+		os.Exit(1)
 	}
 
 	// Initialize MongoDB connection
-	mongodb, err := database.ConnectMongoDB(cfg.MongoDB)
+	mongodb, err := database.ConnectMongoDB(ctx, cfg.MongoDB)
 	if err != nil {
-		log.Fatalf("Failed to connect to MongoDB: %v", err)
+		logger.Error("Failed to connect to MongoDB", "error", err)
+		os.Exit(1)
 	}
 	defer mongodb.Close(context.Background())
 
 	// Create MongoDB indexes
-	if err := mongodb.CreateIndexes(context.Background()); err != nil {
-		log.Fatalf("Failed to create MongoDB indexes: %v", err)
+	if err := mongodb.CreateIndexes(ctx, cfg.MongoDB.Collection); err != nil {
+		logger.Error("Failed to create MongoDB indexes", "error", err)
+		os.Exit(1)
 	}
 
 	// Initialize MinIO client
@@ -63,22 +75,24 @@ func main() {
 		Secure: cfg.MinIO.UseSSL,
 	})
 	if err != nil {
-		log.Fatalf("Failed to initialize MinIO client: %v", err)
+		logger.Error("Failed to initialize MinIO client", "error", err)
+		os.Exit(1)
 	}
 
 	// Create bucket if it doesn't exist
-	ctx := context.Background()
 	if cfg.MinIO.CreateBucket {
 		exists, err := minioClient.BucketExists(ctx, cfg.MinIO.BucketName)
 		if err != nil {
-			log.Fatalf("Failed to check if bucket exists: %v", err)
+			logger.Error("Failed to check if bucket exists", "error", err)
+			os.Exit(1)
 		}
 		if !exists {
 			err = minioClient.MakeBucket(ctx, cfg.MinIO.BucketName, minio.MakeBucketOptions{})
 			if err != nil {
-				log.Fatalf("Failed to create bucket: %v", err)
+				logger.Error("Failed to create bucket", "error", err)
+				os.Exit(1)
 			}
-			log.Printf("Created bucket: %s", cfg.MinIO.BucketName)
+			logger.Info("Created bucket", "bucket", cfg.MinIO.BucketName)
 		}
 	}
 
@@ -96,19 +110,19 @@ func main() {
 	}`, cfg.MinIO.BucketName)
 	err = minioClient.SetBucketPolicy(ctx, cfg.MinIO.BucketName, policy)
 	if err != nil {
-		log.Fatalf("Failed to set bucket policy: %v", err)
+		logger.Error("Failed to set bucket policy", "error", err)
+		os.Exit(1)
 	}
-	log.Printf("Set read-only policy for bucket: %s", cfg.MinIO.BucketName)
-
+	logger.Info("Set read-only policy for bucket", "bucket", cfg.MinIO.BucketName)
 
 	// Initialize repositories
 	feedbackRepo := repository.NewFeedbackRepository(db, mongodb)
 	attachmentRepo := repository.NewAttachmentRepository(minioClient, cfg.MinIO.BucketName, cfg.MinIO.Endpoint, cfg.MinIO.UseSSL)
-	commentRepo := repository.NewCommentRepository(mongodb)
+	commentRepo := repository.NewCommentRepository(mongodb, cfg.MongoDB.Collection)
 
 	// Initialize services
-	feedbackService := service.NewFeedbackService(feedbackRepo, attachmentRepo)
-	commentService := service.NewCommentService(commentRepo)
+	feedbackService := service.NewFeedbackService(feedbackRepo, attachmentRepo, logger)
+	commentService := service.NewCommentService(commentRepo, logger)
 
 	// Create gRPC server with improved streaming error handling
 	grpcServer := grpc.NewServer(
@@ -130,8 +144,8 @@ func main() {
 	)
 
 	// Register services
-	server.RegisterFeedbackServer(grpcServer, feedbackService)
-	server.RegisterCommentServer(grpcServer, commentService)
+	server.RegisterFeedbackServer(grpcServer, feedbackService, logger)
+	server.RegisterCommentServer(grpcServer, commentService, logger)
 
 	// Create a new health server and register it
 	healthServer := health.NewServer()
@@ -145,15 +159,17 @@ func main() {
 	// Start server
 	listener, err := net.Listen("tcp", ":"+cfg.GRPCPort)
 	if err != nil {
-		log.Fatalf("Failed to listen on port %s: %v", cfg.GRPCPort, err)
+		logger.Error("Failed to listen on port", "port", cfg.GRPCPort, "error", err)
+		os.Exit(1)
 	}
 
-	log.Printf("Starting gRPC server on port %s", cfg.GRPCPort)
+	logger.Info("Starting gRPC server", "port", cfg.GRPCPort)
 
 	// Graceful shutdown
 	go func() {
 		if err := grpcServer.Serve(listener); err != nil {
-			log.Fatalf("Failed to serve gRPC server: %v", err)
+			logger.Error("Failed to serve gRPC server", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -162,11 +178,11 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	logger.Info("Shutting down server...")
 
 	// Graceful shutdown with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
 
 	done := make(chan bool, 1)
 	go func() {
@@ -176,9 +192,9 @@ func main() {
 
 	select {
 	case <-done:
-		log.Println("Server stopped gracefully")
-	case <-ctx.Done():
-		log.Println("Server shutdown timeout, forcing stop")
+		logger.Info("Server stopped gracefully")
+	case <-shutdownCtx.Done():
+		logger.Warn("Server shutdown timeout, forcing stop")
 		grpcServer.Stop()
 	}
 }

@@ -59,7 +59,7 @@ func Load() (*Config, error) {
 		MongoDB: MongoDBConfig{
 			URI:        getEnv("MONGODB_URI", "mongodb://localhost:27017"),
 			Database:   getEnv("MONGODB_DATABASE", "feedback"),
-			Collection: getEnv("MONGODB_COLLECTION", "comments"),
+			Collection: getEnv("MONGODB_COLLECTION", "feedback_content"),
 		},
 		MinIO: MinIOConfig{
 			Endpoint:     getEnv("MINIO_ENDPOINT", "localhost:9000"),
@@ -100,6 +100,9 @@ func (c *Config) validate() error {
 	}
 	if c.MongoDB.Database == "" {
 		return fmt.Errorf("MONGODB_DATABASE is required")
+	}
+	if c.MongoDB.Collection == "" {
+		return fmt.Errorf("MONGODB_COLLECTION is required")
 	}
 	if c.MinIO.Endpoint == "" {
 		return fmt.Errorf("MINIO_ENDPOINT is required")

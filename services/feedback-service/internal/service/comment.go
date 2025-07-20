@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
-	"log"
-
+	"log/slog"
+	
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/models"
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/repository"
 )
@@ -12,12 +12,14 @@ import (
 // CommentService handles comment business logic
 type CommentService struct {
 	commentRepo repository.CommentRepository
+	logger      *slog.Logger
 }
 
 // NewCommentService creates a new comment service
-func NewCommentService(commentRepo repository.CommentRepository) *CommentService {
+func NewCommentService(commentRepo repository.CommentRepository, logger *slog.Logger) *CommentService {
 	return &CommentService{
 		commentRepo: commentRepo,
+		logger:      logger,
 	}
 }
 
@@ -35,9 +37,6 @@ func (s *CommentService) CreateComment(ctx context.Context, contentID, userID in
 	}
 	if commentType == "" {
 		return nil, fmt.Errorf("type is required")
-	}
-	if commentType != "lab" && commentType != "article" {
-		return nil, fmt.Errorf("invalid type: must be 'lab' or 'article'")
 	}
 
 	// Validate parent comment exists if specified
@@ -61,6 +60,13 @@ func (s *CommentService) CreateComment(ctx context.Context, contentID, userID in
 	if err := s.commentRepo.Create(ctx, comment); err != nil {
 		return nil, fmt.Errorf("failed to create comment: %w", err)
 	}
+
+	s.logger.Info("Comment created successfully",
+		"comment_id", comment.ID.Hex(),
+		"content_id", contentID,
+		"user_id", userID,
+		"parent_id", parentID,
+	)
 
 	return comment, nil
 }
@@ -107,22 +113,30 @@ func (s *CommentService) DeleteComment(ctx context.Context, id string) error {
 	}
 
 	// Delete comment and all replies (handled by repository)
-	if err := s.commentRepo.Delete(ctx, id); err != nil {
+	err = s.commentRepo.WithTransaction(ctx, func(txRepo repository.CommentTxRepository) error {
+		return txRepo.Delete(ctx, id)
+	})
+	if err != nil {
 		return fmt.Errorf("failed to delete comment: %w", err)
 	}
+
+	s.logger.Info("Comment deleted successfully", "comment_id", id)
 
 	return nil
 }
 
 // ListComments lists comments by content ID
 func (s *CommentService) ListComments(ctx context.Context, contentID int64, parentID *string, page, limit int32, commentType string) ([]*models.Comment, int32, error) {
-	log.Printf("ListComments called: contentID=%d, parentID=%v, page=%d, limit=%d, type=%s", contentID, parentID, page, limit, commentType)
+	s.logger.Info("Listing comments",
+		"content_id", contentID,
+		"parent_id", parentID,
+		"page", page,
+		"limit", limit,
+		"type", commentType,
+	)
 
 	if contentID <= 0 {
 		return nil, 0, fmt.Errorf("invalid content ID")
-	}
-	if commentType != "lab" && commentType != "article" {
-		return nil, 0, fmt.Errorf("invalid type: must be 'lab' or 'article'")
 	}
 	if page <= 0 {
 		page = 1
@@ -139,15 +153,16 @@ func (s *CommentService) ListComments(ctx context.Context, contentID int64, pare
 		Type:      commentType,
 	}
 
-	// Log the request
-	log.Printf("Listing comments - ContentID: %d, ParentID: %v, Page: %d, Limit: %d, Type: %s", contentID, parentID, page, limit, commentType)
-
 	comments, totalCount, err := s.commentRepo.ListByContext(ctx, filter)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list comments: %w", err)
 	}
 
-	log.Printf("ListComments result: found %d comments, totalCount=%d", len(comments), totalCount)
+	s.logger.Info("Comments listed successfully",
+		"count", len(comments),
+		"total_count", totalCount,
+	)
+
 	return comments, totalCount, nil
 }
 

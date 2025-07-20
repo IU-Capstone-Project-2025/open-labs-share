@@ -24,6 +24,10 @@ type FeedbackRepository interface {
 	DeleteContent(ctx context.Context, id uuid.UUID) error
 }
 
+type CommentTxRepository interface {
+	CommentRepository
+}
+
 // AttachmentRepository defines the interface for attachment operations in MinIO
 type AttachmentRepository interface {
 	Upload(ctx context.Context, feedbackID uuid.UUID, filename string, contentType string, data io.Reader, size int64) error
@@ -44,4 +48,5 @@ type CommentRepository interface {
 	DeleteReplies(ctx context.Context, parentID string) error
 	ListByContext(ctx context.Context, filter models.CommentFilter) ([]*models.Comment, int32, error)
 	ListReplies(ctx context.Context, parentID string, page, limit int32) ([]*models.Comment, int32, error)
+	WithTransaction(ctx context.Context, fn func(CommentTxRepository) error) error
 }

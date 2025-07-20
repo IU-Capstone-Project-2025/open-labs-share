@@ -1,9 +1,10 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -13,9 +14,9 @@ import (
 )
 
 // Migrate runs database migrations
-func Migrate(db *sql.DB, migrationsPath string) error {
+func Migrate(ctx context.Context, db *sql.DB, migrationsPath string) error {
 	// Create migrations table if it doesn't exist
-	if err := createMigrationsTable(db); err != nil {
+	if err := createMigrationsTable(ctx, db); err != nil {
 		return fmt.Errorf("failed to create migrations table: %w", err)
 	}
 
@@ -26,7 +27,7 @@ func Migrate(db *sql.DB, migrationsPath string) error {
 	}
 
 	// Get applied migrations
-	appliedMigrations, err := getAppliedMigrations(db)
+	appliedMigrations, err := getAppliedMigrations(ctx, db)
 	if err != nil {
 		return fmt.Errorf("failed to get applied migrations: %w", err)
 	}
@@ -34,15 +35,15 @@ func Migrate(db *sql.DB, migrationsPath string) error {
 	// Apply pending migrations
 	for _, migration := range migrationFiles {
 		if _, applied := appliedMigrations[migration.Name]; !applied {
-			log.Printf("Applying migration: %s", migration.Name)
-			if err := applyMigration(db, migration); err != nil {
+			slog.Info("Applying migration", "migration", migration.Name)
+			if err := applyMigration(ctx, db, migration); err != nil {
 				return fmt.Errorf("failed to apply migration %s: %w", migration.Name, err)
 			}
-			log.Printf("Successfully applied migration: %s", migration.Name)
+			slog.Info("Successfully applied migration", "migration", migration.Name)
 		}
 	}
 
-	log.Println("All migrations applied successfully")
+	slog.Info("All migrations applied successfully")
 	return nil
 }
 
@@ -51,14 +52,14 @@ type Migration struct {
 	SQL  string
 }
 
-func createMigrationsTable(db *sql.DB) error {
+func createMigrationsTable(ctx context.Context, db *sql.DB) error {
 	query := `
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version VARCHAR(255) PRIMARY KEY,
 			applied_at TIMESTAMP DEFAULT NOW()
 		)
 	`
-	_, err := db.Exec(query)
+	_, err := db.ExecContext(ctx, query)
 	return err
 }
 
@@ -102,10 +103,10 @@ func getMigrationFiles(migrationsPath string) ([]Migration, error) {
 	return migrations, nil
 }
 
-func getAppliedMigrations(db *sql.DB) (map[string]bool, error) {
+func getAppliedMigrations(ctx context.Context, db *sql.DB) (map[string]bool, error) {
 	applied := make(map[string]bool)
 
-	rows, err := db.Query("SELECT version FROM schema_migrations")
+	rows, err := db.QueryContext(ctx, "SELECT version FROM schema_migrations")
 	if err != nil {
 		return nil, err
 	}
@@ -122,8 +123,8 @@ func getAppliedMigrations(db *sql.DB) (map[string]bool, error) {
 	return applied, rows.Err()
 }
 
-func applyMigration(db *sql.DB, migration Migration) error {
-	tx, err := db.Begin()
+func applyMigration(ctx context.Context, db *sql.DB, migration Migration) error {
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -134,12 +135,12 @@ func applyMigration(db *sql.DB, migration Migration) error {
 	}()
 
 	// Execute migration SQL
-	if _, err = tx.Exec(migration.SQL); err != nil {
+	if _, err = tx.ExecContext(ctx, migration.SQL); err != nil {
 		return err
 	}
 
 	// Record migration as applied
-	if _, err = tx.Exec("INSERT INTO schema_migrations (version) VALUES ($1)", migration.Name); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO schema_migrations (version) VALUES ($1)", migration.Name); err != nil {
 		return err
 	}
 
