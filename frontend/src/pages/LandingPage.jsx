@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { 
   BookOpenIcon, 
   BeakerIcon, 
@@ -11,15 +12,39 @@ import {
   ChartBarIcon
 } from "@heroicons/react/24/outline";
 import BackgroundCircles from "../components/BackgroundCircles";
+import { statisticsAPI } from "../utils/api";
 
 export default function LandingPage() {
   
-  const stats = {
-    totalLabs: 12,
-    totalArticles: 8,
-    totalUsers: 156,
-    completedSubmissions: 89
-  };
+  const [stats, setStats] = useState({
+    totalLabs: 0,
+    totalArticles: 0,
+    totalUsers: 0,
+    completedSubmissions: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStatistics = async () => {
+      try {
+        setLoading(true);
+        const statistics = await statisticsAPI.getStatistics();
+        setStats({
+          totalLabs: statistics.labs || 0,
+          totalArticles: statistics.articles || 0,
+          totalUsers: statistics.users || 0,
+          completedSubmissions: statistics.submissions || 0
+        });
+      } catch (error) {
+        console.error('Error fetching statistics:', error);
+        // Keep default values if API call fails
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStatistics();
+  }, []);
 
   const features = [
     {
@@ -148,7 +173,11 @@ export default function LandingPage() {
                   <BeakerIcon className="h-8 w-8 text-blue-blue" />
                 </div>
                 <div className="text-3xl font-bold text-msc dark:text-white">
-                  {stats.totalLabs}
+                  {loading ? (
+                    <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-8 w-16 mx-auto rounded"></div>
+                  ) : (
+                    stats.totalLabs
+                  )}
                 </div>
                 <div className="text-light-blue dark:text-gray-400">Active Labs</div>
               </div>
@@ -158,7 +187,11 @@ export default function LandingPage() {
                   <BookOpenIcon className="h-8 w-8 text-green-500" />
                 </div>
                 <div className="text-3xl font-bold text-msc dark:text-white">
-                  {stats.totalArticles}
+                  {loading ? (
+                    <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-8 w-16 mx-auto rounded"></div>
+                  ) : (
+                    stats.totalArticles
+                  )}
                 </div>
                 <div className="text-light-blue dark:text-gray-400">Research Articles</div>
               </div>
@@ -168,7 +201,11 @@ export default function LandingPage() {
                   <UserGroupIcon className="h-8 w-8 text-purple-500" />
                 </div>
                 <div className="text-3xl font-bold text-msc dark:text-white">
-                  {stats.totalUsers}
+                  {loading ? (
+                    <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-8 w-16 mx-auto rounded"></div>
+                  ) : (
+                    stats.totalUsers
+                  )}
                 </div>
                 <div className="text-light-blue dark:text-gray-400">Community Members</div>
               </div>
@@ -178,7 +215,11 @@ export default function LandingPage() {
                   <ChartBarIcon className="h-8 w-8 text-orange-500" />
                 </div>
                 <div className="text-3xl font-bold text-msc dark:text-white">
-                  {stats.completedSubmissions}
+                  {loading ? (
+                    <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-8 w-16 mx-auto rounded"></div>
+                  ) : (
+                    stats.completedSubmissions
+                  )}
                 </div>
                 <div className="text-light-blue dark:text-gray-400">Submissions</div>
               </div>
