@@ -145,9 +145,7 @@ export const authAPI = {
 export const usersAPI = {
   getUserById: (userId) => apiCall(`/users/${userId}`),
   getUserProfile: (userId) => apiCall(`/users/profile/${userId}`),
-  // Note: These endpoints don't exist in the current API:
-  // - getAllUsers, deleteUser, getUserLabs, getUserArticles
-  // - Removed to prevent 404 errors
+
 };
 
 // --- Labs API ---

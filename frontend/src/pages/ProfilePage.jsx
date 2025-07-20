@@ -529,7 +529,7 @@ export default function ProfilePage() {
                   </form>
                 )}
               </div>
-              <div className="mt-8">
+              {/* <div className="mt-8">
                 <button
                   onClick={handleDeleteProfile}
                   className="w-full text-left px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
@@ -537,7 +537,7 @@ export default function ProfilePage() {
                   <h3 className="font-semibold">Delete Account</h3>
                   <p className="text-sm mt-1">Permanently delete your account and all associated data. This action cannot be undone.</p>
                 </button>
-              </div>
+              </div> */}
             </div>
 
             {/* Right Column: My Materials */}
