@@ -52,21 +52,23 @@ class LabService(labs_service.LabServiceServicer):
 
     def CreateLab(self, request, context) -> labs_stub.Lab:
         """
-        Create a new lab.
+        Create a new lab entry in the database.
         
         Args:
-            request: CreateLabRequest containing:
+            request: CreateLabRequest with fields:
                 - owner_id (int): ID of the lab owner
                 - title (str): Lab title
                 - abstract (str): Lab abstract/summary
-                - related_articles (ArticleList, optional): List of related article IDs
+                - related_articles_ids (list[int], optional): Related article IDs
+                - tags_ids (list[int], optional): Tag IDs to associate
             context: gRPC context
-            
+        
         Returns:
-            labs_stub.Lab: Created lab with generated ID and timestamps
-            
-        Raises:
-            grpc.StatusCode.INVALID_ARGUMENT: If title or abstract is empty or None
+            labs_stub.Lab: The created lab with generated ID and timestamps, or empty Lab on error
+        
+        Errors:
+            INVALID_ARGUMENT: If required fields are missing or invalid
+            NOT_FOUND: If any tag ID does not exist
         """
 
         self.logger.info(f"CreateLab requested")
@@ -137,18 +139,18 @@ class LabService(labs_service.LabServiceServicer):
 
     def GetLab(self, request, context) -> labs_stub.Lab:
         """
-        Retrieve a specific lab by ID.
+        Retrieve a lab by its ID.
         
         Args:
-            request: GetLabRequest containing:
+            request: GetLabRequest with:
                 - lab_id (int): ID of the lab to retrieve
             context: gRPC context
-            
+        
         Returns:
-            labs_stub.Lab: Lab data if found, empty Lab if not found
-            
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If lab doesn't exist
+            labs_stub.Lab: Lab data if found, otherwise empty Lab
+        
+        Errors:
+            NOT_FOUND: If the lab does not exist
         """
 
         self.logger.info(f"GetLab requested")
@@ -177,19 +179,22 @@ class LabService(labs_service.LabServiceServicer):
 
     def GetLabs(self, request, context) -> labs_stub.LabList:
         """
-        Retrieve a paginated list of labs.
+        Retrieve a paginated list of labs, optionally filtered by text and tags.
         
         Args:
-            request: GetLabsRequest containing:
+            request: GetLabsRequest with:
                 - page_number (int): Page number (1-based)
                 - page_size (int): Number of labs per page
+                - text (str, optional): Search text for title/abstract
+                - tags_ids (list[int], optional non-empty): Tag IDs to filter by
             context: gRPC context
-            
+        
         Returns:
-            labs_stub.LabList: List of labs with total count
-            
-        Raises:
-            grpc.StatusCode.INVALID_ARGUMENT: If page_number or page_size is None or <= 0
+            labs_stub.LabList: List of labs and total count (may be 0)
+        
+        Errors:
+            INVALID_ARGUMENT: If pagination or text is invalid
+            NOT_FOUND: If any tag ID does not exist
         """
 
         self.logger.info(f"GetLabs requested")
@@ -272,21 +277,23 @@ class LabService(labs_service.LabServiceServicer):
 
     def UpdateLab(self, request, context) -> labs_stub.Lab:
         """
-        Update an existing lab.
+        Update an existing lab's details, articles, and tags.
         
         Args:
-            request: UpdateLabRequest containing:
+            request: UpdateLabRequest with:
                 - lab_id (int): ID of the lab to update
-                - title (str, optional): New lab title
-                - abstract (str, optional): New lab abstract
-                - related_articles (ArticleList, optional): New list of related article IDs
+                - title (str): New lab title
+                - abstract (str): New lab abstract
+                - related_articles_ids (list[int], optional): New related article IDs
+                - tags_ids (list[int], optional): New tag IDs
             context: gRPC context
-            
+        
         Returns:
-            labs_stub.Lab: Updated lab data
-            
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If lab doesn't exist
+            labs_stub.Lab: Updated lab data, or empty Lab on error
+        
+        Errors:
+            INVALID_ARGUMENT: If title is missing/empty
+            NOT_FOUND: If lab or any tag does not exist
         """
 
         self.logger.info(f"UpdateLab requested")
@@ -373,19 +380,19 @@ class LabService(labs_service.LabServiceServicer):
 
     def DeleteLab(self, request, context) -> labs_stub.DeleteLabResponse:
         """
-        Delete a lab by ID.
+        Delete a lab and its associations by ID.
         
         Args:
-            request: DeleteLabRequest containing:
+            request: DeleteLabRequest with:
                 - lab_id (int): ID of the lab to delete
             context: gRPC context
-            
+        
         Returns:
             labs_stub.DeleteLabResponse: Success status of the deletion
-            
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If lab doesn't exist
-            grpc.StatusCode.INTERNAL: If asset deletion from storage fails
+        
+        Errors:
+            NOT_FOUND: If the lab does not exist
+            INTERNAL: If asset deletion from storage fails
         """
 
         self.logger.info(f"DeleteLab requested")
@@ -439,15 +446,20 @@ class LabService(labs_service.LabServiceServicer):
 
     def GetLabsByUserId(self, request, context) -> labs_stub.LabList:
         """
-        Retrieve a list of labs by user ID.
+        Retrieve a paginated list of labs owned by a specific user.
         
         Args:
-            request: GetLabsByUserIdRequest containing:
-                - user_id (int): ID of the user to retrieve labs for
+            request: GetLabsByUserIdRequest with:
+                - user_id (int): ID of the user
+                - page_number (int): Page number
+                - page_size (int): Page size
             context: gRPC context
-            
+        
         Returns:
-            labs_stub.LabList: List of labs with total count
+            labs_stub.LabList: List of labs for the user, or empty list on error
+        
+        Errors:
+            INVALID_ARGUMENT: If user_id, page_number, or page_size is invalid
         """
 
         self.logger.info(f"GetLabsByUserId requested")
@@ -499,7 +511,14 @@ class LabService(labs_service.LabServiceServicer):
 
     def GetLabsCount(self, request, context) -> labs_stub.GetLabsCountResponse:
         """
-        Get the total number of labs.
+        Get the total number of labs in the database.
+        
+        Args:
+            request: Empty GetLabsCountRequest
+            context: gRPC context
+        
+        Returns:
+            labs_stub.GetLabsCountResponse: Total count of labs
         """
 
         self.logger.info(f"GetLabsCount requested")
@@ -516,7 +535,7 @@ class LabService(labs_service.LabServiceServicer):
     # ------- Lab Assets Management -------
     def UploadAsset(self, request_iterator, context) -> labs_stub.Asset:
         """
-        Upload a file asset for a lab using streaming.
+        Upload a file asset for a lab using streaming requests.
         
         Args:
             request_iterator: Stream of UploadAssetRequest messages:
@@ -526,14 +545,14 @@ class LabService(labs_service.LabServiceServicer):
                     - filesize (int): Size of the file in bytes
                 - Subsequent messages: File chunks as bytes
             context: gRPC context
-            
+        
         Returns:
-            labs_stub.Asset: Created asset with generated ID and upload timestamp
-            
-        Raises:
-            grpc.StatusCode.INVALID_ARGUMENT: If first message doesn't contain metadata, or if filename is empty/None, or if filesize is None or <= 0
-            grpc.StatusCode.NOT_FOUND: If lab doesn't exist
-            grpc.StatusCode.INTERNAL: If file upload fails
+            labs_stub.Asset: Created asset with ID and upload timestamp, or empty Asset on error
+        
+        Errors:
+            INVALID_ARGUMENT: If metadata or chunk data is missing/invalid
+            NOT_FOUND: If lab does not exist
+            INTERNAL: If file upload fails
         """
 
         self.logger.info(f"UploadAsset requested")
@@ -637,7 +656,7 @@ class LabService(labs_service.LabServiceServicer):
 
     def UpdateAsset(self, request_iterator, context) -> labs_stub.Asset:
         """
-        Update an existing lab asset file using streaming.
+        Update an existing lab asset file using streaming requests.
         
         Args:
             request_iterator: Stream of UpdateAssetRequest messages:
@@ -649,12 +668,12 @@ class LabService(labs_service.LabServiceServicer):
             context: gRPC context
             
         Returns:
-            labs_stub.Asset: Updated asset data
-            
-        Raises:
-            grpc.StatusCode.INVALID_ARGUMENT: If first message doesn't contain metadata, or if asset_id is None, or if filename is empty/None, or if filesize is None or <= 0
-            grpc.StatusCode.NOT_FOUND: If asset doesn't exist
-            grpc.StatusCode.INTERNAL: If file upload fails
+            labs_stub.Asset: Updated asset data, or empty Asset on error
+        
+        Errors:
+            INVALID_ARGUMENT: If metadata or chunk data is missing/invalid
+            NOT_FOUND: If asset does not exist or MinIO deletion fails
+            INTERNAL: If file upload fails
         """
 
         self.logger.info(f"UpdateAsset requested")
@@ -767,21 +786,21 @@ class LabService(labs_service.LabServiceServicer):
 
     def DownloadAsset(self, request, context) -> labs_stub.DownloadAssetResponse:
         """
-        Download a lab asset file using streaming.
+        Download a lab asset file using streaming responses.
         
         Args:
-            request: DownloadAssetRequest containing:
+            request: DownloadAssetRequest with:
                 - asset_id (int): ID of the asset to download
             context: gRPC context
-            
+        
         Returns:
-            Generator yielding DownloadAssetResponse messages:
-                - First message: Asset metadata
-                - Subsequent messages: File chunks as bytes
-                
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If asset doesn't exist
-            grpc.StatusCode.INTERNAL: If file download fails
+            Generator of DownloadAssetResponse messages:
+                - First: asset metadata
+                - Subsequent: file chunks (bytes)
+        
+        Errors:
+            NOT_FOUND: If asset does not exist
+            INTERNAL: If file download fails
         """
 
         self.logger.info(f"DownloadAsset requested")
@@ -841,19 +860,19 @@ class LabService(labs_service.LabServiceServicer):
 
     def DeleteAsset(self, request, context) -> labs_stub.DeleteAssetResponse:
         """
-        Delete a lab asset by ID.
+        Delete a lab asset by its ID.
         
         Args:
-            request: DeleteAssetRequest containing:
+            request: DeleteAssetRequest with:
                 - asset_id (int): ID of the asset to delete
             context: gRPC context
-            
+        
         Returns:
             labs_stub.DeleteAssetResponse: Success status of the deletion
-            
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If asset doesn't exist
-            grpc.StatusCode.INTERNAL: If file deletion from storage fails
+        
+        Errors:
+            NOT_FOUND: If asset does not exist
+            INTERNAL: If file deletion from storage fails
         """
 
         self.logger.info(f"DeleteAsset requested")
@@ -901,15 +920,15 @@ class LabService(labs_service.LabServiceServicer):
         List all assets for a specific lab.
         
         Args:
-            request: ListAssetsRequest containing:
-                - lab_id (int): ID of the lab to list assets for
+            request: ListAssetsRequest with:
+                - lab_id (int): ID of the lab
             context: gRPC context
-            
+        
         Returns:
-            labs_stub.AssetList: List of assets with total count
-            
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If lab doesn't exist or has no assets
+            labs_stub.AssetList: List of assets for the lab, or empty list on error
+        
+        Errors:
+            NOT_FOUND: If lab does not exist
         """
 
         self.logger.info(f"ListAssets requested")
