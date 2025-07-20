@@ -72,7 +72,8 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
     # Submissions Management
     def CreateSubmission(self, request, context) -> submissions_stub.Submission:
         """
-        Create a new submission for a lab.
+        Creates a new submission for a lab if the lab exists and the user is not the lab owner.
+        Stores the submission text in MongoDB and increments the lab's submission count.
         
         Args:
             request: CreateSubmissionRequest containing:
@@ -82,10 +83,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             context: gRPC context
             
         Returns:
-            submissions_stub.Submission: Created submission with generated ID and timestamps
-            
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If lab doesn't exist
+            submissions_stub.Submission: The created submission with text and status, or empty on error.
+        
+        Errors:
+            NOT_FOUND: Lab does not exist.
+            INVALID_ARGUMENT: User is the lab owner.
         """
 
         self.logger.info(f"CreateSubmission requested")
@@ -143,7 +145,7 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
     def GetSubmission(self, request, context) -> submissions_stub.Submission:
         """
-        Retrieve a specific submission by ID.
+        Retrieves a submission by its ID, including its text from MongoDB.
         
         Args:
             request: GetSubmissionRequest containing:
@@ -151,10 +153,10 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             context: gRPC context
             
         Returns:
-            submissions_stub.Submission: Submission data if found, empty Submission if not found
-            
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If submission doesn't exist
+            submissions_stub.Submission: The found submission with text and status, or empty on error.
+        
+        Errors:
+            NOT_FOUND: Submission does not exist.
         """
 
         self.logger.info(f"GetSubmission requested")
@@ -192,7 +194,7 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
     def GetSubmissions(self, request, context) -> submissions_stub.SubmissionList:
         """
-        Retrieve a paginated list of submissions for a specific lab.
+        Retrieves a paginated list of submissions for a lab, including their texts from MongoDB.
         
         Args:
             request: GetSubmissionsRequest containing:
@@ -202,11 +204,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             context: gRPC context
             
         Returns:
-            submissions_stub.SubmissionList: List of submissions with total count
-            
-        Raises:
-            grpc.StatusCode.INVALID_ARGUMENT: If page_number or page_size is None or <= 0
-            grpc.StatusCode.NOT_FOUND: If lab doesn't exist
+            submissions_stub.SubmissionList: List of submissions and total count, or empty on error.
+        
+        Errors:
+            INVALID_ARGUMENT: Invalid page_number or page_size.
+            NOT_FOUND: Lab does not exist.
         """
 
         self.logger.info(f"GetSubmissions requested")
@@ -269,7 +271,8 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
     def UpdateSubmission(self, request, context) -> submissions_stub.Submission:
         """
-        Update an existing submission.
+        Updates the status and/or text of an existing submission if not already graded.
+        Updates text in MongoDB if provided.
         
         Args:
             request: UpdateSubmissionRequest containing:
@@ -279,10 +282,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             context: gRPC context
             
         Returns:
-            submissions_stub.Submission: Updated submission data
-            
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If submission doesn't exist
+            submissions_stub.Submission: The updated submission, or empty on error.
+        
+        Errors:
+            NOT_FOUND: Submission does not exist.
+            INVALID_ARGUMENT: Submission is already graded.
         """
 
         self.logger.info(f"UpdateSubmission requested")
@@ -343,7 +347,8 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
     def DeleteSubmission(self, request, context) -> submissions_stub.DeleteSubmissionResponse:
         """
-        Delete a submission by ID.
+        Deletes a submission by its ID, removes its text from MongoDB, and deletes all associated assets from MinIO.
+        Decrements the lab's submission count.
         
         Args:
             request: DeleteSubmissionRequest containing:
@@ -351,11 +356,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             context: gRPC context
             
         Returns:
-            submissions_stub.DeleteSubmissionResponse: Success status of the deletion
-            
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If submission doesn't exist
-            grpc.StatusCode.INTERNAL: If asset deletion from storage fails
+            submissions_stub.DeleteSubmissionResponse: Success status of the deletion.
+        
+        Errors:
+            NOT_FOUND: Submission does not exist.
+            INTERNAL: Asset deletion from MinIO failed.
         """
 
         self.logger.info(f"DeleteSubmission requested")
@@ -404,7 +409,7 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
     
     def GetUsersSubmissions(self, request, context) -> submissions_stub.SubmissionList:
         """
-        Retrieve a paginated list of submissions for a specific user.
+        Retrieves a paginated list of submissions for a specific user, including their texts from MongoDB.
         
         Args:
             request: GetUsersSubmissionsRequest containing:
@@ -414,10 +419,10 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             context: gRPC context
             
         Returns:
-            submissions_stub.SubmissionList: List of submissions with total count
-            
-        Raises:
-            grpc.StatusCode.INVALID_ARGUMENT: If page_number or page_size is None or <= 0
+            submissions_stub.SubmissionList: List of submissions and total count, or empty on error.
+        
+        Errors:
+            INVALID_ARGUMENT: Invalid page_number or page_size.
         """
 
         self.logger.info(f"GetUsersSubmissions requested")
@@ -465,13 +470,33 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             return submission_list
 
     def GetPossibleToReviewSubmissions(self, request, context) -> submissions_stub.SubmissionList:
+        """
+        Retrieves a paginated list of submissions that the user is eligible to review:
+        - Submissions must be in labs the user owns or has accepted submissions in.
+        - Submissions must not be owned by the user and must not be graded.
+        Includes submission texts from MongoDB.
+        
+        Args:
+            request: GetPossibleToReviewSubmissionsRequest containing:
+                - user_id (int): ID of the user to get submissions for
+                - page_number (int): Page number (1-based)
+                - page_size (int): Number of submissions per page
+            context: gRPC context
+        
+        Returns:
+            submissions_stub.SubmissionList: List of submissions and total count, or empty on error.
+        
+        Errors:
+            INVALID_ARGUMENT: Invalid page_number or page_size.
+        """
+
+        self.logger.info(f"GetPossibleToReviewSubmissions requested")
+
         data: dict = {
             "user_id": request.user_id,
             "page_number": request.page_number,
             "page_size": request.page_size
         }
-
-        self.logger.info(f"GetPossibleToReviewSubmissions requested")
 
         if data["page_number"] is None or data["page_number"] <= 0:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
@@ -532,7 +557,14 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
     def GetSubmissionsCount(self, request, context) -> submissions_stub.GetSubmissionsCountResponse:
         """
-        Get the total number of submissions.
+        Returns the total number of submissions in the database.
+        
+        Args:
+            request: Empty or generic request.
+            context: gRPC context.
+        
+        Returns:
+            submissions_stub.GetSubmissionsCountResponse: Total count of submissions.
         """
         self.logger.info(f"GetSubmissionsCount requested")
         
@@ -547,7 +579,10 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
     # Assets Management
     def UploadAsset(self, request_iterator, context) -> submissions_stub.Asset:
         """
-        Upload a file asset for a submission using streaming.
+        Uploads a file asset for a submission using streaming.
+        - First message must contain metadata (submission_id, filename, filesize).
+        - Subsequent messages contain file chunks.
+        - Stores file in MinIO and deletes local copy after upload.
         
         Args:
             request_iterator: Stream of UploadAssetRequest messages:
@@ -559,12 +594,12 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             context: gRPC context
             
         Returns:
-            submissions_stub.Asset: Created asset with generated ID and upload timestamp
-            
-        Raises:
-            grpc.StatusCode.INVALID_ARGUMENT: If first message doesn't contain metadata, or if filename is empty/None, or if filesize is None or <= 0
-            grpc.StatusCode.NOT_FOUND: If submission doesn't exist
-            grpc.StatusCode.INTERNAL: If file upload fails
+            submissions_stub.Asset: The created asset, or empty on error.
+        
+        Errors:
+            INVALID_ARGUMENT: Metadata or chunk issues, invalid filename or filesize.
+            NOT_FOUND: Submission does not exist.
+            INTERNAL: Upload to MinIO failed.
         """
 
         self.logger.info(f"UploadAsset requested")
@@ -665,7 +700,10 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
     def UpdateAsset(self, request_iterator, context) -> submissions_stub.Asset:
         """
-        Update an existing submission asset file using streaming.
+        Updates an existing asset's file using streaming.
+        - First message must contain metadata (asset_id, filename, filesize).
+        - Subsequent messages contain file chunks.
+        - Removes old file from MinIO, uploads new file, and deletes local copy after upload.
         
         Args:
             request_iterator: Stream of UpdateAssetRequest messages:
@@ -677,12 +715,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             context: gRPC context
             
         Returns:
-            submissions_stub.Asset: Updated asset data
-            
-        Raises:
-            grpc.StatusCode.INVALID_ARGUMENT: If first message doesn't contain metadata, or if filename is empty/None, or if filesize is None or <= 0
-            grpc.StatusCode.NOT_FOUND: If asset doesn't exist
-            grpc.StatusCode.INTERNAL: If file upload fails
+            submissions_stub.Asset: The updated asset, or empty on error.
+        
+        Errors:
+            INVALID_ARGUMENT: Metadata or chunk issues, invalid filename or filesize.
+            NOT_FOUND: Asset does not exist or failed to delete from MinIO.
         """
 
         self.logger.info(f"UpdateAsset requested")
@@ -783,21 +820,24 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
     def DownloadAsset(self, request, context) -> submissions_stub.DownloadAssetResponse:
         """
-        Download a submission asset file using streaming.
+        Streams a submission asset file to the client.
+        - First message contains asset metadata.
+        - Subsequent messages contain file chunks.
+        - Downloads file from MinIO and deletes local copy after streaming.
         
         Args:
             request: DownloadAssetRequest containing:
                 - asset_id (int): ID of the asset to download
             context: gRPC context
             
-        Returns:
+        Yields:
             Generator yielding DownloadAssetResponse messages:
                 - First message: Asset metadata
                 - Subsequent messages: File chunks as bytes
                 
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If asset doesn't exist
-            grpc.StatusCode.INTERNAL: If file download fails
+        Errors:
+            NOT_FOUND: Asset does not exist.
+            INTERNAL: Download from MinIO failed.
         """
 
         self.logger.info(f"DownloadAsset requested")
@@ -856,7 +896,7 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
     def DeleteAsset(self, request, context) -> submissions_stub.DeleteAssetResponse:
         """
-        Delete a submission asset by ID.
+        Deletes an asset by its ID and removes the file from MinIO.
         
         Args:
             request: DeleteAssetRequest containing:
@@ -864,11 +904,11 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             context: gRPC context
             
         Returns:
-            submissions_stub.DeleteAssetResponse: Success status of the deletion
-            
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If asset doesn't exist
-            grpc.StatusCode.INTERNAL: If file deletion from storage fails
+            submissions_stub.DeleteAssetResponse: Success status of the deletion.
+        
+        Errors:
+            NOT_FOUND: Asset does not exist.
+            INTERNAL: File deletion from MinIO failed.
         """
 
         self.logger.info(f"DeleteAsset requested")
@@ -911,7 +951,7 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
 
     def ListAssets(self, request, context) -> submissions_stub.AssetList:
         """
-        List all assets for a specific submission.
+        Lists all assets for a specific submission.
         
         Args:
             request: ListAssetsRequest containing:
@@ -919,10 +959,10 @@ class SubmissionService(submissions_service.SubmissionServiceServicer):
             context: gRPC context
             
         Returns:
-            submissions_stub.AssetList: List of assets with total count
-            
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If submission doesn't exist or has no assets
+            submissions_stub.AssetList: List of assets and total count, or empty on error.
+        
+        Errors:
+            NOT_FOUND: Submission does not exist.
         """
 
         self.logger.info(f"ListAssets requested")
