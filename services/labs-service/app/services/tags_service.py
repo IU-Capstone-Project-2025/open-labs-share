@@ -30,6 +30,19 @@ class TagService(tags_service.TagServiceServicer):
     def CreateTag(self, request, context) -> tags_stub.Tag:
         """
         Create a new tag.
+        
+        Args:
+            request: CreateTagRequest containing:
+                - name (str): Name of the tag
+                - description (str): Description of the tag
+            context: gRPC context
+        
+        Returns:
+            tags_stub.Tag: The created tag with generated ID and timestamps, or empty Tag on error
+        
+        Errors:
+            INVALID_ARGUMENT: If name is missing or empty
+            ALREADY_EXISTS: If a tag with the same name already exists
         """
 
         self.logger.info(f"CreateTag requested")
@@ -73,6 +86,18 @@ class TagService(tags_service.TagServiceServicer):
     def GetTag(self, request, context) -> tags_stub.Tag:
         """
         Get a tag by tag_id.
+        
+        Args:
+            request: GetTagRequest containing:
+                - id (int): ID of the tag to retrieve
+            context: gRPC context
+        
+        Returns:
+            tags_stub.Tag: Tag data if found, otherwise empty Tag
+        
+        Errors:
+            INVALID_ARGUMENT: If tag ID is missing
+            NOT_FOUND: If the tag does not exist
         """
 
         data: dict = {
@@ -111,6 +136,18 @@ class TagService(tags_service.TagServiceServicer):
     def GetTags(self, request, context) -> tags_stub.TagList:
         """
         Get a list of tags (paginated).
+        
+        Args:
+            request: GetTagsRequest containing:
+                - page_number (int): Page number (1-based)
+                - page_size (int): Number of tags per page
+            context: gRPC context
+        
+        Returns:
+            tags_stub.TagList: List of tags and count, or empty TagList on error
+        
+        Errors:
+            INVALID_ARGUMENT: If page_number or page_size is invalid (≤ 0)
         """
 
         data: dict = {
@@ -154,6 +191,18 @@ class TagService(tags_service.TagServiceServicer):
     def GetTagsByIds(self, request, context) -> tags_stub.TagList:
         """
         Get a list of tags by tag_ids.
+        
+        Args:
+            request: GetTagsByIdsRequest containing:
+                - ids (list[int]): List of tag IDs to retrieve
+            context: gRPC context
+        
+        Returns:
+            tags_stub.TagList: List of tags and count, or empty TagList on error
+        
+        Errors:
+            INVALID_ARGUMENT: If tag IDs list is empty or missing
+            NOT_FOUND: If any tag ID does not exist
         """
 
         data: dict = {
@@ -198,6 +247,20 @@ class TagService(tags_service.TagServiceServicer):
     def UpdateTag(self, request, context) -> tags_stub.Tag:
         """
         Update a tag by tag_id.
+        
+        Args:
+            request: UpdateTagRequest containing:
+                - id (int): ID of the tag to update
+                - name (str, optional): New tag name
+                - description (str, optional): New tag description
+            context: gRPC context
+        
+        Returns:
+            tags_stub.Tag: Updated tag data, or empty Tag on error
+        
+        Errors:
+            INVALID_ARGUMENT: If name is provided but empty
+            NOT_FOUND: If the tag does not exist
         """
 
         self.logger.info(f"UpdateTag requested")
@@ -245,6 +308,17 @@ class TagService(tags_service.TagServiceServicer):
     def DeleteTag(self, request, context) -> tags_stub.DeleteTagResponse:
         """
         Delete a tag by tag_id.
+        
+        Args:
+            request: DeleteTagRequest containing:
+                - id (int): ID of the tag to delete
+            context: gRPC context
+        
+        Returns:
+            tags_stub.DeleteTagResponse: Success status of the deletion
+        
+        Errors:
+            NOT_FOUND: If the tag does not exist
         """
         
         self.logger.info(f"DeleteTag requested")
