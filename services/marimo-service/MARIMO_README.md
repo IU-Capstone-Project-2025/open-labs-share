@@ -70,7 +70,8 @@ graph TD
   - `components`: Information about each notebook, its owner, and its link to other content.
   - `component_sessions`: Active and inactive user sessions for each component.
   - `component_assets`: Metadata about user-uploaded files (e.g., datasets).
-  - `execution_records`: A history of executed code cells within sessions.
+  - `execution_history`: A history of executed code cells within sessions.
+  - `widget_state`: Current state and values of interactive widgets within sessions.
 
 - **MinIO**: Object storage used for file-based data. The service uses a single bucket (defaulting to `marimo`) and organizes files within it using path prefixes:
   - `marimo/components/{component-id}/notebook.py`: Stores the actual `.py` notebook files.
@@ -124,21 +125,24 @@ The `marimo-manager-service` acts as a gRPC client to other core services for va
 | Variable                        | Description                                     | Default                   |
 |---------------------------------|-------------------------------------------------|---------------------------|
 | `SERVER_PORT`                   | HTTP port for the REST API.                     | `8084`                    |
-| `DB_URL`                        | PostgreSQL connection URL.                      | `jdbc:postgresql://...`   |
-| `DB_USER` / `DB_PASS`           | Database credentials.                           | `admin` / `password`      |
-| `MINIO_URL` / `ACCESS_KEY` / `SECRET_KEY` | MinIO connection details.               | `http://minio:9000`       |
+| `DB_URL`                        | PostgreSQL connection URL.                      | `jdbc:postgresql://localhost:5432/marimo_service`   |
+| `DB_USERNAME` / `DB_PASSWORD`   | Database credentials.                           | `postgres` / `postgres`   |
+| `MINIO_ENDPOINT`                | MinIO connection endpoint.                      | `http://localhost:9000`   |
+| `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | MinIO connection credentials.         | `minioadmin` / `minioadmin` |
+| `MINIO_BUCKET`                  | MinIO bucket name.                              | `marimo`                  |
 | `PYTHON_SERVICE_HOST`           | Hostname of the Python gRPC service.            | `marimo-executor-service`   |
-| `PYTHON_SERVICE_PORT`           | Port of the Python gRPC service.                | `50052`                   |
+| `PYTHON_SERVICE_PORT`           | Port of the Python gRPC service.                | `9095`                    |
 | `USERS_SERVICE_HOST/PORT`       | `users-service` gRPC location.                  | `users-service:9093`      |
-| `LABS_SERVICE_HOST/PORT`        | `labs-service` gRPC location.                   | `labs-service:50053`      |
+| `LABS_SERVICE_HOST/PORT`        | `labs-service` gRPC location.                   | `labs-service:9091`       |
 | `ARTICLES_SERVICE_HOST/PORT`    | `articles-service` gRPC location.               | `articles-service:50051`  |
+| `AUTH_SERVICE_HOST/PORT`        | `auth-service` gRPC location.                   | `auth-service:9092`       |
 
 ### Marimo Python Service
 
 | Variable                | Description                       | Default                 |
 |-------------------------|-----------------------------------|-------------------------|
-| `GRPC_PORT`             | Port for the internal gRPC server.| `50052`                 |
-| `MINIO_URL`             | MinIO endpoint URL.               | `http://minio:9000`     |
+| `GRPC_PORT`             | Port for the internal gRPC server.| `9095`                  |
+| `MINIO_ENDPOINT`        | MinIO endpoint URL.               | `localhost:9000`        |
 | `MINIO_ACCESS_KEY`      | MinIO access key.                 | `minioadmin`            |
 | `MINIO_SECRET_KEY`      | MinIO secret key.                 | `minioadmin`            |
-| `NOTEBOOK_BUCKET`       | Bucket for notebook files.        | `marimo-notebooks`      | 
+| `MINIO_BUCKET`          | Bucket for notebook files.        | `marimo`                | 
