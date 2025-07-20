@@ -6,44 +6,30 @@ The Authentication Service is a **stateless microservice** responsible for centr
 
 The service acts as the security gateway for the system, ensuring that only authenticated and authorized users can access protected resources. **All user data is retrieved from the users-service via gRPC calls.**
 
-### Separation of Concerns
-
-This service follows a strict separation of concerns:
-
-- **Auth-Service**: Responsible ONLY for authentication and authorization (JWT token management, validation)
-- **Users-Service**: Single source of truth for ALL user data (usernames, passwords, emails, profiles, roles, etc.)
-
-The auth-service operates as a **stateless service** that:
-- Generates and validates JWT tokens
-- Authenticates users by calling users-service via gRPC
-- Provides user information for token validation
-- Manages token blacklisting for logout functionality
-
 ## 2. Architecture
 
 ### Stateless Design
 
 The auth-service **does not have its own database** and maintains no persistent state. It operates as a pure authentication service that:
 
-1. **Authentication Flow**: Validates credentials by calling users-service gRPC endpoints
-2. **Token Generation**: Creates JWT tokens containing user information from users-service
-3. **Token Validation**: Validates tokens and optionally fetches fresh user data from users-service
-4. **User Operations**: All user-related operations are delegated to users-service
+- Generates and validates JWT tokens
+- Authenticates users by calling users-service via gRPC
+- Provides user information for token validation
+- Manages token blacklisting for logout functionality
 
 ### Dependencies
 
 - **Users-Service**: Primary dependency for all user data operations via gRPC
 - **JWT Library**: For token generation, validation, and parsing
 - **Spring Security**: For security configuration and authentication framework
-- **In-Memory Token Blacklist**: For logout functionality (tokens are blacklisted in memory)
+- **Spring Web**: For REST API endpoints for frontend interactions
+- **gRPC**: 
+  - **Server**: For validating requests from API Gateway Service
+  - **Client**: For Users Service operations with users data 
 
 ### Data Storage
 
 **No Database**: The auth-service does not use any persistent storage. All user data is retrieved on-demand from users-service.
-
-**In-Memory Storage**:
-- Blacklisted tokens (for logout functionality)
-- Application cache (if needed for performance optimization)
 
 ## 3. Business Logic
 
@@ -92,12 +78,13 @@ The auth-service heavily relies on users-service gRPC endpoints:
 - `FindUserByEmail`: For loading user data by email
 - `GetUserInfo`: For retrieving user information by ID
 - `GetUserProfile`: For complete user profile data
+- `UpdateUserProfile`: For updating user profile information
+- `SearchUsers`: For searching users by username or name
 - `UpdatePassword`: For password change operations
 - `UpdateUserLastLogin`: For tracking login times
 - `CheckUsernameExists`: For username availability validation
 - `CheckEmailExists`: For email availability validation
-- `IncrementLabsSolved`: For updating user points when labs are solved (used by labs-service)
-- `IncrementLabsReviewed`: For updating user points when labs are reviewed (used by labs-service)
+- `DeleteUser`: For user deletion (used for rollback in distributed transaction failures)
 
 ### gRPC Client Configuration
 
