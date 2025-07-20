@@ -1,4 +1,6 @@
-# Agenda
+# Articles Service
+
+## Agenda
 
 - [Purpose](#purpose)
 - [Functionality](#functionality)
@@ -8,104 +10,142 @@
 - [User Stories](#user-stories)
 - [Technical Details](#technical-details)
 
-# Purpose
+## Purpose
 
-Article Service is the central repository of all scientific articles on the Open Labs Share platform. It provides a single point of management for scientific content and access to file resources. The service provides opportunities for:
-- **Authors** to publish their scientific articles
-- **Teachers** link their lab work with articles
-- **Students** read additional educational literature
+The **Articles** service on the **Open Labs Share** platform is the central repository of all scientific articles in the system. It provides a single point of management for scientific content and access to file resources. It allows:
+- **Authors** to publish their scientific articles and research papers
+- **Teachers** to link their lab work with theoretical materials and articles
+- **Students** to read additional educational literature and research materials
 
-# Functionality
+## Functionality
 
-1. General
-- CRUD for articles
-- Data Storage
+### 1. **General**
+- CRUD operations for articles and assets
+- Data storage with PostgreSQL
+- File storage with MinIO
 - Control of access to articles
 
-2. For authors:
+### 2. **For authors:**
 - Publication of articles in PDF format
-- Manage your publications (update versions)
+- Management of publications
+- Upload and management of article assets
 
-# Entities
+### 3. **For teachers:**
+- Linking lab assignments with relevant scientific articles
+- Providing students with theoretical background materials
 
-1. **Article:**
+### 4. **For students:**
+- Access to scientific articles and research papers
+- Downloading article assets for offline study
+- Searching and filtering articles by content
 
-| Field        | Type      |
-|--------------|-----------|
-| id (PK)      | long      |
-| owner_id     | long      |
-| title        | string    |
-| created_at   | datestamp |
-| updated_at   | datestamp |
-| abstract     | string    |
-| views        | long      |
-| stars        | long      |
-| people_rated | long      |
+## Entities
 
+The service works with the following entities:
 
-2. **Article assets:**
+### 1. **Article:**
 
-| Field       | Type      |
-|-------------|-----------|
-| id (PK)     | long      |
-| article_id  | long      |
-| filename    | string    |
-| filesize    | long      |
-| upload_date | datestamp |
+| Field        | Type      | Description |
+|--------------|-----------|-------------|
+| id (PK)      | BIGSERIAL | Auto-generated primary key |
+| owner_id     | BIGINT    | ID of the article creator |
+| title        | VARCHAR(255) | Article title |
+| created_at   | TIMESTAMP WITH TIME ZONE | Creation timestamp |
+| updated_at   | TIMESTAMP WITH TIME ZONE | Last update timestamp |
+| abstract     | TEXT      | Article description/summary |
+| views        | BIGINT    | Number of views (default: 0) |
+| stars        | BIGINT    | Rating stars (default: 0) |
+| people_rated | BIGINT    | Number of people who rated (default: 0) |
 
+### 2. **Article Assets:**
 
-# gRPC Contract
+| Field       | Type      | Description |
+|-------------|-----------|-------------|
+| id (PK)     | BIGSERIAL | Auto-generated primary key |
+| article_id  | BIGINT    | Foreign key to articles table |
+| filename    | VARCHAR(255) | File name |
+| filesize    | BIGINT    | File size in bytes |
+| upload_date | TIMESTAMP WITH TIME ZONE | Upload timestamp |
 
-More gRPC details you can find in `articles.proto` file
+## gRPC Contract
 
-## Articles Management
+The service provides a single gRPC service: `ArticleService`.
 
-- `CreateArticle`: Creates a new article entry
-- `GetArticle`: Retrieves complete article information by UUID
-- `GetArticles`: Retrieves a list of articles with pagination 
-- `UpdateArticle`: Modifies existing article properties and content by its UUID
-- `DeleteArticle`: Permanently removes an article and its assets from the system by its UUID 
+### ArticleService
 
-## Assets Management
+**Articles Management:**
+- `CreateArticle`: Creates a new article entry with title, abstract, and owner
+- `GetArticle`: Retrieves complete article information by ID
+- `GetArticles`: Retrieves a paginated list of articles with optional text search
+- `UpdateArticle`: Modifies existing article properties (title, abstract)
+- `DeleteArticle`: Permanently removes an article and its assets from the system
+- `GetArticlesByUserId`: Retrieves articles owned by a specific user
+- `GetArticlesCount`: Returns total number of articles
 
-- `UploadAsset` **(Streaming)**: Uploads article attachments via chunked streaming
-- `DownloadAsset` **(Streaming)**: Downloads stored article files in streaming chunks
-- `DeleteAsset`: Removes a specific file attachment from storage
+**Assets Management:**
+- `UploadAsset` **(Streaming)**: Uploads article files in chunks via stream
+- `UpdateAsset` **(Streaming)**: Updates existing article assets with new files
+- `DownloadAsset` **(Streaming)**: Downloads stored files in streaming chunks
+- `DeleteAsset`: Removes a specific file asset from storage
 - `ListAssets`: Returns all files associated with a particular article
 
-# Integrations
+## Integrations
 
-1. **User Service:**
-- Obtaining data about authors and reviewers
-- Checking access rights
-
-2. **API Gateway:**
+### 1. **API Gateway:**
 - A single entry point for all requests
 
-3. **MinIO Storage:**
-- Storing PDF and other article files
+### 2. **MinIO:**
+- Storing article files (primarily PDFs)
+- Organized bucket structure:
+  - `articles/` bucket for article assets
 
-# User Stories
+### 3. **PostgreSQL:**
+- Primary database for articles and assets metadata
+- Handles relationships and constraints
 
-1. **The teacher publishes a tutorial:**
-- Uploads a PDF file via POST /articles
-- Students find the material through a search
+## User Stories
 
-2. **The researcher is looking for materials:**
-- Uses searching for filtering articles
+### 1. **The scientist publishes a material:**
+- Creates an article with title, abstract, and content
+- Uploads a PDF file via streaming upload
+- Several other scientists find the material through search functionality
+
+### 2. **The researcher is looking for materials:**
+- Uses text search for filtering articles by title and abstract
 - Finds several relevant articles
-- Saves them to bookmarks for further study
+- Downloads article files for offline study
 
-# Technical Details
-- Technological stack:`
-	- **Backend:** Python 3.12
-	- **Internal Communications:** gRPC
-- **Database:** PostgreSQL
-- **Deployment:** Docker
-- **File Storage:** MinIO
+### 3. **The student accesses educational content:**
+- Browses articles linked to lab assignments
+- Downloads article assets for additional reading
+- Accesses theoretical background for practical work
+
+## Technical Details
+
+### Technology Stack:
+- **Programming Language:** Python 3.12
+- **Inter-service Communication:** gRPC (`grpcio`, `grpcio-tools` libraries)
+- **Database:** PostgreSQL via SQLAlchemy (`sqlalchemy`, `sqlalchemy-serializer` libraries)
+- **Object Storage:** MinIO (`minio` library)
+- **Containerization:** Docker, Docker Compose
+- **Config Management:** `python-dotenv`, Environment Variables
+- **Testing:** Pytest unit-testing (`pytest` library)
+- **Logging:** Python logging (built-in `logging` library)
+
+### Service Architecture:
+- Single gRPC service: `ArticleService`
+- Streaming support for large file uploads/downloads
+- Health check integration for monitoring
+
+### File Storage Structure:
 ```
-Bucket:
-articles
-└── article_id
+Bucket: articles
+└── article_id/
     └── article.pdf
 ```
+
+### Error Handling:
+- Comprehensive gRPC status codes
+- Detailed error messages and logging
+- Graceful handling of file operations
+- Validation for required fields and business rules
