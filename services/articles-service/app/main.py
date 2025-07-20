@@ -79,17 +79,20 @@ class ArticleService(service.ArticleServiceServicer):
     # Articles Management
     def CreateArticle(self, request, context):
         """
-        Create a new article.
+        Create a new article entry in the database.
         
         Args:
-            request: CreateArticleRequest containing:
+            request: CreateArticleRequest with fields:
                 - owner_id (int): ID of the article owner
                 - title (str): Article title
                 - abstract (str): Article abstract/summary
             context: gRPC context
             
         Returns:
-            stub.Article: Created article with generated ID and timestamps
+            stub.Article: The created article with generated ID and timestamps, or empty Article on error
+        
+        Errors:
+            INVALID_ARGUMENT: If required fields are missing or invalid
         """
 
         self.logger.info(f"CreateArticle requested")
@@ -142,15 +145,16 @@ class ArticleService(service.ArticleServiceServicer):
         Retrieve a specific article by ID.
         
         Args:
-            request: GetArticleRequest containing:
+            request: GetArticleRequest with:
                 - article_id (int): ID of the article to retrieve
             context: gRPC context
             
         Returns:
             stub.Article: Article data if found, empty Article if not found
             
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If article doesn't exist
+        Errors:
+            INVALID_ARGUMENT: If article_id is missing or invalid
+            NOT_FOUND: If article doesn't exist
         """
 
         self.logger.info(f"GetArticle requested")
@@ -187,19 +191,24 @@ class ArticleService(service.ArticleServiceServicer):
 
     def GetArticles(self, request, context) -> stub.ArticleList:
         """
-        Retrieve a paginated list of articles.
+        Retrieve a paginated list of articles, optionally filtered by text.
         
         Args:
-            request: GetArticlesRequest containing:
+            request: GetArticlesRequest with:
                 - page_number (int): Page number (1-based)
                 - page_size (int): Number of articles per page
+                - text (str, optional): Search text for title/abstract
+                - tags_ids (list[int], optional): Tag IDs to filter by (not implemented)
             context: gRPC context
             
         Returns:
-            stub.ArticleList: List of articles with total count
+            stub.ArticleList: List of articles with total count, or empty list on error
             
         Note:
             TODO: Add specific filters (e.g. author_id, title, abstract, etc.)
+        
+        Errors:
+            INVALID_ARGUMENT: If pagination parameters or text are invalid
         """
 
         self.logger.info(f"GetArticles requested")
@@ -260,17 +269,20 @@ class ArticleService(service.ArticleServiceServicer):
 
     def GetArticlesByUserId(self, request, context) -> stub.ArticleList:
         """
-        Retrieve a paginated list of articles by user ID.
+        Retrieve a paginated list of articles owned by a specific user.
         
         Args:
-            request: GetArticlesByUserIdRequest containing:
+            request: GetArticlesByUserIdRequest with:
                 - user_id (int): ID of the user to retrieve articles for
                 - page_number (int): Page number (1-based)
                 - page_size (int): Number of articles per page
             context: gRPC context
             
         Returns:
-            stub.ArticleList: List of articles with total count
+            stub.ArticleList: List of articles with total count, or empty list on error
+            
+        Errors:
+            INVALID_ARGUMENT: If user_id, page_number, or page_size is invalid
         """
 
         self.logger.info(f"GetArticlesByUserId requested")
@@ -322,20 +334,20 @@ class ArticleService(service.ArticleServiceServicer):
 
     def UpdateArticle(self, request, context) -> stub.Article:
         """
-        Update an existing article.
+        Update an existing article's details.
         
         Args:
-            request: UpdateArticleRequest containing:
+            request: UpdateArticleRequest with:
                 - article_id (int): ID of the article to update
                 - title (str, optional): New article title
                 - abstract (str, optional): New article abstract
             context: gRPC context
             
         Returns:
-            stub.Article: Updated article data
+            stub.Article: Updated article data, or empty Article on error
             
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If article doesn't exist
+        Errors:
+            NOT_FOUND: If article doesn't exist
         """
 
         self.logger.info(f"UpdateArticle requested")
@@ -372,15 +384,15 @@ class ArticleService(service.ArticleServiceServicer):
         Delete an article by ID.
         
         Args:
-            request: DeleteArticleRequest containing:
+            request: DeleteArticleRequest with:
                 - article_id (int): ID of the article to delete
             context: gRPC context
             
         Returns:
             stub.DeleteArticleResponse: Success status of the deletion
             
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If article doesn't exist
+        Errors:
+            NOT_FOUND: If article doesn't exist
         """
 
         self.logger.info(f"DeleteArticle requested")
@@ -403,8 +415,16 @@ class ArticleService(service.ArticleServiceServicer):
 
     def GetArticlesCount(self, request, context) -> stub.GetArticlesCountResponse:
         """
-        Get the total number of articles.
+        Get the total number of articles in the database.
+        
+        Args:
+            request: Empty GetArticlesCountRequest
+            context: gRPC context
+        
+        Returns:
+            stub.GetArticlesCountResponse: Total count of articles
         """
+
         self.logger.info(f"GetArticlesCount requested")
 
         with Session(self.engine) as session:
@@ -418,24 +438,24 @@ class ArticleService(service.ArticleServiceServicer):
     # Assets Management
     def UploadAsset(self, request_iterator, context) -> stub.Asset:
         """
-        Upload a file asset for an article using streaming.
+        Upload a file asset for an article using streaming requests.
         
         Args:
             request_iterator: Stream of UploadAssetRequest messages:
                 - First message: UploadAssetMetadata containing:
                     - article_id (int): ID of the article to attach asset to
-                    - filename (str): Name of the file
+                    - filename (str): Name of the file (ignored, uses static "article.pdf")
                     - filesize (int): Size of the file in bytes
                 - Subsequent messages: File chunks as bytes
             context: gRPC context
             
         Returns:
-            stub.Asset: Created asset with generated ID and upload timestamp
+            stub.Asset: Created asset with generated ID and upload timestamp, or empty Asset on error
             
-        Raises:
-            grpc.StatusCode.INVALID_ARGUMENT: If first message doesn't contain metadata
-            grpc.StatusCode.NOT_FOUND: If article doesn't exist
-            grpc.StatusCode.INTERNAL: If file upload fails
+        Errors:
+            INVALID_ARGUMENT: If first message doesn't contain metadata or subsequent messages don't contain chunks
+            NOT_FOUND: If article doesn't exist
+            INTERNAL: If file upload fails
         """
 
         self.logger.info(f"UploadAsset requested")
@@ -510,24 +530,24 @@ class ArticleService(service.ArticleServiceServicer):
 
     def UpdateAsset(self, request_iterator, context) -> stub.Asset:
         """
-        Update an existing asset file using streaming.
+        Update an existing asset file using streaming requests.
         
         Args:
             request_iterator: Stream of UpdateAssetRequest messages:
                 - First message: UpdateAssetMetadata containing:
                     - asset_id (int): ID of the asset to update
-                    - filename (str): New filename
+                    - filename (str): New filename (ignored, uses static "article.pdf")
                     - filesize (int): New file size in bytes
                 - Subsequent messages: New file chunks as bytes
             context: gRPC context
             
         Returns:
-            stub.Asset: Updated asset data
+            stub.Asset: Updated asset data, or empty Asset on error
             
-        Raises:
-            grpc.StatusCode.INVALID_ARGUMENT: If first message doesn't contain metadata
-            grpc.StatusCode.NOT_FOUND: If asset doesn't exist
-            grpc.StatusCode.INTERNAL: If file upload fails
+        Errors:
+            INVALID_ARGUMENT: If first message doesn't contain metadata or subsequent messages don't contain chunks
+            NOT_FOUND: If asset doesn't exist or MinIO deletion fails
+            INTERNAL: If file upload fails
         """
 
         self.logger.info(f"UpdateAsset requested")
@@ -608,10 +628,10 @@ class ArticleService(service.ArticleServiceServicer):
 
     def DownloadAsset(self, request, context) -> stub.DownloadAssetResponse:
         """
-        Download an asset file using streaming.
+        Download an asset file using streaming responses.
         
         Args:
-            request: DownloadAssetRequest containing:
+            request: DownloadAssetRequest with:
                 - asset_id (int): ID of the asset to download
             context: gRPC context
             
@@ -620,9 +640,9 @@ class ArticleService(service.ArticleServiceServicer):
                 - First message: Asset metadata
                 - Subsequent messages: File chunks as bytes
                 
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If asset doesn't exist
-            grpc.StatusCode.INTERNAL: If file download fails
+        Errors:
+            NOT_FOUND: If asset doesn't exist
+            INTERNAL: If file download fails
         """
 
         self.logger.info(f"DownloadAsset requested")
@@ -664,16 +684,16 @@ class ArticleService(service.ArticleServiceServicer):
         Delete an asset by ID.
         
         Args:
-            request: DeleteAssetRequest containing:
+            request: DeleteAssetRequest with:
                 - asset_id (int): ID of the asset to delete
             context: gRPC context
             
         Returns:
             stub.DeleteAssetResponse: Success status of the deletion
             
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If asset doesn't exist
-            grpc.StatusCode.INTERNAL: If file deletion from storage fails
+        Errors:
+            NOT_FOUND: If asset doesn't exist
+            INTERNAL: If file deletion from storage fails
         """
 
         self.logger.info(f"DeleteAsset requested")
@@ -707,15 +727,15 @@ class ArticleService(service.ArticleServiceServicer):
         List all assets for a specific article.
         
         Args:
-            request: ListAssetsRequest containing:
+            request: ListAssetsRequest with:
                 - article_id (int): ID of the article to list assets for
             context: gRPC context
             
         Returns:
             stub.AssetList: List of assets with total count
             
-        Raises:
-            grpc.StatusCode.NOT_FOUND: If article doesn't exist or has no assets
+        Errors:
+            NOT_FOUND: If article doesn't exist or has no assets
         """
 
         self.logger.info(f"ListAssets requested")
