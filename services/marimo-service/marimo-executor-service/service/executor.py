@@ -916,34 +916,28 @@ class MarimoCellExecutor:
             detector = WidgetDetectorVisitor(self.session)
             detector.visit(tree)
             
-            # Check detected assignments for widgets
-            for var_name, value in detector.widget_assignments.items():
-                if var_name in self.session.globals and self._is_marimo_widget(self.session.globals[var_name]):
-                    widget_obj = self.session.globals[var_name]
-                    widget_object_id = id(widget_obj)
-                    
-                    # Skip if already processed
-                    if widget_object_id not in processed_widgets:
-                        processed_widgets.add(widget_object_id)
-                        widget_result = self._format_widget_result(widget_obj)
-                        widgets.append(widget_result)
+            # Only show widgets from standalone expressions or function calls,
+            # NOT from simple assignments (which would create duplicates)
+            # Simple assignments like "checkbox = mo.ui.checkbox(...)" should not show output
             
-            # Check function calls that might return widgets
+            # Check function calls that might return widgets (standalone expressions)
             for call_info in detector.widget_calls:
-                # Try to evaluate the call if it's safe
-                try:
-                    # Use globals only, as locals might not be available
-                    result = eval(call_info['code'], self.session.globals, {})
-                    if self._is_marimo_widget(result):
-                        widget_object_id = id(result)
-                        
-                        # Skip if already processed
-                        if widget_object_id not in processed_widgets:
-                            processed_widgets.add(widget_object_id)
-                            widget_result = self._format_widget_result(result)
-                            widgets.append(widget_result)
-                except:
-                    pass  # Skip unsafe evaluations
+                # Only include if this is a standalone expression, not part of an assignment
+                if not call_info.get('is_assignment'):
+                    # Try to evaluate the call if it's safe
+                    try:
+                        # Use globals only, as locals might not be available
+                        result = eval(call_info['code'], self.session.globals, {})
+                        if self._is_marimo_widget(result):
+                            widget_object_id = id(result)
+                            
+                            # Skip if already processed
+                            if widget_object_id not in processed_widgets:
+                                processed_widgets.add(widget_object_id)
+                                widget_result = self._format_widget_result(result)
+                                widgets.append(widget_result)
+                    except:
+                        pass  # Skip unsafe evaluations
             
         except (SyntaxError, ValueError):
             # If AST parsing fails, fall back to simple widget detection
@@ -959,6 +953,7 @@ class WidgetDetectorVisitor(ast.NodeVisitor):
         self.widget_assignments = {}
         self.widget_calls = []
         self.current_assignment_target = None
+        self.in_assignment = False
     
     def visit_Assign(self, node):
         """Visit assignment nodes to detect widget assignments"""
@@ -966,10 +961,26 @@ class WidgetDetectorVisitor(ast.NodeVisitor):
         if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
             target_name = node.targets[0].id
             self.current_assignment_target = target_name
+            self.in_assignment = True
             
             # Check if the value is a widget call
             if self._is_widget_call(node.value):
                 self.widget_assignments[target_name] = node.value
+        
+        self.generic_visit(node)
+        self.in_assignment = False
+        self.current_assignment_target = None
+    
+    def visit_Expr(self, node):
+        """Visit expression statements to detect standalone widget expressions"""
+        # This handles standalone expressions like just "mo.ui.slider()" on its own line
+        if self._is_widget_call(node.value):
+            call_code = ast.unparse(node.value) if hasattr(ast, 'unparse') else self._unparse_call(node.value)
+            self.widget_calls.append({
+                'code': call_code,
+                'node': node.value,
+                'is_assignment': False  # This is a standalone expression
+            })
         
         self.generic_visit(node)
     
@@ -977,10 +988,13 @@ class WidgetDetectorVisitor(ast.NodeVisitor):
         """Visit function calls to detect widget creation"""
         if self._is_widget_call(node):
             call_code = ast.unparse(node) if hasattr(ast, 'unparse') else self._unparse_call(node)
-            self.widget_calls.append({
-                'code': call_code,
-                'node': node
-            })
+            # Only add if this call is not already handled by visit_Expr or visit_Assign
+            if not self.in_assignment:
+                self.widget_calls.append({
+                    'code': call_code,
+                    'node': node,
+                    'is_assignment': False
+                })
         
         self.generic_visit(node)
     
