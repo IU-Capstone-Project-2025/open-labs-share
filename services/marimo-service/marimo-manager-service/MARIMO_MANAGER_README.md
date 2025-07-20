@@ -76,4 +76,22 @@ CREATE TABLE execution_history (
     output_count INTEGER,
     created_at TIMESTAMP WITHOUT TIME ZONE
 );
+```
+
+### `widget_state`
+
+Stores the current state and values of interactive widgets within sessions.
+
+```sql
+CREATE TABLE widget_state (
+    id VARCHAR(255) PRIMARY KEY,
+    session_id VARCHAR(255) NOT NULL REFERENCES component_sessions(id) ON DELETE CASCADE,
+    widget_id VARCHAR(255) NOT NULL,
+    widget_type VARCHAR(255) NOT NULL,
+    current_value JSONB,
+    constraints_data JSONB,
+    metadata JSONB,
+    created_at TIMESTAMP WITHOUT TIME ZONE,
+    updated_at TIMESTAMP WITHOUT TIME ZONE
+);
 ``` 

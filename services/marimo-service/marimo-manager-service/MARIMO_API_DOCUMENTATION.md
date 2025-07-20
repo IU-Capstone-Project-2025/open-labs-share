@@ -56,6 +56,17 @@ This API provides comprehensive endpoints for managing Marimo components, sessio
 **Query Parameters:** `query`, `page`, `size`
 **Response (200 OK):** `PagedResponse<ComponentDto>`
 
+### 1.7 Get Component by Content
+**Endpoint:** `GET /components/{contentType}/{contentId}`
+**Description:** Retrieves a component by its content type and content ID.
+**Response (200 OK):** `ComponentDto`
+
+### 1.8 Delete Components by Content
+**Endpoint:** `DELETE /components/by-content`
+**Description:** Deletes components associated with specific content.
+**Query Parameters:** `contentType`, `contentId`
+**Response (204 No Content):**
+
 ---
 
 ## 2. Session Management
@@ -102,9 +113,59 @@ This API provides comprehensive endpoints for managing Marimo components, sessio
 
 ---
 
-## 3. Code Execution
+## 3. Widget Management
 
-### 3.1 Execute Cell
+### 3.1 Update Widget Value
+**Endpoint:** `PUT /sessions/{sessionId}/widgets/{widgetId}/value`
+**Description:** Updates the value of a specific widget in a session.
+**Request Body:**
+```json
+{
+  "value": "new_widget_value"
+}
+```
+**Response (200 OK):** `WidgetStateDto`
+
+### 3.2 Batch Update Widgets
+**Endpoint:** `PUT /sessions/{sessionId}/widgets/batch`
+**Description:** Updates multiple widget values in a single request.
+**Request Body:**
+```json
+{
+  "updates": [
+    {
+      "widgetId": "widget-1",
+      "value": "value1"
+    },
+    {
+      "widgetId": "widget-2", 
+      "value": "value2"
+    }
+  ]
+}
+```
+**Response (200 OK):** `List<WidgetStateDto>`
+
+### 3.3 Get Widget Analytics
+**Endpoint:** `GET /sessions/{sessionId}/widgets/analytics`
+**Description:** Retrieves analytics data for widgets in a session.
+**Response (200 OK):** `WidgetAnalyticsDto`
+
+### 3.4 Get Widget State
+**Endpoint:** `GET /sessions/{sessionId}/widgets/{widgetId}/state`
+**Description:** Retrieves the current state of a specific widget.
+**Response (200 OK):** `WidgetStateDto`
+
+### 3.5 Get Widget Constraints
+**Endpoint:** `GET /sessions/{sessionId}/widgets/{widgetId}/constraints`
+**Description:** Retrieves the constraints for a specific widget.
+**Response (200 OK):** `WidgetConstraintsDto`
+
+---
+
+## 4. Code Execution
+
+### 4.1 Execute Cell
 **Endpoint:** `POST /sessions/{sessionId}/execute`
 **Description:** Executes a code cell within a session.
 **Request Body:**
@@ -118,9 +179,9 @@ This API provides comprehensive endpoints for managing Marimo components, sessio
 
 ---
 
-## 4. Asset Management
+## 5. Asset Management
 
-### 4.1 Upload Asset
+### 5.1 Upload Asset
 **Endpoint:** `POST /assets/upload`
 **Description:** Uploads a file as a component asset.
 **Request Type:** `multipart/form-data`
@@ -131,22 +192,31 @@ This API provides comprehensive endpoints for managing Marimo components, sessio
 - `metadata` (optional): Key-value pairs.
 **Response (200 OK):** `AssetInfoDto`
 
-### 4.2 Get Asset Info
+### 5.2 Get Asset Info
 **Endpoint:** `GET /assets/{id}`
 **Description:** Retrieves metadata for a specific asset.
 **Response (200 OK):** `AssetInfoDto`
 
-### 4.3 Download Asset
+### 5.3 Download Asset
 **Endpoint:** `GET /assets/{id}/download`
 **Description:** Downloads the binary content of an asset.
 **Response (200 OK):** `ByteArrayResource` (File stream)
 
-### 4.4 List Assets
+### 5.4 List Assets
 **Endpoint:** `GET /components/{componentId}/assets`
 **Description:** Lists all assets associated with a component.
 **Response (200 OK):** `List<AssetInfoDto>`
 
-### 4.5 Delete Asset
+### 5.5 Delete Asset
 **Endpoint:** `DELETE /assets/{id}`
 **Description:** Deletes an asset.
-**Response (204 No Content):** 
+**Response (204 No Content):**
+
+---
+
+## 6. Health and Monitoring
+
+### 6.1 Health Check
+**Endpoint:** `GET /health`
+**Description:** Returns the health status of the service.
+**Response (200 OK):** `HealthStatusDto` 
