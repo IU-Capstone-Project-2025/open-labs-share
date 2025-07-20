@@ -10,98 +10,119 @@ The **Feedback Service** handles the creation, retrieval, and management of feed
 
 ### PostgreSQL Database
 
+The PostgreSQL database stores metadata for feedback entries, establishing relationships between users, labs, and submissions.
+
 #### Tables
 
 - **`feedbacks`**
-  - `id` (UUID): Primary key, auto-generated
-  - `user_id` (BIGINT): Author of the feedback
-  - `student_id` (BIGINT): Student whose solution is being reviewed
-  - `lab_id` (BIGINT): Related lab assignment
-  - `title` (VARCHAR): Feedback title
-  - `created_at` (TIMESTAMP): Creation timestamp
-  - `updated_at` (TIMESTAMP): Last update timestamp
+  - `id` (UUID): Primary key, auto-generated.
+  - `reviewer_id` (BIGINT): The ID of the user who created the feedback.
+  - `student_id` (BIGINT): The ID of the student whose submission is being reviewed.
+  - `submission_id` (BIGINT): The ID of the submission being reviewed.
+  - `title` (VARCHAR): The title of the feedback.
+  - `created_at` (TIMESTAMP): The timestamp of when the feedback was created.
+  - `updated_at` (TIMESTAMP): The timestamp of the last update.
 
-- **`feedback_assets`**
-  - `id` (UUID): Primary key, auto-generated
-  - `feedback_id` (UUID): Foreign key to `feedbacks.id`
-  - `filename` (VARCHAR): File name of the uploaded asset
-  - `file_size` (BIGINT): Size of the file in bytes
-  - `content_type` (VARCHAR): MIME type of the file
-  - `created_at` (TIMESTAMP): Upload timestamp
+### MongoDB
 
-- **`lab_comments`**
-  - `id` (UUID): Primary key, auto-generated
-  - `lab_id` (BIGINT): Target lab
-  - `user_id` (BIGINT): Author of the comment
-  - `parent_id` (UUID, nullable): Parent comment for threaded replies
-  - `content` (TEXT): Comment content
-  - `created_at` (TIMESTAMP): Comment timestamp
-  - `updated_at` (TIMESTAMP): Last update timestamp
+MongoDB is used for storing comments and feedback content due to its flexible schema, which is well-suited for unstructured text data.
+
+-   **`feedback_content` Collection**: Stores the Markdown content of each feedback entry, linked by the feedback UUID.
+    -   `_id` (string): The feedback UUID.
+    -   `content` (string): The Markdown content of the feedback.
+-   **`comments` Collection**: Stores comments for labs and articles, supporting threaded discussions.
+    -   `_id` (ObjectID): The unique identifier for the comment.
+    -   `content_id` (BIGINT): The ID of the content (e.g., lab or article) the comment belongs to.
+    -   `user_id` (BIGINT): The ID of the user who created the comment.
+    -   `parent_id` (string, nullable): The ID of the parent comment for threaded replies.
+    -   `content` (string): The Markdown content of the comment.
+    -   `created_at` (TIMESTAMP): The timestamp of when the comment was created.
+    -   `updated_at` (TIMESTAMP): The timestamp of the last update.
+    -   `type` (string): The type of content the comment belongs to (e.g., "lab", "article").
 
 ### Object Storage (MinIO)
 
-- Files are stored in MinIO.
-- Each asset is associated with a feedback ID and a file name.
+MinIO is used for storing attachments (e.g., images, documents) associated with feedback. Each file is stored in a structured path within the `feedback` bucket.
+
+-   **Bucket**: `feedback`
+-   **Object Path**: `feedback_id/filename`
+
+The structure for storing feedback attachments is as follows:
 ```
 feedback/
-├── feedback_id/
-│   ├── content.md              # Markdown feedback content
-│   └── assets/                 # Associated asset files
-│       ├── diagram.jpg
-│       └── attachment.png
+└── {feedback_id}/
+    ├── diagram.jpg
+    └── report.pdf
 ```
+
 ---
 
 ## Business Logic
 
 ### Feedback Management
 
-- **CreateFeedback**: Stores a new feedback entry (user, lab, title, content).
-- **GetFeedback**: Retrieves a feedback by UUID.
-- **UpdateFeedback**: Allows partial updates (title or content).
-- **DeleteFeedback**: Removes feedback and deletes associated assets.
-- **ListUserFeedbacks**: Lists feedbacks by user and optionally by lab, supports pagination.
-- **ListStudentFeedbacks**: Lists feedbacks for a student and optionally by lab, supports pagination.
+The feedback management system allows reviewers to create, update, and delete feedback for student submissions. Students can view their feedback, and both students and reviewers can list feedback entries with pagination.
 
-### Asset Management
+-   **`CreateFeedback`**: Creates a new feedback entry for a specific submission, including a title and Markdown content.
+-   **`GetFeedbackById`**: Retrieves a single feedback entry by its unique ID.
+-   **`UpdateFeedback`**: Allows reviewers to update the title or content of feedback they have created.
+-   **`DeleteFeedback`**: Removes a feedback entry and all associated attachments from MinIO.
+-   **`ListReviewerFeedbacks`**: Lists all feedback created by a specific reviewer, with optional filtering by submission and pagination.
+-   **`GetStudentFeedback`**: Retrieves feedback for a student for a specific submission.
+-   **`ListStudentFeedbacks`**: Lists all feedback for a specific student, with optional filtering by submission and pagination.
 
-- **UploadAsset (streaming)**: Upload a file using a metadata header and subsequent binary chunks.
-- **DownloadAsset (streaming)**: Return asset metadata and stream the binary content.
-- **ListAssets**: List all files associated with a feedback entry.
+### Attachment Management
+
+The attachment management system allows reviewers to upload and delete files associated with feedback. Both students and reviewers can download and list attachments.
+
+-   **`UploadAttachment`**: Uploads a file to MinIO and associates it with a feedback entry. This is a streaming RPC that accepts a metadata header followed by binary chunks.
+-   **`DownloadAttachment`**: Downloads an attachment from MinIO. This is a streaming RPC that returns attachment metadata followed by binary chunks.
+-   **`ListAttachments`**: Lists all attachments associated with a feedback entry.
+-   **`DeleteAttachment`**: Deletes an attachment from MinIO.
+-   **`GetAttachmentLocation`**: Retrieves the MinIO location information for an attachment, including the bucket, object path, and endpoint.
 
 ### Comment Management
 
-- **CreateComment**: Creates a new comment for a lab, supports threaded replies via parent_id.
-- **GetComment**: Retrieves a specific comment by UUID.
-- **UpdateComment**: Allows updating comment content.
-- **DeleteComment**: Removes a comment and its replies (cascade delete).
-- **ListLabComments**: Lists all top-level comments for a lab with pagination.
-- **GetCommentReplies**: Gets all replies to a specific comment with pagination.
+The comment management system supports threaded discussions on labs and articles. Users can create, view, update, and delete comments.
 
----
-
-## External Service Dependencies
-
-| Service         | Required Data         | Purpose                                                          |
-|----------------|------------------------|------------------------------------------------------------------|
-| **User Service** | `user_id` validation  | Ensures user exists and to relate userd_id with comment/feedback |
-| **Lab Service**  | `lab_id` validation   | Ensure lab exists and to relate lab_id with feedback             |
+-   **`CreateComment`**: Creates a new comment on a lab or article, with support for threaded replies by specifying a `parent_id`.
+-   **`GetComment`**: Retrieves a single comment by its unique ID.
+-   **`UpdateComment`**: Allows users to update the content of their own comments.
+-   **`DeleteComment`**: Deletes a comment and all of its replies in a cascading manner.
+-   **`ListComments`**: Lists all top-level comments for a specific lab or article, with pagination.
+-   **`GetCommentReplies`**: Retrieves all replies to a specific comment, with pagination.
 
 ---
 
 ## Proto Contract Summary
 
-gRPC service is defined in `feedback.proto`. Main RPC methods:
+The gRPC services are defined in `feedback_service.proto` and `comment_service.proto`.
 
-**Feedback Operations:**
-- `CreateFeedback`, `GetFeedback`, `UpdateFeedback`, `DeleteFeedback`
-- `ListUserFeedbacks`, `ListStudentFeedbacks`
+### Feedback Service
 
-**Asset Operations:**
-- `UploadAsset`, `DownloadAsset`, `ListAssets`
+-   **`CreateFeedback`**: Creates a new feedback entry.
+-   **`GetFeedbackById`**: Retrieves a feedback entry by its unique ID.
+-   **`UpdateFeedback`**: Updates an existing feedback entry.
+-   **`DeleteFeedback`**: Deletes a feedback entry.
+-   **`ListReviewerFeedbacks`**: Lists feedback created by a specific reviewer.
+-   **`GetStudentFeedback`**: Retrieves feedback for a student for a specific submission.
+-   **`ListStudentFeedbacks`**: Lists all feedback for a specific student.
 
-**Comment Operations:**
-- `CreateComment`, `GetComment`, `UpdateComment`, `DeleteComment`
-- `ListLabComments`, `GetCommentReplies`
+### Attachment Operations
+
+-   **`UploadAttachment`**: Uploads an attachment in a streaming RPC.
+-   **`DownloadAttachment`**: Downloads an attachment in a streaming RPC.
+-   **`ListAttachments`**: Lists all attachments for a feedback entry.
+-   **`DeleteAttachment`**: Deletes an attachment.
+-   **`GetAttachmentLocation`**: Retrieves the MinIO location information for an attachment.
+
+### Comment Service
+
+-   **`CreateComment`**: Creates a new comment.
+-   **`GetComment`**: Retrieves a comment by its unique ID.
+-   **`UpdateComment`**: Updates an existing comment.
+-   **`DeleteComment`**: Deletes a comment.
+-   **`ListComments`**: Lists comments for a lab or article.
+-   **`GetCommentReplies`**: Retrieves replies to a specific comment.
 
 ---
