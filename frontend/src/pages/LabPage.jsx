@@ -1,12 +1,205 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import rehypeHighlight from "rehype-highlight";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
+import rehypeHighlight from "rehype-highlight";
 import 'katex/dist/katex.min.css';
-import 'highlight.js/styles/github-dark.css';
+
+// Custom CSS for dark mode support
+const darkModeStyles = `
+  /* LaTeX formulas - default light mode */
+  .katex {
+    color: #1e293b !important;
+  }
+  
+  /* LaTeX formulas dark mode */
+  .dark .katex {
+    color: #e5e7eb !important;
+  }
+  
+  /* Enhanced Code blocks dark mode */
+  pre {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+    color: #e5e7eb !important;
+    border: 1px solid #475569 !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
+    position: relative !important;
+    overflow: hidden !important;
+  }
+  
+  pre::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 1px !important;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899) !important;
+  }
+  
+  pre code {
+    background-color: transparent !important;
+    color: #e5e7eb !important;
+    font-family: 'Fira Code', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace !important;
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+  }
+  
+  /* Enhanced Syntax highlighting for dark mode */
+  pre .hljs-keyword { color: #fbbf24 !important; font-weight: 600 !important; }
+  pre .hljs-string { color: #10b981 !important; }
+  pre .hljs-comment { color: #6b7280 !important; font-style: italic !important; }
+  pre .hljs-number { color: #ef4444 !important; }
+  pre .hljs-function .hljs-title { color: #3b82f6 !important; }
+  pre .hljs-title.class_ { color: #8b5cf6 !important; font-weight: 600 !important; }
+  pre .hljs-built_in { color: #ec4899 !important; }
+  pre .hljs-variable { color: #e5e7eb !important; }
+  pre .hljs-operator { color: #f59e0b !important; }
+  pre .hljs-punctuation { color: #d1d5db !important; }
+  pre .hljs-property { color: #10b981 !important; }
+  pre .hljs-selector-tag { color: #fbbf24 !important; font-weight: 600 !important; }
+  pre .hljs-attr { color: #3b82f6 !important; }
+  pre .hljs-literal { color: #ef4444 !important; }
+  pre .hljs-regexp { color: #ec4899 !important; }
+  pre .hljs-type { color: #8b5cf6 !important; }
+  pre .hljs-meta { color: #6b7280 !important; }
+  pre .hljs-template-string { color: #10b981 !important; }
+  pre .hljs-subst { color: #e5e7eb !important; }
+  pre .hljs-preprocessor { color: #fbbf24 !important; }
+  pre .hljs-shebang { color: #6b7280 !important; }
+  pre .hljs-prompt { color: #10b981 !important; }
+  pre .hljs-output { color: #e5e7eb !important; }
+  
+  /* Additional syntax elements */
+  pre .hljs-name { color: #3b82f6 !important; }
+  pre .hljs-tag { color: #fbbf24 !important; }
+  pre .hljs-attribute { color: #3b82f6 !important; }
+  pre .hljs-value { color: #10b981 !important; }
+  pre .hljs-title.function_ { color: #3b82f6 !important; }
+  pre .hljs-title.function_.invoke__ { color: #3b82f6 !important; }
+  pre .hljs-params { color: #e5e7eb !important; }
+  pre .hljs-doctag { color: #fbbf24 !important; }
+  pre .hljs-section { color: #8b5cf6 !important; font-weight: 600 !important; }
+  pre .hljs-selector-id { color: #8b5cf6 !important; }
+  pre .hljs-selector-class { color: #8b5cf6 !important; }
+  pre .hljs-selector-attr { color: #3b82f6 !important; }
+  pre .hljs-selector-pseudo { color: #fbbf24 !important; }
+  pre .hljs-addition { color: #10b981 !important; background-color: rgba(16, 185, 129, 0.1) !important; }
+  pre .hljs-deletion { color: #ef4444 !important; background-color: rgba(239, 68, 68, 0.1) !important; }
+  pre .hljs-emphasis { font-style: italic !important; }
+  pre .hljs-strong { font-weight: 600 !important; color: #fbbf24 !important; }
+  
+  /* Enhanced Inline code dark mode */
+  :not(pre) > code {
+    background: linear-gradient(135deg, #374151 0%, #1f2937 100%) !important;
+    color: #e5e7eb !important;
+    border: 1px solid #4b5563 !important;
+    border-radius: 6px !important;
+    padding: 2px 6px !important;
+    font-family: 'Fira Code', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace !important;
+    font-size: 0.875em !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  }
+  
+  /* Code block hover effects */
+  pre:hover {
+    box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.4), 0 4px 10px -2px rgba(0, 0, 0, 0.3) !important;
+    transform: translateY(-1px) !important;
+    transition: all 0.2s ease-in-out !important;
+  }
+  
+  /* Code block scrollbar styling */
+  pre::-webkit-scrollbar {
+    height: 8px !important;
+  }
+  
+  pre::-webkit-scrollbar-track {
+    background: #1e293b !important;
+    border-radius: 4px !important;
+  }
+  
+  pre::-webkit-scrollbar-thumb {
+    background: #475569 !important;
+    border-radius: 4px !important;
+  }
+  
+  pre::-webkit-scrollbar-thumb:hover {
+    background: #64748b !important;
+  }
+  
+  /* Light mode overrides */
+  .light pre {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+    color: #1e293b !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  }
+  
+  .light pre::before {
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899) !important;
+  }
+  
+  .light pre code {
+    color: #1e293b !important;
+    text-shadow: none !important;
+  }
+  
+  /* Syntax highlighting for light mode */
+  .light pre .hljs-keyword { color: #d97706 !important; font-weight: 600 !important; }
+  .light pre .hljs-string { color: #059669 !important; }
+  .light pre .hljs-comment { color: #6b7280 !important; font-style: italic !important; }
+  .light pre .hljs-number { color: #dc2626 !important; }
+  .light pre .hljs-function .hljs-title { color: #2563eb !important; }
+  .light pre .hljs-title.class_ { color: #7c3aed !important; font-weight: 600 !important; }
+  .light pre .hljs-built_in { color: #db2777 !important; }
+  .light pre .hljs-variable { color: #1e293b !important; }
+  .light pre .hljs-operator { color: #d97706 !important; }
+  .light pre .hljs-punctuation { color: #374151 !important; }
+  .light pre .hljs-property { color: #059669 !important; }
+  .light pre .hljs-selector-tag { color: #d97706 !important; font-weight: 600 !important; }
+  .light pre .hljs-attr { color: #2563eb !important; }
+  .light pre .hljs-literal { color: #dc2626 !important; }
+  .light pre .hljs-regexp { color: #db2777 !important; }
+  .light pre .hljs-type { color: #7c3aed !important; }
+  .light pre .hljs-meta { color: #6b7280 !important; }
+  .light pre .hljs-template-string { color: #059669 !important; }
+  .light pre .hljs-subst { color: #1e293b !important; }
+  .light pre .hljs-preprocessor { color: #d97706 !important; }
+  .light pre .hljs-shebang { color: #6b7280 !important; }
+  .light pre .hljs-prompt { color: #059669 !important; }
+  .light pre .hljs-output { color: #1e293b !important; }
+  
+  /* Additional syntax elements for light mode */
+  .light pre .hljs-name { color: #2563eb !important; }
+  .light pre .hljs-tag { color: #d97706 !important; }
+  .light pre .hljs-attribute { color: #2563eb !important; }
+  .light pre .hljs-value { color: #059669 !important; }
+  .light pre .hljs-title.function_ { color: #2563eb !important; }
+  .light pre .hljs-title.function_.invoke__ { color: #2563eb !important; }
+  .light pre .hljs-params { color: #1e293b !important; }
+  .light pre .hljs-doctag { color: #d97706 !important; }
+  .light pre .hljs-section { color: #7c3aed !important; font-weight: 600 !important; }
+  .light pre .hljs-selector-id { color: #7c3aed !important; }
+  .light pre .hljs-selector-class { color: #7c3aed !important; }
+  .light pre .hljs-selector-attr { color: #2563eb !important; }
+  .light pre .hljs-selector-pseudo { color: #d97706 !important; }
+  .light pre .hljs-addition { color: #059669 !important; background-color: rgba(5, 150, 105, 0.1) !important; }
+  .light pre .hljs-deletion { color: #dc2626 !important; background-color: rgba(220, 38, 38, 0.1) !important; }
+  .light pre .hljs-emphasis { font-style: italic !important; }
+  .light pre .hljs-strong { font-weight: 600 !important; color: #d97706 !important; }
+  
+  .light :not(pre) > code {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+    color: #1e293b !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  }
+`;
+
 import GemIcon from "../components/GemIcon";
 import CommentsSection from "../components/CommentsSection";
 import ChatWindow from "../components/ChatWindow";
@@ -370,14 +563,18 @@ Lab content delivery is currently being developed. The markdown content for this
     };
 
     observer.current = new IntersectionObserver(callback, {
-      root: contentRef.current,
-      rootMargin: "0px 0px -50% 0px",
-      threshold: 0.1,
+      root: null,
+      rootMargin: "-20% 0px -80% 0px",
+      threshold: 0,
     });
 
     const timer = setTimeout(() => {
       const elements = contentRef.current.querySelectorAll("[data-heading]");
-      elements.forEach((el) => observer.current.observe(el));
+      if (elements.length > 0) {
+        // Set the first heading as active by default
+        setActiveId(elements[0].id);
+        elements.forEach((el) => observer.current.observe(el));
+      }
     }, 300);
 
     return () => {
@@ -390,7 +587,14 @@ Lab content delivery is currently being developed. The markdown content for this
     setActiveId(id);
     const el = document.getElementById(id);
     if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      const offset = 100; // Account for fixed header/navigation
+      const elementPosition = el.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - offset;
+      
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth"
+      });
     }
   };
 
@@ -414,8 +618,8 @@ Lab content delivery is currently being developed. The markdown content for this
         <Tag
           id={id}
           data-heading="true"
-          className={`scroll-mt-20 ${
-            level === 1 ? "text-3xl font-bold mt-8 mb-4 pt-4 border-t" : ""
+          className={`scroll-mt-20 text-gray-900 dark:text-white ${
+            level === 1 ? "text-3xl font-bold mt-8 mb-4 pt-4 border-t border-gray-300 dark:border-gray-600" : ""
           } ${level === 2 ? "text-2xl font-bold mt-6 mb-3" : ""} ${
             level === 3 ? "text-xl font-semibold mt-4 mb-2" : ""
           } ${activeId === id ? "text-msc dark:text-msc-light" : ""}`}
@@ -522,7 +726,7 @@ Lab content delivery is currently being developed. The markdown content for this
           {isMarpPresentation(markdown) ? (
             <MarpRenderer content={markdown} labId={id} />
           ) : (
-            <article className="prose dark:prose-invert max-w-none">
+            <article className="max-w-none prose prose-gray dark:prose-invert prose-headings:text-gray-900 prose-headings:dark:text-white prose-p:text-gray-700 prose-p:dark:text-gray-300 prose-ul:text-gray-700 prose-ul:dark:text-gray-300 prose-ol:text-gray-700 prose-ol:dark:text-gray-300 prose-li:text-gray-700 prose-li:dark:text-gray-300 prose-strong:text-gray-900 prose-strong:dark:text-white prose-em:text-gray-700 prose-em:dark:text-gray-300 prose-blockquote:text-gray-700 prose-blockquote:dark:text-gray-300 prose-blockquote:border-gray-300 prose-blockquote:dark:border-gray-600 prose-code:text-gray-900 prose-code:dark:text-gray-100 prose-pre:bg-gray-100 prose-pre:dark:bg-gray-800 prose-pre:text-gray-900 prose-pre:dark:text-gray-100">
               <ReactMarkdown
                 remarkPlugins={[
                   remarkGfm,
@@ -538,46 +742,28 @@ Lab content delivery is currently being developed. The markdown content for this
                   h3: HeadingRenderer(3),
                   img: ImageRenderer,
                   p: ({ node, ...props }) => (
-                    <p {...props} className="my-4 leading-relaxed dark:text-gray-300" />
+                    <p {...props} className="my-4 leading-relaxed text-gray-700 dark:text-gray-300" />
                   ),
                   ul: ({ node, ...props }) => (
-                    <ul {...props} className="list-disc pl-6 my-4 space-y-2 dark:text-gray-300" />
+                    <ul {...props} className="list-disc pl-6 my-4 space-y-2 text-gray-700 dark:text-gray-300" />
                   ),
                   ol: ({ node, ...props }) => (
-                    <ol {...props} className="list-decimal pl-6 my-4 space-y-2 dark:text-gray-300" />
+                    <ol {...props} className="list-decimal pl-6 my-4 space-y-2 text-gray-700 dark:text-gray-300" />
                   ),
-                  li: ({ node, ...props }) => <li {...props} className="pl-2 my-1" />,
-                  pre: ({ node, ...props }) => (
-                  <pre {...props} className="bg-gray-800 rounded-lg p-4 overflow-x-auto my-6" />
-                  ),
-                  code: ({ node, className, children, ...props }) => {
-                    const match = /language-(\w+)/.exec(className || "");
-                    const isInline = !match;
+                                      li: ({ node, ...props }) => <li {...props} className="pl-2 my-1 text-gray-700 dark:text-gray-300" />,
 
-                    return isInline ? (
-                      <code
-                        className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm"
-                        {...props}
-                      >
-                        {children}
-                      </code>
-                    ) : (
-                      <code className={className} {...props}>
-                        {children}
-                      </code>
-                    );
-                  },
+
                   
                   table: ({ node, ...props }) => (
                     <div className="overflow-x-auto">
-                      <table {...props} className="min-w-full divide-y divide-gray-700 my-4 border border-gray-700" />
+                      <table {...props} className="min-w-full divide-y divide-gray-300 dark:divide-gray-700 my-4 border border-gray-300 dark:border-gray-700" />
                     </div>
                   ),
                   th: ({ node, ...props }) => (
-                    <th {...props} className="px-4 py-2 bg-gray-800 text-left text-sm font-semibold text-white border-b border-gray-700" />
+                    <th {...props} className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-300 dark:border-gray-700" />
                   ),
                   td: ({ node, ...props }) => (
-                    <td {...props} className="px-4 py-2 text-sm text-black border-b border-gray-700" />
+                    <td {...props} className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-b border-gray-300 dark:border-gray-700" />
                   ),
                 }}
               >
@@ -620,7 +806,7 @@ Lab content delivery is currently being developed. The markdown content for this
                 id="solution_text"
                 name="solution_text"
                 rows="4"
-                className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-msc focus:border-transparent transition-colors"
                 value={submissionText}
                 onChange={(e) => setSubmissionText(e.target.value)}
                 placeholder="Enter any comments or text-based solution here..."
@@ -639,11 +825,11 @@ Lab content delivery is currently being developed. The markdown content for this
               onDragLeave={handleDragLeave}
               onClick={handleUploadClick}
               className={`border-2 ${
-                isDragging ? "border-msc" : "border-dashed border-blue-blue"
-              } rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                isDragging ? "border-msc bg-blue-50 dark:bg-blue-900/20" : "border-dashed border-gray-300 dark:border-gray-600"
+              } rounded-lg p-8 text-center cursor-pointer transition-all duration-200 ${
                 isDragging
-                  ? "bg-blue-50 dark:bg-gray-800"
-                  : "bg-gray-50 dark:bg-gray-750"
+                  ? "bg-blue-50 dark:bg-blue-900/20"
+                  : "bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700"
               }`}
             >
               <input
@@ -653,10 +839,10 @@ Lab content delivery is currently being developed. The markdown content for this
                 onChange={handleFileChange}
                 className="hidden"
               />
-              <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center bg-light-blue-hover dark:bg-gray-700 rounded-full">
+              <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center bg-msc dark:bg-msc rounded-full">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6 text-light-blue"
+                  className="h-6 w-6 text-white"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -670,12 +856,12 @@ Lab content delivery is currently being developed. The markdown content for this
                 </svg>
               </div>
               <div className="text-center">
-                <p className="text-lg font-medium text-msc dark:text-white">
+                <p className="text-lg font-medium text-gray-900 dark:text-white">
                   {isDragging
                     ? "Drop files here"
                     : "Select files or drop them here"}
                 </p>
-                <p className="text-sm text-light-blue dark:text-gray-400 mt-1">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   You can upload multiple files
                 </p>
               </div>
@@ -684,14 +870,14 @@ Lab content delivery is currently being developed. The markdown content for this
 
           {files.length > 0 && (
             <div className="mt-4">
-              <h4 className="font-medium dark:text-white">Selected files:</h4>
+              <h4 className="font-medium text-gray-900 dark:text-white">Selected files:</h4>
               <ul className="mt-2 space-y-2">
                 {files.map((file, index) => (
-                  <li key={index} className="flex items-center justify-between bg-gray-100 dark:bg-gray-700 p-2 rounded-md">
+                  <li key={index} className="flex items-center justify-between bg-gray-100 dark:bg-gray-700 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
                     <span className="text-sm text-gray-800 dark:text-gray-300 truncate">{file.name}</span>
                     <button
                       onClick={() => removeFile(file)}
-                      className="text-red-500 hover:text-red-700"
+                      className="text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors"
                       title="Remove file"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -708,11 +894,11 @@ Lab content delivery is currently being developed. The markdown content for this
             <button
               onClick={handleSubmit}
               disabled={(!submissionText.trim() && files.length === 0) || uploading || !user || (user && user.balance < 1)}
-              className={`px-16 py-3 rounded-md font-medium ${
+              className={`px-16 py-3 rounded-lg font-medium transition-all duration-200 ${
                 (submissionText.trim() || files.length > 0) && !uploading && user && user.balance >= 1
-                  ? "bg-msc text-white hover:bg-msc-dark"
-                  : "bg-light-blue-hover dark:bg-gray-600 text-gray-500 font-inter dark:text-gray-400 cursor-not-allowed"
-              } transition-colors`}
+                  ? "bg-msc text-white hover:bg-msc-dark shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                  : "bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+              }`}
             >
               {uploading ? "Uploading..." : "Submit homework"}
             </button>
@@ -791,7 +977,8 @@ Lab content delivery is currently being developed. The markdown content for this
 
   return (
     <>
-      <div className={`container mx-auto py-8 flex transition-all duration-300 ${isChatOpen && chatMode === 'sidebar' ? 'lg:mr-[400px]' : ''}`}>
+      <style dangerouslySetInnerHTML={{ __html: darkModeStyles }} />
+      <div className={`container mx-auto py-8 flex transition-all duration-300 bg-white dark:bg-gray-900 min-h-screen ${isChatOpen && chatMode === 'sidebar' ? 'lg:mr-[400px]' : ''}`}>
         <div className="flex-1 min-w-0 flex">
           {marimoComponents.length > 0 ? (
             <ResizablePanel
@@ -806,50 +993,52 @@ Lab content delivery is currently being developed. The markdown content for this
 
         {/* Table of Contents */}
         <aside className="w-72 pl-8 sticky top-24 self-start hidden lg:block">
-          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
-            Table of Contents
-          </h3>
-          <ul className="space-y-1">
-            {headings.map((heading, index) => (
-              <li
-                key={index}
-                style={{ paddingLeft: `${(heading.level - 1) * 12}px` }}
-                className={`transition-colors ${
-                  activeId === heading.id
-                    ? "text-msc dark:text-msc-light font-medium bg-blue-50 dark:bg-gray-700 rounded"
-                    : "text-gray-600 dark:text-gray-400 hover:text-msc dark:hover:text-msc-light"
-                }`}
-              >
-                <button
-                  onClick={() => scrollToHeading(heading.id)}
-                  className="text-left w-full py-1.5 px-2 text-sm truncate"
-                  title={heading.title}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+              Table of Contents
+            </h3>
+            <ul className="space-y-1">
+              {headings.map((heading, index) => (
+                <li
+                  key={index}
+                  style={{ paddingLeft: `${(heading.level - 1) * 12}px` }}
+                  className={`transition-colors ${
+                    activeId === heading.id
+                      ? "text-msc dark:text-msc-light font-medium bg-blue-50 dark:bg-gray-700 rounded"
+                      : "text-gray-600 dark:text-gray-400 hover:text-msc dark:hover:text-msc-light"
+                  }`}
                 >
-                  {heading.title}
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button
-            onClick={scrollToSubmit}
-            className="mt-4 w-full py-3 px-4 bg-msc font-inter text-white rounded-md hover:bg-msc-dark transition-colors flex items-center justify-center"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 mr-2"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+                  <button
+                    onClick={() => scrollToHeading(heading.id)}
+                    className="text-left w-full py-1.5 px-2 text-sm truncate"
+                    title={heading.title}
+                  >
+                    {heading.title}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={scrollToSubmit}
+              className="mt-4 w-full py-3 px-4 bg-msc font-inter text-white rounded-md hover:bg-msc-dark transition-colors flex items-center justify-center"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-              />
-            </svg>
-            Submit homework
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 mr-2"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                />
+              </svg>
+              Submit homework
+            </button>
+          </div>
         </aside>
       </div>
 
