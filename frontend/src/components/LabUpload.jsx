@@ -152,7 +152,7 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
 
   const handleAddComponent = () => {
     const newComponent = {
-      id: `temp-${Date.now()}-${Math.random()}`, // Unique ID for key prop
+      id: `temp-${Date.now()}-${Math.random()}`,
       name: '',
       code: '',
       assets: []
@@ -192,6 +192,18 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
       return;
     }
 
+    // Validate Marimo components before creating the lab
+    if (marimoComponents.length > 0) {
+      const invalidComponents = marimoComponents.filter(
+        component => !component.name || component.name.trim() === '' || !component.code || component.code.trim() === ''
+      );
+      
+      if (invalidComponents.length > 0) {
+        setError('All interactive components must have a name and code filled in. Please complete or remove empty components.');
+        return;
+      }
+    }
+
     setUploading(true);
     try {
       const formData = new FormData();
@@ -226,9 +238,6 @@ export default function LabUpload({ onSuccess, onCancel, isModal = true }) {
         console.log("Condition PASSED. Creating Marimo components...");
         const labId = result.id;
         for (const component of marimoComponents) {
-          if (!component.name || component.name.trim() === '' || !component.code || component.code.trim() === '') {
-            throw new Error('All Marimo components must have a name and code.');
-          }
           const componentResponse = await marimoAPI.createComponent({
             name: component.name,
             contentType: 'lab',
