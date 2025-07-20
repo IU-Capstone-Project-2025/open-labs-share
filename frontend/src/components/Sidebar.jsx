@@ -11,6 +11,7 @@ export default function Sidebar({
   toggleSidebar,
   currentTheme,
   toggleTheme,
+  isMobile = false,
 }) {
   const [activePath, setActivePath] = useState("");
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -115,14 +116,31 @@ export default function Sidebar({
 
   return (
     <div
-      className={`fixed inset-y-0 left-0 transform ${
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      } 
-      w-64 bg-msc shadow-lg rounded-r-md transition-transform duration-300 ease-in-out z-50`}
+      className={
+        isMobile
+          ? `fixed left-0 top-0 w-4/5 max-w-xs h-[95vh] my-5 bg-msc z-[9999] transition-transform duration-300 ease-in-out ${
+              isOpen ? "translate-x-0" : "-translate-x-full"
+            } overflow-y-auto rounded-r-xl`
+          : `fixed inset-y-0 left-0 transform ${
+              isOpen ? "translate-x-0" : "-translate-x-full"
+            } w-64 bg-msc shadow-lg rounded-r-md transition-transform duration-300 ease-in-out z-50`
+      }
       onMouseEnter={() => setIsHoveringSidebar(true)}
       onMouseLeave={() => setIsHoveringSidebar(false)}
     >
-      <div className="flex flex-col h-full p-4 sidebar-content overflow-y-auto">
+      {/* Close button for mobile */}
+      {isMobile && (
+        <button
+          className="absolute top-4 right-4 z-[10000] p-2 rounded-full bg-white bg-opacity-20 hover:bg-opacity-40 text-white focus:outline-none"
+          onClick={toggleSidebar}
+          aria-label="Close sidebar"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+      <div className={`flex flex-col h-full ${isMobile ? "p-4 overflow-y-auto" : "p-4 sidebar-content overflow-y-auto"}`}>
         <div className="flex justify-between items-center mb-8 p-4">
           <h1 className="text-2xl font-semibold text-white text-center font-inter font-light">
             Open Labs Share
@@ -185,7 +203,10 @@ export default function Sidebar({
                                   ? "bg-blue-blue bg-opacity-30 text-white font-medium"
                                   : "text-white hover:bg-white hover:bg-opacity-10 font-light"
                               }`}
-                              onClick={() => handleDropdownItemClick(subItem.path)}
+                              onClick={() => {
+                                handleDropdownItemClick(subItem.path);
+                                if (isMobile) toggleSidebar();
+                              }}
                             >
                               {subItem.name}
                             </NavLink>
@@ -205,7 +226,8 @@ export default function Sidebar({
                     }`}
                     onClick={() => {
                       setActivePath(item.path);
-                      toggleSidebar();
+                      if (isMobile) toggleSidebar();
+                      else toggleSidebar();
                     }}
                   >
                     {item.name}
