@@ -82,6 +82,8 @@ Open Labs Share is a collaborative learning platform that combines practical lab
 6. *For Ml features:* run `docker-compose --profile ml up --build -d`
 7. Check `http://localhost:80` for the frontend.
 
+**For more detailed instructions, please refer to the [Local Testing Guide](LOCAL_TESTING_GUIDE.md).**
+
 ## 🛠️ Technology Stack
 
 Our platform is built with a modern, microservices-based architecture. Here's a detailed breakdown of the technologies used across our services:

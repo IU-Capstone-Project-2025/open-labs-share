@@ -12,6 +12,9 @@ Make sure you have [Docker Desktop](https://www.docker.com/products/docker-deskt
 ### 2. Create a `.env` file
 In the root of the project, create a file named `.env`. It will store all your secrets and passwords. Docker Compose will automatically load these variables. Example `.env` file is provided in the `.env.example` file.
 
+### 3. Create a `ml/groq_keys.txt` file
+In the ML folder of the project, create a file named `groq_keys.txt`. It will store all your Groq API keys. Example `groq_keys.txt` file is provided in the `groq_keys.txt.example` file.
+
 ## Step 2: Cold Start (First Launch)
 
 This is a "cold" start of your system, which is performed once before you begin working.
