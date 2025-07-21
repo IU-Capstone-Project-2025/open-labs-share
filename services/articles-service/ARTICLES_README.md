@@ -12,10 +12,7 @@
 
 ## Purpose
 
-The **Articles** service on the **Open Labs Share** platform is the central repository of all scientific articles in the system. It provides a single point of management for scientific content and access to file resources. It allows:
-- **Authors** to publish their scientific articles and research papers
-- **Teachers** to link their lab work with theoretical materials and articles
-- **Students** to read additional educational literature and research materials
+The **Articles** service on the **Open Labs Share** platform is the central repository of all scientific articles in the system. It provides a single point of management for scientific content and access to file resources
 
 ## Functionality
 
@@ -23,20 +20,14 @@ The **Articles** service on the **Open Labs Share** platform is the central repo
 - CRUD operations for articles and assets
 - Data storage with PostgreSQL
 - File storage with MinIO
-- Control of access to articles
 
-### 2. **For authors:**
+### 2. **For publishers:**
 - Publication of articles in PDF format
 - Management of publications
 - Upload and management of article assets
 
-### 3. **For teachers:**
-- Linking lab assignments with relevant scientific articles
-- Providing students with theoretical background materials
-
-### 4. **For students:**
+### 3. **For readers:**
 - Access to scientific articles and research papers
-- Downloading article assets for offline study
 - Searching and filtering articles by content
 
 ## Entities
@@ -45,27 +36,27 @@ The service works with the following entities:
 
 ### 1. **Article:**
 
-| Field        | Type      | Description |
-|--------------|-----------|-------------|
-| id (PK)      | BIGSERIAL | Auto-generated primary key |
-| owner_id     | BIGINT    | ID of the article creator |
-| title        | VARCHAR(255) | Article title |
-| created_at   | TIMESTAMP WITH TIME ZONE | Creation timestamp |
-| updated_at   | TIMESTAMP WITH TIME ZONE | Last update timestamp |
-| abstract     | TEXT      | Article description/summary |
-| views        | BIGINT    | Number of views (default: 0) |
-| stars        | BIGINT    | Rating stars (default: 0) |
-| people_rated | BIGINT    | Number of people who rated (default: 0) |
+| Field        | Type                     | Description                             |
+|--------------|--------------------------|-----------------------------------------|
+| id (PK)      | BIGSERIAL                | Auto-generated primary key              |
+| owner_id     | BIGINT                   | ID of the article creator               |
+| title        | VARCHAR(255)             | Article title                           |
+| created_at   | TIMESTAMP WITH TIME ZONE | Creation timestamp                      |
+| updated_at   | TIMESTAMP WITH TIME ZONE | Last update timestamp                   |
+| abstract     | TEXT                     | Article description/summary             |
+| views        | BIGINT                   | Number of views (default: 0)            |
+| stars        | BIGINT                   | Rating stars (default: 0)               |
+| people_rated | BIGINT                   | Number of people who rated (default: 0) |
 
 ### 2. **Article Assets:**
 
-| Field       | Type      | Description |
-|-------------|-----------|-------------|
-| id (PK)     | BIGSERIAL | Auto-generated primary key |
-| article_id  | BIGINT    | Foreign key to articles table |
-| filename    | VARCHAR(255) | File name |
-| filesize    | BIGINT    | File size in bytes |
-| upload_date | TIMESTAMP WITH TIME ZONE | Upload timestamp |
+| Field       | Type                     | Description                   |
+|-------------|--------------------------|-------------------------------|
+| id (PK)     | BIGSERIAL                | Auto-generated primary key    |
+| article_id  | BIGINT                   | Foreign key to articles table |
+| filename    | VARCHAR(255)             | File name                     |
+| filesize    | BIGINT                   | File size in bytes            |
+| upload_date | TIMESTAMP WITH TIME ZONE | Upload timestamp              |
 
 ## gRPC Contract
 
@@ -92,7 +83,10 @@ The service provides a single gRPC service: `ArticleService`.
 ## Integrations
 
 ### 1. **API Gateway:**
-- A single entry point for all requests
+- API Gateway requests gRPC methods that provided in [gRPC Contract](#grpc-contract) and receives requested data
+  - For example, API Gateway requests `GetArticles` with provided page number, page size, and required text matching.
+    Receives from the Articles Service `ArticleList` with amount of `Articles` and article entities themselves
+  - More about that you can find at `/app/proto/articles_service.proto`
 
 ### 2. **MinIO:**
 - Storing article files (primarily PDFs)
@@ -115,11 +109,6 @@ The service provides a single gRPC service: `ArticleService`.
 - Finds several relevant articles
 - Downloads article files for offline study
 
-### 3. **The student accesses educational content:**
-- Browses articles linked to lab assignments
-- Downloads article assets for additional reading
-- Accesses theoretical background for practical work
-
 ## Technical Details
 
 ### Technology Stack:
@@ -135,7 +124,6 @@ The service provides a single gRPC service: `ArticleService`.
 ### Service Architecture:
 - Single gRPC service: `ArticleService`
 - Streaming support for large file uploads/downloads
-- Health check integration for monitoring
 
 ### File Storage Structure:
 ```
