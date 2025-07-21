@@ -1,8 +1,46 @@
 # Feedback Service
 
+## Agenda
+
+1. [Overview](#overview)
+2. [Tech Stack](#tech-stack)
+3. [Communication](#communication)
+4. [Storage Architecture](#storage-architecture)
+5. [Business Logic](#business-logic)
+6. [Proto Contract Summary](#proto-contract-summary)
+
+
 ## Overview
 
 The **Feedback Service** handles the creation, retrieval, and management of feedback for labs. Feedback entries are stored as Markdown documents and can include attached files (assets). The service also supports comments for discussion.
+
+---
+
+## Tech Stack
+
+The Feedback Service is built with the following technologies:
+
+- **Language**: Go
+- **Framework**: gRPC for building the microservice API.
+- **Databases**:
+  - **PostgreSQL**: Stores structured data like feedback metadata.
+  - **MongoDB**: Used for storing unstructured data such as comments and feedback content.
+- **Object Storage**:
+  - **MinIO**: Used for storing file attachments associated with feedback.
+
+---
+
+## Communication
+
+The Feedback Service communicates with other services in the ecosystem through gRPC.
+
+### Inbound Communication
+
+The service exposes gRPC endpoints defined in the `.proto` files (`feedback_service.proto`, `comment_service.proto`). Other services, such as the **API Gateway**, consume these endpoints to interact with the feedback and comment functionalities.
+
+### Outbound Communication
+
+The Feedback Service is self-contained in terms of business logic and does not make any outbound calls to other microservices. Its external dependencies are limited to its data stores: PostgreSQL, MongoDB, and MinIO.
 
 ---
 
