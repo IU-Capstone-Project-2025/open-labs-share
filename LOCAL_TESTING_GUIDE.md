@@ -8,7 +8,7 @@ Before the first launch, you need to perform a few setup steps.
 
 ### 1. Install Docker Desktop
 
-Make sure you have [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running, as it includes `docker` and `docker-compose`.
+Make sure you have [Docker](https://www.docker.com/get-started/) installed and running, as it includes `docker` and `docker-compose`.
 
 ### 2. Create a `.env` file
 

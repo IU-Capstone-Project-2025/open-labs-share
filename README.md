@@ -48,8 +48,8 @@ Open Labs Share is a collaborative learning platform that combines practical lab
 
 ## ✨ Key Features
 
-- **Interactive Notebooks**: Create and share labs with **Marimo**, allowing for live, interactive data science and coding exercises.
-- **Rich Widget Library**: Build dynamic lab environments with a wide range of widgets, including plots, sliders, and buttons.
+- **Interactive Notebooks**: Create and share labs with Python code cells and **Marimo**, allowing for live, interactive data science and coding exercises.
+- **Interactive Widget Library**: Build dynamic lab environments with essential marimo widgets including sliders, checkboxes, switchers, number and text fields, dropdown and multiselect. Mathematical visualizations are available through matplotlib, numpy, pandas, and other Python libraries. Upload and use assets like txt and csv files directly in your code.
 - **AI-powered assistants and code reviews**: Get help with your lab assignments and automatic code reviews.
 - **Peer-to-Peer Feedback**: A comprehensive peer review system allows for community-driven feedback and evaluation of lab submissions.
 - **Content Creation & Management**: Users can create, publish, and manage their own articles and labs.
