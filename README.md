@@ -1,5 +1,4 @@
 
-
 <div align="center">
     <h1><strong>Open Labs Share</strong></h1>
     <p>A peer-to-peer educational platform connecting experts with learners through hands-on, practical learning experiences.</p>
@@ -15,7 +14,7 @@
   <a href="https://github.com/IU-Capstone-Project-2025/open-labs-share/stargazers">
     <img src="https://img.shields.io/github/stars/IU-Capstone-Project-2025/open-labs-share?style=flat-square" alt="GitHub stars"/>
   </a>
-    
+
 </div>
 
 ## 🧭 Table of Contents
@@ -37,8 +36,7 @@
   - [Core Services Documentation](#core-services-documentation)
     - [API Gateway](#api-gateway)
     - [Authentication \& Users](#authentication--users)
-    - [Lab \& Learning Platform](#lab--learning-platform)
-    - [Content Management](#content-management)
+    - [Learning Platform](#learning-platform)
     - [AI \& Machine Learning](#ai--machine-learning)
     - [Interactive Notebooks](#interactive-notebooks)
 - [🤝 Contributing](#-contributing)
@@ -122,42 +120,47 @@ We use a blue/green deployment strategy to ensure zero-downtime releases. This i
 
 To switch between environments, server updates the `ACTIVE_ENV` variable in the `haproxy/active_env` file and restarts the `haproxy` service.
 
-You can check it now on https://open-labs-share.online
+You can check it now on <https://open-labs-share.online>
 
 ## 📖 Documentation
 
 For more detailed information about the project, please refer to the documentation for each service:
 
 ### General Documentation
+
 - [Contributing Guidelines](CONTRIBUTING.md) - How to contribute to the project
 - [Services Overview](services/README.md) - High-level overview of all services
 
 ### Frontend Documentation
+
 - [Frontend Documentation](frontend/README.md) - Main frontend setup and development guide
 - [Frontend Pages Documentation](frontend/docs/pages.md) - Detailed documentation for each page
 
 ### Core Services Documentation
 
 #### API Gateway
+
 - [API Gateway Documentation](services/api-gateway/README.md) - Main documentation and setup
 - [API Gateway API Documentation](services/api-gateway/API_README.md) - API endpoints and usage
 - [API Gateway Deployment Guide](services/api-gateway/DEPLOY.md) - Production deployment guide
 
 #### Authentication & Users
+
 - [Auth Service Documentation](services/auth-service/AUTH_README.md) - Authentication and JWT management
 - [Users Service Documentation](services/users-service/USERS_README.md) - User profiles and data management
 
-#### Lab & Learning Platform
+#### Learning Platform
+
 - [Labs Service Documentation](services/labs-service/LABS_README.md) - Lab assignments and submissions
 - [Feedback Service Documentation](services/feedback-service/FEEDBACK_README.md) - Lab feedback and comments
-
-#### Content Management
 - [Articles Service Documentation](services/articles-service/ARTICLES_README.md) - Articles and publications management
 
 #### AI & Machine Learning
+
 - [ML Service Documentation](ml/README.md) - AI assistant and machine learning features
 
 #### Interactive Notebooks
+
 - [Marimo Service Documentation](services/marimo-service/MARIMO_README.md) - Overview of Marimo integration
 - [Marimo Manager Service Documentation](services/marimo-service/marimo-manager-service/MARIMO_MANAGER_README.md) - Session and notebook management
 - [Marimo Executor Service Documentation](services/marimo-service/marimo-executor-service/MARIMO_EXECUTOR_README.md) - Notebook execution engine
