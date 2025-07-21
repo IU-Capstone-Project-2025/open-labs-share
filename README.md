@@ -106,7 +106,7 @@ Our platform is built with a modern, microservices-based architecture. Here's a 
 | **Users Service** | `Java 21`, `Spring Boot 3`, `Spring Security`, `Spring Data JPA`, `PostgreSQL`, `gRPC`, `Lombok`, `Gradle` |
 | **Articles Service** | `Python 3.12`, `gRPC`, `SQLAlchemy`, `PostgreSQL`, `MinIO`, `Docker` |
 | **Labs Service** | `Python 3.12`, `gRPC`, `SQLAlchemy`, `PyMongo`, `PostgreSQL`, `MongoDB`, `MinIO`, `Docker` |
-| **Feedback Service** | `Go 1.23`, `gRPC`, `PostgreSQL`, `MongoDB`, `MinIO` |
+| **Feedback Service** | `Go 1.24`, `gRPC`, `PostgreSQL`, `MongoDB`, `MinIO` |
 | **Marimo Manager** | `Java 21`, `Spring Boot 3`, `gRPC`, `PostgreSQL`, `MinIO` |
 | **Marimo Executor** | `Python 3.12`, `gRPC` |
 | **ML Service** | `Python 3.12`, `FastAPI`, `LangChain`, `LangGraph`, `Hugging Face`, `Groq`, `Qdrant`, `PostgreSQL`, `Celery` |
