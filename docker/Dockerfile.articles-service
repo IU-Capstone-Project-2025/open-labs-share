@@ -1,0 +1,53 @@
+# --- Builder Stage ---
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN pip install --no-cache-dir grpcio-tools
+
+# Install application dependencies with cache mount
+COPY ./services/articles-service/app/requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip pip install --no-cache-dir -r requirements.txt -t /app/deps
+
+# Copy application code
+COPY ./services/articles-service/app .
+
+# Generate protobuf files
+RUN touch proto/__init__.py utils/__init__.py
+RUN python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto proto/articles_service.proto
+
+# --- Final Stage ---
+FROM python:3.12-slim
+WORKDIR /app
+
+# Create a non-root user
+RUN useradd --create-home appuser
+WORKDIR /home/appuser/app
+
+# Install runtime dependencies and netcat
+RUN apt-get update && apt-get install -y --no-install-recommends netcat-openbsd wget && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install grpc-health-probe
+RUN GRPC_HEALTH_PROBE_VERSION=v0.4.24 && \
+    wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 -O /usr/local/bin/grpc_health_probe && \
+    chmod +x /usr/local/bin/grpc_health_probe
+
+# Copy dependencies and application code from builder
+COPY --from=builder /app/deps /home/appuser/app/deps
+COPY --from=builder /app .
+
+# Create files directory and set permissions
+RUN mkdir -p files && chown -R appuser:appuser .
+USER appuser
+
+# Add deps to python path
+ENV PYTHONPATH=/home/appuser/app/deps
+
+EXPOSE 50051
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 \
+  CMD nc -z localhost 50051 || exit 1
+
+CMD ["python", "-u", "main.py"] 

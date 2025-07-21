@@ -35,5 +35,8 @@ public class ArticleResponse {
 
     @Schema(description = "Last name of the article's author", example = "Doe")
     private String authorSurname;
+
+    @Schema(description = "Asset details associated with the article")
+    private ArticleAssetResponse asset;
 }
 

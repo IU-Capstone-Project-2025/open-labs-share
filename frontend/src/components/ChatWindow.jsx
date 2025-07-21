@@ -1,20 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { getCurrentUser } from '../utils/auth';
+import { useUser } from '../hooks/useUser';
 import { mlAPI } from '../utils/api';
 
 const ChatWindow = ({ labId, isOpen, onToggle, chatMode, onSetChatMode }) => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [user, setUser] = useState(null);
+  const user = useUser();
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
-
-  useEffect(() => {
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
-  }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -34,14 +30,16 @@ const ChatWindow = ({ labId, isOpen, onToggle, chatMode, onSetChatMode }) => {
     if (!user || !labId) return;
 
     try {
-      const data = await mlAPI.getChatHistory(user.id, labId);
+      const data = await mlAPI.getChatHistory(String(user.id), String(labId));
       if (data.history && Array.isArray(data.history)) {
-        const formattedMessages = data.history.map((msg, index) => ({
-          id: index,
-          text: msg.content,
-          isUser: msg.type === 'human',
-          timestamp: new Date()
-        }));
+        const formattedMessages = data.history
+          .filter(msg => msg.type !== 'system')
+          .map((msg, index) => ({
+            id: index,
+            text: msg.content,
+            isUser: msg.type === 'human',
+            timestamp: new Date()
+          }));
         setMessages(formattedMessages);
       }
     } catch (error) {
@@ -65,7 +63,7 @@ const ChatWindow = ({ labId, isOpen, onToggle, chatMode, onSetChatMode }) => {
     setIsLoading(true);
 
     try {
-      const data = await mlAPI.ask(user.id, labId, messageContent);
+      const data = await mlAPI.askAgent(String(user.id), String(labId), String(messageContent)  );
       const aiMessage = {
         id: Date.now() + 1,
         text: data.content,

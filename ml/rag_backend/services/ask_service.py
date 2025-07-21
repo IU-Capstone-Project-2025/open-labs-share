@@ -1,9 +1,9 @@
-from agent.agent import HelperAgent
+from agents.helper_agent.agent import HelperAgent
 from rag_backend.schemas import AskRequest, AgentResponse
 from langchain_core.runnables import RunnableConfig
-from agent.schemas import RAGState
+from agents.helper_agent.schemas import RAGState
 from langgraph.graph import MessagesState
-from agent.prompts import SYSTEM_PROMPT
+from agents.helper_agent.prompts import SYSTEM_PROMPT
 from langchain_core.messages import SystemMessage, AIMessage
 import logging
 import typing as tp
@@ -17,9 +17,9 @@ class AskService:
         self._agent = agent
 
 
-    async def _preprocess(self, request: AskRequest) -> tp.Tuple[RAGState, RunnableConfig]:
+    async def _preprocess(self, request: AskRequest) -> tp.Optional[tp.Tuple[RAGState, RunnableConfig]]:
         try:
-            config = {
+            config: RunnableConfig = {
                 "configurable": {
                     "thread_id": f"{request.assignment_id}_{request.uuid}"
                 }
@@ -39,7 +39,7 @@ class AskService:
                         messages=[
                             SystemMessage(content=SYSTEM_PROMPT)
                         ]
-                    )
+                    ) # type: ignore
                 )
             else:
                 input_state = RAGState(
@@ -55,7 +55,7 @@ class AskService:
             logger.error(f"Preprocessing error {e}")
     
 
-    def _postprocess(self, request: AskRequest, response: AIMessage) -> AgentResponse:
+    def _postprocess(self, request: AskRequest, response: AIMessage) -> tp.Optional[AgentResponse]:
         try:
             return AgentResponse(
                 assignment_id=request.assignment_id,
@@ -65,7 +65,7 @@ class AskService:
             logger.error(f"Postprocess error: {e}")
 
 
-    async def ask(self, request: AskRequest) -> AgentResponse:
+    async def ask(self, request: AskRequest) -> tp.Optional[AgentResponse]:
         input_state, config = await self._preprocess(request)
         logger.info("Last state restored")
 

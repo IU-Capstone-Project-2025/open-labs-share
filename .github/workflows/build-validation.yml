@@ -1,0 +1,184 @@
+name: Backend Services Build Validation
+
+on:
+  push:
+    branches: [ main, dev ]
+    paths:
+      - 'services/**'
+      - '**/*.proto'
+      - 'scripts/validate-all-builds.sh'
+      - '.github/workflows/build-validation.yml'
+  pull_request:
+    branches: [ main, dev ]
+    paths:
+      - 'services/**'
+      - '**/*.proto'
+      - 'scripts/validate-all-builds.sh'
+      - '.github/workflows/build-validation.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  build-validation:
+    name: Validate All Backend Services
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Set up Java 21
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+        
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        
+    - name: Set up Go 1.24
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+        
+    - name: Install Protocol Buffer Compiler
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y protobuf-compiler
+        protoc --version
+        
+    - name: Cache Gradle dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+          
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+          
+    - name: Cache Python packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install Python build tools
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install wheel setuptools
+        
+    - name: Make build validation script executable
+      run: chmod +x scripts/validate-all-builds.sh
+      
+    - name: Run comprehensive build validation
+      id: build-validation
+      run: |
+        echo "::group::Backend Services Build Validation"
+        ./scripts/validate-all-builds.sh
+        echo "::endgroup::"
+        
+    - name: Upload build logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-validation-logs-${{ github.run_id }}
+        path: |
+          build-validation-temp/logs/
+        retention-days: 7
+        
+    - name: Comment on PR with validation results
+      if: github.event_name == 'pull_request' && failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          let comment = `## 🚫 Backend Services Build Validation Failed
+          
+          The build validation for backend services has failed. This indicates that changes in this PR may have introduced breaking changes across services.
+          
+          **Failed Services:**
+          `;
+          
+          // Try to read build logs and add them to comment
+          try {
+            const logDir = 'build-validation-temp/logs';
+            if (fs.existsSync(logDir)) {
+              const logFiles = fs.readdirSync(logDir);
+              for (const file of logFiles) {
+                if (file.endsWith('-build.log')) {
+                  const serviceName = file.replace('-build.log', '');
+                  comment += `\n- ❌ ${serviceName}`;
+                }
+              }
+            }
+          } catch (error) {
+            console.log('Could not read build logs:', error);
+          }
+          
+          comment += `
+          
+          **Next Steps:**
+          1. Check the build logs in the workflow artifacts
+          2. Review proto file changes if any were made
+          3. Ensure all services can build with your changes
+          4. Run \`./scripts/validate-all-builds.sh\` locally to test
+          
+          **⚠️ This PR should not be merged until all build validation passes.**
+          `;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+          
+    - name: Comment on PR with success results
+      if: github.event_name == 'pull_request' && success()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const comment = `## ✅ Backend Services Build Validation Passed
+          
+          All backend services have been successfully validated:
+          
+          - ✅ Java Services (auth-service, users-service, api-gateway)
+          - ✅ Python Services (articles-service, labs-service)
+          - ✅ Go Services (feedback-service)
+          
+          **🎉 This PR is safe to merge from a build perspective!**
+          `;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });

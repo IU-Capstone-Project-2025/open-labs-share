@@ -1,0 +1,173 @@
+syntax = "proto3";
+
+package feedback;
+
+option java_package = "olsh.backend.api_gateway.grpc.proto";
+option java_outer_classname = "FeedbackProto";
+import "google/protobuf/timestamp.proto";
+
+service FeedbackService {
+  rpc CreateFeedback(CreateFeedbackRequest) returns (Feedback);
+  rpc UpdateFeedback(UpdateFeedbackRequest) returns (Feedback);
+  rpc DeleteFeedback(DeleteFeedbackRequest) returns (DeleteFeedbackResponse);
+  rpc ListReviewerFeedbacks(ListReviewerFeedbacksRequest) returns (ListReviewerFeedbacksResponse);
+
+  rpc GetStudentFeedback(GetStudentFeedbackRequest) returns (Feedback);
+  rpc ListStudentFeedbacks(ListStudentFeedbacksRequest) returns (ListStudentFeedbacksResponse);
+  rpc GetFeedbackById(GetFeedbackByIdRequest) returns (Feedback);
+
+  rpc UploadAttachment(stream UploadAttachmentRequest) returns (UploadAttachmentResponse);
+  rpc DeleteAttachment(DeleteAttachmentRequest) returns (DeleteAttachmentResponse);
+  rpc DownloadAttachment(DownloadAttachmentRequest) returns (stream DownloadAttachmentResponse);
+  rpc ListAttachments(ListAttachmentsRequest) returns (ListAttachmentsResponse);
+  rpc GetAttachmentLocation(GetAttachmentLocationRequest) returns (GetAttachmentLocationResponse);
+}
+
+// string id - UUID format!
+
+message Feedback {
+  string id = 1; // UUID
+  int64 reviewer_id = 2; // reviewer who created feedback
+  int64 student_id = 3; // student whose solution is being reviewed
+  int64 submission_id = 4;
+  string title = 5;
+  string content = 6; // Markdown content
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message CreateFeedbackRequest {
+  int64 reviewer_id = 1; // reviewer creating feedback
+  int64 student_id = 2; // student whose solution is reviewed
+  int64 submission_id = 3;
+  string title = 4;
+  string content = 5; // Markdown content
+}
+
+message UpdateFeedbackRequest {
+  int64 reviewer_id = 1;
+  string id = 2;
+  optional string title = 3; // new title (if changing)
+  optional string content = 4; // new markdown content (if changing)
+}
+
+message DeleteFeedbackRequest {
+  int64 reviewer_id = 1;
+  string id = 2;
+}
+
+message DeleteFeedbackResponse {
+  bool success = 1;
+}
+
+message ListReviewerFeedbacksRequest {
+  int64 reviewer_id = 1; // reviewer who created feedbacks
+  optional int64 submission_id = 2; // filter by specific submission (optional)
+  int32 page = 3; // pagination: page number
+  int32 limit = 4; // pagination: items per page
+}
+
+message ListReviewerFeedbacksResponse {
+  repeated Feedback feedbacks = 1;
+  int32 total_count = 2; // total number of feedbacks (for pagination)
+}
+
+message GetStudentFeedbackRequest {
+  int64 student_id = 1; // student requesting feedback
+  int64 submission_id = 2; // specific submission
+}
+
+message ListStudentFeedbacksRequest {
+  int64 student_id = 1; // student whose feedbacks to get
+  optional int64 submission_id = 2; // filter by specific submission (optional)
+  int32 page = 3; // pagination: page number
+  int32 limit = 4; // pagination: items per page
+}
+
+message ListStudentFeedbacksResponse {
+  repeated Feedback feedbacks = 1;
+  int32 total_count = 2; // total number of feedbacks (for pagination)
+}
+
+message GetFeedbackByIdRequest {
+  string id = 1;
+}
+
+
+message UploadAttachmentRequest {
+  oneof data {
+    AttachmentMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message AttachmentMetadata {
+  int64 reviewer_id = 1;
+  string feedback_id = 2;
+  string filename = 3;
+  string content_type = 4;
+  int64 total_size = 5;
+}
+
+message UploadAttachmentResponse {
+  string filename = 1;
+  int64 size = 2;
+  bool success = 3;
+}
+
+message DownloadAttachmentRequest {
+  string feedback_id = 1;
+  string filename = 2;
+}
+
+message DownloadAttachmentResponse {
+  oneof data {
+    AttachmentInfo info = 1;
+    bytes chunk = 2;
+  }
+}
+
+message ListAttachmentsRequest {
+  string feedback_id = 1;
+}
+
+message ListAttachmentsResponse {
+  repeated AttachmentInfo attachments = 1;
+}
+
+message DeleteAttachmentRequest {
+  int64 reviewer_id = 1;
+  string feedback_id = 2;
+  string filename = 3;
+}
+
+message DeleteAttachmentResponse {
+  bool success = 1;
+}
+
+message AttachmentInfo {
+  string filename = 1;
+  int64 size = 2;
+  string content_type = 3;
+  google.protobuf.Timestamp uploaded_at = 4;
+}
+
+message GetAttachmentLocationRequest {
+  string feedback_id = 1;
+  optional string filename = 2; // if not provided, return all attachments location info
+}
+
+message GetAttachmentLocationResponse {
+  repeated AttachmentLocationInfo attachments = 1;
+}
+
+message AttachmentLocationInfo {
+  string filename = 1;
+  int64 size = 2;
+  string content_type = 3;
+  google.protobuf.Timestamp uploaded_at = 4;
+  string minio_bucket = 5;
+  string minio_object_path = 6;
+  string minio_endpoint = 7;
+  bool use_ssl = 8;
+}

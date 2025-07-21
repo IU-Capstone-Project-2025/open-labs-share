@@ -1,0 +1,159 @@
+syntax = "proto3";
+
+package submissions;
+
+import "google/protobuf/timestamp.proto";
+
+service SubmissionService {
+  // Submissions Management
+  rpc CreateSubmission (CreateSubmissionRequest) returns (Submission);
+  rpc GetSubmission (GetSubmissionRequest) returns (Submission);
+  rpc GetSubmissions (GetSubmissionsRequest) returns (SubmissionList);
+  rpc UpdateSubmission (UpdateSubmissionRequest) returns (Submission);
+  rpc DeleteSubmission (DeleteSubmissionRequest) returns (DeleteSubmissionResponse);
+  // Retrieve submissions for a specific user
+  rpc GetUsersSubmissions (GetUsersSubmissionsRequest) returns (SubmissionList);
+  rpc GetPossibleToReviewSubmissions (GetPossibleToReviewSubmissionsRequest) returns (SubmissionList);
+  rpc GetSubmissionsCount(GetSubmissionsCountRequest) returns (GetSubmissionsCountResponse);
+
+  // Assets Management
+  rpc UploadAsset (stream UploadAssetRequest) returns (Asset);
+  rpc UpdateAsset (stream UpdateAssetRequest) returns (Asset);
+  rpc DownloadAsset (DownloadAssetRequest) returns (stream DownloadAssetResponse);
+  rpc DeleteAsset (DeleteAssetRequest) returns (DeleteAssetResponse);
+  rpc ListAssets (ListAssetsRequest) returns (AssetList);
+}
+
+// Submissions management
+message Submission {
+  int64 submission_id = 1;
+  int64 lab_id = 2;
+  int64 owner_id = 3;
+  string text = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  Status status = 7;
+}
+
+enum Status {
+  NOT_GRADED = 0;
+  IN_PROGRESS = 1;
+  ACCEPTED = 2;
+  REJECTED = 3;
+}
+
+message CreateSubmissionRequest {
+  int64 lab_id = 1;
+  int64 owner_id = 2;
+  string text = 3;
+}
+
+message GetSubmissionRequest {
+  int64 submission_id = 1;
+}
+
+message SubmissionList {
+  int64 total_count = 1;
+  repeated Submission submissions = 2;
+}
+
+message GetSubmissionsRequest {
+  int64 lab_id = 1;
+  int32 page_number = 2;
+  int32 page_size = 3;
+}
+
+message UpdateSubmissionRequest {
+  int64 submission_id = 1;
+  optional Status status = 2;
+  optional string text = 3;
+}
+
+message DeleteSubmissionRequest {
+  int64 submission_id = 1;
+}
+
+message DeleteSubmissionResponse {
+  bool success = 1;
+}
+
+message GetUsersSubmissionsRequest {
+  int64 user_id = 1;
+  int32 page_number = 2;
+  int32 page_size = 3;
+}
+
+message GetPossibleToReviewSubmissionsRequest {
+  int64 user_id = 1;
+  int32 page_number = 2;
+  int32 page_size = 3;
+}
+
+message GetSubmissionsCountRequest {}
+
+message GetSubmissionsCountResponse {
+  int32 total_count = 1;
+}
+
+// Assets Management
+message Asset {
+  int64 asset_id = 1;
+  int64 submission_id = 2;
+  string filename = 3;
+  int64 filesize = 4;
+  google.protobuf.Timestamp upload_date = 5;
+}
+
+message UploadAssetMetadata {
+  int64 submission_id = 1;
+  string filename = 2;
+  int64 filesize = 3;
+}
+
+message UploadAssetRequest {
+  oneof data {
+    UploadAssetMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message UpdateAssetMetadata {
+  int64 asset_id = 1;
+  string filename = 2;
+  int64 filesize = 3;
+}
+
+message UpdateAssetRequest {
+  oneof data {
+    UpdateAssetMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message DownloadAssetRequest {
+  int64 asset_id = 1;
+}
+
+message DownloadAssetResponse {
+  oneof data {
+    Asset asset = 1;
+    bytes chunk = 2;
+  }
+}
+
+message DeleteAssetRequest {
+  int64 asset_id = 1;
+}
+
+message DeleteAssetResponse {
+  bool success = 1;
+}
+
+message ListAssetsRequest {
+  int64 submission_id = 1;
+}
+
+message AssetList {
+  int64 total_count = 1;
+  repeated Asset assets = 2;
+}

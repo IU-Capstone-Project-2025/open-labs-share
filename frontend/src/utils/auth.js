@@ -1,13 +1,17 @@
 // Authentication utility for Open Labs Share
 // This connects to the real auth service API
 
-// API Configuration
-const AUTH_API_BASE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8081';
-const AUTH_API_ENDPOINT = `${AUTH_API_BASE_URL}/api/v1/auth`;
+import { API_BASE_URL } from './api';
+
+let userData = null;
+const userDataUpdateCallbacks = [];
+
+// Use API Gateway for all authentication requests in production
+const AUTH_API_ENDPOINT = `${import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080'}/api/v1/auth`;
 
 // Helper function to make API calls
 const makeAuthRequest = async (endpoint, options = {}) => {
-  const url = `${AUTH_API_ENDPOINT}${endpoint}`;
+  const url = `${API_BASE_URL}/auth${endpoint}`;
   
   const defaultOptions = {
     method: 'GET',
@@ -31,6 +35,26 @@ const makeAuthRequest = async (endpoint, options = {}) => {
     console.error('Auth API request failed:', error);
     throw error;
   }
+};
+
+// Helper to process and store successful auth responses
+const handleAuthSuccess = (response) => {
+  const { accessToken, refreshToken, userInfo } = response;
+  
+  const userData = {
+    id: userInfo.userId,
+    firstName: userInfo.firstName,
+    lastName: userInfo.lastName,
+    username: userInfo.username,
+    email: userInfo.email,
+    role: userInfo.role,
+  };
+
+  localStorage.setItem('authToken', accessToken);
+  localStorage.setItem('refreshToken', refreshToken);
+  localStorage.setItem('user', JSON.stringify(userData));
+
+  return { user: userData, token: accessToken };
 };
 
 // Get current user from localStorage or return null
@@ -77,12 +101,18 @@ export const signIn = async (emailOrUsername, password) => {
       lastName: userInfo.lastName,
       username: userInfo.username,
       email: userInfo.email,
-      role: userInfo.role
+      role: userInfo.role,
+      balance: userInfo.balance,
+      labsSolved: userInfo.labsSolved,
+      labsReviewed: userInfo.labsReviewed,
     };
     
     localStorage.setItem('authToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('user', JSON.stringify(userData));
+    
+    // Immediately notify all components about the user data update
+    notifyUserDataUpdate();
     
     return { user: userData, token: accessToken };
   } catch (error) {
@@ -108,8 +138,7 @@ export const signUp = async (userData) => {
         lastName,
         username,
         email,
-        password,
-        role: 'ROLE_USER' // Default role
+        password
       })
     });
     
@@ -122,12 +151,18 @@ export const signUp = async (userData) => {
       lastName: userInfo.lastName,
       username: userInfo.username,
       email: userInfo.email,
-      role: userInfo.role
+      role: userInfo.role,
+      balance: userInfo.balance,
+      labsSolved: userInfo.labsSolved,
+      labsReviewed: userInfo.labsReviewed,
     };
     
     localStorage.setItem('authToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('user', JSON.stringify(userDataToStore));
+    
+    // Immediately notify all components about the user data update
+    notifyUserDataUpdate();
     
     return { user: userDataToStore, token: accessToken };
   } catch (error) {
@@ -152,7 +187,7 @@ export const signOut = async () => {
       });
     }
   } catch (error) {
-    console.error('Logout API call failed:', error);
+    console.error('Logout API call failed, proceeding with local cleanup:', error);
     // Continue with local logout even if API call fails
   } finally {
     // Stop token refresh
@@ -162,7 +197,48 @@ export const signOut = async () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
+    
+    // Immediately notify all components about the user data update
+    notifyUserDataUpdate();
   }
+};
+
+// ---
+// Event-based mechanism for components to listen for user data changes
+// ---
+
+// Rate limiting for user data updates
+let lastUpdateTime = 0;
+const UPDATE_THROTTLE_MS = 200; // Minimum 200ms between updates
+
+// Function to dispatch a custom event when user data is updated
+export const notifyUserDataUpdate = () => {
+  const now = Date.now();
+  if (now - lastUpdateTime < UPDATE_THROTTLE_MS) {
+    // Skip this update if it's too soon after the last one
+    console.log('User data update throttled - too soon after last update');
+    return;
+  }
+  
+  lastUpdateTime = now;
+  console.log('Dispatching userDataUpdated event at:', new Date().toISOString());
+  const event = new Event('userDataUpdated');
+  window.dispatchEvent(event);
+};
+
+// Helper for components to subscribe to user data updates
+export const setupAuthEventListeners = (callback) => {
+  const handleUpdate = () => {
+    const user = getCurrentUser();
+    callback(user);
+  };
+
+  window.addEventListener('userDataUpdated', handleUpdate);
+
+  // Return a cleanup function
+  return () => {
+    window.removeEventListener('userDataUpdated', handleUpdate);
+  };
 };
 
 // Refresh token
@@ -197,15 +273,31 @@ export const refreshToken = async () => {
         lastName: userInfo.lastName,
         username: userInfo.username,
         email: userInfo.email,
-        role: userInfo.role
+        role: userInfo.role,
+        balance: userInfo.balance,
+        labsSolved: userInfo.labsSolved,
+        labsReviewed: userInfo.labsReviewed,
       };
+      
+      // Check if user data actually changed before notifying
+      const currentUser = getCurrentUser();
+      const hasChanged = !currentUser || 
+        currentUser.balance !== userData.balance ||
+        currentUser.labsSolved !== userData.labsSolved ||
+        currentUser.labsReviewed !== userData.labsReviewed;
+      
       localStorage.setItem('user', JSON.stringify(userData));
+      
+      // Only notify if user data actually changed
+      if (hasChanged) {
+        notifyUserDataUpdate();
+      }
     }
     
     return accessToken;
   } catch (error) {
     console.error('Token refresh failed:', error);
-    // Clear invalid tokens
+    // Clear invalid tokens if refresh fails
     signOut();
     throw error;
   }
@@ -214,95 +306,81 @@ export const refreshToken = async () => {
 // Update user profile
 export const updateProfile = async (updatedData) => {
   try {
-    const authToken = localStorage.getItem('authToken');
+    const response = await authAPI.updateProfile(updatedData);
     
-    if (!authToken) {
-      throw new Error('No authentication token available');
+    // Assuming the API returns the full updated user object
+    const { userInfo } = response;
+    
+    if (userInfo) {
+      const updatedUser = {
+        id: userInfo.userId,
+        firstName: userInfo.firstName,
+        lastName: userInfo.lastName,
+        username: userInfo.username,
+        email: userInfo.email,
+        role: userInfo.role,
+      };
+      
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      notifyUserDataUpdate(); // Notify components of the change
     }
     
-    // Get current profile first
-    const profileResponse = await makeAuthRequest('/profile', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json',
-      }
-    });
-    
-    // Update user data locally (profile update via users service would be through API Gateway)
-    const currentUser = getCurrentUser();
-    const updatedUser = { ...currentUser, ...updatedData };
-    
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    
-    return updatedUser;
+    return response;
   } catch (error) {
     console.error('Update profile error:', error);
     throw error;
   }
 };
 
-// Change password
+// Change user password
 export const changePassword = async (currentPassword, newPassword) => {
   try {
-    const authToken = localStorage.getItem('authToken');
-    
-    if (!authToken) {
-      throw new Error('No authentication token available');
-    }
-    
-    await makeAuthRequest('/change-password', {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        currentPassword,
-        newPassword
-      })
-    });
-    
-    return { success: true, message: 'Password changed successfully' };
+    const response = await authAPI.changePassword({ currentPassword, newPassword });
+    return response;
   } catch (error) {
     console.error('Change password error:', error);
     throw error;
   }
 };
 
-// Get user profile from auth service
+// Fetch user profile from the server and update local storage
 export const getUserProfile = async () => {
   try {
-    const authToken = localStorage.getItem('authToken');
-    
-    if (!authToken) {
-      throw new Error('No authentication token available');
+    // Note: /api/v1/auth/profile endpoint doesn't exist in current API
+    // For now, return cached user data from localStorage
+    const cachedUser = getCurrentUser();
+    if (cachedUser) {
+      return cachedUser;
     }
     
-    const response = await makeAuthRequest('/profile', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json',
-      }
-    });
-    
-    const userData = {
-      id: response.userInfo.userId,
-      firstName: response.userInfo.firstName,
-      lastName: response.userInfo.lastName,
-      username: response.userInfo.username,
-      email: response.userInfo.email,
-      role: response.userInfo.role
-    };
-    
-    // Update local storage with fresh data
-    localStorage.setItem('user', JSON.stringify(userData));
-    
-    return userData;
+    // If no cached data, try the API call (will likely fail until backend implements this)
+    const response = await authAPI.getProfile();
+    const { userInfo } = response;
+
+    if (userInfo) {
+      const userData = {
+        id: userInfo.userId,
+        firstName: userInfo.firstName,
+        lastName: userInfo.lastName,
+        username: userInfo.username,
+        email: userInfo.email,
+        role: userInfo.role,
+        balance: userInfo.balance,
+        labsSolved: userInfo.labsSolved,
+        labsReviewed: userInfo.labsReviewed,
+      };
+
+      // Update local storage
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      return userData;
+    }
+    return null;
   } catch (error) {
-    console.error('Get profile error:', error);
-    throw error;
+    console.warn('Get user profile API not available, using cached data:', error);
+    // Return cached user data instead of failing
+    const cachedUser = getCurrentUser();
+    return cachedUser;
   }
 };
 
@@ -367,3 +445,13 @@ export const stopTokenRefresh = () => {
     refreshInterval = null;
   }
 }; 
+
+// Helper function to handle user data updates across tabs
+function handleCrossTabUpdate(event) {
+  if (event.key === 'user' || event.key === 'isAuthenticated') {
+    window.dispatchEvent(new CustomEvent('userDataUpdated'));
+  }
+}
+
+// Listen for storage changes in other tabs
+window.addEventListener('storage', handleCrossTabUpdate);

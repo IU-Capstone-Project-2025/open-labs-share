@@ -1,42 +1,46 @@
-FROM python:3.11-slim
+# --- Builder Stage ---
+FROM pytorch/pytorch:2.7.1-cuda12.6-cudnn9-runtime AS builder
 
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy ML service requirements
-COPY ml/rag_backend/requirements.txt /app/requirements.txt
+# Install python dependencies with cache mount
+COPY ml/requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip pip install --no-cache-dir -r requirements.txt -t /app/deps
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# --- Final Stage ---
+FROM pytorch/pytorch:2.7.1-cuda12.6-cudnn9-runtime
 
-# Copy the entire ml directory
-COPY ml/ /app/ml/
+# Create a non-root user
+RUN useradd --create-home appuser
+WORKDIR /home/appuser/app
 
-# Copy and make startup script executable
-COPY ml/startup.sh /app/startup.sh
-RUN chmod +x /app/startup.sh
+# Install runtime dependencies and netcat
+RUN apt-get update && apt-get install -y --no-install-recommends dos2unix curl netcat-openbsd && \
+    rm -rf /var/lib/apt/lists/*  
 
-# Create necessary directories
-RUN mkdir -p /app/models
+# Copy dependencies and application code with correct permissions
+COPY --from=builder --chown=appuser:appuser /app/deps /home/appuser/app/deps
+COPY --chown=appuser:appuser ml/ /home/appuser/app/ml/
+COPY --chown=appuser:appuser ml/startup.sh /home/appuser/app/startup.sh
 
-# Set working directory to ml for the service
-WORKDIR /app/ml
+# Set executable permissions
+RUN dos2unix /home/appuser/app/startup.sh && \
+    chmod +x /home/appuser/app/startup.sh
 
-# Expose the port
-EXPOSE 8081
+USER appuser
+WORKDIR /home/appuser/app/ml
 
-# Set environment variables
-ENV PYTHONPATH=/app/ml
+# Add deps to python path and bin to PATH
+ENV PYTHONPATH=/home/appuser/app/deps
+ENV PATH="/home/appuser/app/deps/bin:${PATH}"
 ENV DEVICE=cpu
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8081/docs || exit 1
+EXPOSE 8082
 
-# Run the startup script
-CMD ["/app/startup.sh"] 
+
+CMD ["/home/appuser/app/startup.sh"] 

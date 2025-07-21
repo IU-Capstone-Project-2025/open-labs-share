@@ -16,10 +16,10 @@ This service stores **ALL user information** including:
 
 The Users Service follows the principle of being the **single source of truth** for user data:
 
-- **Centralized Storage**: All user data is stored in one place
-- **gRPC-Only API**: No REST endpoints, only gRPC for internal service communication
-- **Authentication Support**: Handles password hashing, validation, and user authentication
-- **Profile Management**: Complete user profile CRUD operations
+- All user data is stored in one place
+- No REST endpoints, only gRPC for internal service communication
+- Handles users credentials for calls from Auth Service
+- User profile CRUD operations
 
 ## 3. Database Schema
 
@@ -35,7 +35,10 @@ CREATE TABLE users (
     last_name VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL,
     created_at TIMESTAMP,
-    last_login_at TIMESTAMP
+    last_login_at TIMESTAMP,
+    labs_solved INTEGER DEFAULT 0,    -- Points system
+    labs_reviewed INTEGER DEFAULT 0,  -- Points system
+    balance INTEGER DEFAULT 10        -- Points system
 );
 ```
 
@@ -46,9 +49,12 @@ CREATE TABLE users (
 - **email**: Unique email address for login and communication
 - **password**: Bcrypt-hashed password
 - **first_name/last_name**: User's personal information
-- **role**: User role (ROLE_USER, ROLE_ADMIN, etc.)
+- **role**: User role
 - **created_at**: Account creation timestamp
 - **last_login_at**: Last successful login timestamp
+- **labs_solved**: Number of lab assignments completed by the user (points system)
+- **labs_reviewed**: Number of lab assignments reviewed by the user (points system)
+- **balance**: Current point balance available for solving new labs (points system)
 
 ## 4. gRPC API
 
@@ -60,6 +66,7 @@ CREATE TABLE users (
 - `GetUserProfile`: Get complete user profile by ID
 - `UpdateUserProfile`: Update user profile information
 - `DeleteUser`: Delete a user account
+- `GetUsersCount`: Get total count of users in the system
 
 ### Authentication Support
 
@@ -74,6 +81,11 @@ CREATE TABLE users (
 - `SearchUsers`: Search users by query (username or name)
 - `CheckUsernameExists`: Check if username is available
 - `CheckEmailExists`: Check if email is available
+
+### Points System
+
+- `IncrementLabsSolved`: Increment labs solved counter and update balance
+- `IncrementLabsReviewed`: Increment labs reviewed counter and update balance
 
 ### System Support
 
@@ -91,6 +103,9 @@ message UserInfo {
   string last_name = 4;
   string role = 5;
   string email = 6;
+  int32 labs_solved = 7;
+  int32 labs_reviewed = 8;
+  int32 balance = 9;
 }
 
 message UserProfileResponse {
@@ -111,6 +126,19 @@ message AuthenticateUserRequest {
   string username = 1; // Can be username or email
   string password = 2;
   bool using_email = 3;
+}
+
+message IncrementLabsSolvedRequest {
+  int64 user_id = 1;
+}
+
+message IncrementLabsReviewedRequest {
+  int64 user_id = 1;
+}
+
+message OperationResponse {
+  bool success = 1;
+  string message = 2;
 }
 ```
 
@@ -136,38 +164,78 @@ service UsersService {
   rpc CheckUsernameExists (FindUserByUsernameRequest) returns (ExistsResponse) {}
   rpc CheckEmailExists (FindUserByEmailRequest) returns (ExistsResponse) {}
   
+  // Points System
+  rpc IncrementLabsSolved (IncrementLabsSolvedRequest) returns (OperationResponse) {}
+  rpc IncrementLabsReviewed (IncrementLabsReviewedRequest) returns (OperationResponse) {}
+  
   // System Support
   rpc GetUserInfo (GetUserInfoRequest) returns (UserInfoResponse) {}
   rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse) {}
+  rpc GetUsersCount (GetUsersCountRequest) returns (GetUsersCountResponse) {}
 }
 ```
 
-## 6. Integration with Auth Service
+## 6. Integration with Other Services
 
-The Users Service is the **primary dependency** of the Auth Service. All authentication and user operations are delegated to this service:
-
-### Authentication Flow
+### Auth Service Integration
 
 1. **User Registration**:
-   - Auth Service validates request
-   - Calls `CreateUser` to store user data
-   - Auth Service generates JWT tokens
+   - Auth Service validates request data
+   - Calls `CreateUser` to store user data with initial balance
+   - Auth Service generates JWT tokens upon successful creation
 
 2. **User Login**:
    - Auth Service calls `AuthenticateUser` with credentials
    - Users Service validates password and returns user data
-   - Auth Service calls `UpdateUserLastLogin`
-   - Auth Service generates JWT tokens
+   - Auth Service calls `UpdateUserLastLogin` to track login time
+   - Auth Service generates JWT tokens with user information
 
 3. **Token Validation**:
    - Auth Service validates JWT cryptographically
-   - Optionally calls `GetUserInfo` for fresh user data
+   - Optionally calls `GetUserInfo` for fresh user data during token validation
 
 4. **Password Management**:
    - Auth Service calls `UpdatePassword` for password changes
-   - Users Service handles password hashing and validation
+   - Users Service handles bcrypt password hashing and validation
 
-### gRPC Client Configuration (Auth Service)
+5. **User Profile Management**:
+   - Auth Service calls `UpdateUserProfile` for profile updates
+   - Auth Service calls `SearchUsers` for user discovery
+   - Auth Service calls `CheckUsernameExists` and `CheckEmailExists` for validation
+
+### API Gateway Integration
+
+1. **User Data Retrieval**:
+   - API Gateway calls `GetUserInfo` to fetch user details for labs, articles, and submissions
+   - Used to populate author information and user profiles in responses
+
+2. **Points System Operations**:
+   - API Gateway calls `IncrementLabsSolved` when users complete lab assignments
+   - API Gateway calls `IncrementLabsReviewed` when users review lab submissions
+   - All operations are atomic and handle insufficient balance scenarios
+
+### Marimo Service Integration
+
+1. **User Validation**:
+   - Marimo Manager Service calls `GetUserProfile` to validate component ownership
+   - Ensures only existing users can create and access marimo components
+   - Validates user permissions for session management
+
+### Labs Service Integration
+
+1. **Points System**:
+   - Labs Service directly calls `IncrementLabsSolved` when users submit completed labs
+   - Labs Service calls `IncrementLabsReviewed` when users provide feedback on labs
+   - All point operations follow the configured points system rules
+
+### Other Services Integration
+
+Services may also interact with users-service for:
+- **User existence validation** during content creation
+- **Owner verification** for resource access control
+- **User profile data** for displaying author information
+
+### gRPC Client Configuration
 
 ```yaml
 grpc:
@@ -176,16 +244,62 @@ grpc:
     port: ${USERS_SERVICE_PORT:9093}
 ```
 
-## 7. Configuration
+## 7. Points System
+
+### Overview
+
+- **Initial Balance**: New users start with 10 points (configurable via `INITIAL_BALANCE`)
+- **Solving Labs**: Costs 1 points per lab assignment (configurable via `POINTS_BASE_COST`)
+- **Reviewing Labs**: Earns 3 points per lab reviewed (configurable via `POINTS_BASE_COST` * `POINTS_MULTIPLIER_REVIEW`)
+- **Balance Validation**: Users cannot solve labs if their balance is insufficient
+
+### Points Configuration
+
+| Variable                    | Description                           | Default |
+|-----------------------------|---------------------------------------|---------|
+| INITIAL_BALANCE             | Starting points for new users         | 10      |
+| POINTS_BASE_COST            | Points deducted when solving labs     | 1       |
+| POINTS_MULTIPLIER_REVIEW    | Multiplier for points earned reviewing| 3       |
+
+### Points Operations
+
+#### IncrementLabsSolved
+- **Purpose**: Called when a user completes a lab assignment
+- **Business Logic**: 
+  - Validates user has sufficient balance (>= solve cost)
+  - Increments `labs_solved` counter
+  - Deducts points from user balance (solve_cost)
+  - Operation is atomic and transactional
+- **Error Cases**: Returns `INSUFFICIENT_BALANCE` if user cannot afford the lab
+
+#### IncrementLabsReviewed
+- **Purpose**: Called when a user reviews a lab assignment
+- **Business Logic**:
+  - Increments `labs_reviewed` counter
+  - Adds points to user balance (solve_cost × review_multiplier)
+  - Operation is atomic and transactional
+- **Error Cases**: None (reviewing always succeeds)
+
+### Integration with Labs Service
+
+The points system is designed to integrate with the labs-service:
+- Labs-service calls `IncrementLabsSolved` when users submit labs
+- Labs-service calls `IncrementLabsReviewed` when users complete reviews
+- All user profile responses include current points data
+
+## 8. Configuration
 
 ### Environment Variables
 
-| Variable             | Description                      | Default                                          |
-|----------------------|----------------------------------|--------------------------------------------------|
-| DB_URL               | JDBC URL for PostgreSQL database | jdbc:postgresql://localhost:5432/users_service   |
-| DB_USERNAME          | Database username                | postgres                                         |
-| DB_PASSWORD          | Database password                | postgres                                         |
-| GRPC_PORT            | gRPC server port                 | 9093                                             |
-| HIBERNATE_DDL_AUTO   | Hibernate DDL auto mode          | update                                           |
-| SHOW_SQL             | Show SQL queries in logs         | false                                            |
-| LOG_LEVEL            | Application log level            | INFO                                             |
+| Variable                    | Description                           | Default                                          |
+|-----------------------------|---------------------------------------|--------------------------------------------------|
+| DB_URL                      | JDBC URL for PostgreSQL database     | jdbc:postgresql://localhost:5432/users_service   |
+| DB_USERNAME                 | Database username                     | postgres                                         |
+| DB_PASSWORD                 | Database password                     | postgres                                         |
+| GRPC_PORT                   | gRPC server port                      | 9093                                             |
+| HIBERNATE_DDL_AUTO          | Hibernate DDL auto mode               | validate                                         |
+| SHOW_SQL                    | Show SQL queries in logs              | false                                            |
+| LOG_LEVEL                   | Application log level                 | INFO                                             |
+| INITIAL_BALANCE             | Starting points for new users         | 10                                               |
+| POINTS_BASE_COST            | Points deducted when solving labs     | 1                                                |
+| POINTS_MULTIPLIER_REVIEW    | Multiplier for points earned reviewing| 3                                                |

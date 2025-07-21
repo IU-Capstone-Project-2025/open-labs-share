@@ -37,21 +37,47 @@ public class CommentController {
             @ApiResponse(responseCode = "400", description = "Invalid input"),
             @ApiResponse(responseCode = "404", description = "Lab not found")
     })
-    public ResponseEntity<CommentResponse> createComment(
+    public ResponseEntity<CommentResponse> createCommentLab(
             @Parameter(description = "ID of the lab to comment on", required = true) @PathVariable long labId,
-            @Valid @RequestBody CreateCommentRequest request,
+            @Valid @RequestBody @Parameter(description = "Request to create comment") CreateCommentRequest request,
             HttpServletRequest httpRequest) {
         long userId = attributesExtractor.extractUserIdFromRequest(httpRequest);
-        CommentResponse response = commentService.createComment(labId, userId, request);
+        CommentResponse response = commentService.createComment(labId, userId, request, "lab");
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/labs/{labId}/comments")
     @Operation(summary = "List comments for a lab", description = "Retrieves a paginated list of top-level comments for a specific lab.")
-    public ResponseEntity<CommentListResponse> getLabComments(
+    public ResponseEntity<CommentListResponse> getLabCommentsLab(
             @Parameter(description = "ID of the lab", required = true) @PathVariable long labId,
             @Valid @ParameterObject GetCommentsRequest request) {
-        CommentListResponse response = commentService.getLabComments(labId, request);
+        CommentListResponse response = commentService.getLabComments(labId, request, "lab");
+        return ResponseEntity.ok(response);
+    }
+
+    @RequireAuth
+    @PostMapping("/articles/{articleId}/comments")
+    @Operation(summary = "Create a comment on a article", description = "Creates a new top-level comment or a reply to an existing comment.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Comment created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid input"),
+            @ApiResponse(responseCode = "404", description = "Lab not found")
+    })
+    public ResponseEntity<CommentResponse> createCommentArticle(
+            @Parameter(description = "ID of the article to comment on", required = true) @PathVariable("articleId") long articleId,
+            @Valid @RequestBody @Parameter(description = "Request to create comment") CreateCommentRequest request,
+            HttpServletRequest httpRequest) {
+        long userId = attributesExtractor.extractUserIdFromRequest(httpRequest);
+        CommentResponse response = commentService.createComment(articleId, userId, request, "article");
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/articles/{articleId}/comments")
+    @Operation(summary = "List comments for a article", description = "Retrieves a paginated list of top-level comments for a specific article.")
+    public ResponseEntity<CommentListResponse> getLabCommentsArticle(
+            @Parameter(description = "ID of the article", required = true) @PathVariable("articleId") long articleId,
+            @Valid @ParameterObject GetCommentsRequest request) {
+        CommentListResponse response = commentService.getLabComments(articleId, request, "article");
         return ResponseEntity.ok(response);
     }
 
@@ -97,11 +123,11 @@ public class CommentController {
             @ApiResponse(responseCode = "403", description = "Forbidden - User does not own this comment"),
             @ApiResponse(responseCode = "404", description = "Comment not found")
     })
-    public ResponseEntity<Void> deleteComment(
+    public ResponseEntity<Boolean> deleteComment(
             @Parameter(description = "ID of the comment to delete", required = true) @PathVariable String commentId,
             HttpServletRequest httpRequest) {
         long userId = attributesExtractor.extractUserIdFromRequest(httpRequest);
-        commentService.deleteComment(commentId, userId);
-        return ResponseEntity.noContent().build();
+        boolean success = commentService.deleteComment(commentId, userId);
+        return ResponseEntity.status(success ? HttpStatus.OK : HttpStatus.NOT_FOUND).body(success);
     }
 } 

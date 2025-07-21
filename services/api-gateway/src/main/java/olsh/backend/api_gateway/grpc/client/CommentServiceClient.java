@@ -4,151 +4,133 @@ import com.google.protobuf.Timestamp;
 import io.grpc.Channel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import lombok.RequiredArgsConstructor;
-import olsh.backend.api_gateway.dto.request.CreateCommentRequest;
-import olsh.backend.api_gateway.dto.request.GetCommentsRequest;
-import olsh.backend.api_gateway.dto.request.UpdateCommentRequest;
-import olsh.backend.api_gateway.dto.response.CommentListResponse;
-import olsh.backend.api_gateway.dto.response.CommentResponse;
+import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.exception.CommentNotFoundException;
-import olsh.backend.api_gateway.grpc.proto.FeedbackServiceGrpc;
-import olsh.backend.api_gateway.grpc.proto.FeedbackProto;
+import olsh.backend.api_gateway.grpc.proto.CommentServiceGrpc;
+import olsh.backend.api_gateway.grpc.proto.CommentProto.*;
 import org.springframework.grpc.client.GrpcChannelFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.Optional;
 
+@Slf4j
 @Service
 public class CommentServiceClient {
 
-    private final FeedbackServiceGrpc.FeedbackServiceBlockingStub feedbackServiceStub;
+    private final CommentServiceGrpc.CommentServiceBlockingStub commentBlockingStub;
 
     public CommentServiceClient(GrpcChannelFactory channelFactory) {
         Channel channel = channelFactory.createChannel("feedback-service");
-        this.feedbackServiceStub = FeedbackServiceGrpc.newBlockingStub(channel);
+        this.commentBlockingStub = CommentServiceGrpc.newBlockingStub(channel);
     }
 
-    public CommentResponse createComment(long labId, long userId, CreateCommentRequest request) {
-        FeedbackProto.CreateCommentRequest.Builder grpcRequestBuilder = FeedbackProto.CreateCommentRequest.newBuilder()
-                .setLabId(labId)
-                .setUserId(userId)
-                .setContent(request.getContent());
-
-        Optional.ofNullable(request.getParentId()).ifPresent(grpcRequestBuilder::setParentId);
-        FeedbackProto.LabComment grpcResponse;
+    /**
+     * Creates a new comment for a specific content item.
+     *
+     * @param request Contains content ID, user ID, and comment text
+     * @return Created Comment object with all details
+     */
+    public Comment createComment(CreateCommentRequest request) {
         try {
-            grpcResponse = feedbackServiceStub.createComment(grpcRequestBuilder.build());
+            log.debug("Creating comment for content ID: {} by user ID: {}", request.getContentId(),
+                    request.getUserId());
+            Comment comment = commentBlockingStub.createComment(request);
+            log.debug("Comment created with ID: {}", comment.getId());
+            return comment;
         } catch (StatusRuntimeException e) {
             if (e.getStatus().getCode() == Status.Code.INVALID_ARGUMENT) {
-                // Translate to a 400 Bad Request. You might create a custom exception for this.
-                // For now, re-throwing a generic exception is an option.
                 throw new IllegalArgumentException(e.getStatus().getDescription());
             } else {
                 // For UNAVAILABLE, INTERNAL, or other unexpected errors, throw a generic 500-level exception.
                 throw new RuntimeException("gRPC call to feedback-service failed", e);
             }
         }
-
-        return mapLabCommentToResponse(grpcResponse);
     }
 
-    public CommentResponse getCommentById(String commentId) {
-        FeedbackProto.GetCommentRequest request = FeedbackProto.GetCommentRequest.newBuilder()
-                .setId(commentId)
-                .build();
-        
-        FeedbackProto.LabComment grpcResponse;
+    /**
+     * Retrieves a comment by its ID.
+     *
+     * @param request Contains the ID of the comment to retrieve
+     * @return Comment object with all details
+     * @throws CommentNotFoundException if the comment does not exist
+     */
+    public Comment getCommentById(GetCommentRequest request) {
         try {
-            grpcResponse = feedbackServiceStub.getComment(request);
+            log.debug("Fetching comment with ID: {}", request.getId());
+            Comment grpcResponse = commentBlockingStub.getComment(request);
+            log.debug("Comment fetched successfully: {}", grpcResponse);
+            return grpcResponse;
         } catch (StatusRuntimeException e) {
             if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-                throw new CommentNotFoundException("Comment with id " + commentId + " not found");
+                throw new CommentNotFoundException("Comment with id " + request.getId() + " not found");
             } else {
                 // For UNAVAILABLE, INTERNAL, or other unexpected errors
                 throw new RuntimeException("gRPC call to feedback-service failed while getting comment", e);
             }
         }
-
-        return mapLabCommentToResponse(grpcResponse);
     }
 
-    public CommentListResponse getLabComments(long labId, GetCommentsRequest request) {
-        FeedbackProto.ListLabCommentsRequest grpcRequest = FeedbackProto.ListLabCommentsRequest.newBuilder()
-                .setLabId(labId)
-                .setPage(request.getPage())
-                .setLimit(request.getLimit())
-                .build();
-
-        FeedbackProto.ListLabCommentsResponse grpcResponse;
+    /**
+     * Lists comments for a specific content item with pagination.
+     *
+     * @param request Contains content ID, page number, and limit
+     * @return ListCommentsResponse containing comments and total count
+     */
+    public ListCommentsResponse getComments(ListCommentsRequest request) {
         try {
-            grpcResponse = feedbackServiceStub.listLabComments(grpcRequest);
+            log.debug("Listing comments for content ID: {} on page: {}, limit: {}", request.getContentId(),
+                    request.getPage(), request.getLimit());
+            ListCommentsResponse response = commentBlockingStub.listComments(request);
+            log.debug("Comments listed successfully, total count: {}", response.getTotalCount());
+            return response;
         } catch (StatusRuntimeException e) {
             // For UNAVAILABLE, INTERNAL, or other unexpected errors
             throw new RuntimeException("gRPC call to feedback-service failed while listing lab comments", e);
         }
-
-        return CommentListResponse.builder()
-                .comments(grpcResponse.getCommentsList().stream()
-                        .map(this::mapLabCommentToResponse)
-                        .toList())
-                .pagination(
-                        CommentListResponse.PaginationResponse.builder()
-                                .currentPage(grpcResponse.getTotalCount() > 0 ? request.getPage() : 0)
-                                .totalItems(grpcResponse.getTotalCount())
-                                .totalPages((int) Math.ceil((double) grpcResponse.getTotalCount() / request.getLimit()))
-                                .build()
-                )
-                .build();
     }
 
-    public CommentListResponse getCommentReplies(String commentId, GetCommentsRequest request) {
-        FeedbackProto.GetCommentRepliesRequest grpcRequest = FeedbackProto.GetCommentRepliesRequest.newBuilder()
-                .setCommentId(commentId)
-                .setPage(request.getPage())
-                .setLimit(request.getLimit())
-                .build();
-
-        FeedbackProto.GetCommentRepliesResponse grpcResponse;
+    /**
+     * Lists replies for a specific comment with pagination.
+     *
+     * @param request Contains comment ID, page number, and limit
+     * @return GetCommentRepliesResponse containing replies and total count
+     * @throws CommentNotFoundException if the parent comment does not exist
+     */
+    public GetCommentRepliesResponse getCommentReplies(GetCommentRepliesRequest request) {
         try {
-            grpcResponse = feedbackServiceStub.getCommentReplies(grpcRequest);
+            log.debug("Listing replies for comment ID: {} on page: {}, limit: {}", request.getCommentId(),
+                    request.getPage(), request.getLimit());
+            GetCommentRepliesResponse response = commentBlockingStub.getCommentReplies(request);
+            log.debug("Replies listed successfully, total count: {}", response.getTotalCount());
+            return response;
         } catch (StatusRuntimeException e) {
             if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-                throw new CommentNotFoundException("Parent comment with id " + commentId + " not found");
+                throw new CommentNotFoundException("Parent comment with id " + request.getCommentId() + " not found");
             } else {
                 // For UNAVAILABLE, INTERNAL, or other unexpected errors
                 throw new RuntimeException("gRPC call to feedback-service failed while listing replies", e);
             }
         }
-
-        return CommentListResponse.builder()
-                .comments(grpcResponse.getCommentsList().stream()
-                        .map(this::mapLabCommentToResponse)
-                        .toList())
-                .pagination(
-                        CommentListResponse.PaginationResponse.builder()
-                                .currentPage(grpcResponse.getTotalCount() > 0 ? request.getPage() : 0)
-                                .totalItems(grpcResponse.getTotalCount())
-                                .totalPages((int) Math.ceil((double) grpcResponse.getTotalCount() / request.getLimit()))
-                                .build()
-                )
-                .build();
     }
 
-    public CommentResponse updateComment(String commentId, UpdateCommentRequest request) {
-        FeedbackProto.UpdateCommentRequest grpcRequest = FeedbackProto.UpdateCommentRequest.newBuilder()
-                .setId(commentId)
-                .setContent(request.getContent())
-                .build();
-
-        FeedbackProto.LabComment grpcResponse;
+    /**
+     * Updates an existing comment.
+     *
+     * @param request Contains the ID of the comment to update and new text
+     * @return Updated Comment object with all details
+     * @throws CommentNotFoundException if the comment does not exist
+     */
+    public Comment updateComment(UpdateCommentRequest request) {
         try {
-            grpcResponse = feedbackServiceStub.updateComment(grpcRequest);
+            log.debug("Updating comment with ID: {}", request.getId());
+            Comment response = commentBlockingStub.updateComment(request);
+            log.debug("Comment updated successfully: {}", response);
+            return response;
         } catch (StatusRuntimeException e) {
             if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-                throw new CommentNotFoundException("Comment with id " + commentId + " not found");
+                throw new CommentNotFoundException("Comment with id " + request.getId() + " not found");
             } else if (e.getStatus().getCode() == Status.Code.INVALID_ARGUMENT) {
                 throw new IllegalArgumentException(e.getStatus().getDescription());
             } else {
@@ -156,41 +138,31 @@ public class CommentServiceClient {
                 throw new RuntimeException("gRPC call to feedback-service failed while updating comment", e);
             }
         }
-        return mapLabCommentToResponse(grpcResponse);
     }
 
-    public void deleteComment(String commentId) {
-        FeedbackProto.DeleteCommentRequest grpcRequest = FeedbackProto.DeleteCommentRequest.newBuilder()
-                .setId(commentId)
-                .build();
-
+    /**
+     * Deletes a comment by its ID.
+     *
+     * @param request Contains the ID of the comment to delete
+     * @return true if deletion was successful, false otherwise
+     * @throws CommentNotFoundException if the comment does not exist
+     */
+    public boolean deleteComment(DeleteCommentRequest request) {
         try {
-            feedbackServiceStub.deleteComment(grpcRequest);
+            log.debug("Deleting comment with ID: {}", request.getId());
+            return commentBlockingStub.deleteComment(request).getSuccess();
         } catch (StatusRuntimeException e) {
             if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-                throw new CommentNotFoundException("Comment with id " + commentId + " not found");
+                throw new CommentNotFoundException("Comment with id " + request.getId() + " not found");
             } else {
                 // For UNAVAILABLE, INTERNAL, or other unexpected errors
+                log.error("Failed to delete comment with ID: {} due to gRPC error: {}", request.getId(), e.getStatus().getDescription());
                 throw new RuntimeException("gRPC call to feedback-service failed while deleting comment", e);
             }
+        } catch (NullPointerException e) {
+            log.error("Null pointer exception occurred while deleting comment with ID: {}", request.getId(), e);
+            throw new RuntimeException("Failed to delete comment due to null pointer exception", e);
         }
     }
 
-    private CommentResponse mapLabCommentToResponse(FeedbackProto.LabComment labComment) {
-        return CommentResponse.builder()
-                .id(labComment.getId())
-                .labId(labComment.getLabId())
-                .userId(labComment.getUserId())
-                .parentId(labComment.hasParentId() ? labComment.getParentId() : null)
-                .content(labComment.getContent())
-                .createdAt(formatTimestamp(labComment.getCreatedAt()))
-                .updatedAt(formatTimestamp(labComment.getUpdatedAt()))
-                .build();
-    }
-
-    private String formatTimestamp(Timestamp timestamp) {
-        return Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos())
-                .atOffset(ZoneOffset.UTC)
-                .format(DateTimeFormatter.ISO_INSTANT);
-    }
 } 

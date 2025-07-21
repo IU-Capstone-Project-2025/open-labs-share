@@ -1,393 +1,619 @@
-// API configuration and endpoints for Open Labs Share
-// This connects to the API Gateway which proxies requests to various microservices
 
-export const API_CONFIG = {
-  API_GATEWAY_URL: import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080',
-  API_GATEWAY_ENDPOINT: `${import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080'}/api/v1`,
-  // Direct ML service connection (bypasses API Gateway as per requirements)
-  ML_SERVICE_URL: import.meta.env.VITE_ML_SERVICE_URL || 'http://localhost:8083',
-  ENDPOINTS: {
-    // User endpoints (through API Gateway to Users Service)
-    USERS: '/users',
-    USER_BY_ID: (userId) => `/users/${userId}`,
-    
-    // Lab endpoints (through API Gateway to Labs Service)
-    LABS: '/labs',
-    LAB_BY_ID: (labId) => `/labs/${labId}`,
-    LAB_ASSETS: (labId) => `/labs/${labId}/assets`,
-    LAB_ASSET_DOWNLOAD: (labId, assetId) => `/labs/${labId}/assets/${assetId}/download`,
-    LAB_ASSET_UPLOAD: (labId) => `/labs/${labId}/assets/upload`,
-    
-    // Submission endpoints (through API Gateway to Labs Service)
-    SUBMISSIONS: '/submissions',
-    LAB_SUBMISSIONS: (labId) => `/labs/${labId}/submissions`,
-    SUBMISSION_BY_ID: (submissionId) => `/submissions/${submissionId}`,
-    SUBMISSION_ASSETS: (submissionId) => `/submissions/${submissionId}/assets`,
-    SUBMISSION_ASSET_DOWNLOAD: (submissionId, assetId) => `/submissions/${submissionId}/assets/${assetId}/download`,
-    SUBMISSION_ASSET_UPLOAD: (submissionId) => `/submissions/${submissionId}/assets/upload`,
-    
-    // ML Service endpoints (direct connection)
-    ML_ASK: '/ask',
-    ML_CHAT_HISTORY: '/get_chat_history',
-    
-    // Article endpoints (currently not connected as per requirements)
-    // ARTICLES: '/articles',
-    // ARTICLE_BY_ID: (articleId) => `/articles/${articleId}`,
-    
-    // Comments/Feedback endpoints (when feedback controller is implemented)
-    // COMMENTS: '/feedback/comments',
-    // LAB_COMMENTS: (labId) => `/feedback/comments/lab/${labId}`,
-    // ARTICLE_COMMENTS: (articleId) => `/feedback/comments/article/${articleId}`,
-  }
-};
+// In production, all API calls are sent to the same origin, and Nginx proxies them.
+// In development, we explicitly target the API gateway's exposed port.
+export const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL ? 
+                     `${import.meta.env.VITE_API_GATEWAY_URL}/api/v1` :
+                     'http://localhost:8080/api/v1';
+                     
+const ML_BASE_URL = import.meta.env.VITE_ML_ENDPOINT || 'http://localhost:8081';
 
-// Helper function to get authorization headers
-export const getAuthHeaders = () => {
+
+/**
+ * A unified function for making API calls to the backend gateway.
+ * It automatically handles authentication headers, content types, and error formatting.
+ * @param {string} path - The API endpoint path, e.g., '/users/1'.
+ * @param {object} options - Configuration for the fetch call (method, body, etc.).
+ * @returns {Promise<any>} - The JSON response from the API.
+ */
+const apiCall = async (path, options = {}) => {
+  const url = `${API_BASE_URL}${path}`;
   const token = localStorage.getItem('authToken');
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  };
-};
 
-// API call wrapper with error handling
-export const apiCall = async (endpoint, options = {}) => {
-  const url = `${API_CONFIG.API_GATEWAY_ENDPOINT}${endpoint}`;
+  const headers = {
+    ...options.headers,
+  };
+
+  // Add auth token if it exists
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
   
+  const isFormData = options.body instanceof FormData;
+
+  // Don't set Content-Type for FormData, the browser does it best.
+  // For other requests, default to application/json.
+  if (!isFormData && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   try {
-    const response = await fetch(url, {
-      headers: getAuthHeaders(),
-      ...options,
-    });
+    const response = await fetch(url, { ...options, headers });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('API error data:', errorData);
-      throw new Error(errorData.message || `API call failed: ${response.status} ${response.statusText}`);
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        const textResponse = await response.text();
+        // Give up on providing a detailed error message if the response is too long
+        const shortText = textResponse.length > 500 ? textResponse.substring(0, 500) + '...' : textResponse;
+        errorData = { 
+          message: `API call failed with status ${response.status}. Server response: ${shortText}` 
+        };
+      }
+      // Throw the full error object, not just a string
+      const error = new Error(errorData.message || `API error: ${response.statusText}`);
+      error.data = errorData;
+      error.status = response.status;
+      throw error;
     }
 
-    return await response.json();
+    // Handle responses that might not have a JSON body
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    }
+    // For file downloads or other non-json responses
+    return response;
   } catch (error) {
-    console.error('API call error:', error);
+    console.error(`API call to "${url}" failed:`, error);
     throw error;
   }
 };
 
-// User API functions
-export const usersAPI = {
-  // Get user by ID
-  getUserById: async (userId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.USER_BY_ID(userId));
-  },
-
-  // Get all users with pagination
-  getAllUsers: async (page = 1, limit = 20) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.USERS}?page=${page}&limit=${limit}`);
-  },
-
-  // Update user
-  updateUser: async (userId, userData) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.USER_BY_ID(userId), {
-      method: 'PUT',
-      body: JSON.stringify(userData),
-    });
-  },
-
-  // Delete user
-  deleteUser: async (userId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.USER_BY_ID(userId), {
-      method: 'DELETE',
-    });
-  },
-
-  // Get current user's labs
-  getUserLabs: async (userId, page = 1, limit = 20) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.USERS}/${userId}/labs?page=${page}&limit=${limit}`);
-  },
-
-  // Get current user's articles (when articles service is connected)
-  getUserArticles: async (userId, page = 1, limit = 20) => {
-    // TODO: Implement when articles service is connected
-    throw new Error('Articles service not yet connected');
-  },
-};
-
-// Labs API functions
-export const labsAPI = {
-  // Get all labs with pagination
-  getLabs: async (page = 1, limit = 20) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.LABS}?page=${page}&limit=${limit}`);
-  },
-
-  // Get current user's labs
-  getMyLabs: async (page = 1, limit = 20) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.LABS}/my?page=${page}&limit=${limit}`);
-  },
-
-  // Get lab by ID
-  getLabById: async (labId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.LAB_BY_ID(labId));
-  },
-
-  // Create a new lab with file upload
-  createLab: async (labData) => {
-    const formData = new FormData();
-    formData.append('title', labData.title);
-    formData.append('short_desc', labData.short_desc);
-    formData.append('md_file', labData.md_file);
-    
-    // Add optional asset files
-    if (labData.assets && labData.assets.length > 0) {
-      for (const asset of labData.assets) {
-        formData.append('assets', asset);
-      }
-    }
-    
+/**
+ * A dedicated function for making API calls directly to the Auth service.
+ * This is necessary because the Auth service is not exposed via the API Gateway.
+ */
+const authApiCall = async (path, options = {}) => {
+    const url = `${API_BASE_URL}/auth${path}`;
     const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.LABS}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Lab creation failed: ${response.status} ${response.statusText}`);
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+    };
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
     }
 
-    return await response.json();
-  },
-
-  // Update lab
-  updateLab: async (labId, labData) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.LAB_BY_ID(labId), {
-      method: 'PUT',
-      body: JSON.stringify(labData),
-    });
-  },
-
-  // Delete lab
-  deleteLab: async (labId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.LAB_BY_ID(labId), {
-      method: 'DELETE',
-    });
-  },
-
-  // Get lab assets
-  getLabAssets: async (labId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.LAB_ASSETS(labId));
-  },
-
-  // Upload lab asset
-  uploadLabAsset: async (labId, file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.LAB_ASSET_UPLOAD(labId)}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Upload failed: ${response.status} ${response.statusText}`);
-    }
-
-    return await response.json();
-  },
-
-  // Download lab asset
-  downloadLabAsset: async (labId, assetId) => {
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.LAB_ASSET_DOWNLOAD(labId, assetId)}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Download failed: ${response.status} ${response.statusText}`);
-    }
-
-    return response.blob();
-  },
-};
-
-// Submissions API functions
-export const submissionsAPI = {
-  // Get all submissions with pagination
-  getAllSubmissions: async (page = 1, limit = 100) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.SUBMISSIONS}?page=${page}&limit=${limit}`);
-  },
-
-  // Get submissions for a lab
-  getLabSubmissions: async (labId, page = 1, limit = 20) => {
-    return await apiCall(`${API_CONFIG.ENDPOINTS.LAB_SUBMISSIONS(labId)}?page=${page}&limit=${limit}`);
-  },
-
-  // Get submission by ID
-  getSubmissionById: async (submissionId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_BY_ID(submissionId));
-  },
-
-  // Create a new submission
-  createSubmission: async (submissionData) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSIONS, {
-      method: 'POST',
-      body: JSON.stringify(submissionData),
-    });
-  },
-
-  // Update submission
-  updateSubmission: async (submissionId, submissionData) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_BY_ID(submissionId), {
-      method: 'PUT',
-      body: JSON.stringify(submissionData),
-    });
-  },
-
-  // Delete submission
-  deleteSubmission: async (submissionId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_BY_ID(submissionId), {
-      method: 'DELETE',
-    });
-  },
-
-  // Get submission assets
-  getSubmissionAssets: async (submissionId) => {
-    return await apiCall(API_CONFIG.ENDPOINTS.SUBMISSION_ASSETS(submissionId));
-  },
-
-  // Upload submission asset
-  uploadSubmissionAsset: async (submissionId, file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.SUBMISSION_ASSET_UPLOAD(submissionId)}`, {
-        method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Upload failed: ${response.status} ${response.statusText}`);
-    }
-
-    return await response.json();
-  },
-
-  // Download submission asset
-  downloadSubmissionAsset: async (submissionId, assetId) => {
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_CONFIG.API_GATEWAY_ENDPOINT}${API_CONFIG.ENDPOINTS.SUBMISSION_ASSET_DOWNLOAD(submissionId, assetId)}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Download failed: ${response.status} ${response.statusText}`);
-    }
-
-    return response.blob();
-  },
-
-  // Submit a file for a lab (creates submission and uploads file)
-  submitLabFile: async (labId, userId, file) => {
     try {
-      // First create a submission
-      const submissionData = {
-        lab_id: parseInt(labId),
-        owner_id: userId,
-        status: 'submitted'
-      };
-      
-      const submissionResponse = await submissionsAPI.createSubmission(submissionData);
-      const submissionId = submissionResponse.id || submissionResponse.data?.id;
-      
-      if (!submissionId) {
-        throw new Error('Failed to create submission');
-      }
+        const response = await fetch(url, { ...options, headers });
 
-      // Then upload the file as an asset to the submission
-      const uploadResponse = await submissionsAPI.uploadSubmissionAsset(submissionId, file);
-      
-      return {
-        submission: submissionResponse,
-        upload: uploadResponse
-      };
-    } catch (error) {
-      console.error('Error in submitLabFile:', error);
-      throw error;
-    }
-  },
-};
-
-// ML Service API functions (direct connection to FastAPI)
-export const mlAPI = {
-  // Send question to AI assistant
-  ask: async (uuid, assignmentId, content) => {
-    const url = `${API_CONFIG.ML_SERVICE_URL}${API_CONFIG.ENDPOINTS.ML_ASK}`;
-    
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          uuid: String(uuid),
-          assignment_id: String(assignmentId),
-          content: content
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `ML service error: ${response.status} ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('ML API ask error:', error);
-      throw error;
-    }
-  },
-
-  // Get chat history for user and assignment
-  getChatHistory: async (uuid, assignmentId) => {
-    const url = `${API_CONFIG.ML_SERVICE_URL}${API_CONFIG.ENDPOINTS.ML_CHAT_HISTORY}?uuid=${String(uuid)}&assignment_id=${String(assignmentId)}`;
-    
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({
+                message: `Auth API call failed with status ${response.status}`,
+            }));
+            throw new Error(errorData.message || `Auth API error: ${response.statusText}`);
         }
-      });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `ML service error: ${response.status} ${response.statusText}`);
-      }
-
-      return await response.json();
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        }
+        return response;
     } catch (error) {
-      console.error('ML API chat history error:', error);
-      throw error;
+        console.error(`Auth API call to "${url}" failed:`, error);
+        throw error;
     }
+};
+
+// --- Auth API ---
+export const authAPI = {
+  login: (credentials) => authApiCall('/login', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  }),
+  register: (userData) => {
+    // Only send the fields that the backend SignUpRequest DTO expects
+    const { firstName, lastName, username, email, password } = userData;
+    return authApiCall('/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        firstName,
+        lastName,
+        username,
+        email,
+        password
+      }),
+    });
+  },
+  logout: () => authApiCall('/logout', { method: 'POST' }),
+  refreshToken: (tokenData) => authApiCall('/refresh', {
+    method: 'POST',
+    body: JSON.stringify(tokenData),
+  }),
+  getProfile: () => authApiCall('/profile'),
+  updateProfile: (profileData) => authApiCall('/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+  }),
+};
+
+// --- Users API ---
+export const usersAPI = {
+  getUserById: (userId) => apiCall(`/users/${userId}`),
+  getUserProfile: (userId) => apiCall(`/users/profile/${userId}`),
+
+};
+
+// --- Labs API ---
+export const labsAPI = {
+  getLabs: (page = 1, limit = 20, search = "", tags = "") => apiCall(`/labs?page=${page}&limit=${limit}&text=${encodeURIComponent(search)}&tags=${tags}`),
+  getMyLabs: (page = 1, limit = 20) => apiCall(`/labs/my?page=${page}&limit=${limit}`),
+  getLabById: (labId) => apiCall(`/labs/${labId}`),
+  createLab: (formData) => apiCall('/labs', {
+    method: 'POST',
+    body: formData, // FormData for multipart/form-data uploads
+  }),
+  updateLab: (labId, labData) => apiCall(`/labs/${labId}`, {
+    method: 'PUT',
+    body: JSON.stringify(labData),
+  }),
+  deleteLab: (labId) => apiCall(`/labs/${labId}`, { method: 'DELETE' }),
+  getLabAssets: (labId) => apiCall(`/labs/${labId}/assets`),
+  uploadLabAsset: (labId, formData) => apiCall(`/labs/${labId}/assets/upload`, {
+    method: 'POST',
+    body: formData,
+  }),
+  downloadLabAsset: (labId, assetId) => apiCall(`/labs/${labId}/assets/${assetId}/download`),
+  searchLabs: (query, page = 1, limit = 20, tags = '') => 
+    apiCall(`/labs?text=${encodeURIComponent(query)}&page=${page}&limit=${limit}&tags=${tags}`),
+};
+
+// --- Articles API ---
+export const articlesAPI = {
+  getArticles: (page = 1, limit = 20, search = "", tags = "") => apiCall(`/articles?page=${page}&limit=${limit}&text=${encodeURIComponent(search)}&tags=${tags}`),
+  getMyArticles: (page = 1, limit = 20) => apiCall(`/articles/my?page=${page}&limit=${limit}`),
+  getArticleById: (articleId) => apiCall(`/articles/${articleId}`),
+  createArticle: (formData) => apiCall('/articles', {
+    method: 'POST',
+    body: formData,
+  }),
+  deleteArticle: (articleId) => apiCall(`/articles/${articleId}`, { method: 'DELETE' }),
+  searchArticles: (query, page = 1, limit = 20, tags = '') => 
+    apiCall(`/articles?text=${encodeURIComponent(query)}&page=${page}&limit=${limit}&tags=${tags}`),
+};
+
+// --- Submissions API ---
+export const submissionsAPI = {
+  getSubmissionsForReview: (page = 1, limit = 20) => apiCall(`/submissions/review?page=${page}&limit=${limit}`),
+  getLabSubmissions: (labId, page = 1, limit = 20) => apiCall(`/submissions/lab/${labId}?page=${page}&limit=${limit}`),
+  getSubmissionById: (submissionId) => apiCall(`/submissions/${submissionId}`),
+  getMySubmissions: (page = 1, limit = 20) => apiCall(`/submissions/my?page=${page}&limit=${limit}`),
+  submitLabSolution: async (labId, solutionText, files) => {
+    const formData = new FormData();
+    formData.append('labId', labId);
+    formData.append('textComment', solutionText);
+
+    if (files && files.length > 0) {
+      files.forEach(file => {
+        formData.append('files', file);
+      });
+    }
+
+    return apiCall('/submissions', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+  updateSubmission: (submissionId, submissionData) => apiCall(`/submissions/${submissionId}`, {
+    method: 'PUT',
+    body: JSON.stringify(submissionData),
+  }),
+  deleteSubmission: (submissionId) => apiCall(`/submissions/${submissionId}`, { method: 'DELETE' }),
+};
+
+// --- ML API ---
+export const mlAPI = {
+  getChatHistory: async (uuid, assignment_id) => {
+    const resp = await fetch(`${ML_BASE_URL}/get_chat_history?uuid=${uuid}&assignment_id=${assignment_id}`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!resp.ok) {
+      let errorText = await resp.text();
+      throw new Error(errorText);
+    }
+    return resp.json();
+  },
+  askAgent: async (uuid, assignment_id, content) => {
+    const resp = await fetch(`${ML_BASE_URL}/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uuid, assignment_id, content }),
+    });
+    if (!resp.ok) {
+      let errorText = await resp.text();
+      throw new Error(errorText);
+    }
+    return resp.json();
+  },
+  startAutoGrading: async ({ uuid, assignment_id, submission_id }) => await fetch(`${ML_BASE_URL}/auto_grade_submission`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ uuid, assignment_id, submission_id}),
+  }),
+  getGradingResult: async ({ uuid, assignment_id, submission_id }) => {
+    const params = new URLSearchParams({
+      uuid: String(uuid),
+      assignment_id: String(assignment_id),
+      submission_id: String(submission_id),
+    });
+    const resp = await fetch(`${ML_BASE_URL}/get_auto_grade_result?${params.toString()}`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!resp.ok) {
+      let errorText = await resp.text();
+      throw new Error(errorText);
+    }
+    return resp.json();
+  },
+  getGradingStatus: async ({ uuid, assignment_id, submission_id, webhook_url }) => {
+    const params = new URLSearchParams({
+      uuid: String(uuid),
+      assignment_id: String(assignment_id),
+      submission_id: String(submission_id),
+      webhook_url: String(webhook_url)
+    });
+    const resp = await fetch(`${ML_BASE_URL}/get_auto_grade_status?${params.toString()}`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!resp.ok) {
+      let errorText = await resp.text();
+      throw new Error(errorText);
+    }
+    return resp.json();
+  },
+  indexAssignment: async (assignment_id) => {
+    const formData = new FormData();
+    console.log("ID", assignment_id)
+    formData.append("assignment_id", String(assignment_id));
+
+
+    const resp = await fetch(`${ML_BASE_URL}/index_assignment`, {
+      method: 'POST',
+      body: formData
+    });
+    if (!resp.ok) {
+      let errorText = await resp.text();
+      throw new Error(errorText);
+    }
+    return;
+  },
+};
+
+// --- Feedback API ---
+export const feedbackAPI = {
+  createFeedback: (formData) => apiCall('/feedback', {
+    method: 'POST',
+    body: formData, 
+  }),
+  deleteFeedback: (feedbackId) => apiCall(`/feedback/${feedbackId}`, {
+    method: 'DELETE',
+  }),
+  getMyFeedbackForSubmission: (submissionId) => apiCall(`/feedback/my/${submissionId}`),
+  //Получение фидбеков для студента (которые он получил)
+  listMyFeedbacks: (page = 1, limit = 20) => apiCall(`/feedback/my?page=${page}&limit=${limit}`),
+  listMyCreatedFeedbacks: (reviewerId, page = 1, limit = 20) => apiCall(`/feedback/reviewer/${reviewerId}?page=${page}&limit=${limit}`),
+  getFeedbackById: (feedbackId) => apiCall(`/feedback/${feedbackId}`),
+  listStudentFeedbacks: (studentId, page = 1, limit = 20) => apiCall(`/feedback/student/${studentId}?page=${page}&limit=${limit}`),
+  listReviewerFeedbacks: (reviewerId, submissionId = null, page = 1, limit = 20) => {
+    let url = `/feedback/reviewer/${reviewerId}?page=${page}&limit=${limit}`;
+    if (submissionId) {
+      url += `&submissionId=${submissionId}`;
+    }
+    return apiCall(url);
+  },
+};
+
+const MARIMO_API_BASE_URL = 'http://localhost:8084/api/v1';
+
+/**
+ * A dedicated function for making API calls directly to the Marimo Manager service.
+ * This is necessary because the Marimo service is not exposed via the API Gateway.
+ * @param {string} path - The API endpoint path, e.g., '/components'.
+ * @param {object} options - Configuration for the fetch call (method, body, etc.).
+ * @returns {Promise<any>} - The JSON response from the API.
+ */
+const marimoApiCall = async (path, options = {}) => {
+  const url = `${MARIMO_API_BASE_URL}${path}`;
+  const token = localStorage.getItem('authToken');
+
+  const headers = {
+    ...options.headers,
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  const isFormData = options.body instanceof FormData;
+
+  if (!isFormData && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  try {
+    const response = await fetch(url, { ...options, headers });
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        errorData = { message: `Marimo API call failed with status ${response.status}.` };
+      }
+      throw new Error(errorData.message || `API error: ${response.statusText}`);
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    }
+    return response;
+  } catch (error) {
+    console.error(`Marimo API call to "${url}" failed:`, error);
+    throw error;
   }
 };
 
-// Export the main APIs (clean backend-only APIs)
-export { usersAPI as users, labsAPI as labs, submissionsAPI as submissions }; 
+// --- Marimo API ---
+export const marimoAPI = {
+  // Component Management
+  createComponent: (data) => marimoApiCall('/marimo/components', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  getComponent: (componentId) => marimoApiCall(`/marimo/components/${componentId}`),
+  getComponentsByContent: (contentType, contentId) => marimoApiCall(`/marimo/components/${contentType}/${contentId}`),
+  updateComponentCode: (componentId, code) => marimoApiCall(`/marimo/components/${componentId}/code`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'text/plain' },
+    body: code,
+  }),
+  deleteComponent: (componentId) => marimoApiCall(`/marimo/components/${componentId}`, {
+    method: 'DELETE'
+  }),
+
+  // Asset Management
+  uploadAsset: (formData) => marimoApiCall('/marimo/assets/upload', {
+    method: 'POST',
+    body: formData,
+  }),
+  getAssets: (componentId) => marimoApiCall(`/marimo/assets/component/${componentId}`),
+  downloadAsset: (assetId) => marimoApiCall(`/marimo/assets/${assetId}/download`),
+  deleteAsset: (assetId) => marimoApiCall(`/marimo/assets/${assetId}`, {
+    method: 'DELETE'
+  }),
+
+  // Session Management
+  createSession: (componentId) => marimoApiCall('/marimo/sessions', {
+    method: 'POST',
+    body: JSON.stringify({ componentId }),
+  }),
+  closeSession: (sessionId) => marimoApiCall(`/marimo/sessions/${sessionId}/close`, {
+    method: 'POST'
+  }),
+
+  // Execution
+  runCode: (sessionId, code, cellId = '0') => marimoApiCall(`/marimo/sessions/${sessionId}/execute`, {
+    method: 'POST',
+    body: JSON.stringify({ code, cellId }),
+  }),
+  setUIElementValue: (sessionId, data) => marimoApiCall(`/marimo/sessions/${sessionId}/set-ui-element`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+
+  // Widget Management
+  updateWidgetValue: (sessionId, widgetId, value) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/value`, {
+    method: 'PUT',
+    body: JSON.stringify({ value }),
+  }),
+
+  // Batch widget updates for performance
+  batchUpdateWidgets: (sessionId, updates) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/batch`, {
+    method: 'PUT',
+    body: JSON.stringify({ updates }),
+  }),
+};
+
+// --- Comments API ---
+export const commentsAPI = {
+  createComment: (labId, commentData) => apiCall(`/labs/${labId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify(commentData),
+  }),
+  getLabComments: (labId, page = 1, limit = 20) => apiCall(`/labs/${labId}/comments?page=${page}&limit=${limit}`),
+  getCommentById: (commentId) => apiCall(`/comments/${commentId}`),
+  getCommentReplies: (commentId, page = 1, size = 20) => apiCall(`/comments/${commentId}/replies?page=${page}&size=${size}`),
+  updateComment: (commentId, content) => {
+    const payload = { content };
+    return apiCall(`/comments/${commentId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteComment: (commentId) => apiCall(`/comments/${commentId}`, {
+    method: 'DELETE',
+  }),
+  // Article comments
+  createArticleComment: (articleId, commentData) => apiCall(`/articles/${articleId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify(commentData),
+  }),
+  getArticleComments: (articleId, page = 1, limit = 20) => apiCall(`/articles/${articleId}/comments?page=${page}&limit=${limit}`),
+};
+
+// --- Tags API ---
+export const tagsAPI = {
+  createTag: (tagData) => apiCall('/tags', {
+    method: 'POST',
+    body: JSON.stringify(tagData),
+  }),
+  getTagById: (tagId) => apiCall(`/tags/${tagId}`),
+  getTagsByIds: (ids) => apiCall('/tags/by-ids', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  }),
+  getTags: (page = 0, limit = 50) => apiCall(`/tags?page=${page}&limit=${limit}`),
+  updateTag: (tagData) => apiCall('/tags/update', {
+    method: 'PUT',
+    body: JSON.stringify(tagData),
+  }),
+  deleteTag: (tagId) => apiCall(`/tags/${tagId}`, { method: 'DELETE' }),
+
+};
+
+// --- Statistics API ---
+export const statisticsAPI = {
+  getStatistics: () => apiCall('/statistics'),
+};
+
+export const marimo = {
+  // Component Management
+  createComponent: (data) => apiCall('/marimo/components', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  getComponent: (id) => apiCall(`/marimo/components/${id}`),
+  updateComponent: (id, data) => apiCall(`/marimo/components/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  deleteComponent: (id) => apiCall(`/marimo/components/${id}`, { method: 'DELETE' }),
+  listComponents: (params) => apiCall('/marimo/components', { params }),
+  searchComponents: (params) => apiCall('/marimo/components/search', { params }),
+
+  // Session Management
+  startSession: (data) => apiCall('/marimo/sessions', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  endSession: (id) => apiCall(`/marimo/sessions/${id}`, { method: 'DELETE' }),
+  getSessionStatus: (id) => apiCall(`/marimo/sessions/${id}`),
+  listUserSessions: (params) => apiCall('/marimo/sessions', { params }),
+  getExecutionHistory: (sessionId, params) => apiCall(`/marimo/sessions/${sessionId}/history`, { params }),
+  getSessionVariables: (sessionId) => apiCall(`/marimo/sessions/${sessionId}/variables`),
+
+  // Code Execution
+  executeCell: (sessionId, data) => apiCall(`/marimo/sessions/${sessionId}/execute`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+
+  // Widget Management
+  updateWidgetValue: (sessionId, widgetId, value) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/value`, {
+    method: 'PUT',
+    body: JSON.stringify({ value }),
+  }),
+
+  // Batch widget updates for performance
+  batchUpdateWidgets: (sessionId, updates) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/batch`, {
+    method: 'PUT',
+    body: JSON.stringify({ updates }),
+  }),
+
+  // Widget analytics and performance
+  getWidgetAnalytics: (sessionId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/analytics`),
+  
+  // Widget state management
+  getWidgetState: (sessionId, widgetId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/state`),
+  
+  // Widget constraints and validation
+  getWidgetConstraints: (sessionId, widgetId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/constraints`),
+
+  // Phase 5: Widget persistence endpoints
+  saveWidgetState: (sessionId, widgetId, state) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/state`, {
+    method: 'POST',
+    body: JSON.stringify({ state }),
+  }),
+
+  loadWidgetState: (sessionId, widgetId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/state`),
+
+  deleteWidgetState: (sessionId, widgetId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/state`, {
+    method: 'DELETE',
+  }),
+
+  batchSaveWidgetStates: (batchData) => marimoApiCall('/marimo/widgets/states/batch', {
+    method: 'POST',
+    body: JSON.stringify({ states: batchData }),
+  }),
+
+  batchLoadWidgetStates: (sessionId, widgetIds) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/states/batch`, {
+    method: 'POST',
+    body: JSON.stringify({ widgetIds }),
+  }),
+
+  clearSessionWidgetStates: (sessionId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/states`, {
+    method: 'DELETE',
+  }),
+
+  // Phase 5: Widget versioning endpoints
+  getWidgetVersions: (sessionId, widgetId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/versions`),
+
+  createWidgetVersion: (sessionId, widgetId, version) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/versions`, {
+    method: 'POST',
+    body: JSON.stringify({ version }),
+  }),
+
+  revertWidgetToVersion: (sessionId, widgetId, versionId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/versions/${versionId}/revert`, {
+    method: 'POST',
+  }),
+
+  // Phase 5: Widget templates endpoints
+  getWidgetTemplates: (category = null) => marimoApiCall(`/marimo/templates${category ? `?category=${category}` : ''}`),
+
+  saveWidgetTemplate: (template) => marimoApiCall('/marimo/templates', {
+    method: 'POST',
+    body: JSON.stringify(template),
+  }),
+
+  deleteWidgetTemplate: (templateId) => marimoApiCall(`/marimo/templates/${templateId}`, {
+    method: 'DELETE',
+  }),
+
+  createWidgetFromTemplate: (templateId, overrides = {}) => marimoApiCall(`/marimo/templates/${templateId}/create`, {
+    method: 'POST',
+    body: JSON.stringify({ overrides }),
+  }),
+
+  // Phase 5: Widget collaboration endpoints
+  getSessionCollaborators: (sessionId) => marimoApiCall(`/marimo/sessions/${sessionId}/collaborators`),
+
+  requestWidgetLock: (sessionId, widgetId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/lock`, {
+    method: 'POST',
+  }),
+
+  releaseWidgetLock: (sessionId, widgetId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/${widgetId}/lock`, {
+    method: 'DELETE',
+  }),
+
+  getWidgetLocks: (sessionId) => marimoApiCall(`/marimo/sessions/${sessionId}/widgets/locks`),
+
+  // Asset Management
+  uploadAsset: (formData) => apiCall('/marimo/assets/upload', {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  }),
+  getAssetInfo: (id) => apiCall(`/marimo/assets/${id}`),
+  downloadAsset: (id) => apiCall(`/marimo/assets/${id}/download`, { responseType: 'blob' }),
+  listAssets: (componentId) => apiCall(`/marimo/components/${componentId}/assets`),
+  deleteAsset: (id) => apiCall(`/marimo/assets/${id}`, { method: 'DELETE' }),
+};

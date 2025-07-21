@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"time"
 
 	pb "github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/api"
+	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/config"
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/models"
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/service"
 	"github.com/google/uuid"
@@ -16,713 +18,671 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// feedbackServer implements the FeedbackService gRPC server
-type feedbackServer struct {
+// FeedbackServer implements the simplified FeedbackService gRPC server
+type FeedbackServer struct {
 	pb.UnimplementedFeedbackServiceServer
 	feedbackService *service.FeedbackService
-	commentService  *service.CommentService
+	logger          *slog.Logger
 }
 
 // RegisterFeedbackServer registers the feedback server with gRPC
-func RegisterFeedbackServer(s *grpc.Server, feedbackService *service.FeedbackService, commentService *service.CommentService) {
-	server := &feedbackServer{
+func RegisterFeedbackServer(s *grpc.Server, feedbackService *service.FeedbackService, logger *slog.Logger) {
+	server := &FeedbackServer{
 		feedbackService: feedbackService,
-		commentService:  commentService,
+		logger:          logger,
 	}
 	pb.RegisterFeedbackServiceServer(s, server)
 }
 
-// CreateFeedback creates a new feedback entry with streaming content
-func (s *feedbackServer) CreateFeedback(stream pb.FeedbackService_CreateFeedbackServer) error {
-	// Receive first message which should contain metadata
+// Helper function to convert model Feedback to protobuf Feedback
+func convertToProtoFeedback(feedback *models.Feedback) *pb.Feedback {
+	return &pb.Feedback{
+		Id:           feedback.ID.String(),
+		ReviewerId:   feedback.ReviewerID,
+		StudentId:    feedback.StudentID,
+		SubmissionId: feedback.SubmissionID,
+		Title:        feedback.Title,
+		Content:      feedback.Content,
+		CreatedAt:    timestamppb.New(feedback.CreatedAt),
+		UpdatedAt:    timestamppb.New(feedback.UpdatedAt),
+	}
+}
+
+// Reviewer Operations
+
+// CreateFeedback creates a new feedback entry (reviewer only)
+func (s *FeedbackServer) CreateFeedback(ctx context.Context, req *pb.CreateFeedbackRequest) (*pb.Feedback, error) {
+	s.logger.Info("gRPC CreateFeedback received",
+		"reviewer_id", req.ReviewerId,
+		"student_id", req.StudentId,
+		"submission_id", req.SubmissionId,
+	)
+
+	// Validate request
+	if req.ReviewerId <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "reviewer_id is required")
+	}
+	if req.StudentId <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "student_id is required")
+	}
+	if req.SubmissionId <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "submission_id is required")
+	}
+	if req.Title == "" {
+		return nil, status.Error(codes.InvalidArgument, "title is required")
+	}
+
+	// Create feedback
+	feedback, err := s.feedbackService.CreateFeedback(ctx, req.ReviewerId, req.StudentId, req.SubmissionId, req.Title, req.Content)
+	if err != nil {
+		s.logger.Error("gRPC CreateFeedback failed", "error", err)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create feedback: %v", err))
+	}
+
+	response := convertToProtoFeedback(feedback)
+	s.logger.Info("gRPC CreateFeedback completed", "id", response.Id)
+	return response, nil
+}
+
+// UpdateFeedback updates an existing feedback (reviewer only)
+func (s *FeedbackServer) UpdateFeedback(ctx context.Context, req *pb.UpdateFeedbackRequest) (*pb.Feedback, error) {
+	s.logger.Info("gRPC UpdateFeedback received",
+		"id", req.Id,
+		"reviewer_id", req.ReviewerId,
+	)
+
+	// Validate request
+	if req.ReviewerId <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "reviewer_id is required")
+	}
+	if req.Id == "" {
+		return nil, status.Error(codes.InvalidArgument, "feedback ID is required")
+	}
+
+	id, err := uuid.Parse(req.Id)
+	if err != nil {
+		s.logger.Warn("gRPC UpdateFeedback: invalid ID format", "id", req.Id, "error", err)
+		return nil, status.Error(codes.InvalidArgument, "invalid feedback ID format")
+	}
+
+	var title, content *string
+	if req.Title != nil {
+		title = req.Title
+	}
+	if req.Content != nil {
+		content = req.Content
+	}
+
+	feedback, err := s.feedbackService.UpdateFeedback(ctx, id, req.ReviewerId, title, content)
+	if err != nil {
+		s.logger.Error("gRPC UpdateFeedback failed", "id", req.Id, "error", err)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update feedback: %v", err))
+	}
+
+	response := convertToProtoFeedback(feedback)
+	s.logger.Info("gRPC UpdateFeedback completed", "id", response.Id)
+	return response, nil
+}
+
+// DeleteFeedback deletes a feedback (reviewer only)
+func (s *FeedbackServer) DeleteFeedback(ctx context.Context, req *pb.DeleteFeedbackRequest) (*pb.DeleteFeedbackResponse, error) {
+	s.logger.Info("gRPC DeleteFeedback received",
+		"id", req.Id,
+		"reviewer_id", req.ReviewerId,
+	)
+
+	// Validate request
+	if req.ReviewerId <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "reviewer_id is required")
+	}
+	if req.Id == "" {
+		return nil, status.Error(codes.InvalidArgument, "feedback ID is required")
+	}
+
+	id, err := uuid.Parse(req.Id)
+	if err != nil {
+		s.logger.Warn("gRPC DeleteFeedback: invalid ID format", "id", req.Id, "error", err)
+		return nil, status.Error(codes.InvalidArgument, "invalid feedback ID format")
+	}
+
+	err = s.feedbackService.DeleteFeedback(ctx, id, req.ReviewerId)
+	if err != nil {
+		s.logger.Error("gRPC DeleteFeedback failed", "id", req.Id, "error", err)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete feedback: %v", err))
+	}
+
+	response := &pb.DeleteFeedbackResponse{Success: true}
+	s.logger.Info("gRPC DeleteFeedback completed", "id", req.Id)
+	return response, nil
+}
+
+// ListReviewerFeedbacks lists feedbacks created by a reviewer
+func (s *FeedbackServer) ListReviewerFeedbacks(ctx context.Context, req *pb.ListReviewerFeedbacksRequest) (*pb.ListReviewerFeedbacksResponse, error) {
+	s.logger.Info("gRPC ListReviewerFeedbacks received",
+		"reviewer_id", req.ReviewerId,
+		"submission_id", req.SubmissionId,
+		"page", req.Page,
+		"limit", req.Limit,
+	)
+
+	if req.ReviewerId <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "reviewer_id is required")
+	}
+
+	var submissionID *int64
+	if req.SubmissionId != nil {
+		submissionID = req.SubmissionId
+	}
+
+	feedbacks, totalCount, err := s.feedbackService.ListReviewerFeedbacks(ctx, req.ReviewerId, submissionID, req.Page, req.Limit)
+	if err != nil {
+		s.logger.Error("gRPC ListReviewerFeedbacks failed", "reviewer_id", req.ReviewerId, "error", err)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list reviewer feedbacks: %v", err))
+	}
+
+	pbFeedbacks := make([]*pb.Feedback, len(feedbacks))
+	for i, feedback := range feedbacks {
+		pbFeedbacks[i] = convertToProtoFeedback(feedback)
+	}
+
+	response := &pb.ListReviewerFeedbacksResponse{
+		Feedbacks:  pbFeedbacks,
+		TotalCount: totalCount,
+	}
+
+	s.logger.Info("gRPC ListReviewerFeedbacks completed",
+		"reviewer_id", req.ReviewerId,
+		"count", len(feedbacks),
+		"total_count", totalCount,
+	)
+	return response, nil
+}
+
+// Student Operations
+
+// GetStudentFeedback retrieves feedback for a student by submission
+func (s *FeedbackServer) GetStudentFeedback(ctx context.Context, req *pb.GetStudentFeedbackRequest) (*pb.Feedback, error) {
+	s.logger.Info("gRPC GetStudentFeedback received",
+		"student_id", req.StudentId,
+		"submission_id", req.SubmissionId,
+	)
+
+	if req.StudentId <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "student_id is required")
+	}
+	if req.SubmissionId <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "submission_id is required")
+	}
+
+	feedbacks, err := s.feedbackService.GetStudentFeedback(ctx, req.StudentId, req.SubmissionId)
+	if err != nil {
+		s.logger.Error("gRPC GetStudentFeedback failed",
+			"student_id", req.StudentId,
+			"submission_id", req.SubmissionId,
+			"error", err,
+		)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get student feedback: %v", err))
+	}
+
+	if len(feedbacks) == 0 {
+		s.logger.Warn("gRPC GetStudentFeedback: no feedback found",
+			"student_id", req.StudentId,
+			"submission_id", req.SubmissionId,
+		)
+		return nil, status.Error(codes.NotFound, "no feedback found for this submission")
+	}
+
+	// Return the first feedback (assuming one feedback per submission)
+	// If multiple feedbacks are expected, this should be changed to return all
+	response := convertToProtoFeedback(feedbacks[0])
+	s.logger.Info("gRPC GetStudentFeedback completed", "id", response.Id)
+	return response, nil
+}
+
+// ListStudentFeedbacks lists all feedbacks for a student
+func (s *FeedbackServer) ListStudentFeedbacks(ctx context.Context, req *pb.ListStudentFeedbacksRequest) (*pb.ListStudentFeedbacksResponse, error) {
+	s.logger.Info("gRPC ListStudentFeedbacks received",
+		"student_id", req.StudentId,
+		"submission_id", req.SubmissionId,
+		"page", req.Page,
+		"limit", req.Limit,
+	)
+
+	if req.StudentId <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "student_id is required")
+	}
+
+	var submissionID *int64
+	if req.SubmissionId != nil {
+		submissionID = req.SubmissionId
+	}
+
+	feedbacks, totalCount, err := s.feedbackService.ListStudentFeedbacks(ctx, req.StudentId, submissionID, req.Page, req.Limit)
+	if err != nil {
+		s.logger.Error("gRPC ListStudentFeedbacks failed", "student_id", req.StudentId, "error", err)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list student feedbacks: %v", err))
+	}
+
+	pbFeedbacks := make([]*pb.Feedback, len(feedbacks))
+	for i, feedback := range feedbacks {
+		pbFeedbacks[i] = convertToProtoFeedback(feedback)
+	}
+
+	response := &pb.ListStudentFeedbacksResponse{
+		Feedbacks:  pbFeedbacks,
+		TotalCount: totalCount,
+	}
+
+	s.logger.Info("gRPC ListStudentFeedbacks completed",
+		"student_id", req.StudentId,
+		"count", len(feedbacks),
+		"total_count", totalCount,
+	)
+	return response, nil
+}
+
+// GetFeedbackById retrieves feedback by its ID
+func (s *FeedbackServer) GetFeedbackById(ctx context.Context, req *pb.GetFeedbackByIdRequest) (*pb.Feedback, error) {
+	s.logger.Info("gRPC GetFeedbackById received", "id", req.Id)
+
+	if req.Id == "" {
+		return nil, status.Error(codes.InvalidArgument, "feedback id is required")
+	}
+
+	feedbackID, err := uuid.Parse(req.Id)
+	if err != nil {
+		s.logger.Warn("gRPC GetFeedbackById: invalid ID format", "id", req.Id, "error", err)
+		return nil, status.Error(codes.InvalidArgument, "invalid feedback ID format")
+	}
+
+	feedback, err := s.feedbackService.GetFeedbackByID(ctx, feedbackID)
+	if err != nil {
+		s.logger.Error("gRPC GetFeedbackById failed", "id", req.Id, "error", err)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get feedback: %v", err))
+	}
+
+	if feedback == nil {
+		s.logger.Warn("gRPC GetFeedbackById: feedback not found", "id", req.Id)
+		return nil, status.Error(codes.NotFound, "feedback not found")
+	}
+
+	response := convertToProtoFeedback(feedback)
+	s.logger.Info("gRPC GetFeedbackById completed", "id", response.Id)
+	return response, nil
+}
+
+// Attachment Operations
+
+// UploadAttachment uploads an attachment to a feedback (reviewer only)
+func (s *FeedbackServer) UploadAttachment(stream pb.FeedbackService_UploadAttachmentServer) error {
+	s.logger.Info("gRPC UploadAttachment: starting stream upload")
+
+	// Create context with cancellation for proper cleanup
+	ctx, cancel := context.WithCancel(stream.Context())
+	defer cancel()
+
+	// Receive first chunk with metadata
 	req, err := stream.Recv()
 	if err != nil {
-		return status.Error(codes.Internal, fmt.Sprintf("failed to receive create request: %v", err))
+		if err == io.EOF {
+			s.logger.Warn("gRPC UploadAttachment: no metadata received - stream closed immediately")
+			return status.Error(codes.InvalidArgument, "no metadata received - stream closed immediately")
+		}
+		s.logger.Error("gRPC UploadAttachment: failed to receive metadata", "error", err)
+		return status.Error(codes.Internal, fmt.Sprintf("failed to receive metadata: %v", err))
 	}
 
 	metadata := req.GetMetadata()
 	if metadata == nil {
-		return status.Error(codes.InvalidArgument, "first message must contain metadata")
+		s.logger.Error("gRPC UploadAttachment: metadata is required in first chunk")
+		return status.Error(codes.InvalidArgument, "metadata is required in first chunk")
 	}
-	// Validate metadata
-	if metadata.UserId <= 0 {
-		return status.Error(codes.InvalidArgument, "user_id is required")
+	
+	s.logger.Info("gRPC UploadAttachment received",
+		"reviewer_id", metadata.ReviewerId,
+		"feedback_id", metadata.FeedbackId,
+		"filename", metadata.Filename,
+		"size", metadata.TotalSize,
+		"content_type", metadata.ContentType,
+	)
+	
+	if metadata.ReviewerId <= 0 {
+		s.logger.Error("gRPC UploadAttachment: reviewer_id is required")
+		return status.Error(codes.InvalidArgument, "reviewer_id is required")
 	}
-	if metadata.StudentId <= 0 {
-		return status.Error(codes.InvalidArgument, "student_id is required")
+	if metadata.FeedbackId == "" {
+		s.logger.Error("gRPC UploadAttachment: feedback_id is required")
+		return status.Error(codes.InvalidArgument, "feedback_id is required")
 	}
-	if metadata.LabId <= 0 {
-		return status.Error(codes.InvalidArgument, "lab_id is required")
-	}
-	if metadata.Title == "" {
-		return status.Error(codes.InvalidArgument, "title is required")
+	if metadata.Filename == "" {
+		s.logger.Error("gRPC UploadAttachment: filename is required")
+		return status.Error(codes.InvalidArgument, "filename is required")
 	}
 	if metadata.TotalSize <= 0 {
+		s.logger.Error("gRPC UploadAttachment: total_size must be positive")
 		return status.Error(codes.InvalidArgument, "total_size must be positive")
 	}
 
-	// First create the feedback entry
-	createdFeedback, err := s.feedbackService.CreateFeedback(
-		stream.Context(),
-		metadata.UserId,
-		metadata.StudentId,
-		metadata.LabId,
-		metadata.Title,
-	)
+	feedbackID, err := uuid.Parse(metadata.FeedbackId)
 	if err != nil {
-		return status.Error(codes.Internal, fmt.Sprintf("failed to create feedback: %v", err))
+		s.logger.Warn("gRPC UploadAttachment: invalid feedback ID format", "feedback_id", metadata.FeedbackId, "error", err)
+		return status.Error(codes.InvalidArgument, "invalid feedback ID format")
 	}
 
-	// Create a pipe to stream data to the upload function
+	// Check attachment count limit
+	existingAttachments, err := s.feedbackService.ListAttachments(ctx, feedbackID)
+	if err != nil {
+		s.logger.Error("gRPC UploadAttachment: failed to check existing attachments", "error", err)
+		return status.Error(codes.Internal, fmt.Sprintf("failed to check existing attachments: %v", err))
+	}
+	if len(existingAttachments) >= config.MaxAttachmentsPerFeedback {
+		s.logger.Warn("gRPC UploadAttachment: maximum attachments reached", "max_attachments", config.MaxAttachmentsPerFeedback)
+		return status.Error(codes.FailedPrecondition, fmt.Sprintf("maximum %d attachments allowed per feedback", config.MaxAttachmentsPerFeedback))
+	}
+
+	// Create pipe for streaming data
 	pipeReader, pipeWriter := io.Pipe()
 
-	// Error channel for goroutine communication
+	// Channel for upload result
 	uploadErrCh := make(chan error, 1)
 
-	// Start upload in a goroutine
+	// Start upload goroutine IMMEDIATELY using the same context
 	go func() {
-		defer pipeReader.Close()
-
-		// Upload the content
-		err := s.feedbackService.UploadFeedbackContent(
-			stream.Context(),
-			createdFeedback.ID,
-			pipeReader,
-			metadata.TotalSize,
-		)
+		defer func() {
+			if r := recover(); r != nil {
+				s.logger.Error("gRPC UploadAttachment: upload panic", "panic", r)
+				uploadErrCh <- fmt.Errorf("upload panic: %v", r)
+			}
+		}()
+		
+		s.logger.Info("gRPC UploadAttachment: starting upload goroutine")
+		err := s.feedbackService.UploadAttachment(ctx, feedbackID, metadata.Filename, metadata.ContentType, pipeReader, metadata.TotalSize)
+		s.logger.Info("gRPC UploadAttachment: upload goroutine finished", "feedback_id", feedbackID, "filename", metadata.Filename, "error", err)
 		uploadErrCh <- err
 	}()
 
-	// Stream chunks to the pipe
+	// Stream data from client to pipe
 	var totalReceived int64
-	streamError := func() error {
-		defer pipeWriter.Close() // Ensure pipe writer is closed when streaming completes
+	var streamErr error
 
+	// Check if the first request also contains chunk data
+	firstChunk := req.GetChunk()
+	
+	// Read chunks from stream
+	s.logger.Info("gRPC UploadAttachment: starting to read chunks from stream")
+	
+	func() {
+		// Ensure pipe writer is closed when we exit this function
+		defer func() {
+			s.logger.Info("gRPC UploadAttachment: closing pipe writer")
+			if closeErr := pipeWriter.Close(); closeErr != nil {
+				s.logger.Error("gRPC UploadAttachment: error closing pipe writer", "error", closeErr)
+				if streamErr == nil {
+					streamErr = fmt.Errorf("failed to close pipe writer: %v", closeErr)
+				}
+			}
+		}()
+
+		// Handle first chunk if it exists
+		if firstChunk != nil && len(firstChunk) > 0 {
+			s.logger.Info("gRPC UploadAttachment: processing first chunk", "chunk_size", len(firstChunk))
+			
+			// Validate total size
+			if int64(len(firstChunk)) > metadata.TotalSize {
+				streamErr = fmt.Errorf("first chunk larger than total size: %d > %d", len(firstChunk), metadata.TotalSize)
+				s.logger.Error("gRPC UploadAttachment: size validation failed", "chunk_size", len(firstChunk), "total_size", metadata.TotalSize, "error", streamErr)
+				return
+			}
+
+			// Write first chunk to pipe
+			n, writeErr := pipeWriter.Write(firstChunk)
+			if writeErr != nil {
+				streamErr = fmt.Errorf("failed to write first chunk: %v", writeErr)
+				s.logger.Error("gRPC UploadAttachment: write error", "error", writeErr)
+				return
+			}
+			totalReceived += int64(n)
+			s.logger.Info("gRPC UploadAttachment: written first chunk", "chunk_size", n, "total_received", totalReceived, "total_expected", metadata.TotalSize)
+			
+			// Check if we've received all expected data from first chunk
+			if totalReceived >= metadata.TotalSize {
+				s.logger.Info("gRPC UploadAttachment: received all expected data from first chunk, ending stream", "total_received", totalReceived)
+				return
+			}
+		}
+
+		// Continue reading additional chunks
 		for {
-			// Check if context is canceled
 			select {
-			case <-stream.Context().Done():
-				return stream.Context().Err()
+			case <-ctx.Done():
+				streamErr = fmt.Errorf("stream context cancelled: %v", ctx.Err())
+				return
 			default:
 			}
 
+			if streamErr != nil {
+				return
+			}
+
+			s.logger.Info("gRPC UploadAttachment: waiting for next chunk...")
 			req, err := stream.Recv()
 			if err == io.EOF {
-				// End of stream reached
-				break
+				// End of stream - this is expected and normal
+				s.logger.Info("gRPC UploadAttachment: received EOF, stream ended normally", "total_received", totalReceived)
+				return
 			}
 			if err != nil {
-				return fmt.Errorf("failed to receive chunk: %v", err)
+				// Check if it's a context cancellation error
+				if ctx.Err() != nil {
+					streamErr = fmt.Errorf("stream cancelled: %v", ctx.Err())
+				} else {
+					streamErr = fmt.Errorf("failed to receive chunk: %v", err)
+				}
+				s.logger.Error("gRPC UploadAttachment: error receiving chunk", "error", err)
+				return
 			}
 
 			chunk := req.GetChunk()
 			if chunk == nil {
+				// Skip empty chunks - this means we got a metadata packet or empty chunk
+				s.logger.Info("gRPC UploadAttachment: received empty chunk or metadata packet, skipping")
 				continue
 			}
 
-			totalReceived += int64(len(chunk))
-			if totalReceived > metadata.TotalSize {
-				return fmt.Errorf("received more data than expected: %d > %d", totalReceived, metadata.TotalSize)
+			s.logger.Info("gRPC UploadAttachment: received chunk", "chunk_size", len(chunk))
+
+			// Validate total size
+			if totalReceived+int64(len(chunk)) > metadata.TotalSize {
+				streamErr = fmt.Errorf("received more data than expected: %d + %d > %d", totalReceived, len(chunk), metadata.TotalSize)
+				s.logger.Error("gRPC UploadAttachment: size validation failed", "total_received", totalReceived, "chunk_size", len(chunk), "total_expected", metadata.TotalSize, "error", streamErr)
+				return
 			}
 
 			// Write chunk to pipe
-			if _, err := pipeWriter.Write(chunk); err != nil {
-				return fmt.Errorf("failed to write chunk to upload stream: %v", err)
+			n, writeErr := pipeWriter.Write(chunk)
+			if writeErr != nil {
+				// Check if the error is due to closed pipe
+				if writeErr == io.ErrClosedPipe {
+					streamErr = fmt.Errorf("pipe closed during write - upload may have failed")
+				} else {
+					streamErr = fmt.Errorf("failed to write chunk: %v", writeErr)
+				}
+				s.logger.Error("gRPC UploadAttachment: write error", "error", writeErr)
+				return
+			}
+			totalReceived += int64(n)
+			s.logger.Info("gRPC UploadAttachment: written chunk", "chunk_size", n, "total_received", totalReceived, "total_expected", metadata.TotalSize)
+			
+			// Check if we've received all expected data
+			if totalReceived >= metadata.TotalSize {
+				s.logger.Info("gRPC UploadAttachment: received all expected data, ending stream", "total_received", totalReceived)
+				return
 			}
 		}
-
-		return nil
 	}()
 
-	// Handle streaming error
-	if streamError != nil {
-		pipeWriter.CloseWithError(streamError)
-		// Clean up the created feedback entry on streaming error
-		_ = s.feedbackService.DeleteFeedback(stream.Context(), createdFeedback.ID)
-
-		if streamError == stream.Context().Err() {
-			return status.Error(codes.Canceled, "stream canceled")
+	// Check for streaming errors
+	if streamErr != nil {
+		s.logger.Error("gRPC UploadAttachment: stream error detected", "error", streamErr)
+		cancel() // Cancel main context to stop upload
+		// Wait for upload to finish with a timeout
+		select {
+		case uploadErr := <-uploadErrCh:
+			// Upload finished
+			s.logger.Info("gRPC UploadAttachment: upload finished after stream error", "feedback_id", feedbackID, "error", uploadErr)
+		case <-time.After(5 * time.Second):
+			// Timeout waiting for upload to finish
+			s.logger.Warn("gRPC UploadAttachment: timeout waiting for upload to finish after stream error")
 		}
-		return status.Error(codes.Internal, streamError.Error())
+		return status.Error(codes.Internal, streamErr.Error())
 	}
 
-	// Verify we received all data
+	// Validate that we received all expected data
 	if totalReceived != metadata.TotalSize {
-		pipeWriter.CloseWithError(fmt.Errorf("data size mismatch"))
-		_ = s.feedbackService.DeleteFeedback(stream.Context(), createdFeedback.ID)
-		return status.Error(codes.InvalidArgument,
-			fmt.Sprintf("received data size (%d) doesn't match declared size (%d)",
-				totalReceived, metadata.TotalSize))
+		s.logger.Error("gRPC UploadAttachment: size mismatch", "total_received", totalReceived, "total_expected", metadata.TotalSize)
+		cancel() // Cancel main context to stop upload
+		return status.Error(codes.InvalidArgument, fmt.Sprintf("received %d bytes, expected %d bytes", totalReceived, metadata.TotalSize))
 	}
 
+	s.logger.Info("gRPC UploadAttachment: waiting for upload to complete...")
 	// Wait for upload to complete
 	select {
 	case uploadErr := <-uploadErrCh:
 		if uploadErr != nil {
-			// Clean up the created feedback entry on upload error
-			_ = s.feedbackService.DeleteFeedback(stream.Context(), createdFeedback.ID)
-			return status.Error(codes.Internal, fmt.Sprintf("failed to upload feedback content: %v", uploadErr))
+			s.logger.Error("gRPC UploadAttachment: upload failed", "feedback_id", feedbackID, "error", uploadErr)
+			return status.Error(codes.Internal, fmt.Sprintf("failed to upload attachment: %v", uploadErr))
 		}
-	case <-stream.Context().Done():
-		// Clean up on context cancellation
-		_ = s.feedbackService.DeleteFeedback(stream.Context(), createdFeedback.ID)
-		return status.Error(codes.Canceled, "stream canceled while waiting for upload")
-	case <-time.After(30 * time.Second):
-		// Clean up on timeout
-		_ = s.feedbackService.DeleteFeedback(stream.Context(), createdFeedback.ID)
+		s.logger.Info("gRPC UploadAttachment: upload completed successfully", "feedback_id", feedbackID)
+	case <-ctx.Done():
+		s.logger.Error("gRPC UploadAttachment: upload cancelled due to context", "feedback_id", feedbackID, "error", ctx.Err())
+		return status.Error(codes.Canceled, "upload cancelled")
+	case <-time.After(30 * time.Second): // Add reasonable timeout
+		s.logger.Warn("gRPC UploadAttachment: upload timed out")
+		cancel() // Cancel context to stop any ongoing operations
 		return status.Error(codes.DeadlineExceeded, "upload timeout")
 	}
-	// Success - send the feedback response
-	feedback := &pb.FeedbackFile{
-		Id:        createdFeedback.ID.String(),
-		UserId:    createdFeedback.UserID,
-		StudentId: createdFeedback.StudentID,
-		LabId:     createdFeedback.LabID,
-		Title:     createdFeedback.Title,
-		CreatedAt: timestamppb.New(createdFeedback.CreatedAt),
-		UpdatedAt: timestamppb.New(createdFeedback.UpdatedAt),
-	}
 
-	return stream.SendAndClose(feedback)
-}
-
-// GetFeedback retrieves a feedback by ID with streaming content
-func (s *feedbackServer) GetFeedback(req *pb.GetFeedbackRequest, stream pb.FeedbackService_GetFeedbackServer) error {
-	// Validate request
-	if req.Id == "" {
-		return status.Error(codes.InvalidArgument, "id is required")
-	}
-
-	// Parse UUID
-	id, err := uuid.Parse(req.Id)
-	if err != nil {
-		return status.Error(codes.InvalidArgument, "invalid id format")
-	}
-
-	// Get feedback info
-	feedback, err := s.feedbackService.GetFeedback(stream.Context(), id)
-	if err != nil {
-		if err.Error() == "feedback not found" {
-			return status.Error(codes.NotFound, "feedback not found")
-		}
-		return status.Error(codes.Internal, fmt.Sprintf("failed to get feedback: %v", err))
-	}
-	// Send feedback info first
-	err = stream.Send(&pb.GetFeedbackResponse{
-		Data: &pb.GetFeedbackResponse_Info{
-			Info: &pb.FeedbackFile{
-				Id:        feedback.ID.String(),
-				UserId:    feedback.UserID,
-				StudentId: feedback.StudentID,
-				LabId:     feedback.LabID,
-				Title:     feedback.Title,
-				CreatedAt: timestamppb.New(feedback.CreatedAt),
-				UpdatedAt: timestamppb.New(feedback.UpdatedAt),
-			},
-		},
+	s.logger.Info("gRPC UploadAttachment response", "filename", metadata.Filename, "size", totalReceived)
+	return stream.SendAndClose(&pb.UploadAttachmentResponse{
+		Filename: metadata.Filename,
+		Size:     totalReceived,
+		Success:  true,
 	})
-	if err != nil {
-		return status.Error(codes.Internal, fmt.Sprintf("failed to send feedback info: %v", err))
-	} // Get and stream feedback content
-	reader, _, err := s.feedbackService.DownloadFeedbackContent(stream.Context(), id)
-	if err != nil {
-		if err.Error() == "feedback content not found" {
-			// If there's no content file, just return the info
-			return nil
-		}
-		return status.Error(codes.Internal, fmt.Sprintf("failed to get feedback content: %v", err))
-	}
-	defer reader.Close()
-
-	// Stream content in chunks
-	buffer := make([]byte, 32*1024) // 32KB chunks
-	for {
-		n, err := reader.Read(buffer)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return status.Error(codes.Internal, fmt.Sprintf("failed to read feedback content: %v", err))
-		}
-
-		err = stream.Send(&pb.GetFeedbackResponse{
-			Data: &pb.GetFeedbackResponse_Chunk{
-				Chunk: buffer[:n],
-			},
-		})
-		if err != nil {
-			return status.Error(codes.Internal, fmt.Sprintf("failed to send chunk: %v", err))
-		}
-	}
-
-	return nil
 }
 
-// UpdateFeedback updates a feedback entry
-func (s *feedbackServer) UpdateFeedback(stream pb.FeedbackService_UpdateFeedbackServer) error {
-	// Receive first message which should contain metadata
-	req, err := stream.Recv()
-	if err != nil {
-		return status.Error(codes.Internal, fmt.Sprintf("failed to receive update request: %v", err))
-	}
+// DeleteAttachment deletes an attachment (reviewer only)
+func (s *FeedbackServer) DeleteAttachment(ctx context.Context, req *pb.DeleteAttachmentRequest) (*pb.DeleteAttachmentResponse, error) {
+	s.logger.Info("gRPC DeleteAttachment received",
+		"reviewer_id", req.ReviewerId,
+		"feedback_id", req.FeedbackId,
+		"filename", req.Filename,
+	)
 
-	metadata := req.GetMetadata()
-	if metadata == nil {
-		return status.Error(codes.InvalidArgument, "first message must contain metadata")
-	}
-
-	// Validate metadata
-	if metadata.Id == "" {
-		return status.Error(codes.InvalidArgument, "id is required")
-	}
-
-	// Parse UUID
-	id, err := uuid.Parse(metadata.Id)
-	if err != nil {
-		return status.Error(codes.InvalidArgument, "invalid id format")
-	}
-
-	// If no content is being updated, just update the title
-	if metadata.TotalSize == nil || *metadata.TotalSize == 0 {
-		var title *string
-		if metadata.Title != nil {
-			title = metadata.Title
-		}
-		feedback, err := s.feedbackService.UpdateFeedback(stream.Context(), id, title)
-		if err != nil {
-			if err.Error() == "feedback not found" {
-				return status.Error(codes.NotFound, "feedback not found")
-			}
-			return status.Error(codes.Internal, fmt.Sprintf("failed to update feedback: %v", err))
-		}
-		return stream.SendAndClose(&pb.FeedbackFile{
-			Id:        feedback.ID.String(),
-			UserId:    feedback.UserID,
-			StudentId: feedback.StudentID,
-			LabId:     feedback.LabID,
-			Title:     feedback.Title,
-			CreatedAt: timestamppb.New(feedback.CreatedAt),
-			UpdatedAt: timestamppb.New(feedback.UpdatedAt),
-		})
-	}
-	// Create a pipe to stream data to the update function
-	pipeReader, pipeWriter := io.Pipe()
-
-	// Result channel for goroutine communication
-	type result struct {
-		feedback *pb.FeedbackFile
-		err      error
-	}
-	resultCh := make(chan result, 1)
-
-	// Start feedback update in a goroutine
-	go func() {
-		defer pipeReader.Close()
-
-		// Check context before starting
-		select {
-		case <-stream.Context().Done():
-			resultCh <- result{err: stream.Context().Err()}
-			return
-		default:
-		}
-
-		// First update the feedback content
-		err := s.feedbackService.UpdateFeedbackContent(
-			stream.Context(),
-			id,
-			pipeReader,
-			*metadata.TotalSize,
-		)
-		if err != nil {
-			resultCh <- result{err: err}
-			return
-		}
-
-		// Then update the title if provided
-		var updatedFeedback *models.Feedback
-		if metadata.Title != nil {
-			updatedFeedback, err = s.feedbackService.UpdateFeedback(stream.Context(), id, metadata.Title)
-		} else {
-			updatedFeedback, err = s.feedbackService.GetFeedback(stream.Context(), id)
-		}
-		if err != nil {
-			resultCh <- result{err: err}
-			return
-		}
-		// Success - send the feedback response
-		feedback := &pb.FeedbackFile{
-			Id:        updatedFeedback.ID.String(),
-			UserId:    updatedFeedback.UserID,
-			StudentId: updatedFeedback.StudentID,
-			LabId:     updatedFeedback.LabID,
-			Title:     updatedFeedback.Title,
-			CreatedAt: timestamppb.New(updatedFeedback.CreatedAt),
-			UpdatedAt: timestamppb.New(updatedFeedback.UpdatedAt),
-		}
-		resultCh <- result{feedback: feedback}
-	}()
-
-	// Stream chunks to the pipe
-	var totalReceived int64
-	streamingDone := false
-
-	for !streamingDone {
-		// Check if context is canceled
-		select {
-		case <-stream.Context().Done():
-			pipeWriter.CloseWithError(stream.Context().Err())
-			return status.Error(codes.Canceled, "stream canceled")
-		default:
-		}
-
-		req, err := stream.Recv()
-		if err == io.EOF {
-			streamingDone = true
-			break
-		}
-		if err != nil {
-			pipeWriter.CloseWithError(err)
-			return status.Error(codes.Internal, fmt.Sprintf("failed to receive chunk: %v", err))
-		}
-
-		chunk := req.GetChunk()
-		if chunk == nil {
-			continue
-		}
-
-		totalReceived += int64(len(chunk))
-		if totalReceived > *metadata.TotalSize {
-			pipeWriter.CloseWithError(fmt.Errorf("received more data than expected"))
-			return status.Error(codes.InvalidArgument, "received more data than declared in metadata")
-		}
-
-		// Write chunk to pipe with error handling
-		if _, err := pipeWriter.Write(chunk); err != nil {
-			if err == io.ErrClosedPipe {
-				return status.Error(codes.Aborted, "upload stream closed")
-			}
-			pipeWriter.CloseWithError(err)
-			return status.Error(codes.Internal, fmt.Sprintf("failed to write chunk: %v", err))
-		}
-	}
-
-	// Close the writer to signal EOF
-	if err := pipeWriter.Close(); err != nil {
-		return status.Error(codes.Internal, fmt.Sprintf("failed to close pipe writer: %v", err))
-	}
-
-	// Verify we received all data
-	if totalReceived != *metadata.TotalSize {
-		return status.Error(codes.InvalidArgument,
-			fmt.Sprintf("received data size (%d) doesn't match declared size (%d)",
-				totalReceived, *metadata.TotalSize))
-	}
-
-	// Wait for update to complete
-	select {
-	case res := <-resultCh:
-		if res.err != nil {
-			if res.err.Error() == "feedback not found" {
-				return status.Error(codes.NotFound, "feedback not found")
-			}
-			return status.Error(codes.Internal, fmt.Sprintf("failed to update feedback: %v", res.err))
-		}
-		// Send response
-		return stream.SendAndClose(res.feedback)
-	case <-stream.Context().Done():
-		return status.Error(codes.Canceled, "stream canceled while waiting for upload")
-	case <-time.After(30 * time.Second):
-		return status.Error(codes.DeadlineExceeded, "upload timeout")
-	}
-}
-
-// DeleteFeedback deletes a feedback entry
-func (s *feedbackServer) DeleteFeedback(ctx context.Context, req *pb.DeleteFeedbackRequest) (*pb.DeleteFeedbackResponse, error) {
 	// Validate request
-	if req.Id == "" {
-		return nil, status.Error(codes.InvalidArgument, "id is required")
+	if req.ReviewerId <= 0 {
+		s.logger.Error("gRPC DeleteAttachment: reviewer_id is required")
+		return nil, status.Error(codes.InvalidArgument, "reviewer_id is required")
 	}
-
-	// Parse UUID
-	id, err := uuid.Parse(req.Id)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid id format")
-	}
-
-	// Delete feedback
-	err = s.feedbackService.DeleteFeedback(ctx, id)
-	if err != nil {
-		if err.Error() == "feedback not found" {
-			return nil, status.Error(codes.NotFound, "feedback not found")
-		}
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete feedback: %v", err))
-	}
-
-	return &pb.DeleteFeedbackResponse{
-		Success: true,
-	}, nil
-}
-
-// ListUserFeedbacks lists feedbacks for a user
-func (s *feedbackServer) ListUserFeedbacks(ctx context.Context, req *pb.ListUserFeedbacksRequest) (*pb.ListUserFeedbacksResponse, error) {
-	// Validate request
-	if req.UserId <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "user_id is required")
-	}
-	if req.Page <= 0 {
-		req.Page = 1
-	}
-	if req.Limit <= 0 {
-		req.Limit = 10
-	}
-
-	// List feedbacks
-	var labID *int64
-	if req.LabId != nil {
-		labID = req.LabId
-	}
-
-	feedbacks, totalCount, err := s.feedbackService.ListUserFeedbacks(ctx, req.UserId, labID, req.Page, req.Limit)
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list feedbacks: %v", err))
-	} // Convert to protobuf
-	pbFeedbacks := make([]*pb.FeedbackFile, len(feedbacks))
-	for i, feedback := range feedbacks {
-		pbFeedbacks[i] = &pb.FeedbackFile{
-			Id:        feedback.ID.String(),
-			UserId:    feedback.UserID,
-			StudentId: feedback.StudentID,
-			LabId:     feedback.LabID,
-			Title:     feedback.Title,
-			CreatedAt: timestamppb.New(feedback.CreatedAt),
-			UpdatedAt: timestamppb.New(feedback.UpdatedAt),
-		}
-	}
-
-	return &pb.ListUserFeedbacksResponse{
-		Feedbacks:  pbFeedbacks,
-		TotalCount: totalCount,
-	}, nil
-}
-
-// ListStudentFeedbacks lists feedbacks for a student
-func (s *feedbackServer) ListStudentFeedbacks(ctx context.Context, req *pb.ListStudentFeedbacksRequest) (*pb.ListStudentFeedbacksResponse, error) {
-	// Validate request
-	if req.StudentId <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "student_id is required")
-	}
-	if req.Page <= 0 {
-		req.Page = 1
-	}
-	if req.Limit <= 0 {
-		req.Limit = 10
-	}
-
-	// List feedbacks
-	var labID *int64
-	if req.LabId != nil {
-		labID = req.LabId
-	}
-
-	feedbacks, totalCount, err := s.feedbackService.ListStudentFeedbacks(ctx, req.StudentId, labID, req.Page, req.Limit)
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list student feedbacks: %v", err))
-	}
-
-	// Convert to protobuf
-	pbFeedbacks := make([]*pb.FeedbackFile, len(feedbacks))
-	for i, feedback := range feedbacks {
-		pbFeedbacks[i] = &pb.FeedbackFile{
-			Id:        feedback.ID.String(),
-			UserId:    feedback.UserID,
-			StudentId: feedback.StudentID,
-			LabId:     feedback.LabID,
-			Title:     feedback.Title,
-			CreatedAt: timestamppb.New(feedback.CreatedAt),
-			UpdatedAt: timestamppb.New(feedback.UpdatedAt),
-		}
-	}
-
-	return &pb.ListStudentFeedbacksResponse{
-		Feedbacks:  pbFeedbacks,
-		TotalCount: totalCount,
-	}, nil
-}
-
-// UploadAsset handles streaming asset uploads
-func (s *feedbackServer) UploadAsset(stream pb.FeedbackService_UploadAssetServer) error {
-	// Receive first message which should contain metadata
-	req, err := stream.Recv()
-	if err != nil {
-		return status.Error(codes.Internal, fmt.Sprintf("failed to receive upload request: %v", err))
-	}
-
-	metadata := req.GetMetadata()
-	if metadata == nil {
-		return status.Error(codes.InvalidArgument, "first message must contain metadata")
-	}
-
-	// Validate metadata
-	if metadata.FeedbackId == "" {
-		return status.Error(codes.InvalidArgument, "feedback_id is required")
-	}
-	if metadata.Filename == "" {
-		return status.Error(codes.InvalidArgument, "filename is required")
-	}
-	if metadata.TotalSize <= 0 {
-		return status.Error(codes.InvalidArgument, "total_size must be positive")
-	}
-
-	// Parse feedback ID
-	feedbackID, err := uuid.Parse(metadata.FeedbackId)
-	if err != nil {
-		return status.Error(codes.InvalidArgument, "invalid feedback_id format")
-	}
-	// Create a pipe to stream data to the upload function
-	pipeReader, pipeWriter := io.Pipe()
-
-	// Start upload in a goroutine
-	uploadErrCh := make(chan error, 1)
-	go func() {
-		defer pipeReader.Close()
-
-		// Check context before starting
-		select {
-		case <-stream.Context().Done():
-			uploadErrCh <- stream.Context().Err()
-			return
-		default:
-		}
-
-		err := s.feedbackService.UploadAsset(
-			stream.Context(),
-			feedbackID,
-			metadata.Filename,
-			metadata.ContentType,
-			pipeReader,
-			metadata.TotalSize,
-		)
-		uploadErrCh <- err
-	}()
-
-	// Stream chunks to the pipe
-	var totalReceived int64
-	streamingDone := false
-
-	for !streamingDone {
-		// Check if context is canceled
-		select {
-		case <-stream.Context().Done():
-			pipeWriter.CloseWithError(stream.Context().Err())
-			return status.Error(codes.Canceled, "stream canceled")
-		default:
-		}
-
-		req, err := stream.Recv()
-		if err == io.EOF {
-			streamingDone = true
-			break
-		}
-		if err != nil {
-			pipeWriter.CloseWithError(err)
-			return status.Error(codes.Internal, fmt.Sprintf("failed to receive chunk: %v", err))
-		}
-
-		chunk := req.GetChunk()
-		if chunk == nil {
-			continue
-		}
-
-		totalReceived += int64(len(chunk))
-		if totalReceived > metadata.TotalSize {
-			pipeWriter.CloseWithError(fmt.Errorf("received more data than expected"))
-			return status.Error(codes.InvalidArgument, "received more data than declared in metadata")
-		}
-
-		// Write chunk to pipe with error handling
-		if _, err := pipeWriter.Write(chunk); err != nil {
-			if err == io.ErrClosedPipe {
-				return status.Error(codes.Aborted, "upload stream closed")
-			}
-			pipeWriter.CloseWithError(err)
-			return status.Error(codes.Internal, fmt.Sprintf("failed to write chunk: %v", err))
-		}
-	}
-
-	// Close the writer to signal EOF
-	if err := pipeWriter.Close(); err != nil {
-		return status.Error(codes.Internal, fmt.Sprintf("failed to close pipe writer: %v", err))
-	}
-
-	// Verify we received all data
-	if totalReceived != metadata.TotalSize {
-		return status.Error(codes.InvalidArgument,
-			fmt.Sprintf("received data size (%d) doesn't match declared size (%d)",
-				totalReceived, metadata.TotalSize))
-	}
-
-	// Wait for upload to complete
-	select {
-	case err := <-uploadErrCh:
-		if err != nil {
-			return status.Error(codes.Internal, fmt.Sprintf("failed to upload asset: %v", err))
-		}
-		// Send response
-		return stream.SendAndClose(&pb.UploadAssetResponse{
-			Filename: metadata.Filename,
-			Size:     totalReceived,
-			Success:  true,
-		})
-	case <-stream.Context().Done():
-		return status.Error(codes.Canceled, "stream canceled while waiting for upload")
-	case <-time.After(30 * time.Second):
-		return status.Error(codes.DeadlineExceeded, "upload timeout")
-	}
-}
-
-// DownloadAsset handles streaming asset downloads
-func (s *feedbackServer) DownloadAsset(req *pb.DownloadAssetRequest, stream pb.FeedbackService_DownloadAssetServer) error {
-	// Validate request
 	if req.FeedbackId == "" {
+		s.logger.Error("gRPC DeleteAttachment: feedback_id is required")
+		return nil, status.Error(codes.InvalidArgument, "feedback_id is required")
+	}
+	if req.Filename == "" {
+		s.logger.Error("gRPC DeleteAttachment: filename is required")
+		return nil, status.Error(codes.InvalidArgument, "filename is required")
+	}
+
+	feedbackID, err := uuid.Parse(req.FeedbackId)
+	if err != nil {
+		s.logger.Warn("gRPC DeleteAttachment: invalid feedback ID format", "feedback_id", req.FeedbackId, "error", err)
+		return nil, status.Error(codes.InvalidArgument, "invalid feedback ID format")
+	}
+
+	err = s.feedbackService.DeleteAttachment(ctx, feedbackID, req.Filename)
+	if err != nil {
+		s.logger.Error("gRPC DeleteAttachment failed", "feedback_id", feedbackID, "error", err)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete attachment: %v", err))
+	}
+
+	response := &pb.DeleteAttachmentResponse{Success: true}
+	s.logger.Info("gRPC DeleteAttachment completed", "feedback_id", feedbackID)
+	return response, nil
+}
+
+// DownloadAttachment downloads an attachment (both roles)
+func (s *FeedbackServer) DownloadAttachment(req *pb.DownloadAttachmentRequest, stream pb.FeedbackService_DownloadAttachmentServer) error {
+	s.logger.Info("gRPC DownloadAttachment received",
+		"feedback_id", req.FeedbackId,
+		"filename", req.Filename,
+	)
+
+	if req.FeedbackId == "" {
+		s.logger.Error("gRPC DownloadAttachment: feedback_id is required")
 		return status.Error(codes.InvalidArgument, "feedback_id is required")
 	}
 	if req.Filename == "" {
+		s.logger.Error("gRPC DownloadAttachment: filename is required")
 		return status.Error(codes.InvalidArgument, "filename is required")
 	}
 
-	// Parse feedback ID
 	feedbackID, err := uuid.Parse(req.FeedbackId)
 	if err != nil {
-		return status.Error(codes.InvalidArgument, "invalid feedback_id format")
+		s.logger.Warn("gRPC DownloadAttachment: invalid feedback ID format", "feedback_id", req.FeedbackId, "error", err)
+		return status.Error(codes.InvalidArgument, "invalid feedback ID format")
 	}
 
-	// Download asset
-	reader, fileInfo, err := s.feedbackService.DownloadAsset(stream.Context(), feedbackID, req.Filename)
+	// Get attachment info first
+	attachments, err := s.feedbackService.ListAttachments(stream.Context(), feedbackID)
 	if err != nil {
-		if err.Error() == "asset not found" {
-			return status.Error(codes.NotFound, "asset not found")
-		}
-		return status.Error(codes.Internal, fmt.Sprintf("failed to download asset: %v", err))
+		s.logger.Error("gRPC DownloadAttachment: failed to get attachment info", "feedback_id", feedbackID, "error", err)
+		return status.Error(codes.Internal, fmt.Sprintf("failed to get attachment info: %v", err))
 	}
-	defer reader.Close()
 
-	// Send asset info first
-	err = stream.Send(&pb.DownloadAssetResponse{
-		Data: &pb.DownloadAssetResponse_Info{
-			Info: &pb.AssetInfo{
-				Filename:    fileInfo.Name,
-				Size:        fileInfo.Size,
-				ContentType: fileInfo.ContentType,
-				UploadedAt:  timestamppb.New(time.Now()), // We don't store upload time in file info
+	var attachmentInfo *models.AttachmentInfo
+	for _, attachment := range attachments {
+		if attachment.Filename == req.Filename {
+			attachmentInfo = attachment
+			break
+		}
+	}
+
+	if attachmentInfo == nil {
+		s.logger.Warn("gRPC DownloadAttachment: attachment not found", "filename", req.Filename)
+		return status.Error(codes.NotFound, "attachment not found")
+	}
+
+	s.logger.Info("gRPC DownloadAttachment: found attachment",
+		"filename", attachmentInfo.Filename,
+		"size", attachmentInfo.Size,
+		"content_type", attachmentInfo.ContentType,
+	)
+
+	// Send attachment info first
+	err = stream.Send(&pb.DownloadAttachmentResponse{
+		Data: &pb.DownloadAttachmentResponse_Info{
+			Info: &pb.AttachmentInfo{
+				Filename:    attachmentInfo.Filename,
+				Size:        attachmentInfo.Size,
+				ContentType: attachmentInfo.ContentType,
+				UploadedAt:  timestamppb.New(attachmentInfo.UploadedAt),
 			},
 		},
 	})
 	if err != nil {
-		return status.Error(codes.Internal, fmt.Sprintf("failed to send asset info: %v", err))
+		s.logger.Error("gRPC DownloadAttachment: failed to send attachment info", "error", err)
+		return status.Error(codes.Internal, fmt.Sprintf("failed to send attachment info: %v", err))
 	}
 
-	// Stream file content in chunks
+	// Download and stream file content
+	reader, _, err := s.feedbackService.DownloadAttachment(stream.Context(), feedbackID, req.Filename)
+	if err != nil {
+		s.logger.Error("gRPC DownloadAttachment: failed to download attachment", "feedback_id", feedbackID, "error", err)
+		return status.Error(codes.Internal, fmt.Sprintf("failed to download attachment: %v", err))
+	}
+	defer reader.Close()
+
+	s.logger.Info("gRPC DownloadAttachment: starting to stream file content")
+	var totalSent int64
 	buffer := make([]byte, 32*1024) // 32KB chunks
 	for {
 		n, err := reader.Read(buffer)
@@ -730,313 +690,117 @@ func (s *feedbackServer) DownloadAsset(req *pb.DownloadAssetRequest, stream pb.F
 			break
 		}
 		if err != nil {
-			return status.Error(codes.Internal, fmt.Sprintf("failed to read asset data: %v", err))
+			s.logger.Error("gRPC DownloadAttachment: failed to read attachment", "error", err)
+			return status.Error(codes.Internal, fmt.Sprintf("failed to read attachment: %v", err))
 		}
 
-		err = stream.Send(&pb.DownloadAssetResponse{
-			Data: &pb.DownloadAssetResponse_Chunk{
+		err = stream.Send(&pb.DownloadAttachmentResponse{
+			Data: &pb.DownloadAttachmentResponse_Chunk{
 				Chunk: buffer[:n],
 			},
 		})
 		if err != nil {
+			s.logger.Error("gRPC DownloadAttachment: failed to send chunk", "error", err)
 			return status.Error(codes.Internal, fmt.Sprintf("failed to send chunk: %v", err))
 		}
+		totalSent += int64(n)
 	}
 
+	s.logger.Info("gRPC DownloadAttachment response", "total_sent", totalSent)
 	return nil
 }
 
-// ListAssets lists all assets for a feedback
-func (s *feedbackServer) ListAssets(ctx context.Context, req *pb.ListAssetsRequest) (*pb.ListAssetsResponse, error) {
-	// Validate request
+// ListAttachments lists attachments for a feedback (both roles)
+func (s *FeedbackServer) ListAttachments(ctx context.Context, req *pb.ListAttachmentsRequest) (*pb.ListAttachmentsResponse, error) {
+	s.logger.Info("gRPC ListAttachments received", "feedback_id", req.FeedbackId)
+
 	if req.FeedbackId == "" {
+		s.logger.Error("gRPC ListAttachments: feedback_id is required")
 		return nil, status.Error(codes.InvalidArgument, "feedback_id is required")
 	}
 
-	// Parse feedback ID
 	feedbackID, err := uuid.Parse(req.FeedbackId)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid feedback_id format")
+		s.logger.Warn("gRPC ListAttachments: invalid feedback ID format", "feedback_id", req.FeedbackId, "error", err)
+		return nil, status.Error(codes.InvalidArgument, "invalid feedback ID format")
 	}
 
-	// List assets
-	assets, err := s.feedbackService.ListAssets(ctx, feedbackID)
+	attachments, err := s.feedbackService.ListAttachments(ctx, feedbackID)
 	if err != nil {
-		if err.Error() == "feedback not found" {
-			return nil, status.Error(codes.NotFound, "feedback not found")
-		}
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list assets: %v", err))
+		s.logger.Error("gRPC ListAttachments failed", "feedback_id", feedbackID, "error", err)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list attachments: %v", err))
 	}
 
-	// Convert to protobuf
-	pbAssets := make([]*pb.AssetInfo, len(assets))
-	for i, asset := range assets {
-		pbAssets[i] = &pb.AssetInfo{
-			Filename:    asset.Filename,
-			Size:        asset.FileSize,
-			ContentType: asset.ContentType,
-			UploadedAt:  timestamppb.New(asset.CreatedAt),
+	pbAttachments := make([]*pb.AttachmentInfo, len(attachments))
+	for i, attachment := range attachments {
+		pbAttachments[i] = &pb.AttachmentInfo{
+			Filename:    attachment.Filename,
+			Size:        attachment.Size,
+			ContentType: attachment.ContentType,
+			UploadedAt:  timestamppb.New(attachment.UploadedAt),
 		}
 	}
-	return &pb.ListAssetsResponse{
-		Assets: pbAssets,
-	}, nil
+
+	response := &pb.ListAttachmentsResponse{Attachments: pbAttachments}
+	s.logger.Info("gRPC ListAttachments completed", "feedback_id", req.FeedbackId, "count", len(attachments))
+	return response, nil
 }
 
-// CreateComment creates a new comment
-func (s *feedbackServer) CreateComment(ctx context.Context, req *pb.CreateCommentRequest) (*pb.LabComment, error) {
-	// Validate request
-	if req.LabId <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "lab_id is required")
-	}
-	if req.UserId <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "user_id is required")
-	}
-	if req.Content == "" {
-		return nil, status.Error(codes.InvalidArgument, "content is required")
+// GetAttachmentLocation returns location information for attachments (both roles)
+func (s *FeedbackServer) GetAttachmentLocation(ctx context.Context, req *pb.GetAttachmentLocationRequest) (*pb.GetAttachmentLocationResponse, error) {
+	s.logger.Info("gRPC GetAttachmentLocation received",
+		"feedback_id", req.FeedbackId,
+		"filename", req.Filename,
+	)
+
+	if req.FeedbackId == "" {
+		s.logger.Error("gRPC GetAttachmentLocation: feedback_id is required")
+		return nil, status.Error(codes.InvalidArgument, "feedback_id is required")
 	}
 
-	// Parse parent ID if provided
-	var parentID *uuid.UUID
-	if req.ParentId != nil {
-		parsed, err := uuid.Parse(*req.ParentId)
+	feedbackID, err := uuid.Parse(req.FeedbackId)
+	if err != nil {
+		s.logger.Warn("gRPC GetAttachmentLocation: invalid feedback ID format", "feedback_id", req.FeedbackId, "error", err)
+		return nil, status.Error(codes.InvalidArgument, "invalid feedback ID format")
+	}
+
+	var locationInfos []*models.AttachmentLocationInfo
+
+	if req.Filename != nil && *req.Filename != "" {
+		s.logger.Info("gRPC GetAttachmentLocation: getting location for specific file", "filename", *req.Filename)
+		// Get location info for specific attachment
+		locationInfo, err := s.feedbackService.GetAttachmentLocation(ctx, feedbackID, *req.Filename)
 		if err != nil {
-			return nil, status.Error(codes.InvalidArgument, "invalid parent_id format")
+			s.logger.Error("gRPC GetAttachmentLocation: failed to get attachment location", "feedback_id", feedbackID, "error", err)
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get attachment location: %v", err))
 		}
-		parentID = &parsed
-	}
-
-	// Create comment
-	comment, err := s.commentService.CreateComment(ctx, req.LabId, req.UserId, parentID, req.Content)
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create comment: %v", err))
-	}
-
-	// Convert to protobuf
-	pbComment := &pb.LabComment{
-		Id:        comment.ID.String(),
-		LabId:     comment.LabID,
-		UserId:    comment.UserID,
-		Content:   comment.Content,
-		CreatedAt: timestamppb.New(comment.CreatedAt),
-		UpdatedAt: timestamppb.New(comment.UpdatedAt),
-	}
-	if comment.ParentID != nil {
-		parentIDStr := comment.ParentID.String()
-		pbComment.ParentId = &parentIDStr
-	}
-
-	return pbComment, nil
-}
-
-// GetComment retrieves a comment by ID
-func (s *feedbackServer) GetComment(ctx context.Context, req *pb.GetCommentRequest) (*pb.LabComment, error) {
-	// Validate request
-	if req.Id == "" {
-		return nil, status.Error(codes.InvalidArgument, "id is required")
-	}
-
-	// Parse UUID
-	id, err := uuid.Parse(req.Id)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid id format")
-	}
-
-	// Get comment
-	comment, err := s.commentService.GetComment(ctx, id)
-	if err != nil {
-		if err.Error() == "comment not found" {
-			return nil, status.Error(codes.NotFound, "comment not found")
-		}
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get comment: %v", err))
-	}
-
-	// Convert to protobuf
-	pbComment := &pb.LabComment{
-		Id:        comment.ID.String(),
-		LabId:     comment.LabID,
-		UserId:    comment.UserID,
-		Content:   comment.Content,
-		CreatedAt: timestamppb.New(comment.CreatedAt),
-		UpdatedAt: timestamppb.New(comment.UpdatedAt),
-	}
-	if comment.ParentID != nil {
-		parentIDStr := comment.ParentID.String()
-		pbComment.ParentId = &parentIDStr
-	}
-
-	return pbComment, nil
-}
-
-// UpdateComment updates a comment
-func (s *feedbackServer) UpdateComment(ctx context.Context, req *pb.UpdateCommentRequest) (*pb.LabComment, error) {
-	// Validate request
-	if req.Id == "" {
-		return nil, status.Error(codes.InvalidArgument, "id is required")
-	}
-	if req.Content == "" {
-		return nil, status.Error(codes.InvalidArgument, "content is required")
-	}
-
-	// Parse UUID
-	id, err := uuid.Parse(req.Id)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid id format")
-	}
-
-	// Update comment
-	comment, err := s.commentService.UpdateComment(ctx, id, req.Content)
-	if err != nil {
-		if err.Error() == "comment not found" {
-			return nil, status.Error(codes.NotFound, "comment not found")
-		}
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update comment: %v", err))
-	}
-
-	// Convert to protobuf
-	pbComment := &pb.LabComment{
-		Id:        comment.ID.String(),
-		LabId:     comment.LabID,
-		UserId:    comment.UserID,
-		Content:   comment.Content,
-		CreatedAt: timestamppb.New(comment.CreatedAt),
-		UpdatedAt: timestamppb.New(comment.UpdatedAt),
-	}
-	if comment.ParentID != nil {
-		parentIDStr := comment.ParentID.String()
-		pbComment.ParentId = &parentIDStr
-	}
-
-	return pbComment, nil
-}
-
-// DeleteComment deletes a comment
-func (s *feedbackServer) DeleteComment(ctx context.Context, req *pb.DeleteCommentRequest) (*pb.DeleteCommentResponse, error) {
-	// Validate request
-	if req.Id == "" {
-		return nil, status.Error(codes.InvalidArgument, "id is required")
-	}
-
-	// Parse UUID
-	id, err := uuid.Parse(req.Id)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid id format")
-	}
-
-	// Delete comment
-	err = s.commentService.DeleteComment(ctx, id)
-	if err != nil {
-		if err.Error() == "comment not found" {
-			return nil, status.Error(codes.NotFound, "comment not found")
-		}
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete comment: %v", err))
-	}
-
-	return &pb.DeleteCommentResponse{
-		Success: true,
-	}, nil
-}
-
-// ListLabComments lists comments for a lab
-func (s *feedbackServer) ListLabComments(ctx context.Context, req *pb.ListLabCommentsRequest) (*pb.ListLabCommentsResponse, error) {
-	// Validate request
-	if req.LabId <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "lab_id is required")
-	}
-	if req.Page <= 0 {
-		req.Page = 1
-	}
-	if req.Limit <= 0 {
-		req.Limit = 20
-	}
-
-	// Parse parent ID if provided
-	var parentID *uuid.UUID
-	if req.ParentId != nil {
-		parsed, err := uuid.Parse(*req.ParentId)
+		locationInfos = []*models.AttachmentLocationInfo{locationInfo}
+	} else {
+		s.logger.Info("gRPC GetAttachmentLocation: getting locations for all attachments")
+		// Get location info for all attachments
+		infos, err := s.feedbackService.ListAttachmentLocations(ctx, feedbackID)
 		if err != nil {
-			return nil, status.Error(codes.InvalidArgument, "invalid parent_id format")
+			s.logger.Error("gRPC GetAttachmentLocation: failed to list attachment locations", "feedback_id", feedbackID, "error", err)
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list attachment locations: %v", err))
 		}
-		parentID = &parsed
+		locationInfos = infos
 	}
 
-	// List comments
-	comments, totalCount, err := s.commentService.ListLabComments(ctx, req.LabId, parentID, req.Page, req.Limit)
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list comments: %v", err))
-	}
-
-	// Convert to protobuf
-	pbComments := make([]*pb.LabComment, len(comments))
-	for i, comment := range comments {
-		pbComment := &pb.LabComment{
-			Id:        comment.ID.String(),
-			LabId:     comment.LabID,
-			UserId:    comment.UserID,
-			Content:   comment.Content,
-			CreatedAt: timestamppb.New(comment.CreatedAt),
-			UpdatedAt: timestamppb.New(comment.UpdatedAt),
+	pbLocationInfos := make([]*pb.AttachmentLocationInfo, len(locationInfos))
+	for i, info := range locationInfos {
+		pbLocationInfos[i] = &pb.AttachmentLocationInfo{
+			Filename:         info.Filename,
+			Size:             info.Size,
+			ContentType:      info.ContentType,
+			UploadedAt:       timestamppb.New(info.UploadedAt),
+			MinioBucket:      info.MinioBucket,
+			MinioObjectPath:  info.MinioObjectPath,
+			MinioEndpoint:    info.MinioEndpoint,
+			UseSsl:           info.UseSSL,
 		}
-		if comment.ParentID != nil {
-			parentIDStr := comment.ParentID.String()
-			pbComment.ParentId = &parentIDStr
-		}
-		pbComments[i] = pbComment
 	}
 
-	return &pb.ListLabCommentsResponse{
-		Comments:   pbComments,
-		TotalCount: totalCount,
-	}, nil
-}
-
-// GetCommentReplies gets replies to a specific comment
-func (s *feedbackServer) GetCommentReplies(ctx context.Context, req *pb.GetCommentRepliesRequest) (*pb.GetCommentRepliesResponse, error) {
-	// Validate request
-	if req.CommentId == "" {
-		return nil, status.Error(codes.InvalidArgument, "comment_id is required")
-	}
-	if req.Page <= 0 {
-		req.Page = 1
-	}
-	if req.Limit <= 0 {
-		req.Limit = 20
-	}
-
-	// Parse comment ID
-	commentID, err := uuid.Parse(req.CommentId)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid comment_id format")
-	}
-	// Get replies
-	comments, totalCount, err := s.commentService.GetCommentReplies(ctx, commentID, req.Page, req.Limit)
-	if err != nil {
-		if err.Error() == "parent comment not found" {
-			return nil, status.Error(codes.NotFound, "parent comment not found")
-		}
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get comment replies: %v", err))
-	}
-
-	// Convert to protobuf
-	pbComments := make([]*pb.LabComment, len(comments))
-	for i, comment := range comments {
-		pbComment := &pb.LabComment{
-			Id:        comment.ID.String(),
-			LabId:     comment.LabID,
-			UserId:    comment.UserID,
-			Content:   comment.Content,
-			CreatedAt: timestamppb.New(comment.CreatedAt),
-			UpdatedAt: timestamppb.New(comment.UpdatedAt),
-		}
-		if comment.ParentID != nil {
-			parentIDStr := comment.ParentID.String()
-			pbComment.ParentId = &parentIDStr
-		}
-		pbComments[i] = pbComment
-	}
-
-	return &pb.GetCommentRepliesResponse{
-		Comments:   pbComments,
-		TotalCount: totalCount,
-	}, nil
+	response := &pb.GetAttachmentLocationResponse{Attachments: pbLocationInfos}
+	s.logger.Info("gRPC GetAttachmentLocation completed", "feedback_id", req.FeedbackId, "count", len(locationInfos))
+	return response, nil
 }

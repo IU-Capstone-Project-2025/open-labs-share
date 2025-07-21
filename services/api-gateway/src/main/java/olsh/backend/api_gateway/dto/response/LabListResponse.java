@@ -13,20 +13,10 @@ public class LabListResponse {
     @Schema(description = "List of labs on the current page")
     private List<LabResponse> labs;
 
-    @Schema(description = "Pagination information")
-    private PaginationResponse pagination;
+    @Schema(description = "List of tags associated with the labs")
+    private List<TagResponse> tags;
 
-    @Data
-    @Builder
-    @Schema(description = "Pagination details")
-    public static class PaginationResponse {
-        @Schema(description = "Current page number", example = "1")
-        private Integer currentPage;
+    @Schema(description = "Total number of items across all pages", example = "100")
+    private Integer count;
 
-        @Schema(description = "Total number of pages", example = "5")
-        private Integer totalPages;
-
-        @Schema(description = "Total number of items across all pages", example = "100")
-        private Integer totalItems;
-    }
 }

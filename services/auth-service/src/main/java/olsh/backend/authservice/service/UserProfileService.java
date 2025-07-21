@@ -14,8 +14,7 @@ import olsh.backend.authservice.dto.UserProfileResponseWithUserInfo;
 @Service
 @RequiredArgsConstructor
 public class UserProfileService {
-
-    private final UserService userService;
+    
     private final UsersServiceClient usersServiceClient;
 
     public UserProfileResponseWithUserInfo getUserProfileWithUserInfo(String username) {
@@ -37,6 +36,9 @@ public class UserProfileService {
                 .lastName(usersResponse.getUserInfo().getLastName())
                 .role(userInfo.getRole())
                 .email(usersResponse.getUserInfo().getEmail())
+                .labsSolved(usersResponse.getUserInfo().getLabsSolved())
+                .labsReviewed(usersResponse.getUserInfo().getLabsReviewed())
+                .balance(usersResponse.getUserInfo().getBalance())
                 .build();
                 
             return UserProfileResponseWithUserInfo.builder()
@@ -59,6 +61,9 @@ public class UserProfileService {
                 .lastName(response.getUserInfo().getLastName())
                 .role(response.getUserInfo().getRole())
                 .email(response.getUserInfo().getEmail())
+                .labsSolved(response.getUserInfo().getLabsSolved())
+                .labsReviewed(response.getUserInfo().getLabsReviewed())
+                .balance(response.getUserInfo().getBalance())
                 .build();
         } catch (Exception e) {
             log.error("Error getting user info from users-service for ID: {}", userId, e);
@@ -80,6 +85,9 @@ public class UserProfileService {
                 .lastName(response.getUserInfo().getLastName())
                 .role(response.getUserInfo().getRole())
                 .email(response.getUserInfo().getEmail())
+                .labsSolved(response.getUserInfo().getLabsSolved())
+                .labsReviewed(response.getUserInfo().getLabsReviewed())
+                .balance(response.getUserInfo().getBalance())
                 .build();
         } catch (Exception e) {
             log.error("Error finding user by email in users-service: {}", email, e);

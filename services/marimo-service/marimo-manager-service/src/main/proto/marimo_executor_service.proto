@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package marimo;
+
+option java_multiple_files = true;
+option java_package = "olsh.backend.grpc.marimo";
+option java_outer_classname = "MarimoExecutorServiceOuterClass";
+
+service MarimoExecutor {
+    rpc StartSession (StartSessionRequest) returns (StartSessionResponse);
+    rpc ExecuteCell (ExecuteRequest) returns (ExecuteResponse);
+    rpc EndSession (EndSessionRequest) returns (EndSessionResponse);
+    rpc GetSessionState (SessionStateRequest) returns (SessionStateResponse);
+    rpc UpdateWidgetValue (UpdateWidgetValueRequest) returns (UpdateWidgetValueResponse);
+}
+
+message StartSessionRequest {
+    string session_id = 1;
+    string notebook_path = 2;
+    optional string component_id = 3;
+}
+
+message StartSessionResponse {
+    bool success = 1;
+    string error = 2;
+}
+
+message ExecuteRequest {
+    string session_id = 1;
+    string cell_id = 2;
+    string code = 3;
+}
+
+message CellOutput {
+    enum OutputType {
+        TEXT = 0;
+        PLOT = 1;
+        HTML = 2;
+        WIDGET = 3;
+        ERROR = 4;
+        STDOUT = 5;
+        STDERR = 6;
+        EXPRESSION_RESULT = 7;
+    }
+    
+    enum DataType {
+        TEXT_DATA = 0;
+        HTML_DATA = 1;
+        JSON_DATA = 2;
+        IMAGE_DATA = 3;
+    }
+    
+    OutputType type = 1;
+    string content = 2;
+    bytes data = 3;
+    string mime_type = 4;
+    map<string, string> metadata = 5;
+    DataType data_type = 6;
+}
+
+message ExecuteResponse {
+    bool success = 1;
+    repeated CellOutput outputs = 2;
+    string error = 3;
+    map<string, string> cell_state = 4;
+}
+
+message EndSessionRequest {
+    string session_id = 1;
+}
+
+message EndSessionResponse {
+    bool success = 1;
+    string error = 2;
+}
+
+message SessionStateRequest {
+    string session_id = 1;
+}
+
+message SessionStateResponse {
+    bool exists = 1;
+    map<string, string> state = 2;
+}
+
+message UpdateWidgetValueRequest {
+    string session_id = 1;
+    string widget_id = 2;
+    string value = 3;
+}
+
+message UpdateWidgetValueResponse {
+    bool success = 1;
+    string error = 2;
+} 

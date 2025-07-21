@@ -1,0 +1,149 @@
+syntax = "proto3";
+option java_package = "olsh.backend.api_gateway.grpc.proto";
+option java_outer_classname = "ArticleProto";
+
+package article;
+
+import "google/protobuf/timestamp.proto";
+
+service ArticleService {
+  // Articles Management
+  rpc CreateArticle (CreateArticleRequest) returns (Article);
+  rpc GetArticle (GetArticleRequest) returns (Article);
+  rpc GetArticles (GetArticlesRequest) returns (ArticleList);
+  rpc UpdateArticle (UpdateArticleRequest) returns (Article);
+  rpc DeleteArticle (DeleteArticleRequest) returns (DeleteArticleResponse);
+
+  rpc GetArticlesByUserId (GetArticlesByUserIdRequest) returns (ArticleList);
+  rpc GetArticlesCount(GetArticlesCountRequest) returns (GetArticlesCountResponse);
+
+  // Assets Management
+  rpc UploadAsset (stream UploadAssetRequest) returns (Asset);
+  rpc UpdateAsset (stream UpdateAssetRequest) returns (Asset);
+  rpc DownloadAsset (DownloadAssetRequest) returns (stream DownloadAssetResponse);
+  rpc DeleteAsset (DeleteAssetRequest) returns (DeleteAssetResponse);
+  rpc ListAssets (ListAssetsRequest) returns (AssetList);
+}
+
+// Articles Management
+message Article {
+  int64 article_id = 1;
+  int64 owner_id = 2;
+  string title = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+  string abstract = 6;
+  int64 views = 7;
+  int64 stars = 8;
+  int64 people_rated = 9;
+}
+message CreateArticleRequest {
+  int64 owner_id = 1;
+  string title = 2;
+  string abstract = 3;
+}
+
+message GetArticleRequest {
+  int64 article_id = 1;
+}
+
+message ArticleList {
+  int64 total_count = 1;
+  repeated Article articles = 2;
+}
+
+message GetArticlesRequest {
+  int32 page_number = 1;
+  int32 page_size = 2;
+  optional string text = 3;
+  repeated int32 tags_ids = 4;
+}
+
+message UpdateArticleRequest {
+  int64 article_id = 1;
+  optional string title = 2;
+  optional string abstract = 3;
+}
+
+message DeleteArticleRequest {
+  int64 article_id = 1;
+}
+
+message DeleteArticleResponse {
+  bool success = 1;
+}
+
+message GetArticlesByUserIdRequest {
+  int64 user_id = 1;
+  int32 page_number = 2;
+  int32 page_size = 3;
+}
+
+message GetArticlesCountRequest {}
+
+message GetArticlesCountResponse {
+  int32 total_count = 1;
+}
+
+// Assets Management
+message Asset {
+  int64 asset_id = 1;
+  int64 article_id = 2;
+  string filename = 3;
+  int64 filesize = 4;
+  google.protobuf.Timestamp upload_date = 5;
+}
+
+message UploadAssetMetadata {
+  int64 article_id = 1;
+  string filename = 2;
+  int64 filesize = 3;
+}
+
+message UploadAssetRequest {
+  oneof data {
+    UploadAssetMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message UpdateAssetMetadata {
+  int64 asset_id = 1;
+  string filename = 2;
+  int64 filesize = 3;
+}
+
+message UpdateAssetRequest {
+  oneof data {
+    UpdateAssetMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message DownloadAssetRequest {
+  int64 asset_id = 1;
+}
+
+message DownloadAssetResponse {
+  oneof data {
+    Asset asset = 1;
+    bytes chunk = 2;
+  }
+}
+
+message DeleteAssetRequest {
+  int64 asset_id = 1;
+}
+
+message DeleteAssetResponse {
+  bool success = 1;
+}
+
+message AssetList {
+  int64 total_count = 1;
+  repeated Asset assets = 2;
+}
+
+message ListAssetsRequest {
+  int64 article_id = 1;
+}

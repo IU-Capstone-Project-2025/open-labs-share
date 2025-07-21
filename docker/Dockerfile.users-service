@@ -1,17 +1,18 @@
-FROM gradle:8-jdk17 AS build
+FROM gradle:8-jdk21 AS build
 WORKDIR /app
 
 COPY services/users-service/gradle/ gradle/
 COPY services/users-service/gradlew services/users-service/build.gradle services/users-service/settings.gradle ./
 
-RUN gradle dependencies --no-daemon || true
+# Use cache mount for gradle dependencies
+RUN --mount=type=cache,target=/root/.gradle-users \
+    GRADLE_USER_HOME=/root/.gradle-users gradle dependencies --no-daemon || true
 
 COPY services/users-service/src/ src/
 
-RUN gradle clean && \
-    gradle generateProto &&  \
-    gradle build --no-daemon -x test && \
-    gradle bootJar
+# Use cache mount for building
+RUN --mount=type=cache,target=/root/.gradle-users \
+    GRADLE_USER_HOME=/root/.gradle-users gradle clean generateProto build -x test bootJar --no-daemon
 
 RUN jlink --verbose \
           --module-path $JAVA_HOME/jmods \
@@ -22,16 +23,21 @@ RUN jlink --verbose \
           --add-modules java.base,java.logging,java.naming,java.desktop,\
 java.management,java.security.jgss,java.instrument,java.sql,\
 jdk.unsupported,java.xml,jdk.crypto.ec,java.net.http,jdk.httpserver \
-          --output /custom-jre
+          --output /custom-jre 
 
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends wget ca-certificates && \
+    apt-get install -y --no-install-recommends wget ca-certificates netcat-openbsd && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p /opt/app
+
+# Install grpc-health-probe
+RUN GRPC_HEALTH_PROBE_VERSION=v0.4.24 && \
+    wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 -O /usr/local/bin/grpc_health_probe && \
+    chmod +x /usr/local/bin/grpc_health_probe
 
 RUN groupadd -r appgroup && \
     useradd -r -g appgroup appuser && \
@@ -49,9 +55,6 @@ ENV PATH="/opt/jre/bin:${PATH}" \
     JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom"
     
 EXPOSE 9093
-
-HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:9093/actuator/health || exit 1
 
 ENTRYPOINT ["/opt/jre/bin/java", \
             "-XX:+UseContainerSupport", \

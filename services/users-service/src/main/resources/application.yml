@@ -2,24 +2,33 @@ spring:
   application:
     name: users-service
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/users_service}
+    url: ${DB_URL:jdbc:postgresql://127.0.0.1:5432/users_service}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
   jpa:
     hibernate:
-      ddl-auto: ${HIBERNATE_DDL_AUTO:create-drop}
+      ddl-auto: ${HIBERNATE_DDL_AUTO:validate}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: ${SHOW_SQL:false}
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
   grpc:
     server:
       port: ${GRPC_PORT:9093}
       reflection:
         enabled: true
     auth-service:
-      host: ${AUTH_SERVICE_HOST:localhost}
+      host: ${AUTH_SERVICE_HOST:127.0.0.1}
       port: ${AUTH_SERVICE_PORT:8383}
+
+# Points system configuration
+points:
+  multiplier-review: ${POINTS_MULTIPLIER_REVIEW:3}  # k - multiplier for review rewards
+  base-cost: ${POINTS_BASE_COST:1}                  # n - base points cost/reward
+  initial-balance: ${INITIAL_BALANCE:10}            # m - initial balance for new users
 
 logging:
   level:

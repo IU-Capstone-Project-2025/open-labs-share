@@ -1,0 +1,118 @@
+name: Service Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - "*"
+
+jobs:
+  test-api-gateway:
+    runs-on: ubuntu-latest
+    name: Test api-gateway
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+      - name: Make gradlew executable
+        working-directory: ./services/api-gateway
+        run: chmod +x ./gradlew
+      - name: Run tests
+        working-directory: ./services/api-gateway
+        run: ./gradlew test
+
+  test-users-service:
+    runs-on: ubuntu-latest
+    name: Test users-service
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+      - name: Make gradlew executable
+        working-directory: ./services/users-service
+        run: chmod +x ./gradlew
+      - name: Run tests
+        working-directory: ./services/users-service
+        run: ./gradlew test
+
+  test-auth-service:
+    runs-on: ubuntu-latest
+    name: Test auth-service
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+      - name: Make gradlew executable
+        working-directory: ./services/auth-service
+        run: chmod +x ./gradlew
+      - name: Run tests
+        working-directory: ./services/auth-service
+        run: ./gradlew test
+
+  test-labs-service:
+    runs-on: ubuntu-latest
+    name: Test labs-service
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check for tests
+        run: echo "No automated tests found for articles-service. Skipping."
+      # - name: Install dependencies
+      #   working-directory: ./services/labs-service
+      #   run: |
+      #     python -m pip install --upgrade pip
+      #     pip install -r requirements.txt
+      # - name: Run tests
+      #   working-directory: ./services/labs-service
+      #   run: pytest
+
+  test-articles-service:
+    runs-on: ubuntu-latest
+    name: Test articles-service
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check for tests
+        run: echo "No automated tests found for articles-service. Skipping."
+
+  test-feedback-service:
+    runs-on: ubuntu-latest
+    name: Test feedback-service
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Check for tests
+        run: echo "No automated tests found for feedback-service. Skipping." 

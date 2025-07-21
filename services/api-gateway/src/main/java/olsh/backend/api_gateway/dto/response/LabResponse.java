@@ -4,6 +4,8 @@ import lombok.Builder;
 import lombok.Data;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.util.List;
+
 @Data
 @Builder
 @Schema(description = "Response object containing laboratory work details")
@@ -34,4 +36,13 @@ public class LabResponse {
 
     @Schema(description = "Last name of the lab's author", example = "Doe")
     private String authorSurname;
+
+    @Schema(description = "List of assets associated with this lab", example = "See AssetResponse")
+    private List<AssetResponse> assets;
+
+    @Schema(description = "List of article IDs associated with this lab", example = "[1, 2, 3]")
+    private List<Long> articles;
+
+    @Schema(description = "List of tag IDs associated with this lab", example = "[1, 2, 3]")
+    private List<Integer> tags;
 }

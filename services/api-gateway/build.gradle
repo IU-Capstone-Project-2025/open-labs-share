@@ -27,9 +27,11 @@ ext {
 dependencies {
 	// Spring Boot Starters
 	implementation 'org.springframework.boot:spring-boot-starter-web' // REST API
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-validation' // Requests Validation
 	implementation 'org.springframework.boot:spring-boot-starter-aop' // Custom Annotations
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9' // @ParameterObject && Swagger
+	implementation 'org.springframework.boot:spring-boot-starter-actuator' // Actuator
 
 	// Lombok
 	compileOnly 'org.projectlombok:lombok:1.18.34'
@@ -38,10 +40,13 @@ dependencies {
 	// Testing
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
+	testImplementation 'io.grpc:grpc-testing:1.72.0'
+	testImplementation 'com.google.protobuf:protobuf-java-util:4.28.2'
 
 	// gRPC client
 	implementation 'org.springframework.grpc:spring-grpc-client-spring-boot-starter'
 	implementation 'io.grpc:grpc-services'
+	implementation 'com.google.protobuf:protobuf-java-util:4.28.2'
 
 	// Jakarta annotations for Java 21
 	compileOnly 'jakarta.annotation:jakarta.annotation-api:2.1.1'
@@ -75,8 +80,30 @@ protobuf {
 	}
 }
 
+// Add generated sources to source sets
+sourceSets {
+	main {
+		java {
+			srcDirs 'build/generated/sources/proto/main/java'
+			srcDirs 'build/generated/sources/proto/main/grpc'
+		}
+	}
+}
+
 
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+test {
+	afterSuite { desc, result ->
+		if (!desc.parent) {
+			println("Results: ${result.resultType} " +
+					"(${result.testCount} tests, " +
+					"${result.successfulTestCount} successes, " +
+					"${result.failedTestCount} failures, " +
+					"${result.skippedTestCount} skipped)")
+		}
+	}
 }

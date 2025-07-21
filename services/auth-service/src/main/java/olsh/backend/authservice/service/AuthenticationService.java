@@ -1,5 +1,6 @@
 package olsh.backend.authservice.service;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -10,13 +11,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.authservice.client.UsersServiceClient;
 import olsh.backend.authservice.dto.AuthenticationResponse;
-import olsh.backend.authservice.dto.ChangePasswordRequest;
+
 import olsh.backend.authservice.dto.PasswordResetConfirmRequest;
 import olsh.backend.authservice.dto.PasswordResetRequest;
 import olsh.backend.authservice.dto.RefreshTokenRequest;
 import olsh.backend.authservice.dto.SignInRequest;
 import olsh.backend.authservice.dto.SignUpRequest;
 import olsh.backend.authservice.dto.TokenValidationResponse;
+import olsh.backend.authservice.dto.UpdateProfileRequest;
+import olsh.backend.authservice.dto.UpdateProfileResponse;
 import olsh.backend.authservice.dto.UserInfo;
 import olsh.backend.authservice.dto.UserProfileResponseWithUserInfo;
 import olsh.backend.authservice.dto.ValidateTokenRequest;
@@ -39,13 +42,8 @@ public class AuthenticationService {
 
     public AuthenticationResponse signUp(SignUpRequest request) {
         try {
-            // Check if username already exists
             checkUsernameAvailability(request.getUsername());
-
-            // Check if email already exists
             checkEmailAvailability(request.getEmail());
-
-            // Create user in users-service (this is the single source of truth)
             var userProfileResponse = usersServiceClient.createUser(
                 request.getUsername(),
                 request.getFirstName(),
@@ -56,8 +54,7 @@ public class AuthenticationService {
             );
             
             var userInfo = userProfileResponse.getUserInfo();
-            
-            // Create User object for JWT generation (not persisted)
+
             User user = User.builder()
                 .userId(userInfo.getUserId())
                 .username(userInfo.getUsername())
@@ -81,7 +78,7 @@ public class AuthenticationService {
 
     public AuthenticationResponse signIn(SignInRequest request) {
         try {
-            // Authenticate using users-service via gRPC
+
             var userInfoResponse = usersServiceClient.authenticateUser(
                 request.getUsernameOrEmail(),
                 request.getPassword(),
@@ -89,8 +86,7 @@ public class AuthenticationService {
             );
             
             var userInfo = userInfoResponse.getUserInfo();
-            
-            // Create User object for JWT generation (not persisted)
+
             User user = User.builder()
                 .userId(userInfo.getUserId())
                 .username(userInfo.getUsername())
@@ -100,7 +96,6 @@ public class AuthenticationService {
                 .role(Role.valueOf(userInfo.getRole()))
                 .build();
 
-            // Update last login time in users-service
             usersServiceClient.updateUserLastLogin(userInfo.getUserId());
 
             String accessToken = jwtService.generateToken(user);
@@ -153,16 +148,8 @@ public class AuthenticationService {
                 try {
                     userInfo = userProfileService.getUserInfo(user.getUserId());
                 } catch (Exception e) {
-                    log.warn("Failed to get user info from users-service", e);
-
-                    userInfo = UserInfo.builder()
-                        .userId(user.getUserId())
-                        .username(user.getUsername())
-                        .firstName(user.getFirstName())
-                        .lastName(user.getLastName())
-                        .email(user.getEmail())
-                        .role(user.getRole().name())
-                        .build();
+                    log.warn("Failed to get user info from users-service, using fallback values", e);
+                    userInfo = createFallbackUserInfo(user);
                 }
 
                 return TokenValidationResponse.builder()
@@ -200,17 +187,6 @@ public class AuthenticationService {
         throw new UnsupportedOperationException("Password reset not implemented yet");
     }
 
-    public void changePassword(ChangePasswordRequest request, String username) {
-        try {
-            User user = userService.getByUsername(username);
-            usersServiceClient.updatePassword(user.getUserId(), request.getCurrentPassword(), request.getNewPassword());
-            log.info("Password changed successfully for user: {}", username);
-        } catch (Exception e) {
-            log.error("Failed to change password for user: {}", username, e);
-            throw new ValidationException("Failed to change password: " + e.getMessage());
-        }
-    }
-
     public UserProfileResponseWithUserInfo getUserProfileWithUserInfo(String username) {
         return userProfileService.getUserProfileWithUserInfo(username);
     }
@@ -220,17 +196,87 @@ public class AuthenticationService {
         throw new UnsupportedOperationException("Email verification not implemented yet");
     }
 
+    public UpdateProfileResponse updateProfile(UpdateProfileRequest request, String currentUsername, String currentToken) {
+        try {
+            User currentUser = userService.getByUsername(currentUsername);
+            String originalUsername = currentUser.getUsername();
+            
+            var userProfileResponse = usersServiceClient.updateUserProfile(
+                currentUser.getUserId(),
+                request.getFirstName(),
+                request.getLastName(),
+                request.getEmail(),
+                request.getUsername(),
+                request.getPassword()
+            );
+            
+            var updatedUserInfo = userProfileResponse.getUserInfo();
+            boolean usernameChanged = !originalUsername.equals(updatedUserInfo.getUsername());
+            
+            String accessToken = null;
+            String refreshToken = null;
+            LocalDateTime expiresAt = null;
+            
+            if (usernameChanged) {
+                jwtService.blacklistToken(currentToken);
+                
+                User updatedUser = User.builder()
+                    .userId(updatedUserInfo.getUserId())
+                    .username(updatedUserInfo.getUsername())
+                    .email(updatedUserInfo.getEmail())
+                    .firstName(updatedUserInfo.getFirstName())
+                    .lastName(updatedUserInfo.getLastName())
+                    .role(Role.valueOf(updatedUserInfo.getRole()))
+                    .build();
+                
+                accessToken = jwtService.generateToken(updatedUser);
+                refreshToken = jwtService.generateRefreshToken(updatedUser);
+                expiresAt = java.time.LocalDateTime.now().plusSeconds(ACCESS_TOKEN_EXPIRATION_TIME / 1000);
+                
+                log.info("Username changed from '{}' to '{}' for user ID: {}. New tokens generated.", 
+                         originalUsername, updatedUserInfo.getUsername(), currentUser.getUserId());
+            } else {
+                log.info("Profile updated for user ID: {} without username change. No new tokens issued.", currentUser.getUserId());
+            }
+            
+            UserInfo responseUserInfo = UserInfo.builder()
+                .userId(updatedUserInfo.getUserId())
+                .username(updatedUserInfo.getUsername())
+                .firstName(updatedUserInfo.getFirstName())
+                .lastName(updatedUserInfo.getLastName())
+                .email(updatedUserInfo.getEmail())
+                .role(updatedUserInfo.getRole())
+                .labsSolved(updatedUserInfo.getLabsSolved())
+                .labsReviewed(updatedUserInfo.getLabsReviewed())
+                .balance(updatedUserInfo.getBalance())
+                .build();
+            
+            return UpdateProfileResponse.builder()
+                .userInfo(responseUserInfo)
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .expiresAt(expiresAt)
+                .tokenType(usernameChanged ? "Bearer" : null)
+                .usernameChanged(usernameChanged)
+                .message("Profile updated successfully")
+                .build();
+                
+        } catch (Exception e) {
+            log.error("Failed to update profile for user: {}", currentUsername, e);
+            throw new ValidationException("Failed to update profile: " + e.getMessage());
+        }
+    }
+
     private AuthenticationResponse buildAuthenticationResponse(User user,
                                                                String accessToken,
                                                                String refreshToken) {
-        UserInfo userInfo = UserInfo.builder()
-            .userId(user.getUserId())
-            .username(user.getUsername())
-            .firstName(user.getFirstName())
-            .lastName(user.getLastName())
-            .email(user.getEmail())
-            .role(user.getRole().name())
-            .build();
+        UserInfo userInfo;
+        try {
+            userInfo = userProfileService.getUserInfo(user.getUserId());
+        } catch (Exception e) {
+            log.warn("Failed to get complete user info from users-service, using fallback values", e);
+            userInfo = createFallbackUserInfo(user);
+        }
 
         return AuthenticationResponse.builder()
             .accessToken(accessToken)
@@ -251,5 +297,25 @@ public class AuthenticationService {
         if (usersServiceClient.isEmailExists(email)) {
             throw new ValidationException("Email already exists");
         }
+    }
+
+    /**
+     * Creates fallback UserInfo when users-service is unavailable
+     * ONLY includes static user data - NEVER includes mutable transactional data (points/counters)
+     * This ensures data integrity and prevents phantom balance issues
+     */
+    private UserInfo createFallbackUserInfo(User user) {
+        log.info("Creating fallback user info for user ID: {} - points data will be unavailable", user.getUserId());
+        return UserInfo.builder()
+            .userId(user.getUserId())
+            .username(user.getUsername() != null ? user.getUsername() : "")
+            .firstName(user.getFirstName() != null ? user.getFirstName() : "")
+            .lastName(user.getLastName() != null ? user.getLastName() : "")
+            .email(user.getEmail() != null ? user.getEmail() : "")
+            .role(user.getRole() != null ? user.getRole().name() : "")
+            .labsSolved(0)
+            .labsReviewed(0)
+            .balance(0)
+            .build();
     }
 }

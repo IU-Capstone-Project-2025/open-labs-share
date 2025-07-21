@@ -17,5 +17,8 @@ public class CreateArticleResponse {
 
     @Schema(description = "Success message", example = "Article created successfully")
     private String message;
+
+    @Schema(description = "Details of the created article")
+    private ArticleResponse article;
 }
 

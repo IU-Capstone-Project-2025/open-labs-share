@@ -1,9 +1,9 @@
-from agent.agent import HelperAgent
+from agents.helper_agent.agent import HelperAgent
 from rag_backend.schemas import ChatHistoryRequest, ChatHistory
 from langchain_core.runnables import RunnableConfig
-from agent.schemas import RAGState
+from agents.helper_agent.schemas import RAGState
 from langgraph.graph import MessagesState
-from agent.prompts import SYSTEM_PROMPT
+from agents.helper_agent.prompts import SYSTEM_PROMPT
 from langchain_core.messages import BaseMessage
 import logging
 import typing as tp
@@ -19,7 +19,7 @@ class ChatHistoryService:
             self,
             request: ChatHistoryRequest,
             messages: tp.List[BaseMessage]
-    ) -> ChatHistory:
+    ) -> tp.Optional[ChatHistory]:
         try:
             return ChatHistory(
                 uuid=request.uuid,
@@ -29,8 +29,8 @@ class ChatHistoryService:
         except Exception as e:
             logger.error(f"Postprocess error: {e}")
 
-    async def get_chat_history(self, request: ChatHistoryRequest) -> ChatHistory:
-        config = {
+    async def get_chat_history(self, request: ChatHistoryRequest) -> tp.Optional[ChatHistory]:
+        config: RunnableConfig = {
             "configurable": {
                 "thread_id": f"{request.assignment_id}_{request.uuid}"
             }

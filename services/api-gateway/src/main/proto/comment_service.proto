@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package comment;
+
+option java_package = "olsh.backend.api_gateway.grpc.proto";
+option java_outer_classname = "CommentProto";
+
+import "google/protobuf/timestamp.proto";
+
+service CommentService {
+  rpc CreateComment(CreateCommentRequest) returns (Comment);
+  rpc GetComment(GetCommentRequest) returns (Comment);
+  rpc UpdateComment(UpdateCommentRequest) returns (Comment);
+  rpc DeleteComment(DeleteCommentRequest) returns (DeleteCommentResponse);
+  rpc ListComments(ListCommentsRequest) returns (ListCommentsResponse);
+  rpc GetCommentReplies(GetCommentRepliesRequest) returns (GetCommentRepliesResponse);
+}
+
+message Comment {
+  string id = 1;
+  int64 content_id = 2; // ID of the content (lab or article) this comment belongs to
+  int64 user_id = 3;
+  optional string parent_id = 4;
+  string content = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  string type = 8; // Type of content (e.g., "lab", "article")
+}
+
+message CreateCommentRequest {
+  int64 content_id = 1; // ID of the content (lab or article) this comment belongs to
+  int64 user_id = 2;
+  optional string parent_id = 3; // for replies
+  string content = 4; // Markdown content
+  string type = 5; // Type of content (e.g., "lab", "article")
+}
+
+message GetCommentRequest {
+  string id = 1;
+}
+
+message UpdateCommentRequest {
+  int64 user_id = 1;
+  string id = 2;
+  string content = 3;
+}
+
+message DeleteCommentRequest {
+  int64 user_id = 1;
+  string id = 2;
+}
+
+message DeleteCommentResponse {
+  bool success = 1;
+}
+
+message ListCommentsRequest {
+  int64 content_id = 1;
+  optional string parent_id = 2;
+  int32 page = 3;
+  int32 limit = 4;
+  string type = 5; // Type of content (e.g., "lab", "article")
+}
+
+message ListCommentsResponse {
+  repeated Comment comments = 1;
+  int32 total_count = 2; // total number of comments matching filter
+}
+
+message GetCommentRepliesRequest {
+  string comment_id = 1; // get replies to this comment
+  int32 page = 2;
+  int32 limit = 3;
+}
+
+message GetCommentRepliesResponse {
+  repeated Comment comments = 1; // list of replies to the comment
+  int32 total_count = 2; // total number of replies
+}

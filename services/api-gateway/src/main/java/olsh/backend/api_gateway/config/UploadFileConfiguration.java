@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 @Data
 public class UploadFileConfiguration {
     private int chunkSize = 8192; // 8KB default
-    private int timeoutSeconds = 60;
+    private int timeoutSeconds = 120;
     private long maxFileSize = 100 * 1024 * 1024; // 100MB default
 }
 

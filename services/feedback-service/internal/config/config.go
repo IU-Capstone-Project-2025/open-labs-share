@@ -6,20 +6,33 @@ import (
 	"strconv"
 )
 
+// Constants for attachment limits
+const (
+	MaxAttachmentsPerFeedback = 5
+)
+
 // Config represents the application configuration
 type Config struct {
 	GRPCPort string
 	Database DatabaseConfig
+	MongoDB  MongoDBConfig
 	MinIO    MinIOConfig
 }
 
-// DatabaseConfig represents database configuration
+// DatabaseConfig represents PostgreSQL database configuration (for feedback metadata)
 type DatabaseConfig struct {
 	Host     string
 	Port     string
 	User     string
 	Password string
 	DBName   string
+}
+
+// MongoDBConfig represents MongoDB configuration (for comments and feedback content)
+type MongoDBConfig struct {
+	URI        string
+	Database   string
+	Collection string
 }
 
 // MinIOConfig represents MinIO configuration
@@ -37,11 +50,16 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		GRPCPort: getEnv("GRPC_PORT", "9090"),
 		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnv("DB_PORT", "5432"),
-			User:     getEnv("DB_USER", "feedback_user"),
-			Password: getEnv("DB_PASSWORD", "feedback_password"),
-			DBName:   getEnv("DB_NAME", "feedback_db"),
+			Host:     getEnv("POSTGRES_HOST", "localhost"),
+			Port:     getEnv("POSTGRES_PORT", "5432"),
+			User:     getEnv("POSTGRES_USER", "feedback_user"),
+			Password: getEnv("POSTGRES_PASSWORD", "feedback_password"),
+			DBName:   getEnv("POSTGRES_DB", "feedback_db"),
+		},
+		MongoDB: MongoDBConfig{
+			URI:        getEnv("MONGODB_URI", "mongodb://localhost:27017"),
+			Database:   getEnv("MONGODB_DATABASE", "feedback"),
+			Collection: getEnv("MONGODB_COLLECTION", "feedback_content"),
 		},
 		MinIO: MinIOConfig{
 			Endpoint:     getEnv("MINIO_ENDPOINT", "localhost:9000"),
@@ -66,16 +84,25 @@ func (c *Config) validate() error {
 		return fmt.Errorf("GRPC_PORT is required")
 	}
 	if c.Database.Host == "" {
-		return fmt.Errorf("DB_HOST is required")
+		return fmt.Errorf("POSTGRES_HOST is required")
 	}
 	if c.Database.User == "" {
-		return fmt.Errorf("DB_USER is required")
+		return fmt.Errorf("POSTGRES_USER is required")
 	}
 	if c.Database.Password == "" {
-		return fmt.Errorf("DB_PASSWORD is required")
+		return fmt.Errorf("POSTGRES_PASSWORD is required")
 	}
 	if c.Database.DBName == "" {
-		return fmt.Errorf("DB_NAME is required")
+		return fmt.Errorf("POSTGRES_DB is required")
+	}
+	if c.MongoDB.URI == "" {
+		return fmt.Errorf("MONGODB_URI is required")
+	}
+	if c.MongoDB.Database == "" {
+		return fmt.Errorf("MONGODB_DATABASE is required")
+	}
+	if c.MongoDB.Collection == "" {
+		return fmt.Errorf("MONGODB_COLLECTION is required")
 	}
 	if c.MinIO.Endpoint == "" {
 		return fmt.Errorf("MINIO_ENDPOINT is required")

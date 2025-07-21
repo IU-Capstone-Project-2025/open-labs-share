@@ -6,7 +6,6 @@ export default function CreateLabPage() {
 
   const handleLabCreated = (result) => {
     console.log('Lab created successfully:', result);
-    // Navigate to the new lab's page or to My Labs
     if (result.lab && result.lab.id) {
       navigate(`/labs/${result.lab.id}`);
     } else {
@@ -15,7 +14,7 @@ export default function CreateLabPage() {
   };
 
   const handleCancel = () => {
-    navigate(-1); // Go back to previous page
+    navigate(-1);
   };
 
   return (
@@ -31,4 +30,4 @@ export default function CreateLabPage() {
       </div>
     </div>
   );
-} 
+}

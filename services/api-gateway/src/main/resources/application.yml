@@ -6,62 +6,78 @@ spring:
     name: ${SPRING_APP_NAME:api-gateway}
   profiles:
     active: ${PROFILE:default}
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+      file-size-threshold: 1KB
   mvc:
     throw-exception-if-no-handler-found: true
   web:
     resources:
       add-mappings: false
 
+
   grpc:
     upload:
-      chuck-size: 4096
-      timeout-seconds: 60
+      chunk-size: 32768
+      timeout-seconds: 120
       max-file-size: 104857600
     client:
       channels:
         auth-service:
-          address: "${AUTH_SERVICE_HOST:localhost}:${AUTH_SERVICE_PORT:9092}"
+          address: "${AUTH_SERVICE_HOST:127.0.0.1}:${AUTH_SERVICE_PORT:9092}"
           keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
           keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
           keep-alive-without-calls: true
-          max-inbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
-          max-outbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          max-inbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:50MB}
+          max-outbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:50MB}
+          max-inbound-metadata-size: 16KB
           negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
         user-service:
-          address: "${USER_SERVICE_HOST:localhost}:${USER_SERVICE_PORT:9093}"
+          address: "${USER_SERVICE_HOST:127.0.0.1}:${USER_SERVICE_PORT:9093}"
           keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
           keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
           keep-alive-without-calls: true
-          max-inbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
-          max-outbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          max-inbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:50MB}
+          max-outbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:50MB}
+          max-inbound-metadata-size: 16KB
           negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
         article-service:
-          address: "${ARTICLE_SERVICE_HOST:localhost}:${ARTICLE_SERVICE_PORT:9092}"
+          address: "${ARTICLE_SERVICE_HOST:127.0.0.1}:${ARTICLE_SERVICE_PORT:50051}"
           keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
           keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
           keep-alive-without-calls: true
-          max-inbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
-          max-outbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          max-inbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:50MB}
+          max-outbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:50MB}
+          max-inbound-metadata-size: 16KB
           negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
         lab-service:
-          address: "${LAB_SERVICE_HOST:localhost}:${LAB_SERVICE_PORT:9093}"
+          address: "${LAB_SERVICE_HOST:localhost}:${LAB_SERVICE_PORT:9091}"
           keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
           keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
           keep-alive-without-calls: true
-          max-inbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
-          max-outbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          max-inbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:50MB}
+          max-outbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:50MB}
+          max-inbound-metadata-size: 16KB
           negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
         feedback-service:
-          address: "${FEEDBACK_SERVICE_HOST:localhost}:${FEEDBACK_SERVICE_PORT:9094}"
+          address: "${FEEDBACK_SERVICE_HOST:localhost}:${FEEDBACK_SERVICE_PORT:9090}"
           keep-alive-time: ${GRPC_KEEP_ALIVE_TIME:30s}
           keep-alive-timeout: ${GRPC_KEEP_ALIVE_TIMEOUT:10s}
           keep-alive-without-calls: true
-          max-inbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
-          max-outbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:4MB}
+          max-inbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:50MB}
+          max-outbound-message-size: ${GRPC_MAX_MESSAGE_SIZE:50MB}
+          max-inbound-metadata-size: 16KB
           negotiation-type: ${GRPC_NEGOTIATION_TYPE:plaintext}
 
 server:
   port: ${SPRING_APP_PORT:8080}
+  tomcat:
+    max-http-post-size: 100MB
+    max-swallow-size: 100MB
+    connect-timeout: 60000
+    max-connections: 10000
 
 logging:
   level:
@@ -92,3 +108,14 @@ springdoc:
     tryItOutEnabled: true
   default-produces-media-type: application/json
   default-consumes-media-type: application/json
+
+cors:
+  allowed-origins: "http://127.0.0.1:5173"
+  allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+  allowed-headers: "Authorization,Content-Type,X-Requested-With"
+  exposed-headers: "Content-Disposition"
+  allow-credentials: true
+  max-age: 3600
+
+# Trigger build
+

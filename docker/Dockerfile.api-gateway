@@ -4,14 +4,15 @@ WORKDIR /app
 COPY services/api-gateway/gradle/ gradle/
 COPY services/api-gateway/gradlew services/api-gateway/build.gradle services/api-gateway/settings.gradle ./
 
-RUN gradle dependencies --no-daemon || true
+# Use cache mount for gradle dependencies
+RUN --mount=type=cache,target=/root/.gradle-gateway \
+    GRADLE_USER_HOME=/root/.gradle-gateway gradle dependencies --no-daemon || true
 
 COPY services/api-gateway/src/ src/
 
-RUN gradle clean && \
-    gradle generateProto &&  \
-    gradle build --no-daemon -x test && \
-    gradle bootJar
+# Use cache mount for building
+RUN --mount=type=cache,target=/root/.gradle-gateway \
+    GRADLE_USER_HOME=/root/.gradle-gateway gradle clean generateProto build -x test bootJar --no-daemon
 
 RUN jlink --verbose \
           --module-path $JAVA_HOME/jmods \
@@ -28,7 +29,7 @@ FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends wget ca-certificates && \
+    apt-get install -y --no-install-recommends wget ca-certificates curl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p /opt/app
@@ -50,6 +51,9 @@ ENV PATH="/opt/jre/bin:${PATH}" \
 
 EXPOSE 8080
 
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 \
+  CMD curl -f http://localhost:8080/actuator/health || exit 1
+
 ENTRYPOINT ["/opt/jre/bin/java", \
             "-XX:+UseContainerSupport", \
             "-XX:MaxRAMPercentage=75.0", \
@@ -57,4 +61,5 @@ ENTRYPOINT ["/opt/jre/bin/java", \
             "-XX:+UseStringDeduplication", \
             "-XX:+ExitOnOutOfMemoryError", \
             "-Djava.security.egd=file:/dev/./urandom", \
-            "-jar", "/opt/app/app.jar"] 
+            "-jar", "/opt/app/app.jar", \
+            "--server.address=0.0.0.0"]

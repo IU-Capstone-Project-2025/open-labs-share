@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import ArticleCard from "../components/ArticleCard";
+import { articlesAPI, marimoAPI } from "../utils/api";
 import { getCurrentUser, isAuthenticated } from "../utils/auth";
-// Note: articlesAPI is currently commented out in api.js
-// This code is prepared for when articles service is connected
-// import { articlesAPI } from "../utils/api";
+import { TrashIcon } from '@heroicons/react/24/outline';
 
-export default function MyArticles() {
-  const [articles, setArticles] = useState([]);
+export default function MyArticlesPage() {
+  const [myArticles, setMyArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [articleToDelete, setArticleToDelete] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (isAuthenticated()) {
@@ -22,72 +25,15 @@ export default function MyArticles() {
     const fetchMyArticles = async () => {
       try {
         setLoading(true);
-        // TODO: Replace with real API call when articles service is connected
-        // if (user && user.id) {
-        //   const response = await articlesAPI.getUserArticles(user.id);
-        //   setArticles(response.data || []);
-        // } else {
-        //   const response = await articlesAPI.getAllArticles();
-        //   const allArticles = response.data || [];
-        //   const myArticles = allArticles.filter(article => 
-        //     article.author && user && 
-        //     article.author.firstName === user.firstName && 
-        //     article.author.lastName === user.lastName
-        //   );
-        //   setArticles(myArticles);
-        // }
-        
-        // Temporary: Use mock data until articles service is connected
-        console.warn('Articles service not connected - using mock data');
-        const allArticles = [
-          {
-            id: 1,
-            title: "Educational Technology Research",
-            description: "Comprehensive study on peer-to-peer learning platforms and their effectiveness in modern educational environments",
-            author: { firstName: "Dr. Emma", lastName: "Williams" },
-          },
-          {
-            id: 2,
-            title: "Microservices Architecture Patterns",
-            description: "Best practices for building scalable educational platforms using microservices, Docker, and gRPC communication",
-            author: { firstName: "Prof. Michael", lastName: "Chen" },
-          },
-          {
-            id: 3,
-            title: "User Interface Design for Learning",
-            description: "Research on effective UI/UX patterns for educational web applications and student engagement optimization",
-            author: { firstName: "Dr. Sarah", lastName: "Johnson" },
-          },
-          {
-            id: 4,
-            title: "Article Management in Digital Platforms",
-            description: "Everyday practice shows that the beginning of daily work on the formation and implementation of content systems",
-            author: { firstName: "Ryan", lastName: "Gosling" },
-          },
-          {
-            id: 5,
-            title: "Authentication Systems Security",
-            description: "Comprehensive analysis of JWT-based authentication, security best practices, and stateless service architecture",
-            author: { firstName: "Security", lastName: "Research" },
-          },
-          {
-            id: 6,
-            title: "Feedback Systems in Education",
-            description: "Study on effective peer review systems, community feedback mechanisms, and their impact on learning outcomes",
-            author: { firstName: "Education", lastName: "Research" },
-          }
-        ];
-
-        // Filter articles to show only those created by the current user
-        const myArticles = user ? allArticles.filter(article => 
-          article.author.firstName === user.firstName && 
-          article.author.lastName === user.lastName
-        ) : [];
-        
-        setArticles(myArticles);
+        const response = await articlesAPI.getMyArticles(1, 20);
+        setMyArticles(response.articles || []);
       } catch (err) {
         console.error('Error fetching my articles:', err);
-        setError('Failed to load your articles');
+        if (err.message.includes('401') || err.message.includes('Unauthorized')) {
+          setError('Please log in to view your articles. You may need to sign in again.');
+        } else {
+          setError(`Failed to load your articles: ${err.message}`);
+        }
       } finally {
         setLoading(false);
       }
@@ -98,89 +44,216 @@ export default function MyArticles() {
     }
   }, [user]);
 
+  const handleCreateArticle = () => {
+    navigate('/create-article');
+  };
+
+  const handleDeleteClick = (e, article) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setArticleToDelete(article);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!articleToDelete) return;
+
+    try {
+      const deletedArticleId = articleToDelete.id || articleToDelete.article_id;
+      console.log('Deleting article with ID:', deletedArticleId);
+      console.log('Article to delete:', articleToDelete);
+      
+      // Step 1: Delete marimo components and their assets
+      try {
+        const marimoComponents = await marimoAPI.getComponentsByContent('article', deletedArticleId);
+        console.log('Found marimo components for article:', marimoComponents);
+        
+        if (marimoComponents && marimoComponents.length > 0) {
+          for (const component of marimoComponents) {
+            console.log('Deleting marimo component:', component.id);
+            
+            try {
+              // Delete component assets first (if any)
+              if (component.assets && component.assets.length > 0) {
+                for (const asset of component.assets) {
+                  try {
+                    await marimoAPI.deleteAsset(asset.id);
+                    console.log('Deleted asset:', asset.id);
+                  } catch (assetError) {
+                    console.warn('Failed to delete asset:', asset.id, assetError);
+                  }
+                }
+              }
+              
+              // Then delete the component itself
+              await marimoAPI.deleteComponent(component.id);
+              console.log('Deleted marimo component:', component.id);
+            } catch (componentError) {
+              console.error('Error deleting marimo component:', component.id, componentError);
+              // Continue with other components even if this one fails
+            }
+          }
+        }
+      } catch (marimoError) {
+        console.warn('Error cleaning up marimo components:', marimoError);
+        // Continue with article deletion even if marimo cleanup fails
+      }
+      
+      // Step 2: Delete the article itself
+      await articlesAPI.deleteArticle(deletedArticleId);
+      setMyArticles(prev => prev.filter(article => (article.id || article.article_id) !== deletedArticleId));
+      setShowDeleteModal(false);
+      setArticleToDelete(null);
+    } catch (error) {
+      console.error('Error deleting article:', error);
+      setError('Failed to delete article. Please try again.');
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setArticleToDelete(null);
+  };
+
+  const ConfirmationModal = () => {
+    if (!showDeleteModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full animate-fade-in">
+          <p className="text-gray-800 dark:text-gray-200 mb-4">
+            Are you sure you want to delete the article "{articleToDelete?.title}"?
+          </p>
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={handleCancelDelete}
+              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (!isAuthenticated()) {
     return (
-      <div className="relative min-h-screen dark:bg-gray-900 py-10 px-6 bg-transparent">
-        <div className="max-w-6xl mx-auto">
-          <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-8 shadow-lg">
-            <h1 className="text-3xl font-bold text-msc dark:text-white mb-6">
-              My articles
-            </h1>
-            <div className="text-center py-8">
-              <p className="text-gray-600 dark:text-gray-400">Please sign in to view your articles.</p>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h1 className="text-4xl font-extrabold font-display text-gray-900 dark:text-white tracking-tight mb-8">My Articles</h1>
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 max-w-md mx-auto">
+              <h2 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Authentication Required</h2>
+              <p className="text-yellow-600 dark:text-yellow-300 mb-4">
+                Please sign in to view your articles.
+              </p>
+              <button 
+                onClick={() => navigate('/login')}
+                className="px-4 py-2 bg-msc text-white rounded-lg hover:bg-msc-hover transition-colors"
+              >
+                Sign In
+              </button>
             </div>
           </div>
         </div>
+        <ConfirmationModal />
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="relative min-h-screen dark:bg-gray-900 py-10 px-6 bg-transparent">
-        <div className="max-w-6xl mx-auto">
-          <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-8 shadow-lg">
-            <h1 className="text-3xl font-bold text-msc dark:text-white mb-6">
-              My articles
-            </h1>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              {Array(3).fill(null).map((_, index) => (
-                <div
-                  key={`loading-${index}`}
-                  className="h-32 bg-light-blue bg-opacity-40 dark:bg-gray-700 animate-pulse rounded-xl"
-                />
-              ))}
-            </div>
-          </div>
-        </div>
+      <div className="flex items-center justify-center h-screen dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-msc"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="relative min-h-screen dark:bg-gray-900 py-10 px-6 bg-transparent">
-        <div className="max-w-6xl mx-auto">
-          <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-8 shadow-lg">
-            <h1 className="text-3xl font-bold text-msc dark:text-white mb-6">
-              My articles
-            </h1>
-            <div className="text-center py-8">
-              <p className="text-red-500 mb-4">{error}</p>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h1 className="text-4xl font-extrabold font-display text-gray-900 dark:text-white tracking-tight mb-8">My Articles</h1>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 max-w-md mx-auto">
+              <h2 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">Error Loading Articles</h2>
+              <p className="text-red-600 dark:text-red-300 mb-4">{error}</p>
               <button 
                 onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-msc text-white rounded-lg hover:bg-msc-hover transition-colors"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
                 Retry
               </button>
             </div>
           </div>
         </div>
+        <ConfirmationModal />
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen dark:bg-gray-900 py-10 px-6 bg-transparent">
-      <div className="max-w-6xl mx-auto">
-        <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-8 shadow-lg">
-        <h1 className="text-3xl font-bold text-msc dark:text-white mb-6">
-          My articles
-        </h1>
-
-        {articles.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-600 dark:text-gray-400">You haven't created any articles yet.</p>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-4xl font-bold font-display text-gray-900 dark:text-white">
+            My Articles
+          </h1>
+          <button
+            onClick={handleCreateArticle}
+            className="inline-flex items-center px-4 py-2 bg-msc text-white dark:bg-white dark:text-msc text-sm font-medium rounded-lg hover:bg-msc-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-msc transition-colors"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            Create Article
+          </button>
+        </div>
+        
+        {myArticles.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="max-w-md mx-auto">
+              <div className="text-6xl mb-4">📄</div>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No Articles Created Yet</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                You haven't created any articles yet. Start by creating your first one.
+              </p>
+              <button
+                onClick={handleCreateArticle}
+                className="inline-flex items-center px-6 py-3 bg-msc text-white dark:bg-white dark:text-msc font-medium rounded-lg hover:bg-msc-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-msc transition-colors"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                Create Your First Article
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {articles.map((article) => (
-              <ArticleCard key={article.id} article={article} />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {myArticles.map((article) => (
+              <div key={article.id || article.article_id} className="relative group">
+                <ArticleCard article={article} />
+                <button
+                  onClick={(e) => handleDeleteClick(e, article)}
+                  className="absolute top-2 right-2 p-1.5 bg-gray-200 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300 hover:bg-red-200 dark:hover:bg-red-800 hover:text-red-600 dark:hover:text-red-200 transition-colors opacity-0 group-hover:opacity-100"
+                  aria-label="Delete article"
+                >
+                  <TrashIcon className="w-5 h-5" />
+                </button>
+              </div>
             ))}
           </div>
         )}
-        </div>
       </div>
+      <ConfirmationModal />
     </div>
   );
 }

@@ -1,0 +1,112 @@
+spring:
+  application:
+    name: marimo-manager-service
+  
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/marimo_service}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        show_sql: false
+        format_sql: true
+    defer-datasource-initialization: true
+
+  flyway:
+    enabled: false
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    schemas: public
+
+  cache:
+    cache-names:
+      - components
+      - executionResults
+    caffeine:
+      spec: maximumSize=500,expireAfterAccess=30m
+
+server:
+  port: ${SERVER_PORT:8084}
+
+# gRPC Configuration
+grpc:
+  client:
+    channels:
+      python-marimo-service:
+        address: "static://${PYTHON_SERVICE_HOST:marimo-executor-service}:${PYTHON_SERVICE_PORT:9095}"
+        negotiation-type: plaintext
+      auth-service:
+        address: "static://${AUTH_SERVICE_HOST:auth-service}:${AUTH_SERVICE_PORT:9092}"
+        negotiation-type: plaintext
+      users-service:
+        address: "static://${USERS_SERVICE_HOST:users-service}:${USERS_SERVICE_PORT:9093}"
+        negotiation-type: plaintext
+      articles-service:
+        address: "static://${ARTICLES_SERVICE_HOST:articles-service}:${ARTICLES_SERVICE_PORT:50051}"
+        negotiation-type: plaintext
+      labs-service:
+        address: "static://${LABS_SERVICE_HOST:labs-service}:${LABS_SERVICE_PORT:9091}"
+        negotiation-type: plaintext
+
+
+# MinIO Configuration
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ROOT_USER:minioadmin}
+  secret-key: ${MINIO_ROOT_PASSWORD:minioadmin}
+  bucket-name: ${MINIO_BUCKET:marimo}
+
+# Marimo Service Configuration
+marimo:
+  session:
+    ttl-hours: ${SESSION_TTL_HOURS:4}
+    cleanup-interval-minutes: ${SESSION_CLEANUP_INTERVAL:15}
+    max-sessions-per-user: ${MAX_SESSIONS_PER_USER:3}
+
+  cache:
+    component-definitions:
+      ttl-hours: ${COMPONENT_CACHE_TTL:2}
+      max-size: ${COMPONENT_CACHE_SIZE:500}
+    execution-results:
+      ttl-minutes: ${EXECUTION_CACHE_TTL:15}
+      max-size: ${EXECUTION_CACHE_SIZE:1000}
+
+  python-service:
+    max-retries: ${PYTHON_SERVICE_MAX_RETRIES:3}
+    retry-delay-ms: ${PYTHON_SERVICE_RETRY_DELAY:1000}
+    timeout-seconds: ${PYTHON_SERVICE_TIMEOUT:30}
+
+# Management & Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: ${HEALTH_SHOW_DETAILS:when_authorized}
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: ${PROMETHEUS_ENABLED:true}
+    tags:
+      service: marimo-manager-service
+      environment: ${ENVIRONMENT:development}
+
+# Logging Configuration
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    olsh.backend.marimoservice: ${LOG_LEVEL_APP:INFO}
+    net.devh.boot.grpc: ${LOG_LEVEL_GRPC:INFO}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}

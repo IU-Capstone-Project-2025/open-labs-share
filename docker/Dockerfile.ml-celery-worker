@@ -1,0 +1,21 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy only what you need for Celery
+COPY ml/celery_broker ./celery_broker
+
+COPY ml/rag_backend/repositories ./rag_backend/repositories
+COPY ml/rag_backend/schemas ./rag_backend/schemas
+COPY ml/rag_backend/services/auto_grading_service.py ./rag_backend/services/auto_grading_service.py
+
+
+COPY ml/agents/*.py ./agents/
+COPY ml/agents/auto_grading_agent ./agents/auto_grading_agent
+COPY ml/agents/schemas ./agents/schemas
+
+COPY ml/groq_keys.txt ./
+
+RUN pip install --no-cache-dir qdrant-client tqdm minio groq langchain langgraph langchain-community langchain-huggingface httpx celery[redis] langchain-groq fastapi
+
+CMD ["celery", "-A", "celery_broker.worker.celery_app", "worker", "--loglevel=info"] 

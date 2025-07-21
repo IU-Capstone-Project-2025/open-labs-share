@@ -2,14 +2,17 @@ package olsh.backend.api_gateway.grpc.client;
 
 import com.google.protobuf.ByteString;
 import io.grpc.Channel;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.config.UploadFileConfiguration;
 import olsh.backend.api_gateway.exception.ArticleNotFoundException;
 import olsh.backend.api_gateway.exception.AssetUploadException;
+import olsh.backend.api_gateway.exception.GrpcError;
 import olsh.backend.api_gateway.grpc.proto.ArticleProto.*;
 import olsh.backend.api_gateway.grpc.proto.ArticleServiceGrpc;
 import org.springframework.grpc.client.GrpcChannelFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -35,6 +38,12 @@ public class ArticleServiceClient {
         this.uploadConfig = uploadConfig;
     }
 
+    /**
+     * Creates a new article via gRPC.
+     *
+     * @param request The request containing article details
+     * @return The created Article object
+     */
     public Article createArticle(CreateArticleRequest request) {
         log.debug("Calling article-service gRPC CreateArticle for title: {}", request.getTitle());
 
@@ -48,7 +57,14 @@ public class ArticleServiceClient {
         }
     }
 
-    public void uploadAsset(Long articleId, MultipartFile file) {
+    /**
+     * Uploads an asset (file) for a specific article.
+     *
+     * @param articleId The ID of the article to associate the asset with
+     * @param file      The file to upload
+     * @return The uploaded Asset object containing metadata
+     */
+    public Asset uploadAsset(Long articleId, MultipartFile file) {
         log.debug("Starting asset upload for article ID: {}, filename: {}, size: {} bytes",
                 articleId, file.getOriginalFilename(), file.getSize());
 
@@ -64,7 +80,7 @@ public class ArticleServiceClient {
 
             log.info("Successfully uploaded asset: ID={}, filename={}, size={} bytes",
                     result.getAssetId(), file.getOriginalFilename(), totalSent);
-
+            return result;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new AssetUploadException(e.getMessage());
@@ -79,6 +95,12 @@ public class ArticleServiceClient {
         }
     }
 
+    /**
+     * Creates a stream observer for uploading assets.
+     *
+     * @param future The CompletableFuture to complete with the Asset response
+     * @return The StreamObserver for handling upload requests
+     */
     private StreamObserver<UploadAssetRequest> createUploadStream(CompletableFuture<Asset> future) {
         return asyncStub.uploadAsset(new StreamObserver<Asset>() {
             @Override
@@ -100,11 +122,18 @@ public class ArticleServiceClient {
         });
     }
 
+    /**
+     * Sends metadata about the asset being uploaded.
+     *
+     * @param requestObserver The StreamObserver to send requests
+     * @param articleId       The ID of the article associated with the asset
+     * @param file            The file being uploaded
+     */
     private void sendMetadata(StreamObserver<UploadAssetRequest> requestObserver, Long articleId, MultipartFile file) {
-        AssetMetadata metadata = AssetMetadata.newBuilder()
+        UploadAssetMetadata metadata = UploadAssetMetadata.newBuilder()
                 .setArticleId(articleId)
                 .setFilename(file.getOriginalFilename())
-                .setTotalSize(file.getSize())
+                .setFilesize(file.getSize())
                 .build();
 
         UploadAssetRequest metadataRequest = UploadAssetRequest.newBuilder()
@@ -115,6 +144,14 @@ public class ArticleServiceClient {
         log.debug("Sent metadata: filename={}, size={} bytes", file.getOriginalFilename(), file.getSize());
     }
 
+    /**
+     * Streams the file content in chunks to the gRPC server.
+     *
+     * @param requestObserver The StreamObserver to send requests
+     * @param file            The file to upload
+     * @return The total number of bytes sent
+     * @throws IOException If an error occurs while reading the file
+     */
     private long streamFileContent(StreamObserver<UploadAssetRequest> requestObserver, MultipartFile file) throws IOException {
         byte[] buffer = new byte[uploadConfig.getChunkSize()];
         long totalSent = 0;
@@ -145,6 +182,13 @@ public class ArticleServiceClient {
         return totalSent;
     }
 
+    /**
+     * Retrieves an article by its ID via gRPC.
+     *
+     * @param articleId The ID of the article to retrieve
+     * @return The Article object containing details
+     * @throws ArticleNotFoundException if the article does not exist
+     */
     public Article getArticle(Long articleId) {
         log.debug("Calling gRPC GetArticle for article ID: {}", articleId);
 
@@ -167,15 +211,15 @@ public class ArticleServiceClient {
         }
     }
 
-    public ArticleList getArticles(Integer page, Integer limit) {
-        log.debug("Calling gRPC GetArticles for page: {}, limit: {}", page, limit);
-
+    /**
+     * Retrieves a paginated list of articles via gRPC.
+     *
+     * @param request The request containing pagination details
+     * @return A list of articles with pagination metadata
+     */
+    public ArticleList getArticles(GetArticlesRequest request) {
+        log.debug("Calling gRPC GetArticles for page: {}, limit: {}", request.getPageNumber(), request.getPageSize());
         try {
-            GetArticlesRequest request = GetArticlesRequest.newBuilder()
-                    .setPageNumber(page)
-                    .setPageSize(limit)
-                    .build();
-
             ArticleList response = blockingStub.getArticles(request);
             log.debug("Successfully retrieved {} articles via gRPC (total: {})",
                     response.getArticlesCount(), response.getTotalCount());
@@ -187,6 +231,32 @@ public class ArticleServiceClient {
         }
     }
 
+    /**
+     * Retrieves a list of articles by user ID via gRPC.
+     *
+     * @param request The request containing the user ID
+     * @return A list of articles authored by the specified user
+     */
+    public ArticleList getUserArticles(GetArticlesByUserIdRequest request) {
+        log.debug("Calling gRPC GetUserArticles for user ID: {}", request.getUserId());
+        try {
+            ArticleList response = blockingStub.getArticlesByUserId(request);
+            log.debug("Successfully retrieved {} user articles via gRPC (total: {})",
+                    response.getArticlesCount(), response.getTotalCount());
+            return response;
+        } catch (Exception e) {
+            log.error("Error calling GetUserArticles gRPC: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to get user articles via gRPC", e);
+        }
+    }
+
+    /**
+     * Deletes an article by its ID via gRPC.
+     *
+     * @param articleId The ID of the article to delete
+     * @return true if deletion was successful, false otherwise
+     * @throws ArticleNotFoundException if the article does not exist
+     */
     public boolean deleteArticle(Long articleId) {
         log.debug("Calling gRPC DeleteArticle for article ID: {}", articleId);
 
@@ -207,6 +277,48 @@ public class ArticleServiceClient {
             }
             log.error("Error calling DeleteArticle gRPC for ID {}: {}", articleId, e.getMessage(), e);
             throw new RuntimeException("Failed to delete article via gRPC", e);
+        }
+    }
+
+    /**
+     * Retrieves the asset associated with an article by its ID via gRPC.
+     *
+     * @param articleId The ID of the article to retrieve the asset for
+     * @return The Asset object containing metadata
+     * @throws RuntimeException if the asset cannot be retrieved
+     */
+    public Asset getAssetByArticleId(Long articleId) {
+        log.debug("Calling gRPC GetAssetByArticleId for article ID: {}", articleId);
+        try {
+            ListAssetsRequest request = ListAssetsRequest.newBuilder()
+                    .setArticleId(articleId)
+                    .build();
+            AssetList response = blockingStub.listAssets(request);
+            Asset asset = response.getAssetsList().getFirst();
+            log.debug("Successfully retrieved asset for article ID: {}", articleId);
+            return asset;
+        } catch (Exception e) {
+            log.error("Error calling GetAssetByArticleId gRPC for article ID {}: {}", articleId, e.getMessage(), e);
+            throw new RuntimeException("Failed to get asset by article ID via gRPC", e);
+        }
+    }
+
+    /**
+     * Retrieves the number of articles via gRPC.
+     *
+     * @return The number of articles
+     * @throws GrpcError if the gRPC call fails
+     */
+    public Integer articlesCount() {
+        log.debug("Calling gRPC GetArticlesCount to retrieve total article count");
+        try {
+            GetArticlesCountResponse response =
+                    blockingStub.getArticlesCount(GetArticlesCountRequest.newBuilder().build());
+            log.debug("Successfully retrieved article count: {}", response.getTotalCount());
+            return response.getTotalCount();
+        } catch (StatusRuntimeException e) {
+            log.error("Error calling GetArticlesCount gRPC: {}", e.getMessage(), e);
+            throw new GrpcError(HttpStatus.INTERNAL_SERVER_ERROR, e.getStatus().getCode().name(), e.getMessage());
         }
     }
 

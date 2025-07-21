@@ -1,66 +1,25 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import ArticleCard from "../components/ArticleCard";
-// Note: articlesAPI is currently commented out in api.js
-// This code is prepared for when articles service is connected
-// import { articlesAPI } from "../utils/api";
 
-export default function AllArticles() {
+import { articlesAPI } from "../utils/api";
+
+export default function AllArticlesPage() {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchArticles = async () => {
       try {
         setLoading(true);
-        // TODO: Replace with real API call when articles service is connected
-        // const response = await articlesAPI.getAllArticles();
-        // setArticles(response.data || []);
+        const response = await articlesAPI.getArticles(1, 100);
+        setArticles(response.articles || []);
         
-        // Temporary: Use mock data until articles service is connected
-        console.warn('Articles service not connected - using mock data');
-        const mockArticles = [
-          {
-            id: 1,
-            title: "Educational Technology Research",
-            description: "Comprehensive study on peer-to-peer learning platforms and their effectiveness in modern education",
-            author: { firstName: "Dr. Sarah", lastName: "Johnson" },
-          },
-          {
-            id: 2,
-            title: "Best Practices in Lab Design",
-            description: "Guidelines for creating engaging hands-on learning experiences with community feedback systems",
-            author: { firstName: "Prof. Michael", lastName: "Chen" },
-          },
-          {
-            id: 3,
-            title: "Microservices Architecture Patterns",
-            description: "Design patterns and best practices for building scalable distributed systems",
-            author: { firstName: "Backend", lastName: "Team" },
-          },
-          {
-            id: 4,
-            title: "Article 4: Scheduling",
-            description: "Everyday practice shows that the beginning of daily work on the formation",
-            author: { firstName: "Ryan", lastName: "Gosling" },
-          },
-          {
-            id: 5,
-            title: "Modern Frontend Development",
-            description: "Latest trends and technologies in frontend development with React and modern tooling",
-            author: { firstName: "Frontend", lastName: "Team" },
-          },
-          {
-            id: 6,
-            title: "Database Optimization Techniques",
-            description: "Advanced database optimization strategies for high-performance applications",
-            author: { firstName: "Platform", lastName: "Team" },
-          }
-        ];
-        setArticles(mockArticles);
       } catch (err) {
         console.error('Error fetching articles:', err);
-        setError('Failed to load articles');
+        setError('Failed to load articles. Please try again later.');
       } finally {
         setLoading(false);
       }
@@ -69,41 +28,30 @@ export default function AllArticles() {
     fetchArticles();
   }, []);
 
+  const handleCreateArticle = () => {
+    navigate('/create-article');
+  };
+
   if (loading) {
     return (
-      <div className="relative min-h-screen dark:bg-gray-900 py-10 px-6 bg-transparent">
-        <div className="max-w-6xl mx-auto">
-          <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-8 shadow-lg">
-            <h1 className="text-3xl font-bold text-msc dark:text-white mb-6">
-              All articles
-            </h1>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              {Array(6).fill(null).map((_, index) => (
-                <div
-                  key={`loading-${index}`}
-                  className="h-32 bg-light-blue bg-opacity-40 dark:bg-gray-700 animate-pulse rounded-xl"
-                />
-              ))}
-            </div>
-          </div>
-        </div>
+      <div className="flex items-center justify-center h-screen dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-msc"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="relative min-h-screen dark:bg-gray-900 py-10 px-6 bg-transparent">
-        <div className="max-w-6xl mx-auto">
-          <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-8 shadow-lg">
-            <h1 className="text-3xl font-bold text-msc dark:text-white mb-6">
-              All articles
-            </h1>
-            <div className="text-center py-8">
-              <p className="text-red-500 mb-4">{error}</p>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h1 className="text-4xl font-extrabold font-display text-gray-900 dark:text-white tracking-tight mb-8">All Articles</h1>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 max-w-md mx-auto">
+              <h2 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">Error Loading Articles</h2>
+              <p className="text-red-600 dark:text-red-300 mb-4">{error}</p>
               <button 
                 onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-msc text-white rounded-lg hover:bg-msc-hover transition-colors"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
                 Retry
               </button>
@@ -115,19 +63,49 @@ export default function AllArticles() {
   }
 
   return (
-    <div className="relative min-h-screen dark:bg-gray-900 py-10 px-6 bg-transparent">
-      <div className="max-w-6xl mx-auto">
-        <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl p-8 shadow-lg">
-          <h1 className="text-3xl font-bold text-msc dark:text-white mb-6">
-            All articles
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-4xl font-bold font-display text-gray-900 dark:text-white">
+            All Articles
           </h1>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          <button
+            onClick={handleCreateArticle}
+            className="inline-flex items-center px-4 py-2 bg-msc text-white dark:bg-white dark:text-msc text-sm font-medium rounded-lg hover:bg-msc-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-msc transition-colors"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Create Article
+          </button>
+        </div>
+        
+        {articles.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="max-w-md mx-auto">
+              <div className="text-6xl mb-4">📄</div>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No Articles Available</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                There are no articles to display at the moment. Why not be the first to create one?
+              </p>
+              <button
+                onClick={handleCreateArticle}
+                className="inline-flex items-center px-6 py-3 bg-msc text-white dark:bg-white dark:text-msc font-medium rounded-lg hover:bg-msc-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-msc transition-colors"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Create Your First Article
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {articles.map((article) => (
-              <ArticleCard key={article.id} article={article} />
+              <ArticleCard key={article.id || article.article_id} article={article} />
             ))}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

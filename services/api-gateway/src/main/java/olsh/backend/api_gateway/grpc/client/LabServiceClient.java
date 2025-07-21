@@ -2,14 +2,17 @@ package olsh.backend.api_gateway.grpc.client;
 
 import com.google.protobuf.ByteString;
 import io.grpc.Channel;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import olsh.backend.api_gateway.config.UploadFileConfiguration;
 import olsh.backend.api_gateway.exception.AssetUploadException;
+import olsh.backend.api_gateway.exception.GrpcError;
 import olsh.backend.api_gateway.exception.LabNotFoundException;
 import olsh.backend.api_gateway.grpc.proto.LabProto.*;
 import olsh.backend.api_gateway.grpc.proto.LabServiceGrpc;
 import org.springframework.grpc.client.GrpcChannelFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -35,18 +38,31 @@ public class LabServiceClient {
         this.uploadConfig = uploadConfig;
     }
 
+    /**
+     * Creates a new lab using the gRPC service.
+     *
+     * @param request Contains lab details like title, description, etc.
+     * @return Created Lab object with all details
+     */
     public Lab createLab(CreateLabRequest request) {
         log.debug("Calling lab-service gRPC CreateLab for title: {}", request.getTitle());
         try {
             Lab response = blockingStub.createLab(request);
             log.debug("Successfully created lab via gRPC with ID: {}", response.getLabId());
             return response;
-        } catch (Exception e) {
+        } catch (StatusRuntimeException e) {
             log.error("Error calling CreateLab gRPC: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to create lab via gRPC", e);
+            throw new GrpcError(HttpStatus.INTERNAL_SERVER_ERROR, e.getStatus().getCode().name(), e.getMessage());
         }
     }
 
+    /**
+     * Retrieves a specific lab by its ID using the gRPC service.
+     *
+     * @param labId The ID of the lab to retrieve
+     * @return Lab object with all details
+     * @throws LabNotFoundException if the lab does not exist
+     */
     public Lab getLab(Long labId) {
         log.debug("Calling gRPC GetLab for lab ID: {}", labId);
         try {
@@ -66,14 +82,15 @@ public class LabServiceClient {
         }
     }
 
-    public LabList getLabs(Integer page, Integer limit) {
-        log.debug("Calling gRPC GetLabs for page: {}, limit: {}", page, limit);
+    /**
+     * Retrieves a paginated list of labs using the gRPC service.
+     *
+     * @param request Contains pagination details like page number and size
+     * @return LabList containing the labs and total count
+     */
+    public LabList getLabs(GetLabsRequest request) {
+        log.debug("Calling gRPC GetLabs for page: {}, limit: {}", request.getPageNumber(), request.getPageSize());
         try {
-            GetLabsRequest request = GetLabsRequest.newBuilder()
-                    .setPageNumber(page)
-                    .setPageSize(limit)
-                    .build();
-
             LabList response = blockingStub.getLabs(request);
             log.debug("Successfully retrieved {} labs via gRPC (total: {})",
                     response.getLabsCount(), response.getTotalCount());
@@ -84,6 +101,32 @@ public class LabServiceClient {
         }
     }
 
+    /**
+     * Retrieves labs associated with a specific user ID using the gRPC service.
+     *
+     * @param request Contains the user ID to filter labs
+     * @return LabList containing the user's labs and total count
+     */
+    public LabList getUsersLabs(GetLabsByUserIdRequest request){
+        log.debug("Calling gRPC GetUsersLabs for user ID: {}", request.getUserId());
+        try {
+            LabList response = blockingStub.getLabsByUserId(request);
+            log.debug("Successfully retrieved {} labs for user ID: {} via gRPC (total: {})",
+                    response.getLabsCount(), request.getUserId(), response.getTotalCount());
+            return response;
+        } catch (Exception e) {
+            log.error("Error calling GetUsersLabs gRPC for user ID {}: {}", request.getUserId(), e.getMessage(), e);
+            throw new RuntimeException("Failed to get user's labs via gRPC", e);
+        }
+    }
+
+    /**
+     * Deletes a lab by its ID using the gRPC service.
+     *
+     * @param labId The ID of the lab to delete
+     * @return true if deletion was successful, false otherwise
+     * @throws LabNotFoundException if the lab does not exist
+     */
     public boolean deleteLab(Long labId) {
         log.debug("Calling gRPC DeleteLab for lab ID: {}", labId);
         try {
@@ -104,6 +147,31 @@ public class LabServiceClient {
         }
     }
 
+    /**
+     * Retrieves the number of labs using the gRPC service.
+     *
+     * @return Total number of labs
+     * @throws GrpcError if the gRPC call fails
+     */
+    public Integer labCount() {
+        log.debug("Calling gRPC GetLabsCount");
+        try {
+            GetLabsCountResponse response = blockingStub.getLabsCount(GetLabsCountRequest.newBuilder().build());
+            log.debug("Successfully retrieved lab count: {}", response.getTotalCount());
+            return response.getTotalCount();
+        } catch (StatusRuntimeException e) {
+            log.error("Error calling GetLabsCount gRPC: {}", e.getMessage(), e);
+            throw new GrpcError(HttpStatus.INTERNAL_SERVER_ERROR, e.getStatus().getCode().name(), e.getMessage());
+        }
+    }
+
+    /**
+     * Uploads an asset file to a specific lab using the gRPC service.
+     *
+     * @param labId The ID of the lab to which the asset belongs
+     * @param file  The file to upload
+     * @throws AssetUploadException if the upload fails or times out
+     */
     public void uploadAsset(Long labId, MultipartFile file) {
         log.debug("Starting asset upload for lab ID: {}, filename: {}, size: {} bytes",
                 labId, file.getOriginalFilename(), file.getSize());
@@ -134,6 +202,12 @@ public class LabServiceClient {
         }
     }
 
+    /**
+     * Creates a gRPC stream observer for uploading assets.
+     *
+     * @param future CompletableFuture to complete with the uploaded Asset
+     * @return StreamObserver for handling upload requests
+     */
     private StreamObserver<UploadAssetRequest> createUploadStream(CompletableFuture<Asset> future) {
         return asyncStub.uploadAsset(new StreamObserver<Asset>() {
             @Override
@@ -155,21 +229,34 @@ public class LabServiceClient {
         });
     }
 
+    /**
+     * Sends metadata about the asset being uploaded.
+     *
+     * @param requestObserver The StreamObserver to send requests
+     * @param labId           The ID of the lab to which the asset belongs
+     * @param file            The file being uploaded
+     */
     private void sendMetadata(StreamObserver<UploadAssetRequest> requestObserver, Long labId, MultipartFile file) {
         UploadAssetMetadata metadata = UploadAssetMetadata.newBuilder()
                 .setLabId(labId)
                 .setFilename(file.getOriginalFilename())
-                .setTotalSize(file.getSize())
+                .setFilesize(file.getSize())
                 .build();
-
         UploadAssetRequest metadataRequest = UploadAssetRequest.newBuilder()
                 .setMetadata(metadata)
                 .build();
-
         requestObserver.onNext(metadataRequest);
         log.debug("Sent metadata: filename={}, size={} bytes", file.getOriginalFilename(), file.getSize());
     }
 
+    /**
+     * Streams the file content in chunks to the gRPC service.
+     *
+     * @param requestObserver The StreamObserver to send requests
+     * @param file            The file being uploaded
+     * @return Total number of bytes sent
+     * @throws IOException if an error occurs while reading the file
+     */
     private long streamFileContent(StreamObserver<UploadAssetRequest> requestObserver, MultipartFile file) throws IOException {
         byte[] buffer = new byte[uploadConfig.getChunkSize()];
         long totalSent = 0;
@@ -191,7 +278,12 @@ public class LabServiceClient {
         return totalSent;
     }
 
-    // New methods for asset management
+    /**
+     * Lists all assets associated with a specific lab using the gRPC service.
+     *
+     * @param labId The ID of the lab for which to list assets
+     * @return AssetList containing all assets for the lab
+     */
     public AssetList listAssets(Long labId) {
         log.debug("Listing assets for lab ID: {}", labId);
         
@@ -209,6 +301,12 @@ public class LabServiceClient {
         }
     }
 
+    /**
+     * Downloads an asset by its ID using the gRPC service.
+     *
+     * @param assetId The ID of the asset to download
+     * @return Byte array containing the asset file content
+     */
     public byte[] downloadAsset(Long assetId) {
         log.debug("Downloading asset with ID: {}", assetId);
         
@@ -226,7 +324,7 @@ public class LabServiceClient {
                 DownloadAssetResponse first = responseIterator.next();
                 if (first.hasAsset()) {
                     log.debug("Asset metadata received: filename={}, size={}", 
-                        first.getAsset().getFilename(), first.getAsset().getTotalSize());
+                        first.getAsset().getFilename(), first.getAsset().getFilesize());
                 }
             }
             
@@ -247,5 +345,7 @@ public class LabServiceClient {
             throw new RuntimeException("Failed to download asset", e);
         }
     }
+
+
 }
 

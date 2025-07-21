@@ -1,17 +1,24 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/IU-Capstone-Project-2025/open-labs-share/services/feedback-service/internal/config"
 	_ "github.com/lib/pq" // PostgreSQL driver
 )
 
+const (
+	maxOpenConns    = 25
+	maxIdleConns    = 5
+	connMaxLifetime = 5 * time.Minute
+)
+
 // NewConnection creates a new database connection
-func NewConnection(cfg config.DatabaseConfig) (*sql.DB, error) {
+func NewConnection(ctx context.Context, cfg config.DatabaseConfig) (*sql.DB, error) {
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName,
@@ -23,12 +30,12 @@ func NewConnection(cfg config.DatabaseConfig) (*sql.DB, error) {
 	}
 
 	// Configure connection pool
-	db.SetMaxOpenConns(25)                 // Maximum number of open connections
-	db.SetMaxIdleConns(5)                  // Maximum number of idle connections
-	db.SetConnMaxLifetime(5 * time.Minute) // Maximum connection lifetime
+	db.SetMaxOpenConns(maxOpenConns)
+	db.SetMaxIdleConns(maxIdleConns)
+	db.SetConnMaxLifetime(connMaxLifetime)
 
 	// Test the connection
-	if err := db.Ping(); err != nil {
+	if err := db.PingContext(ctx); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
@@ -38,15 +45,22 @@ func NewConnection(cfg config.DatabaseConfig) (*sql.DB, error) {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 
-		for range ticker.C {
-			stats := db.Stats()
-			log.Printf("DB Pool Stats - Open: %d/%d, Idle: %d/%d, InUse: %d, WaitCount: %d, WaitDuration: %v",
-				stats.OpenConnections, stats.MaxOpenConnections,
-				stats.Idle, 5, // MaxIdleConns не выводится в stats, указываем константу
-				stats.InUse,
-				stats.WaitCount,
-				stats.WaitDuration,
-			)
+		for {
+			select {
+			case <-ticker.C:
+				stats := db.Stats()
+				slog.Info("DB Pool Stats",
+					"open_connections", stats.OpenConnections,
+					"max_open_connections", stats.MaxOpenConnections,
+					"idle_connections", stats.Idle,
+					"max_idle_connections", maxIdleConns,
+					"in_use", stats.InUse,
+					"wait_count", stats.WaitCount,
+					"wait_duration", stats.WaitDuration,
+				)
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 

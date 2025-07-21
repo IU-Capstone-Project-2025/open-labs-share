@@ -1,0 +1,23 @@
+# gRPC
+grpcio==1.62.0
+# We let grpcio pull in its required versions of tools and protobuf
+
+# Marimo
+marimo==0.6.22
+
+# Data & Plotting
+numpy
+pandas
+plotly
+matplotlib
+seaborn
+scikit-learn
+
+# Cloud & DB
+minio
+psycopg2-binary
+sqlalchemy
+tenacity
+
+# Utilities
+python-dotenv==1.0.1
