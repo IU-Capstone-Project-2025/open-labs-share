@@ -192,7 +192,7 @@ The service provides three main gRPC services: `LabService`, `SubmissionService`
 ### 2. **The student submits the solution:**
 - Creates a submission with text content
 - Uploads solution files via streaming upload
-- Receives grading update after teacher review
+- Receives grading update after author's review
 
 ## Technical Details
 
