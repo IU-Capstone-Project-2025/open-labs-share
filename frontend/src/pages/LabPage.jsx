@@ -19,8 +19,8 @@ const darkModeStyles = `
     color: #e5e7eb !important;
   }
   
-  /* Enhanced Code blocks dark mode */
-  pre {
+  /* Enhanced Code blocks dark mode - SCOPE TO .prose ONLY */
+  .prose pre {
     background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
     color: #e5e7eb !important;
     border: 1px solid #475569 !important;
@@ -29,7 +29,7 @@ const darkModeStyles = `
     overflow: hidden !important;
   }
   
-  pre::before {
+  .prose pre::before {
     content: '' !important;
     position: absolute !important;
     top: 0 !important;
@@ -39,7 +39,7 @@ const darkModeStyles = `
     background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899) !important;
   }
   
-  pre code {
+  .prose pre code {
     background-color: transparent !important;
     color: #e5e7eb !important;
     font-family: 'Fira Code', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace !important;
@@ -49,51 +49,51 @@ const darkModeStyles = `
   }
   
   /* Enhanced Syntax highlighting for dark mode */
-  pre .hljs-keyword { color: #fbbf24 !important; font-weight: 600 !important; }
-  pre .hljs-string { color: #10b981 !important; }
-  pre .hljs-comment { color: #6b7280 !important; font-style: italic !important; }
-  pre .hljs-number { color: #ef4444 !important; }
-  pre .hljs-function .hljs-title { color: #3b82f6 !important; }
-  pre .hljs-title.class_ { color: #8b5cf6 !important; font-weight: 600 !important; }
-  pre .hljs-built_in { color: #ec4899 !important; }
-  pre .hljs-variable { color: #e5e7eb !important; }
-  pre .hljs-operator { color: #f59e0b !important; }
-  pre .hljs-punctuation { color: #d1d5db !important; }
-  pre .hljs-property { color: #10b981 !important; }
-  pre .hljs-selector-tag { color: #fbbf24 !important; font-weight: 600 !important; }
-  pre .hljs-attr { color: #3b82f6 !important; }
-  pre .hljs-literal { color: #ef4444 !important; }
-  pre .hljs-regexp { color: #ec4899 !important; }
-  pre .hljs-type { color: #8b5cf6 !important; }
-  pre .hljs-meta { color: #6b7280 !important; }
-  pre .hljs-template-string { color: #10b981 !important; }
-  pre .hljs-subst { color: #e5e7eb !important; }
-  pre .hljs-preprocessor { color: #fbbf24 !important; }
-  pre .hljs-shebang { color: #6b7280 !important; }
-  pre .hljs-prompt { color: #10b981 !important; }
-  pre .hljs-output { color: #e5e7eb !important; }
+  .prose pre .hljs-keyword { color: #fbbf24 !important; font-weight: 600 !important; }
+  .prose pre .hljs-string { color: #10b981 !important; }
+  .prose pre .hljs-comment { color: #6b7280 !important; font-style: italic !important; }
+  .prose pre .hljs-number { color: #ef4444 !important; }
+  .prose pre .hljs-function .hljs-title { color: #3b82f6 !important; }
+  .prose pre .hljs-title.class_ { color: #8b5cf6 !important; font-weight: 600 !important; }
+  .prose pre .hljs-built_in { color: #ec4899 !important; }
+  .prose pre .hljs-variable { color: #e5e7eb !important; }
+  .prose pre .hljs-operator { color: #f59e0b !important; }
+  .prose pre .hljs-punctuation { color: #d1d5db !important; }
+  .prose pre .hljs-property { color: #10b981 !important; }
+  .prose pre .hljs-selector-tag { color: #fbbf24 !important; font-weight: 600 !important; }
+  .prose pre .hljs-attr { color: #3b82f6 !important; }
+  .prose pre .hljs-literal { color: #ef4444 !important; }
+  .prose pre .hljs-regexp { color: #ec4899 !important; }
+  .prose pre .hljs-type { color: #8b5cf6 !important; }
+  .prose pre .hljs-meta { color: #6b7280 !important; }
+  .prose pre .hljs-template-string { color: #10b981 !important; }
+  .prose pre .hljs-subst { color: #e5e7eb !important; }
+  .prose pre .hljs-preprocessor { color: #fbbf24 !important; }
+  .prose pre .hljs-shebang { color: #6b7280 !important; }
+  .prose pre .hljs-prompt { color: #10b981 !important; }
+  .prose pre .hljs-output { color: #e5e7eb !important; }
   
   /* Additional syntax elements */
-  pre .hljs-name { color: #3b82f6 !important; }
-  pre .hljs-tag { color: #fbbf24 !important; }
-  pre .hljs-attribute { color: #3b82f6 !important; }
-  pre .hljs-value { color: #10b981 !important; }
-  pre .hljs-title.function_ { color: #3b82f6 !important; }
-  pre .hljs-title.function_.invoke__ { color: #3b82f6 !important; }
-  pre .hljs-params { color: #e5e7eb !important; }
-  pre .hljs-doctag { color: #fbbf24 !important; }
-  pre .hljs-section { color: #8b5cf6 !important; font-weight: 600 !important; }
-  pre .hljs-selector-id { color: #8b5cf6 !important; }
-  pre .hljs-selector-class { color: #8b5cf6 !important; }
-  pre .hljs-selector-attr { color: #3b82f6 !important; }
-  pre .hljs-selector-pseudo { color: #fbbf24 !important; }
-  pre .hljs-addition { color: #10b981 !important; background-color: rgba(16, 185, 129, 0.1) !important; }
-  pre .hljs-deletion { color: #ef4444 !important; background-color: rgba(239, 68, 68, 0.1) !important; }
-  pre .hljs-emphasis { font-style: italic !important; }
-  pre .hljs-strong { font-weight: 600 !important; color: #fbbf24 !important; }
+  .prose pre .hljs-name { color: #3b82f6 !important; }
+  .prose pre .hljs-tag { color: #fbbf24 !important; }
+  .prose pre .hljs-attribute { color: #3b82f6 !important; }
+  .prose pre .hljs-value { color: #10b981 !important; }
+  .prose pre .hljs-title.function_ { color: #3b82f6 !important; }
+  .prose pre .hljs-title.function_.invoke__ { color: #3b82f6 !important; }
+  .prose pre .hljs-params { color: #e5e7eb !important; }
+  .prose pre .hljs-doctag { color: #fbbf24 !important; }
+  .prose pre .hljs-section { color: #8b5cf6 !important; font-weight: 600 !important; }
+  .prose pre .hljs-selector-id { color: #8b5cf6 !important; }
+  .prose pre .hljs-selector-class { color: #8b5cf6 !important; }
+  .prose pre .hljs-selector-attr { color: #3b82f6 !important; }
+  .prose pre .hljs-selector-pseudo { color: #fbbf24 !important; }
+  .prose pre .hljs-addition { color: #10b981 !important; background-color: rgba(16, 185, 129, 0.1) !important; }
+  .prose pre .hljs-deletion { color: #ef4444 !important; background-color: rgba(239, 68, 68, 0.1) !important; }
+  .prose pre .hljs-emphasis { font-style: italic !important; }
+  .prose pre .hljs-strong { font-weight: 600 !important; color: #fbbf24 !important; }
   
   /* Enhanced Inline code dark mode */
-  :not(pre) > code {
+  .prose :not(pre) > code {
     background: linear-gradient(135deg, #374151 0%, #1f2937 100%) !important;
     color: #e5e7eb !important;
     border: 1px solid #4b5563 !important;
@@ -105,33 +105,33 @@ const darkModeStyles = `
   }
   
   /* Code block hover effects */
-  pre:hover {
+  .prose pre:hover {
     box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.4), 0 4px 10px -2px rgba(0, 0, 0, 0.3) !important;
     transform: translateY(-1px) !important;
     transition: all 0.2s ease-in-out !important;
   }
   
   /* Code block scrollbar styling */
-  pre::-webkit-scrollbar {
+  .prose pre::-webkit-scrollbar {
     height: 8px !important;
   }
   
-  pre::-webkit-scrollbar-track {
+  .prose pre::-webkit-scrollbar-track {
     background: #1e293b !important;
     border-radius: 4px !important;
   }
   
-  pre::-webkit-scrollbar-thumb {
+  .prose pre::-webkit-scrollbar-thumb {
     background: #475569 !important;
     border-radius: 4px !important;
   }
   
-  pre::-webkit-scrollbar-thumb:hover {
+  .prose pre::-webkit-scrollbar-thumb:hover {
     background: #64748b !important;
   }
   
   /* Light mode overrides */
-  .light pre {
+  .light .prose pre {
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
     color: #1e293b !important;
     border: 1px solid #cbd5e1 !important;
@@ -139,60 +139,60 @@ const darkModeStyles = `
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
   }
   
-  .light pre::before {
+  .light .prose pre::before {
     background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899) !important;
   }
   
-  .light pre code {
+  .light .prose pre code {
     color: #1e293b !important;
     text-shadow: none !important;
   }
   
   /* Syntax highlighting for light mode */
-  .light pre .hljs-keyword { color: #d97706 !important; font-weight: 600 !important; }
-  .light pre .hljs-string { color: #059669 !important; }
-  .light pre .hljs-comment { color: #6b7280 !important; font-style: italic !important; }
-  .light pre .hljs-number { color: #dc2626 !important; }
-  .light pre .hljs-function .hljs-title { color: #2563eb !important; }
-  .light pre .hljs-title.class_ { color: #7c3aed !important; font-weight: 600 !important; }
-  .light pre .hljs-built_in { color: #db2777 !important; }
-  .light pre .hljs-variable { color: #1e293b !important; }
-  .light pre .hljs-operator { color: #d97706 !important; }
-  .light pre .hljs-punctuation { color: #374151 !important; }
-  .light pre .hljs-property { color: #059669 !important; }
-  .light pre .hljs-selector-tag { color: #d97706 !important; font-weight: 600 !important; }
-  .light pre .hljs-attr { color: #2563eb !important; }
-  .light pre .hljs-literal { color: #dc2626 !important; }
-  .light pre .hljs-regexp { color: #db2777 !important; }
-  .light pre .hljs-type { color: #7c3aed !important; }
-  .light pre .hljs-meta { color: #6b7280 !important; }
-  .light pre .hljs-template-string { color: #059669 !important; }
-  .light pre .hljs-subst { color: #1e293b !important; }
-  .light pre .hljs-preprocessor { color: #d97706 !important; }
-  .light pre .hljs-shebang { color: #6b7280 !important; }
-  .light pre .hljs-prompt { color: #059669 !important; }
-  .light pre .hljs-output { color: #1e293b !important; }
+  .light .prose pre .hljs-keyword { color: #d97706 !important; font-weight: 600 !important; }
+  .light .prose pre .hljs-string { color: #059669 !important; }
+  .light .prose pre .hljs-comment { color: #6b7280 !important; font-style: italic !important; }
+  .light .prose pre .hljs-number { color: #dc2626 !important; }
+  .light .prose pre .hljs-function .hljs-title { color: #2563eb !important; }
+  .light .prose pre .hljs-title.class_ { color: #7c3aed !important; font-weight: 600 !important; }
+  .light .prose pre .hljs-built_in { color: #db2777 !important; }
+  .light .prose pre .hljs-variable { color: #1e293b !important; }
+  .light .prose pre .hljs-operator { color: #d97706 !important; }
+  .light .prose pre .hljs-punctuation { color: #374151 !important; }
+  .light .prose pre .hljs-property { color: #059669 !important; }
+  .light .prose pre .hljs-selector-tag { color: #d97706 !important; font-weight: 600 !important; }
+  .light .prose pre .hljs-attr { color: #2563eb !important; }
+  .light .prose pre .hljs-literal { color: #dc2626 !important; }
+  .light .prose pre .hljs-regexp { color: #db2777 !important; }
+  .light .prose pre .hljs-type { color: #7c3aed !important; }
+  .light .prose pre .hljs-meta { color: #6b7280 !important; }
+  .light .prose pre .hljs-template-string { color: #059669 !important; }
+  .light .prose pre .hljs-subst { color: #1e293b !important; }
+  .light .prose pre .hljs-preprocessor { color: #d97706 !important; }
+  .light .prose pre .hljs-shebang { color: #6b7280 !important; }
+  .light .prose pre .hljs-prompt { color: #059669 !important; }
+  .light .prose pre .hljs-output { color: #1e293b !important; }
   
   /* Additional syntax elements for light mode */
-  .light pre .hljs-name { color: #2563eb !important; }
-  .light pre .hljs-tag { color: #d97706 !important; }
-  .light pre .hljs-attribute { color: #2563eb !important; }
-  .light pre .hljs-value { color: #059669 !important; }
-  .light pre .hljs-title.function_ { color: #2563eb !important; }
-  .light pre .hljs-title.function_.invoke__ { color: #2563eb !important; }
-  .light pre .hljs-params { color: #1e293b !important; }
-  .light pre .hljs-doctag { color: #d97706 !important; }
-  .light pre .hljs-section { color: #7c3aed !important; font-weight: 600 !important; }
-  .light pre .hljs-selector-id { color: #7c3aed !important; }
-  .light pre .hljs-selector-class { color: #7c3aed !important; }
-  .light pre .hljs-selector-attr { color: #2563eb !important; }
-  .light pre .hljs-selector-pseudo { color: #d97706 !important; }
-  .light pre .hljs-addition { color: #059669 !important; background-color: rgba(5, 150, 105, 0.1) !important; }
-  .light pre .hljs-deletion { color: #dc2626 !important; background-color: rgba(220, 38, 38, 0.1) !important; }
-  .light pre .hljs-emphasis { font-style: italic !important; }
-  .light pre .hljs-strong { font-weight: 600 !important; color: #d97706 !important; }
+  .light .prose pre .hljs-name { color: #2563eb !important; }
+  .light .prose pre .hljs-tag { color: #d97706 !important; }
+  .light .prose pre .hljs-attribute { color: #2563eb !important; }
+  .light .prose pre .hljs-value { color: #059669 !important; }
+  .light .prose pre .hljs-title.function_ { color: #2563eb !important; }
+  .light .prose pre .hljs-title.function_.invoke__ { color: #2563eb !important; }
+  .light .prose pre .hljs-params { color: #1e293b !important; }
+  .light .prose pre .hljs-doctag { color: #d97706 !important; }
+  .light .prose pre .hljs-section { color: #7c3aed !important; font-weight: 600 !important; }
+  .light .prose pre .hljs-selector-id { color: #7c3aed !important; }
+  .light .prose pre .hljs-selector-class { color: #7c3aed !important; }
+  .light .prose pre .hljs-selector-attr { color: #2563eb !important; }
+  .light .prose pre .hljs-selector-pseudo { color: #d97706 !important; }
+  .light .prose pre .hljs-addition { color: #059669 !important; background-color: rgba(5, 150, 105, 0.1) !important; }
+  .light .prose pre .hljs-deletion { color: #dc2626 !important; background-color: rgba(220, 38, 38, 0.1) !important; }
+  .light .prose pre .hljs-emphasis { font-style: italic !important; }
+  .light .prose pre .hljs-strong { font-weight: 600 !important; color: #d97706 !important; }
   
-  .light :not(pre) > code {
+  .light .prose :not(pre) > code {
     background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%) !important;
     color: #1e293b !important;
     border: 1px solid #cbd5e1 !important;
