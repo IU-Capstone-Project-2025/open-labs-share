@@ -18,20 +18,20 @@
     
 </div>
 
-## 📚 Table of Contents
+## 🧭 Table of Contents
 
-- [📚 Table of Contents](#-table-of-contents)
-- [Overview](#overview)
-- [Key Features](#key-features)
-- [Core Functionality](#core-functionality)
-- [Getting Started](#getting-started)
+- [🧭 Table of Contents](#-table-of-contents)
+- [🔭 Overview](#-overview)
+- [✨ Key Features](#-key-features)
+- [💡 Core Functionality](#-core-functionality)
+- [🚀 Getting Started](#-getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
 - [🛠️ Technology Stack](#️-technology-stack)
   - [Core Technologies](#core-technologies)
   - [Service-Specific Technologies](#service-specific-technologies)
-- [Blue/Green Deployment](#bluegreen-deployment)
-- [Documentation](#documentation)
+- [🔵🟢 Blue/Green Deployment](#-bluegreen-deployment)
+- [📖 Documentation](#-documentation)
   - [General Documentation](#general-documentation)
   - [Frontend Documentation](#frontend-documentation)
   - [Core Services Documentation](#core-services-documentation)
@@ -41,14 +41,14 @@
     - [Content Management](#content-management)
     - [AI \& Machine Learning](#ai--machine-learning)
     - [Interactive Notebooks](#interactive-notebooks)
-- [Contributing](#contributing)
-- [License](#license)
+- [🤝 Contributing](#-contributing)
+- [📜 License](#-license)
 
-## Overview
+## 🔭 Overview
 
 Open Labs Share is a collaborative learning platform that combines practical lab exercises with community feedback. It enables subject-matter-experts to create and share practical learning materials while allowing students to submit their work and receive peer reviews. The platform leverages **Marimo for interactive notebooks** along with **AI-powered assistants and code reviews**, creating a dynamic and engaging learning experience.
 
-## Key Features
+## ✨ Key Features
 
 - **Interactive Notebooks**: Create and share labs with **Marimo**, allowing for live, interactive data science and coding exercises.
 - **Rich Widget Library**: Build dynamic lab environments with a wide range of widgets, including plots, sliders, and buttons.
@@ -57,7 +57,7 @@ Open Labs Share is a collaborative learning platform that combines practical lab
 - **Content Creation & Management**: Users can create, publish, and manage their own articles and labs.
 - **Knowledge Sharing**: A collaborative space for sharing practical knowledge and expertise.
 
-## Core Functionality
+## 💡 Core Functionality
 
 - **User Accounts**: Create and manage personal user profiles.
 - **Lab Management**: Publish and manage lab materials, including interactive notebooks and assets.
@@ -65,7 +65,7 @@ Open Labs Share is a collaborative learning platform that combines practical lab
 - **Submissions & Reviews**: Submit completed work and provide structured feedback on peer submissions.
 - **Interactive Learning**: Engage with hands-on exercises and interactive tasks directly in the browser.
 
-## Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
 
@@ -111,7 +111,7 @@ Our platform is built with a modern, microservices-based architecture. Here's a 
 | **Marimo Executor** | `Python 3.12`, `gRPC` |
 | **ML Service** | `Python 3.12`, `FastAPI`, `LangChain`, `LangGraph`, `Hugging Face`, `Groq`, `Qdrant`, `PostgreSQL`, `Celery` |
 
-## Blue/Green Deployment
+## 🔵🟢 Blue/Green Deployment
 
 We use a blue/green deployment strategy to ensure zero-downtime releases. This is orchestrated using Docker Compose profiles and HAProxy.
 
@@ -122,7 +122,7 @@ To switch between environments, server updates the `ACTIVE_ENV` variable in the 
 
 You can check it now on https://open-labs-share.online
 
-## Documentation
+## 📖 Documentation
 
 For more detailed information about the project, please refer to the documentation for each service:
 
@@ -160,10 +160,10 @@ For more detailed information about the project, please refer to the documentati
 - [Marimo Manager Service Documentation](services/marimo-service/marimo-manager-service/MARIMO_MANAGER_README.md) - Session and notebook management
 - [Marimo Executor Service Documentation](services/marimo-service/marimo-executor-service/MARIMO_EXECUTOR_README.md) - Notebook execution engine
 
-## Contributing
+## 🤝 Contributing
 
 Please read [Contributing Guidelines](CONTRIBUTING.md) for details on our code of conduct and the process for submitting commits and pull requests.
 
-## License
+## 📜 License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
