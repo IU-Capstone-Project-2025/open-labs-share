@@ -39,7 +39,7 @@ This is a "cold" start of your system, which is performed once before you begin 
 
 4. **Launch Verification:**
     * **Frontend:** Open `http://localhost/` in your browser. You should see your interface.
-    * **HAProxy Stats:** Open `http://localhost:8404/` and make sure that traffic (session) is active on the `blue` backends.
+    * **HAProxy Stats:** Open `http://localhost:8404/` and make sure that traffic (session) is active on the `test` backends.
 
 ## Step 3: Cleanup
 
