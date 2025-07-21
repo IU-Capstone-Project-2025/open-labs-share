@@ -12,10 +12,7 @@
 
 ## Purpose  
 
-The **Labs** service on the **Open Labs Share** platform is the central repository of all laboratory work in the system. It provides a single point of management for educational content and access to file resources. It allows:  
-- **Teachers** to create, publish, and review lab assignments
-- **Students** to upload their solutions (submissions), receive grades and feedback
-- **Administrators** to control the quality of the content and the verification process
+The **Labs** service on the **Open Labs Share** platform is the central repository of all laboratory work in the system. It provides a single point of management for educational content and access to file resources
 
 ## Functionality 
 
@@ -211,11 +208,27 @@ The service provides three main gRPC services: `LabService`, `SubmissionService`
 - **Logging:** Python logging (built-in `logging` library)
 
 ### Service Architecture:
-- Three gRPC services in a single server:
-  - `LabService` for lab management
-  - `SubmissionService` for submission handling
-  - `TagService` for tag operations
-- Streaming support for large file uploads/downloads
+
+Labs Service is organized into several 
+
+```
+app/
+├── db/                   # Files used for database testing purposes
+├── proto/                # gRPC `.proto` files for service integration and communication
+├── services/             # Splitted python services handling labs, submissions, and tags operations
+├── utils/                # Service utilities
+├── .dockerignore         # Excludes files and directories from Docker build context
+├── .env.example          # Example of .env file with environment variables for local docker compose
+├── .gitignore            # Excludes files and directories from Git context
+├── client.py             # Example of client which calls service gRPC methods
+├── config.py             # Config file which gets environment variables values
+├── docker-compose.yml    # Docker Compose file for local build
+├── Dockerfile            # Docker service build file
+├── main.py               # Labs Service maintainer
+├── requirements.txt      # Requirements file for docker build
+└── tester.py             # Service tester using client methods to check service work correctness
+```
+
 
 ### File Storage Structure:
 ```
