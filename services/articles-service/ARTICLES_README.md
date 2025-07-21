@@ -122,8 +122,23 @@ The service provides a single gRPC service: `ArticleService`.
 - **Logging:** Python logging (built-in `logging` library)
 
 ### Service Architecture:
-- Single gRPC service: `ArticleService`
-- Streaming support for large file uploads/downloads
+
+```
+app/
+├── db/                   # Files used for database testing purposes
+├── proto/                # gRPC `.proto` files for service integration and communication
+├── utils/                # Service utilities and models
+├── .dockerignore         # Excludes files and directories from Docker build context
+├── .env.example          # Example of .env file with environment variables for local docker compose
+├── .gitignore            # Excludes files and directories from Git context
+├── client.py             # Example of client which calls service gRPC methods
+├── config.py             # Config file which gets environment variables values
+├── docker-compose.yml    # Docker Compose file for local build
+├── Dockerfile            # Docker service build file
+├── main.py               # Articles Service maintainer handling articles operations
+├── requirements.txt      # Requirements file for docker build
+└── tester.py             # Service tester using client methods to check service work correctness
+```
 
 ### File Storage Structure:
 ```
